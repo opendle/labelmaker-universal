@@ -3,9 +3,10 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
+  Bold,
   Crop,
+  Italic,
   RotateCcw,
-  Settings,
   X,
 } from "lucide-react";
 
@@ -56,16 +57,6 @@ function TextInspector({
   return (
     <div className="property-stack">
       <label className="field full">
-        <span>CONTENT</span>
-        <textarea
-          aria-label="Text content"
-          onChange={(event) =>
-            onChange({ ...element, text: event.target.value })
-          }
-          value={element.text}
-        />
-      </label>
-      <label className="field full">
         <span>TYPEFACE</span>
         <select
           aria-label="Typeface"
@@ -76,7 +67,9 @@ function TextInspector({
         >
           <option>Inter</option>
           <option>Arial</option>
+          <option>Courier New</option>
           <option>Georgia</option>
+          <option>Times New Roman</option>
         </select>
       </label>
       <div className="field-row">
@@ -87,20 +80,46 @@ function TextInspector({
           value={element.fontSizePt}
           onChange={(fontSizePt) => onChange({ ...element, fontSizePt })}
         />
-        <label className="field">
+        <div className="field">
           <span>WEIGHT</span>
-          <select
-            aria-label="Font weight"
-            onChange={(event) =>
-              onChange({ ...element, fontWeight: Number(event.target.value) })
-            }
-            value={element.fontWeight}
-          >
-            <option value="400">Regular</option>
-            <option value="600">Semi bold</option>
-            <option value="700">Bold</option>
-          </select>
-        </label>
+          <div className="text-style-buttons">
+            {[300, 400, 600, 700].map((fontWeight) => (
+              <button
+                aria-label={
+                  fontWeight === 300
+                    ? "Light"
+                    : fontWeight === 400
+                      ? "Regular"
+                      : fontWeight === 600
+                        ? "Semi bold"
+                        : "Bold"
+                }
+                className={element.fontWeight === fontWeight ? "active" : ""}
+                key={fontWeight}
+                onClick={() => onChange({ ...element, fontWeight })}
+                style={{ fontWeight }}
+                type="button"
+              >
+                {fontWeight === 700 ? <Bold size={14} /> : "A"}
+              </button>
+            ))}
+            <button
+              aria-label="Italic"
+              aria-pressed={element.fontStyle === "italic"}
+              className={element.fontStyle === "italic" ? "active" : ""}
+              onClick={() =>
+                onChange({
+                  ...element,
+                  fontStyle:
+                    element.fontStyle === "italic" ? "normal" : "italic",
+                })
+              }
+              type="button"
+            >
+              <Italic size={14} />
+            </button>
+          </div>
+        </div>
       </div>
       <div className="property-label">ALIGNMENT</div>
       <div className="segmented">
@@ -226,7 +245,7 @@ function ImageInspector({
   );
 }
 
-function PlateInspector({
+export function PlateToolbarSettings({
   plate,
   onChange,
   onTrim,
@@ -236,131 +255,121 @@ function PlateInspector({
   readonly onTrim: () => void;
 }) {
   return (
-    <div className="property-stack">
-      <div className="inspector-note">
-        Plate settings apply only to this label.
-      </div>
-      <label className="field full">
-        <span>PLATE NAME</span>
+    <div className="plate-toolbar-settings">
+      <label className="toolbar-field plate-name-field">
+        <span>NAME</span>
         <input
           aria-label="Plate name"
           onChange={(event) => onChange({ ...plate, name: event.target.value })}
           value={plate.name}
         />
       </label>
-      <div className="plate-size-row">
-        <NumberField
-          label="Plate width"
-          min={1}
-          shortLabel="WIDTH"
-          value={plate.size.widthMm}
-          onChange={(widthMm) =>
-            onChange({
-              ...plate,
-              size: { ...plate.size, widthMm: Math.max(1, widthMm) },
-            })
-          }
-        />
-        <NumberField
-          label="Plate height"
-          min={1}
-          shortLabel="HEIGHT"
-          value={plate.size.heightMm}
-          onChange={(heightMm) =>
-            onChange({
-              ...plate,
-              size: { ...plate.size, heightMm: Math.max(1, heightMm) },
-            })
-          }
-        />
-        <button
-          aria-label="Trim plate to content"
-          className="trim-button"
-          onClick={onTrim}
-          title="Trim width to content and margins"
-          type="button"
-        >
-          <Crop size={16} />
-        </button>
-      </div>
-      <fieldset className="margin-fieldset">
-        <legend>MARGINS</legend>
-        <div className="field-row">
-          <NumberField
-            label="Left margin"
-            min={0}
-            shortLabel="LEFT"
-            value={plate.margins.leftMm}
-            onChange={(leftMm) =>
+      <label className="toolbar-field width-field">
+        <span>WIDTH</span>
+        <div className="toolbar-unit-input">
+          <input
+            aria-label="Plate width"
+            min={1}
+            onChange={(event) =>
               onChange({
                 ...plate,
-                margins: { ...plate.margins, leftMm: Math.max(0, leftMm) },
+                size: {
+                  ...plate.size,
+                  widthMm: Math.max(1, Number(event.target.value)),
+                },
               })
             }
+            type="number"
+            value={Math.round(plate.size.widthMm * 10) / 10}
           />
-          <NumberField
-            label="Right margin"
-            min={0}
-            shortLabel="RIGHT"
-            value={plate.margins.rightMm}
-            onChange={(rightMm) =>
-              onChange({
-                ...plate,
-                margins: { ...plate.margins, rightMm: Math.max(0, rightMm) },
-              })
-            }
-          />
+          <b>mm</b>
+          <button
+            aria-label="Trim plate to content"
+            className="inline-trim-button"
+            onClick={onTrim}
+            title="Trim width to printed content and margins"
+            type="button"
+          >
+            <Crop size={14} />
+          </button>
         </div>
-      </fieldset>
+      </label>
+      {[
+        ["Plate height", "HEIGHT", plate.size.heightMm],
+        ["Left margin", "LEFT", plate.margins.leftMm],
+        ["Right margin", "RIGHT", plate.margins.rightMm],
+      ].map(([label, shortLabel, value]) => (
+        <label className="toolbar-field" key={label}>
+          <span>{shortLabel}</span>
+          <div className="toolbar-unit-input">
+            <input
+              aria-label={label as string}
+              min={label === "Plate height" ? 1 : 0}
+              onChange={(event) => {
+                const next = Math.max(
+                  label === "Plate height" ? 1 : 0,
+                  Number(event.target.value),
+                );
+                if (label === "Plate height") {
+                  onChange({
+                    ...plate,
+                    size: { ...plate.size, heightMm: next },
+                  });
+                } else {
+                  onChange({
+                    ...plate,
+                    margins: {
+                      ...plate.margins,
+                      [label === "Left margin" ? "leftMm" : "rightMm"]: next,
+                    },
+                  });
+                }
+              }}
+              type="number"
+              value={Math.round((value as number) * 10) / 10}
+            />
+            <b>mm</b>
+          </div>
+        </label>
+      ))}
     </div>
   );
 }
 
 export function Inspector({
-  plate,
   selectedText,
   selectedImage,
   onClearSelection,
   onUpdateText,
   onUpdateImage,
-  onUpdatePlate,
-  onTrim,
 }: {
-  readonly plate: LabelPlate;
   readonly selectedText: TextElement | undefined;
   readonly selectedImage: ImageElement | undefined;
   readonly onClearSelection: () => void;
   readonly onUpdateText: (element: TextElement) => void;
   readonly onUpdateImage: (element: ImageElement) => void;
-  readonly onUpdatePlate: (plate: LabelPlate) => void;
-  readonly onTrim: () => void;
 }) {
   return (
     <aside className="inspector">
-      <div className="inspector-header">
-        <span>{selectedText ? "Text" : selectedImage ? "Image" : "Plate"}</span>
-        {(selectedText || selectedImage) && (
-          <IconButton label="Clear selection" onClick={onClearSelection}>
-            <X size={15} />
-          </IconButton>
-        )}
-      </div>
+      {(selectedText || selectedImage) && (
+        <div className="inspector-header">
+          <span>
+            {selectedText ? "Text" : selectedImage ? "Image" : "Plate"}
+          </span>
+          {(selectedText || selectedImage) && (
+            <IconButton label="Clear selection" onClick={onClearSelection}>
+              <X size={15} />
+            </IconButton>
+          )}
+        </div>
+      )}
       {selectedText ? (
         <TextInspector element={selectedText} onChange={onUpdateText} />
       ) : selectedImage ? (
         <ImageInspector element={selectedImage} onChange={onUpdateImage} />
       ) : (
-        <PlateInspector
-          onChange={onUpdatePlate}
-          onTrim={onTrim}
-          plate={plate}
-        />
+        <div className="empty-inspector">Select an element to change it.</div>
       )}
-      <div className="inspector-plate-settings">
-        <button onClick={onClearSelection} type="button">
-          <Settings size={15} /> Plate settings
-        </button>
-      </div>
     </aside>
   );
 }

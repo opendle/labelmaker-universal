@@ -1,6 +1,7 @@
 import type {
   ImageElement,
   LabelDocument,
+  LabelElement,
   LabelPlate,
   TextElement,
 } from "@labelmaker/domain";
@@ -143,23 +144,147 @@ export function createSpecialPlate(
   };
 }
 
+export function updateElementAndFlagPeer(
+  plate: LabelPlate,
+  updated: LabelElement,
+): LabelPlate {
+  const isFlagText =
+    plate.name.startsWith("Flag ") &&
+    updated.kind === "text" &&
+    plate.elements.filter((element) => element.kind === "text").length === 2;
+  return {
+    ...plate,
+    elements: plate.elements.map((element) => {
+      if (element.id === updated.id) return updated;
+      if (!isFlagText || element.kind !== "text") return element;
+      return {
+        ...element,
+        yMm: updated.yMm,
+        widthMm: updated.widthMm,
+        heightMm: updated.heightMm,
+        rotationDeg: updated.rotationDeg,
+        text: updated.text,
+        fontFamily: updated.fontFamily,
+        fontSizePt: updated.fontSizePt,
+        fontWeight: updated.fontWeight,
+        fontStyle: updated.fontStyle ?? "normal",
+        align: updated.align,
+      };
+    }),
+  };
+}
+
+interface HorizontalBounds {
+  readonly minX: number;
+  readonly maxX: number;
+}
+
+export interface TextInkMetrics {
+  readonly advanceMm: number;
+  readonly leftMm: number;
+  readonly rightMm: number;
+  readonly heightMm: number;
+}
+
+export type TextInkMeasurer = (
+  element: TextElement,
+  line: string,
+) => TextInkMetrics;
+
+const measureTextLine: TextInkMeasurer = (element, line) => {
+  const fontSizePx = (element.fontSizePt * 96) / 72;
+  const canvas =
+    typeof globalThis.CanvasRenderingContext2D === "undefined"
+      ? undefined
+      : globalThis.document?.createElement("canvas");
+  const context = canvas?.getContext("2d");
+  if (context) {
+    context.font = `${element.fontStyle ?? "normal"} ${element.fontWeight} ${fontSizePx}px ${element.fontFamily}`;
+    const metrics = context.measureText(line || " ");
+    return {
+      advanceMm: (metrics.width * 25.4) / 96,
+      leftMm: (metrics.actualBoundingBoxLeft * 25.4) / 96,
+      rightMm: ((metrics.actualBoundingBoxRight || metrics.width) * 25.4) / 96,
+      heightMm:
+        ((metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent ||
+          fontSizePx) *
+          25.4) /
+        96,
+    };
+  }
+  return {
+    advanceMm: Math.max(0.2, line.length * element.fontSizePt * 0.19),
+    leftMm: 0,
+    rightMm: Math.max(0.2, line.length * element.fontSizePt * 0.19),
+    heightMm: (element.fontSizePt * 25.4) / 72,
+  };
+};
+
+function textInkBounds(
+  element: TextElement,
+  measure: TextInkMeasurer,
+): HorizontalBounds {
+  const lines = element.text.split("\n");
+  const measured = lines.map((line) => measure(element, line));
+  const lineHeightMm = (element.fontSizePt * 25.4) / 72;
+  const inkHeightMm = Math.max(
+    lineHeightMm,
+    lineHeightMm * (lines.length - 1) +
+      Math.max(...measured.map((line) => line.heightMm)),
+  );
+  const inkTop = element.yMm + (element.heightMm - inkHeightMm) / 2;
+  const centerX = element.xMm + element.widthMm / 2;
+  const centerY = element.yMm + element.heightMm / 2;
+  const radians = (element.rotationDeg * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const rotatedX: number[] = [];
+
+  measured.forEach((line, index) => {
+    const layoutStart =
+      element.align === "left"
+        ? element.xMm
+        : element.align === "right"
+          ? element.xMm + element.widthMm - line.advanceMm
+          : element.xMm + (element.widthMm - line.advanceMm) / 2;
+    const inkLeft = layoutStart - line.leftMm;
+    const inkRight = layoutStart + line.rightMm;
+    const top = inkTop + index * lineHeightMm;
+    const corners = [
+      [inkLeft, top],
+      [inkRight, top],
+      [inkLeft, top + line.heightMm],
+      [inkRight, top + line.heightMm],
+    ];
+    corners.forEach(([x = 0, y = 0]) => {
+      rotatedX.push(centerX + (x - centerX) * cos - (y - centerY) * sin);
+    });
+  });
+  return { minX: Math.min(...rotatedX), maxX: Math.max(...rotatedX) };
+}
+
+function elementInkBounds(
+  element: LabelElement,
+  measure: TextInkMeasurer,
+): HorizontalBounds | null {
+  if (element.kind === "text") {
+    if (!element.text.trim()) return null;
+    return textInkBounds(element, measure);
+  }
+  return null;
+}
+
 export function trimPlate(
   workspace: LabelDocument,
   plateId: string,
+  measure: TextInkMeasurer = measureTextLine,
 ): LabelDocument {
   return replacePlate(workspace, plateId, (plate) => {
     if (plate.elements.length === 0) return plate;
-    const bounds = plate.elements.map((element) => {
-      const radians = (element.rotationDeg * Math.PI) / 180;
-      const rotatedWidth =
-        Math.abs(element.widthMm * Math.cos(radians)) +
-        Math.abs(element.heightMm * Math.sin(radians));
-      const centerX = element.xMm + element.widthMm / 2;
-      return {
-        minX: centerX - rotatedWidth / 2,
-        maxX: centerX + rotatedWidth / 2,
-      };
-    });
+    const bounds = plate.elements
+      .map((element) => elementInkBounds(element, measure))
+      .filter((bound): bound is HorizontalBounds => bound !== null);
+    if (bounds.length === 0) return plate;
     const minX = Math.min(...bounds.map((bound) => bound.minX));
     const maxX = Math.max(...bounds.map((bound) => bound.maxX));
     const leftMm = Math.max(0, plate.margins.leftMm);

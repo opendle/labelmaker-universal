@@ -135,7 +135,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
 
   const newWorkspace = useCallback(async () => {
     try {
-      const result = await host.newWorkspace(state.dirty);
+      const result = await host.newWorkspace(state.dirty, state.workspace);
       if (result.status === "created") {
         dispatch({
           type: "load-workspace",
@@ -166,11 +166,11 @@ export function useLabelmakerController(host: LabelmakerHost) {
         },
       });
     }
-  }, [host, state.dirty]);
+  }, [host, state.dirty, state.workspace]);
 
   const openWorkspace = useCallback(async () => {
     try {
-      const result = await host.openWorkspace(state.dirty);
+      const result = await host.openWorkspace(state.dirty, state.workspace);
       if (result.status === "opened") {
         dispatch({
           type: "load-workspace",
@@ -201,7 +201,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
         },
       });
     }
-  }, [host, state.dirty]);
+  }, [host, state.dirty, state.workspace]);
 
   const startDiscovery = useCallback(async () => {
     dispatch({ type: "discovery-started" });

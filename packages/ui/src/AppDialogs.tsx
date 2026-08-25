@@ -1,5 +1,6 @@
 import type { LabelPlate } from "@labelmaker/domain";
 import { Bluetooth, Check, Printer, X } from "lucide-react";
+import type { CSSProperties } from "react";
 
 import { IconButton } from "./controls.js";
 import type { PrinterSummary } from "./host.js";
@@ -92,59 +93,65 @@ export function AddPrinterDialog({
 }
 
 function PreviewPlate({ plate }: { readonly plate: LabelPlate }) {
+  type PreviewStyle = CSSProperties & Record<`--${string}`, string | number>;
   return (
     <div
       className="preview-label"
-      style={{ aspectRatio: `${plate.size.widthMm}/${plate.size.heightMm}` }}
+      style={
+        {
+          "--preview-aspect-ratio": `${plate.size.widthMm}/${plate.size.heightMm}`,
+        } as PreviewStyle
+      }
     >
       {plate.elements.map((item) => {
-        const style = {
-          left: `${(item.xMm / plate.size.widthMm) * 100}%`,
-          top: `${(item.yMm / plate.size.heightMm) * 100}%`,
-          width: `${(item.widthMm / plate.size.widthMm) * 100}%`,
-          height: `${(item.heightMm / plate.size.heightMm) * 100}%`,
-          transform: `rotate(${item.rotationDeg}deg)`,
+        const style: PreviewStyle = {
+          "--preview-left": `${(item.xMm / plate.size.widthMm) * 100}%`,
+          "--preview-top": `${(item.yMm / plate.size.heightMm) * 100}%`,
+          "--preview-width": `${(item.widthMm / plate.size.widthMm) * 100}%`,
+          "--preview-height": `${(item.heightMm / plate.size.heightMm) * 100}%`,
+          "--preview-rotation": `rotate(${item.rotationDeg}deg)`,
         };
         if (item.kind === "image")
           return (
             <img
               alt=""
+              className={`fit-${item.fit}`}
               key={item.id}
               src={item.source}
-              style={{
-                ...style,
-                objectFit: item.fit === "stretch" ? "fill" : item.fit,
-              }}
+              style={style}
             />
           );
         if (item.kind === "rectangle")
           return (
             <i
               key={item.id}
-              style={{
-                ...style,
-                background: item.filled ? "#222" : "transparent",
-                border: item.filled ? 0 : `${item.strokeWidthMm}px solid #222`,
-              }}
+              style={
+                {
+                  ...style,
+                  "--preview-shape-background": item.filled
+                    ? "#222"
+                    : "transparent",
+                  "--preview-shape-border": item.filled
+                    ? "0"
+                    : `${item.strokeWidthMm}px solid #222`,
+                } as PreviewStyle
+              }
             />
           );
         if (item.kind !== "text") return null;
         return (
           <span
+            className={`preview-text align-${item.align}`}
             key={item.id}
-            style={{
-              ...style,
-              alignItems: "center",
-              display: "flex",
-              fontSize: `${item.fontSizePt}px`,
-              fontWeight: item.fontWeight,
-              justifyContent:
-                item.align === "left"
-                  ? "flex-start"
-                  : item.align === "right"
-                    ? "flex-end"
-                    : "center",
-            }}
+            style={
+              {
+                ...style,
+                "--preview-font-family": item.fontFamily,
+                "--preview-font-size": `${item.fontSizePt}px`,
+                "--preview-font-style": item.fontStyle ?? "normal",
+                "--preview-font-weight": item.fontWeight,
+              } as PreviewStyle
+            }
           >
             {item.text}
           </span>

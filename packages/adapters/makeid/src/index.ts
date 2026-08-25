@@ -28,6 +28,7 @@ import {
 } from "./transport.js";
 
 export * from "./protocol.js";
+export * from "./macos-transport.js";
 export * from "./transport.js";
 
 export const MAKEID_ADAPTER_ID = "makeid";

@@ -1,4 +1,4 @@
-import { basename } from "node:path";
+import { basename, join } from "node:path";
 
 import {
   app,
@@ -14,6 +14,10 @@ import { fileURLToPath } from "node:url";
 
 import { MockPrinterAdapter } from "@labelmaker/adapter-mock";
 import {
+  MacOsMakeIdTransportProvider,
+  MakeIdE1Adapter,
+} from "@labelmaker/adapter-makeid";
+import {
   createBlankLabelDocument,
   LABELMAKER_FILE_EXTENSION,
   LabelDocumentError,
@@ -22,16 +26,39 @@ import {
 import type { LabelDocument } from "@labelmaker/domain";
 import type {
   AdapterContext,
+  PrinterAdapter,
   PrinterDescriptor,
+  PrinterSession,
   PrinterStatus,
-  RasterPage,
 } from "@labelmaker/printing";
+import { PrinterAdapterRegistry } from "@labelmaker/printing";
 
+import { findConfiguredPrintTarget, printToSession } from "./desktop-print.js";
+import { renderPlateForPrinter } from "./plate-raster.js";
 import { validatePrintRequest } from "./print-request.js";
+import {
+  initialConfiguredPrinterIds,
+  mockPrintersEnabled,
+  readConfiguredPrinterIds,
+  writeConfiguredPrinterIds,
+} from "./printer-configuration.js";
 import { readWorkspaceFile, writeWorkspaceFile } from "./workspace-files.js";
+import {
+  replacementChoiceFromResponse,
+  resolveWorkspaceReplacement,
+} from "./workspace-replacement.js";
 
-const adapter = new MockPrinterAdapter();
-const configuredPrinterIds = new Set(["mock-studio"]);
+const registry = new PrinterAdapterRegistry();
+const includeMockPrinters = mockPrintersEnabled(
+  process.env.LABELMAKER_ENABLE_MOCK_PRINTER,
+);
+if (includeMockPrinters) registry.register(new MockPrinterAdapter());
+if (process.platform === "darwin") {
+  registry.register(new MakeIdE1Adapter(new MacOsMakeIdTransportProvider()));
+}
+let configuredPrinterIds = initialConfiguredPrinterIds([], includeMockPrinters);
+const printerSessions = new Map<string, Promise<PrinterSession>>();
+const activePrinterJobs = new Set<string>();
 const workspacePaths = new Map<number, string>();
 const context: AdapterContext = {
   log: {
@@ -51,26 +78,33 @@ function parentWindow(event: IpcMainInvokeEvent): BrowserWindow | undefined {
   return BrowserWindow.fromWebContents(event.sender) ?? undefined;
 }
 
-async function confirmDiscard(
+async function resolveUnsavedChanges(
   event: IpcMainInvokeEvent,
   hasUnsavedChanges: boolean,
-): Promise<boolean> {
-  if (!hasUnsavedChanges) return true;
-  const options: MessageBoxOptions = {
-    type: "warning" as const,
-    buttons: ["Cancel", "Discard changes"],
-    defaultId: 0,
-    cancelId: 0,
-    noLink: true,
-    title: "Unsaved workspace",
-    message: "Discard the unsaved workspace changes?",
-    detail: "This action cannot be undone.",
-  };
-  const parent = parentWindow(event);
-  const result = parent
-    ? await dialog.showMessageBox(parent, options)
-    : await dialog.showMessageBox(options);
-  return result.response === 1;
+  document: unknown,
+) {
+  return resolveWorkspaceReplacement(
+    hasUnsavedChanges,
+    document,
+    async () => {
+      const options: MessageBoxOptions = {
+        type: "warning" as const,
+        buttons: ["Save", "Discard changes", "Cancel"],
+        defaultId: 0,
+        cancelId: 2,
+        noLink: true,
+        title: "Unsaved workspace",
+        message: "Save changes to this workspace?",
+        detail: "Unsaved changes will be lost if you discard them.",
+      };
+      const parent = parentWindow(event);
+      const result = parent
+        ? await dialog.showMessageBox(parent, options)
+        : await dialog.showMessageBox(options);
+      return replacementChoiceFromResponse(result.response);
+    },
+    (currentDocument) => saveWorkspace(event, currentDocument, false),
+  );
 }
 
 function workspaceFailure(
@@ -165,31 +199,73 @@ async function saveWorkspace(
 }
 
 async function allDescriptors(): Promise<readonly PrinterDescriptor[]> {
-  return adapter.discover({ timeoutMs: 100 }, context);
+  const discovered = await Promise.all(
+    registry
+      .list()
+      .map((adapter) => adapter.discover({ timeoutMs: 5_000 }, context)),
+  );
+  return discovered.flat();
 }
 
 async function summarize(printer: PrinterDescriptor) {
-  const session = await adapter.connect(printer, context);
+  const adapter = registry.get(printer.adapterId);
+  const session = await printerSession(printer);
+  const [status, capabilities]: [
+    PrinterStatus,
+    Awaited<ReturnType<typeof session.capabilities>>,
+  ] = await Promise.all([session.status(), session.capabilities()]);
+  return {
+    id: printer.id,
+    adapterId: printer.adapterId,
+    name: printer.displayName,
+    model: printerModel(adapter, printer),
+    transport: printer.transport,
+    state: status.state,
+    statusMessage: status.message ?? status.state,
+    dpi: capabilities.dpi,
+    rasterWidthPixels: capabilities.rasterWidthPixels,
+    ...(status.batteryPercent === undefined
+      ? {}
+      : { batteryPercent: status.batteryPercent }),
+  };
+}
+
+async function printerSession(
+  printer: PrinterDescriptor,
+): Promise<PrinterSession> {
+  const existing = printerSessions.get(printer.id);
+  if (existing) return existing;
+  const pending = registry.get(printer.adapterId).connect(printer, context);
+  printerSessions.set(printer.id, pending);
   try {
-    const status: PrinterStatus = await session.status();
-    return {
-      id: printer.id,
-      adapterId: printer.adapterId,
-      name: printer.displayName,
-      model:
-        printer.id === "mock-studio"
-          ? "MakeID E1 · Mock adapter"
-          : "Universal 96 · Mock adapter",
-      transport: printer.transport,
-      state: status.state,
-      statusMessage: status.message ?? status.state,
-      ...(status.batteryPercent === undefined
-        ? {}
-        : { batteryPercent: status.batteryPercent }),
-    };
-  } finally {
-    await session.close();
+    return await pending;
+  } catch (error) {
+    printerSessions.delete(printer.id);
+    throw error;
   }
+}
+
+function discoveredSummary(printer: PrinterDescriptor) {
+  const adapter = registry.get(printer.adapterId);
+  return {
+    id: printer.id,
+    adapterId: printer.adapterId,
+    name: printer.displayName,
+    model: printerModel(adapter, printer),
+    transport: printer.transport,
+    state: "connecting" as const,
+    statusMessage: "Paired",
+  };
+}
+
+function printerModel(
+  adapter: PrinterAdapter,
+  printer: PrinterDescriptor,
+): string {
+  if (printer.adapterId === "makeid") return "MakeID E1";
+  return printer.id === "mock-studio"
+    ? "MakeID E1 · Mock adapter"
+    : `${adapter.manifest.displayName} · Mock adapter`;
 }
 
 function registerIpc(): void {
@@ -208,7 +284,11 @@ function registerIpc(): void {
     return Promise.all(
       descriptors
         .filter((item) => !configuredPrinterIds.has(item.id))
-        .map(summarize),
+        .map((printer) =>
+          printer.adapterId === "makeid"
+            ? discoveredSummary(printer)
+            : summarize(printer),
+        ),
     );
   });
 
@@ -220,22 +300,28 @@ function registerIpc(): void {
       const descriptors = await allDescriptors();
       if (!descriptors.some((item) => item.id === printerId))
         throw new Error("Printer was not found");
-      configuredPrinterIds.add(printerId);
-      return Promise.all(
+      const nextPrinterIds = new Set(configuredPrinterIds).add(printerId);
+      const summaries = await Promise.all(
         descriptors
-          .filter((item) => configuredPrinterIds.has(item.id))
+          .filter((item) => nextPrinterIds.has(item.id))
           .map(summarize),
       );
+      await writeConfiguredPrinterIds(configuredPrintersPath(), nextPrinterIds);
+      configuredPrinterIds.add(printerId);
+      return summaries;
     },
   );
 
   ipcMain.handle(
     "labelmaker:new-workspace",
-    async (event, hasUnsavedChanges: unknown) => {
+    async (event, hasUnsavedChanges: unknown, document: unknown) => {
       assertBoolean(hasUnsavedChanges, "hasUnsavedChanges");
-      if (!(await confirmDiscard(event, hasUnsavedChanges))) {
-        return { status: "canceled" as const };
-      }
+      const resolution = await resolveUnsavedChanges(
+        event,
+        hasUnsavedChanges,
+        document,
+      );
+      if (resolution.status !== "proceed") return resolution;
       workspacePaths.delete(event.sender.id);
       return {
         status: "created" as const,
@@ -246,11 +332,14 @@ function registerIpc(): void {
 
   ipcMain.handle(
     "labelmaker:open-workspace",
-    async (event, hasUnsavedChanges: unknown) => {
+    async (event, hasUnsavedChanges: unknown, document: unknown) => {
       assertBoolean(hasUnsavedChanges, "hasUnsavedChanges");
-      if (!(await confirmDiscard(event, hasUnsavedChanges))) {
-        return { status: "canceled" as const };
-      }
+      const resolution = await resolveUnsavedChanges(
+        event,
+        hasUnsavedChanges,
+        document,
+      );
+      if (resolution.status !== "proceed") return resolution;
       const options: OpenDialogOptions = {
         title: "Open workspace",
         filters: [
@@ -296,33 +385,97 @@ function registerIpc(): void {
 
   ipcMain.handle("labelmaker:print", async (_event, request: unknown) => {
     const validatedRequest = validatePrintRequest(request);
-    const descriptor = (await allDescriptors()).find(
-      (item) => item.id === validatedRequest.printerId,
+    const descriptor = findConfiguredPrintTarget(
+      await allDescriptors(),
+      configuredPrinterIds,
+      validatedRequest.printerId,
     );
-    if (!descriptor || !configuredPrinterIds.has(descriptor.id))
-      throw new Error("Configured printer was not found");
-    const session = await adapter.connect(descriptor, context);
+    if (activePrinterJobs.has(descriptor.id)) {
+      throw new Error("The printer already has an active print job");
+    }
+    activePrinterJobs.add(descriptor.id);
+    let session: PrinterSession | undefined;
     try {
-      const page: RasterPage = {
-        widthPixels: 96,
-        heightPixels: 64,
-        bytesPerRow: 12,
-        data: new Uint8Array(12 * 64),
-      };
-      await session.print({
-        id: `mock-job-${Date.now()}`,
-        printerId: descriptor.id,
-        pages: validatedRequest.plateIds.map(() => page),
-        copies: 1,
-      });
-      const count = validatedRequest.plateIds.length;
-      return {
-        message: `${count} ${count === 1 ? "label" : "labels"} sent to ${descriptor.displayName}`,
-      };
+      session = await printerSession(descriptor);
+      return await printToSession(
+        validatedRequest,
+        descriptor,
+        session,
+        (plate, target) => renderPlateForPrinter(plate, target, rasterizeSvg),
+      );
+    } catch (error) {
+      printerSessions.delete(descriptor.id);
+      await session?.close();
+      throw error;
     } finally {
-      await session.close();
+      activePrinterJobs.delete(descriptor.id);
     }
   });
+}
+
+function configuredPrintersPath(): string {
+  return join(app.getPath("userData"), "configured-printers.json");
+}
+
+async function restoreConfiguredPrinters(): Promise<void> {
+  try {
+    configuredPrinterIds = initialConfiguredPrinterIds(
+      await readConfiguredPrinterIds(configuredPrintersPath()),
+      includeMockPrinters,
+    );
+  } catch (error) {
+    context.log.warn("Saved printer configuration could not be loaded", {
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+    configuredPrinterIds = initialConfiguredPrinterIds([], includeMockPrinters);
+  }
+}
+
+async function rasterizeSvg(
+  svg: string,
+  widthPixels: number,
+  heightPixels: number,
+) {
+  const encoded = Buffer.from(svg, "utf8").toString("base64");
+  const surface = new BrowserWindow({
+    show: false,
+    width: widthPixels,
+    height: heightPixels,
+    useContentSize: true,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      offscreen: true,
+      sandbox: true,
+    },
+  });
+  try {
+    await surface.loadURL(`data:image/svg+xml;base64,${encoded}`);
+    const image = await surface.webContents.capturePage({
+      x: 0,
+      y: 0,
+      width: widthPixels,
+      height: heightPixels,
+    });
+    const resized = image.resize({
+      width: widthPixels,
+      height: heightPixels,
+      quality: "best",
+    });
+    const bitmap = resized.toBitmap();
+    if (bitmap.length !== widthPixels * heightPixels * 4) {
+      throw new Error("The label bitmap has an invalid size");
+    }
+    return {
+      widthPixels,
+      heightPixels,
+      // The SVG uses a white background and black artwork. Channel order does
+      // not change those colors at this boundary.
+      data: Uint8Array.from(bitmap),
+    };
+  } finally {
+    surface.destroy();
+  }
 }
 
 function createWindow(): void {
@@ -358,7 +511,8 @@ function createWindow(): void {
   );
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await restoreConfiguredPrinters();
   registerIpc();
   createWindow();
   app.on("activate", () => {
@@ -368,4 +522,11 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
+});
+
+app.on("before-quit", () => {
+  for (const pending of printerSessions.values()) {
+    void pending.then((session) => session.close()).catch(() => undefined);
+  }
+  printerSessions.clear();
 });

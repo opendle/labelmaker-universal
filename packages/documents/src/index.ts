@@ -124,6 +124,14 @@ function textElement(
   if (align !== "left" && align !== "center" && align !== "right") {
     fail(`${path}.align must be left, center, or right`);
   }
+  const fontStyle = value.fontStyle;
+  if (
+    fontStyle !== undefined &&
+    fontStyle !== "normal" &&
+    fontStyle !== "italic"
+  ) {
+    fail(`${path}.fontStyle must be normal or italic`);
+  }
   return {
     ...baseElement(value, path),
     kind: "text",
@@ -136,6 +144,7 @@ function textElement(
     ),
     fontSizePt: numberValue(value.fontSizePt, `${path}.fontSizePt`, 0.1, 1_000),
     fontWeight: integerValue(value.fontWeight, `${path}.fontWeight`, 1, 1_000),
+    ...(fontStyle === undefined ? {} : { fontStyle }),
     align,
   };
 }
@@ -336,6 +345,7 @@ export function createBlankLabelDocument(
             fontFamily: "Inter",
             fontSizePt: 14,
             fontWeight: 600,
+            fontStyle: "normal",
             align: "center",
           },
         ],

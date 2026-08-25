@@ -3,16 +3,19 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
 const appDirectory = resolve(import.meta.dirname, "..");
-const screenshotDirectory = resolve(
-  appDirectory,
-  "../../artifacts/screenshots",
-);
+const screenshotDirectory = process.env.LABELMAKER_SCREENSHOT_DIRECTORY
+  ? resolve(process.env.LABELMAKER_SCREENSHOT_DIRECTORY)
+  : resolve(appDirectory, "../../artifacts/screenshots");
 await mkdir(screenshotDirectory, { recursive: true });
 
 async function capture(width, height, name, setup) {
   const application = await electron.launch({
     args: ["--no-sandbox", appDirectory],
-    env: { ...process.env, LABELMAKER_WINDOW_SIZE: `${width}x${height}` },
+    env: {
+      ...process.env,
+      LABELMAKER_ENABLE_MOCK_PRINTER: "1",
+      LABELMAKER_WINDOW_SIZE: `${width}x${height}`,
+    },
   });
   try {
     const page = await application.firstWindow();
@@ -44,7 +47,7 @@ await capture(
   960,
   "labelmaker-plate-settings-1440x960.png",
   async (page) => {
-    await page.getByRole("button", { name: "Plate settings" }).click();
+    await page.getByLabel("Plate width").focus();
   },
 );
 await capture(1440, 960, "labelmaker-flag-1440x960.png", async (page) => {

@@ -19,6 +19,33 @@ describe("workspace documents", () => {
     expect(parseLabelDocument(serialized)).toEqual(document);
   });
 
+  it("accepts old text elements without a font style", () => {
+    const oldDocument = structuredClone(document) as unknown as {
+      plates: Array<{ elements: Array<Record<string, unknown>> }>;
+    };
+    delete oldDocument.plates[0]!.elements[0]!.fontStyle;
+
+    const validated = validateLabelDocument(oldDocument);
+
+    expect(validated.plates[0]!.elements[0]).not.toHaveProperty("fontStyle");
+  });
+
+  it("preserves italic text and rejects unknown font styles", () => {
+    const italicDocument = structuredClone(document) as unknown as {
+      plates: Array<{ elements: Array<Record<string, unknown>> }>;
+    };
+    italicDocument.plates[0]!.elements[0]!.fontStyle = "italic";
+    expect(
+      parseLabelDocument(serializeLabelDocument(italicDocument as never))
+        .plates[0]!.elements[0],
+    ).toMatchObject({ fontStyle: "italic" });
+
+    italicDocument.plates[0]!.elements[0]!.fontStyle = "oblique";
+    expect(() => validateLabelDocument(italicDocument)).toThrow(
+      "fontStyle must be normal or italic",
+    );
+  });
+
   it("reports the path of an invalid nested value", () => {
     const invalid = structuredClone(document) as unknown as {
       plates: Array<{ size: { widthMm: unknown } }>;

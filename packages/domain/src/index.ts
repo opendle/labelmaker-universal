@@ -29,6 +29,8 @@ export interface TextElement extends LabelElementBase {
   readonly fontFamily: string;
   readonly fontSizePt: number;
   readonly fontWeight: number;
+  /** Omitted by older schema-version 1 files; an omitted value means normal. */
+  readonly fontStyle?: "normal" | "italic";
   readonly align: "left" | "center" | "right";
 }
 

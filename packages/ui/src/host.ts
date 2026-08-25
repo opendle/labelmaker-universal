@@ -50,8 +50,14 @@ export interface LabelmakerHost {
   listPrinters(): Promise<readonly PrinterSummary[]>;
   discoverPrinters(): Promise<readonly PrinterSummary[]>;
   addPrinter(printerId: string): Promise<readonly PrinterSummary[]>;
-  newWorkspace(hasUnsavedChanges: boolean): Promise<WorkspaceLoadResult>;
-  openWorkspace(hasUnsavedChanges: boolean): Promise<WorkspaceLoadResult>;
+  newWorkspace(
+    hasUnsavedChanges: boolean,
+    document: LabelDocument,
+  ): Promise<WorkspaceLoadResult>;
+  openWorkspace(
+    hasUnsavedChanges: boolean,
+    document: LabelDocument,
+  ): Promise<WorkspaceLoadResult>;
   saveWorkspace(document: LabelDocument): Promise<WorkspaceSaveResult>;
   saveWorkspaceAs(document: LabelDocument): Promise<WorkspaceSaveResult>;
   print(request: PrintRequest): Promise<{ readonly message: string }>;

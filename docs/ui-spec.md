@@ -12,7 +12,11 @@ and excessive decoration.
 - **Top bar:** workspace name, save state, undo, redo, preview, and print.
 - **Left rail:** configured printers, add-printer action, and workspace actions.
 - **Center:** one WYSIWYG label canvas with a neutral work surface.
-- **Right inspector:** plate size or selected-element properties.
+- **Editor toolbar:** element actions on the left and always-visible plate name,
+  width, height, margins, and trim controls on the right. It spans the center
+  and inspector columns.
+- **Right inspector:** selected-element properties only. Plate settings do not
+  need a separate inspector mode or button.
 - **Bottom plate strip:** a compact row of ordered plate thumbnails and one
   large `+` plate.
 
@@ -26,14 +30,29 @@ content can collapse, but printer status and the plate strip remain reachable.
 - Select plate thumbnails.
 - Add a plate with the large `+` control.
 - Select, move, and edit a text element.
+- Edit text directly on the plate. Double-click an unselected text element, or
+  single-click a selected text element, to enter text-edit mode.
+- Preserve text line breaks on the canvas and in printed output.
+- Resize text elements from corner handles and rotate them from a separate
+  rotation handle. Elements can extend outside the plate bounds.
+- Apply a typeface, font size, light/regular/semi-bold/bold weight, italic
+  style, and alignment to selected text.
 - Change plate width and height.
 - Add a text element.
 - Add an image element. Text and image are separate actions, and both element
   types can move on the plate.
 - Set left and right plate margins, with zero as the default.
-- Trim the plate width to the content bounds plus the selected margins.
+- Trim the plate width to the rendered text ink bounds plus the selected
+  margins. The text element frame must not add blank trim space.
 - Add a flag or cable-wrap plate from the special-label actions.
+- Keep the two printed sides of a flag identical. Editing either visible side
+  updates the other side immediately, or expose only one editable source side.
 - Show unsaved state, save state, preview, and a mock print result.
+- Before New or Open replaces a changed workspace, offer Save, Discard, and
+  Cancel. A canceled or failed save must keep the changed workspace open.
+
+On macOS, use the native window controls from Electron. Do not draw a second
+set of traffic-light controls in the application header.
 
 ## Visual test sizes
 

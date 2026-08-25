@@ -1,20 +1,21 @@
 # MakeID adapter
 
-This package contains the first hardware-independent adapter for MakeID E1
-label printers. It converts canonical 96-pixel monochrome raster pages into
-MakeID `0x66` frames. It has no Bluetooth, Electron, or operating-system
-dependency.
+This package contains the MakeID E1 adapter. It converts canonical 96-pixel
+monochrome raster pages into MakeID `0x66` frames. The protocol code has no
+operating-system dependency. The macOS transport uses a small helper around
+Apple's IOBluetooth framework.
 
-The code is an unverified protocol candidate. Do not describe it as physical
-printer support until the hardware test plan below passes.
+The macOS one-label path is verified on 16 mm media in
+[`docs/hardware-tests/makeid-e1-macos-2026-08-25.md`](../../../docs/hardware-tests/makeid-e1-macos-2026-08-25.md).
+The remaining opt-in checks below are not complete.
 
 ## Package boundary
 
-`MakeIdE1Adapter` needs an injected `MakeIdTransportProvider`. A future platform
-package will use that port to:
+`MakeIdE1Adapter` needs an injected `MakeIdTransportProvider`. The macOS
+provider uses that port to:
 
-- discover Bluetooth Classic devices;
-- resolve the Serial Port Profile RFCOMM channel;
+- discover paired Bluetooth Classic devices;
+- open the E1 RFCOMM channel 1;
 - open a byte-stream connection;
 - implement bounded reads, complete writes, and close.
 
@@ -22,12 +23,37 @@ The adapter filters discovery to `YichipFPGA-*` and explicit `MakeID E1` names.
 It does not claim other MakeID models. `RecordingMakeIdTransport` supports unit
 tests and future capture comparison tools without Bluetooth hardware.
 
+The provider converts the Bluetooth address to an opaque local device ID before
+it crosses the adapter boundary. It does not include the address in normal logs
+or interface messages.
+
+## macOS hardware checks
+
+Pair the E1 in macOS Bluetooth settings first. Then run the status-only probe:
+
+```sh
+npm run hardware:probe --workspace @labelmaker/adapter-makeid
+```
+
+The probe sends only the six-byte status query. The print check is separate and
+opt-in:
+
+```sh
+npm run hardware:print --workspace @labelmaker/adapter-makeid
+```
+
+The print check sends an 80-feed-pixel label with one black dot at each corner.
+It uses the 16 mm media ID, one copy, and darkness 20. Record the observed feed
+direction, dot positions, black polarity, tape width, printer model, firmware,
+and macOS version before you change protocol constants.
+
 ## Current E1 model
 
 - 203 DPI and a 96-pixel print head.
 - 9, 12, and 16 mm continuous tape entries.
 - One-bit, most-significant-bit-first canonical input. Each input row is sent as
-  one head line. The bit order and black-bit polarity need a physical check.
+  one head line. The 16 mm hardware test confirmed the bit order and black-bit
+  polarity.
 - Up to nine copies, based on the
   [manufacturer's E1 user manual](https://makeidstore.com/pages/user-manual-download).
   The current frame asks the printer to manage copies. This behavior needs a
@@ -63,6 +89,7 @@ Current reverse-engineering assumptions are:
 | Chunk size             | 170 head lines                           | Test short and multi-frame labels                   |
 | Response fields        | flags at byte 4, state at byte 35        | Capture ready, busy, paused, and error states       |
 | Final control state    | `0x03`                                   | Determine whether it means finish, reset, or cancel |
+| RFCOMM channel         | `1`                                      | Confirm against a successful macOS connection       |
 
 ## Hardware test plan
 

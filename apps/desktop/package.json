@@ -9,14 +9,17 @@
     "build:renderer": "vite build",
     "build:main": "tsc --project tsconfig.main.json",
     "dev": "npm run build && electron .",
-    "screenshot": "npm run build && xvfb-run -a -s \"-screen 0 1920x1080x24\" node scripts/capture-screenshots.mjs",
+    "hardware:print": "npm run build && node scripts/hardware-print.mjs",
+    "screenshot": "npm run build && node scripts/run-screenshots.mjs",
     "typecheck": "tsc --project tsconfig.main.json --pretty false && tsc --project tsconfig.renderer.json --pretty false"
   },
   "dependencies": {
+    "@labelmaker/adapter-makeid": "0.0.0",
     "@labelmaker/adapter-mock": "0.0.0",
     "@labelmaker/domain": "0.0.0",
     "@labelmaker/documents": "0.0.0",
     "@labelmaker/printing": "0.0.0",
+    "@labelmaker/rendering": "0.0.0",
     "@labelmaker/ui": "0.0.0",
     "react": "19.1.1",
     "react-dom": "19.1.1"

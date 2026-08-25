@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { PointerEvent, ReactNode } from "react";
 
 export function IconButton({
   label,
@@ -28,13 +28,34 @@ export function IconButton({
   );
 }
 
-export function SelectionHandles() {
+export function SelectionHandles({
+  onResizeStart,
+  onRotateStart,
+}: {
+  readonly onResizeStart: (
+    corner: "nw" | "ne" | "sw" | "se",
+    event: PointerEvent<HTMLButtonElement>,
+  ) => void;
+  readonly onRotateStart: (event: PointerEvent<HTMLButtonElement>) => void;
+}) {
   return (
     <>
-      <i className="handle nw" />
-      <i className="handle ne" />
-      <i className="handle sw" />
-      <i className="handle se" />
+      <span aria-hidden="true" className="rotation-stem" />
+      <button
+        aria-label="Rotate text block"
+        className="handle rotate"
+        onPointerDown={onRotateStart}
+        type="button"
+      />
+      {(["nw", "ne", "sw", "se"] as const).map((corner) => (
+        <button
+          aria-label={`Resize text block ${corner}`}
+          className={`handle ${corner}`}
+          key={corner}
+          onPointerDown={(event) => onResizeStart(corner, event)}
+          type="button"
+        />
+      ))}
     </>
   );
 }

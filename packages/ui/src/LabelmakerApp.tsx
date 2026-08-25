@@ -5,7 +5,7 @@ import { AddPrinterDialog, PreviewDialog } from "./AppDialogs.js";
 import { AppHeader } from "./AppHeader.js";
 import { replaceElement, replacePlate } from "./app-state.js";
 import { EditorCanvas } from "./EditorCanvas.js";
-import { trimPlate } from "./editor-operations.js";
+import { trimPlate, updateElementAndFlagPeer } from "./editor-operations.js";
 import type { LabelmakerHost } from "./host.js";
 import { Inspector } from "./Inspector.js";
 import { LeftRail } from "./LeftRail.js";
@@ -71,18 +71,25 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             onAddImage={controller.addImage}
             onAddSpecial={controller.addSpecial}
             onAddText={controller.addText}
-            onMoveElement={(id, xMm, yMm) =>
+            onChangeElement={(element) =>
               controller.editWorkspace(
-                replaceElement(
-                  state.workspace,
-                  activePlate.id,
-                  id,
-                  (element) => ({ ...element, xMm, yMm }),
+                replacePlate(state.workspace, activePlate.id, (plate) =>
+                  updateElementAndFlagPeer(plate, element),
                 ),
               )
             }
             onSelectElement={(elementId) =>
               dispatch({ type: "select-element", elementId })
+            }
+            onTrim={() =>
+              controller.editWorkspace(
+                trimPlate(state.workspace, activePlate.id),
+              )
+            }
+            onUpdatePlate={(plate) =>
+              controller.editWorkspace(
+                replacePlate(state.workspace, activePlate.id, () => plate),
+              )
             }
             onZoom={(zoom) => dispatch({ type: "set-zoom", zoom })}
             plate={activePlate}
@@ -92,11 +99,6 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
           <Inspector
             onClearSelection={() =>
               dispatch({ type: "select-element", elementId: null })
-            }
-            onTrim={() =>
-              controller.editWorkspace(
-                trimPlate(state.workspace, activePlate.id),
-              )
             }
             onUpdateImage={(image) =>
               controller.editWorkspace(
@@ -108,22 +110,13 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
                 ),
               )
             }
-            onUpdatePlate={(plate) =>
-              controller.editWorkspace(
-                replacePlate(state.workspace, activePlate.id, () => plate),
-              )
-            }
             onUpdateText={(text) =>
               controller.editWorkspace(
-                replaceElement(
-                  state.workspace,
-                  activePlate.id,
-                  text.id,
-                  () => text,
+                replacePlate(state.workspace, activePlate.id, (plate) =>
+                  updateElementAndFlagPeer(plate, text),
                 ),
               )
             }
-            plate={activePlate}
             selectedImage={selectedImage}
             selectedText={selectedText}
           />

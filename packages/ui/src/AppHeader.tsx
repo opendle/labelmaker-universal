@@ -93,15 +93,10 @@ export function AppHeader({
 
   return (
     <header className="titlebar">
-      {platform === "macos" ? (
-        <div className="traffic-lights" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
-      ) : (
-        <div aria-hidden="true" className="window-drag-spacer" />
-      )}
+      <div
+        aria-hidden="true"
+        className={`window-drag-spacer ${platform === "macos" ? "macos" : ""}`}
+      />
       <div className="document-identity">
         <span className="document-name">{workspaceName}</span>
         <span

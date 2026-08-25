@@ -90,7 +90,8 @@ describe("LabelmakerApp", () => {
     await user.click(screen.getByRole("button", { name: "Add plate" }));
 
     expect(screen.getByText("4 labels")).toBeInTheDocument();
-    expect(screen.getAllByText("Plate 4")).toHaveLength(2);
+    expect(screen.getByLabelText("Plate name")).toHaveValue("Plate 4");
+    expect(screen.getByText("Plate 4")).toBeInTheDocument();
     expect(screen.getByText("Edited")).toBeInTheDocument();
   });
 
@@ -99,9 +100,12 @@ describe("LabelmakerApp", () => {
     const user = userEvent.setup();
     render(<LabelmakerApp host={host} />);
 
-    const content = screen.getByRole("textbox", { name: "Text content" });
-    await user.clear(content);
-    await user.type(content, "FASTENERS");
+    await user.click(
+      screen.getByRole("button", { name: "Text element: RESISTORS" }),
+    );
+    const content = screen.getByRole("textbox", { name: "Edit text on label" });
+    fireEvent.change(content, { target: { value: "FASTENERS" } });
+    fireEvent.blur(content);
     expect(
       screen.getByLabelText("Text element: FASTENERS"),
     ).toBeInTheDocument();
@@ -113,6 +117,58 @@ describe("LabelmakerApp", () => {
     );
   });
 
+  it("edits multiline text on the label and applies visible text styles", async () => {
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Text element: RESISTORS" }),
+    );
+    const editor = screen.getByRole("textbox", { name: "Edit text on label" });
+    fireEvent.change(editor, { target: { value: "LINE 1\nLINE 2" } });
+    fireEvent.blur(editor);
+
+    const element = screen.getByRole("button", {
+      name: "Text element: LINE 1\nLINE 2",
+    });
+    const elementFrame = element.closest<HTMLElement>(".canvas-element")!;
+    expect(editor).toHaveClass("inline-text-editor");
+    expect(editor).toHaveValue("LINE 1\nLINE 2");
+    await user.selectOptions(screen.getByLabelText("Typeface"), "Georgia");
+    expect(elementFrame.style.getPropertyValue("--element-font-family")).toBe(
+      "Georgia",
+    );
+    await user.click(screen.getByRole("button", { name: "Italic" }));
+    expect(elementFrame.style.getPropertyValue("--element-font-style")).toBe(
+      "italic",
+    );
+    await user.click(screen.getByRole("button", { name: "Regular" }));
+    expect(elementFrame.style.getPropertyValue("--element-font-weight")).toBe(
+      "400",
+    );
+  });
+
+  it("passes the dirty document to the new-workspace prompt", async () => {
+    const newWorkspace = vi.fn().mockResolvedValue({ status: "canceled" });
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost({ newWorkspace })} />);
+
+    const leftMargin = screen.getByLabelText("Left margin");
+    await user.clear(leftMargin);
+    await user.type(leftMargin, "2");
+    await user.click(screen.getByRole("button", { name: "New workspace" }));
+
+    await waitFor(() => expect(newWorkspace).toHaveBeenCalledOnce());
+    expect(newWorkspace).toHaveBeenCalledWith(
+      true,
+      expect.objectContaining({
+        plates: expect.arrayContaining([
+          expect.objectContaining({ margins: { leftMm: 2, rightMm: 0 } }),
+        ]),
+      }),
+    );
+  });
+
   it("creates a new workspace through the host", async () => {
     const host = createHost();
     const user = userEvent.setup();
@@ -120,7 +176,9 @@ describe("LabelmakerApp", () => {
 
     await user.click(screen.getByRole("button", { name: "New workspace" }));
 
-    await waitFor(() => expect(host.newWorkspace).toHaveBeenCalledWith(false));
+    await waitFor(() =>
+      expect(host.newWorkspace).toHaveBeenCalledWith(false, sampleDocument),
+    );
     expect(screen.getByText("Untitled workspace")).toBeInTheDocument();
     expect(screen.getByText("Not saved")).toBeInTheDocument();
   });
@@ -132,7 +190,9 @@ describe("LabelmakerApp", () => {
 
     await user.click(screen.getByRole("button", { name: "Open workspace…" }));
 
-    await waitFor(() => expect(host.openWorkspace).toHaveBeenCalledWith(false));
+    await waitFor(() =>
+      expect(host.openWorkspace).toHaveBeenCalledWith(false, sampleDocument),
+    );
     expect(screen.getByText("Opened workspace")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(
       "Opened opened.labelmaker.json",
@@ -187,7 +247,6 @@ describe("LabelmakerApp", () => {
     const user = userEvent.setup();
     render(<LabelmakerApp host={createHost()} />);
 
-    await user.click(screen.getByRole("button", { name: "Plate settings" }));
     const leftMargin = screen.getByLabelText("Left margin");
     const rightMargin = screen.getByLabelText("Right margin");
     expect(leftMargin).toHaveValue(0);
@@ -201,11 +260,11 @@ describe("LabelmakerApp", () => {
       screen.getByRole("button", { name: "Trim plate to content" }),
     );
 
-    expect(screen.getByLabelText("Plate width")).toHaveValue(59);
+    expect(screen.getByLabelText("Plate width")).toHaveValue(35.8);
     await user.click(
       screen.getByRole("button", { name: "Text element: RESISTORS" }),
     );
-    expect(screen.getByLabelText("X position")).toHaveValue(2);
+    expect(screen.getByLabelText("X position")).toHaveValue(-9.6);
   });
 
   it("adds a ready-to-edit flag plate", async () => {
@@ -215,9 +274,20 @@ describe("LabelmakerApp", () => {
     await user.click(screen.getByRole("button", { name: "Flag" }));
 
     expect(screen.getByText("4 labels")).toBeInTheDocument();
-    expect(screen.getAllByText("Flag 4")).toHaveLength(2);
+    expect(screen.getByLabelText("Plate name")).toHaveValue("Flag 4");
+    expect(screen.getByText("Flag 4")).toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: "Text element: CABLE" }),
+    ).toHaveLength(2);
+
+    await user.click(
+      screen.getAllByRole("button", { name: "Text element: CABLE" })[0]!,
+    );
+    const editor = screen.getByRole("textbox", { name: "Edit text on label" });
+    fireEvent.change(editor, { target: { value: "SIGNAL" } });
+    fireEvent.blur(editor);
+    expect(
+      screen.getAllByRole("button", { name: "Text element: SIGNAL" }),
     ).toHaveLength(2);
   });
 
@@ -228,7 +298,8 @@ describe("LabelmakerApp", () => {
     await user.click(screen.getByRole("button", { name: "Wrap" }));
 
     expect(screen.getByText("4 labels")).toBeInTheDocument();
-    expect(screen.getAllByText("Cable wrap 4")).toHaveLength(2);
+    expect(screen.getByLabelText("Plate name")).toHaveValue("Cable wrap 4");
+    expect(screen.getByText("Cable wrap 4")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Text element: CABLE" }),
     ).toBeInTheDocument();
@@ -320,6 +391,7 @@ describe("LabelmakerApp", () => {
     const element = screen.getByRole("button", {
       name: "Text element: RESISTORS",
     });
+    await user.click(screen.getByRole("button", { name: "Clear selection" }));
     await user.click(element);
     expect(screen.getByLabelText("X position")).toHaveValue(4);
     await user.keyboard("{ArrowRight}");
@@ -332,7 +404,7 @@ describe("LabelmakerApp", () => {
       name: "Text element: RESISTORS",
     });
     vi.spyOn(
-      element.parentElement as HTMLElement,
+      screen.getByRole("region", { name: "Resistors label canvas" }),
       "getBoundingClientRect",
     ).mockReturnValue({
       bottom: 180,
@@ -359,6 +431,60 @@ describe("LabelmakerApp", () => {
     fireEvent(window, pointerEvent("pointerup", 31, 10));
     expect(screen.getByLabelText("X position")).toHaveValue(7.1);
     expect(screen.getByLabelText("Y position")).toHaveValue(5.2);
+  });
+
+  it("resizes text with handles and allows keyboard overflow", async () => {
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+    const canvas = screen.getByRole("region", {
+      name: "Resistors label canvas",
+    });
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      bottom: 180,
+      height: 180,
+      left: 0,
+      right: 620,
+      top: 0,
+      width: 620,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    const pointerEvent = (type: string, clientX: number, clientY: number) => {
+      const event = new Event(type, { bubbles: true });
+      Object.defineProperties(event, {
+        button: { value: 0 },
+        clientX: { value: clientX },
+        clientY: { value: clientY },
+        pointerId: { value: 1 },
+      });
+      return event;
+    };
+    fireEvent(
+      screen.getByRole("button", { name: "Resize text block se" }),
+      pointerEvent("pointerdown", 0, 0),
+    );
+    fireEvent(window, pointerEvent("pointermove", 62, 18));
+    fireEvent(window, pointerEvent("pointerup", 62, 18));
+    expect(
+      Number.parseFloat(
+        screen
+          .getByRole("button", { name: "Text element: RESISTORS" })
+          .closest<HTMLElement>(".canvas-element")!
+          .style.getPropertyValue("--element-width"),
+      ),
+    ).toBeGreaterThan(90);
+
+    await user.click(screen.getByRole("button", { name: "Clear selection" }));
+    let element = screen.getByRole("button", {
+      name: "Text element: RESISTORS",
+    });
+    await user.click(element);
+    for (let index = 0; index < 5; index += 1) {
+      element = screen.getByRole("button", { name: "Text element: RESISTORS" });
+      fireEvent.keyDown(element, { key: "ArrowLeft", shiftKey: true });
+    }
+    expect(screen.getByLabelText("X position")).toHaveValue(-1);
   });
 
   it("traps modal focus, closes with Escape, and returns focus", async () => {
@@ -549,7 +675,9 @@ describe("LabelmakerApp", () => {
     const macView = render(
       <LabelmakerApp host={createHost({ platform: "macos" })} />,
     );
-    expect(macView.container.querySelector(".traffic-lights")).not.toBeNull();
-    expect(macView.container.querySelector(".window-drag-spacer")).toBeNull();
+    expect(macView.container.querySelector(".traffic-lights")).toBeNull();
+    expect(
+      macView.container.querySelector(".window-drag-spacer.macos"),
+    ).not.toBeNull();
   });
 });

@@ -6,7 +6,9 @@
   "exports": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc --build",
+    "build": "tsc --build && node scripts/build-macos-helper.mjs",
+    "hardware:probe": "npm run build && node scripts/hardware-smoke.mjs --probe",
+    "hardware:print": "npm run build && node scripts/hardware-smoke.mjs --print",
     "typecheck": "tsc --build --pretty false"
   },
   "dependencies": {

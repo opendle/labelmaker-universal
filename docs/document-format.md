@@ -45,6 +45,7 @@ renderer.
           "fontFamily": "Inter",
           "fontSizePt": 12,
           "fontWeight": 600,
+          "fontStyle": "normal",
           "align": "center"
         }
       ]
@@ -58,3 +59,6 @@ them. The loader must still reject unknown schema versions and invalid values.
 
 Plate margins are part of the saved document. They define the horizontal space
 that the trim-to-content action keeps before and after printed elements.
+
+`fontStyle` can be `normal` or `italic`. It is optional in schema version 1 for
+compatibility with older workspace files. An omitted value means `normal`.

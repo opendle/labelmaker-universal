@@ -24,15 +24,16 @@
 - [x] Undo and redo history.
 - [x] Deterministic millimeter-to-pixel raster primitives.
 - [x] Image elements.
-- [ ] Connect the editor renderer to preview and print jobs.
+- [x] Connect the editor renderer to print jobs.
+- [ ] Connect the editor renderer to the monochrome preview.
 - [ ] Add print-preview raster parity tests.
 
 ## Milestone 3 — MakeID E1 proof
 
-- [ ] macOS RFCOMM transport spike on the physical printer.
+- [x] Verify the macOS RFCOMM transport on the physical MakeID E1 printer.
 - [x] Clean-room MakeID protocol candidates, fixtures, and tests.
 - [x] Hardware-independent status, cancellation, and retry flow.
-- [ ] One-label proof on a physical MakeID E1.
+- [x] One-label proof on a physical MakeID E1.
 - [ ] Linux transport proof for a nearby local bridge.
 
 ## Milestone 4 — distributable application
