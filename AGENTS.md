@@ -70,5 +70,4 @@ Use the `labelmaker-desktop-ui` skill for editor or desktop UI work. Use the
   contains the integrated task changes and push it to the `main` branch.
 - Do not commit partial work while another agent still changes the shared
   worktree.
-- Never disable or bypass commit signing. Ask the repository owner to touch the
-  YubiKey when the signing operation is ready.
+- Never disable or bypass commit signing.
