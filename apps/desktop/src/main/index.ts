@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
 import {
@@ -8,7 +7,6 @@ import {
   ipcMain,
   type IpcMainInvokeEvent,
   type MessageBoxOptions,
-  type NativeImage,
   type OpenDialogOptions,
   type SaveDialogOptions,
 } from "electron";
@@ -36,6 +34,7 @@ import type {
 import { PrinterAdapterRegistry } from "@labelmaker/printing";
 
 import { findConfiguredPrintTarget, printToSession } from "./desktop-print.js";
+import { installAppIcon } from "./app-icon.js";
 import { renderPlateForPrinter } from "./plate-raster.js";
 import { validatePrintRequest } from "./print-request.js";
 import {
@@ -553,40 +552,7 @@ async function rasterizeSvg(
   }
 }
 
-async function renderAppIcon(): Promise<NativeImage> {
-  const iconPath = fileURLToPath(
-    new URL("../renderer/app-icon.svg", import.meta.url),
-  );
-  const svg = readFileSync(iconPath).toString("base64");
-  const surface = new BrowserWindow({
-    show: false,
-    width: 512,
-    height: 512,
-    useContentSize: true,
-    transparent: true,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      offscreen: true,
-      sandbox: true,
-    },
-  });
-  try {
-    await surface.loadURL(`data:image/svg+xml;base64,${svg}`);
-    const icon = await surface.webContents.capturePage({
-      x: 0,
-      y: 0,
-      width: 512,
-      height: 512,
-    });
-    if (icon.isEmpty()) throw new Error("The app icon could not be rendered");
-    return icon;
-  } finally {
-    surface.destroy();
-  }
-}
-
-function createWindow(icon?: NativeImage): BrowserWindow {
+function createWindow(): void {
   const requestedSize =
     process.env.LABELMAKER_WINDOW_SIZE?.split("x").map(Number);
   const width = requestedSize?.[0] ?? 1440;
@@ -599,7 +565,6 @@ function createWindow(icon?: NativeImage): BrowserWindow {
     show: false,
     backgroundColor: "#efeee9",
     title: "Labelmaker Universal",
-    ...(icon ? { icon } : {}),
     ...(process.platform === "darwin"
       ? { titleBarStyle: "hiddenInset" as const }
       : {}),
@@ -611,6 +576,9 @@ function createWindow(icon?: NativeImage): BrowserWindow {
     },
   });
   const webContentsId = window.webContents.id;
+  void installAppIcon(window).catch((error: unknown) => {
+    console.error("Could not install the app icon", error);
+  });
   window.webContents.once("destroyed", () => {
     workspacePaths.delete(webContentsId);
   });
@@ -618,7 +586,6 @@ function createWindow(icon?: NativeImage): BrowserWindow {
   void window.loadFile(
     fileURLToPath(new URL("../renderer/index.html", import.meta.url)),
   );
-  return window;
 }
 
 if (!hasSingleInstanceLock) {
@@ -635,12 +602,9 @@ if (!hasSingleInstanceLock) {
   app.whenReady().then(async () => {
     await restoreConfiguredPrinters();
     registerIpc();
-    const window = createWindow();
-    const icon = await renderAppIcon();
-    window.setIcon(icon);
-    if (process.platform === "darwin" && app.dock) app.dock.setIcon(icon);
+    createWindow();
     app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow(icon);
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
   });
 
