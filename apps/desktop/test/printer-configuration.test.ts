@@ -41,6 +41,24 @@ describe("desktop printer configuration", () => {
     expect(await readFile(filePath, "utf8")).not.toContain("mock-studio");
   });
 
+  it("persists removing one printer without removing the other configured printers", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const filePath = join(directory, "configured-printers.json");
+    const first = "makeid:macos-bt-first";
+    const second = "makeid:macos-bt-second";
+
+    await writeConfiguredPrinterIds(filePath, [first, second]);
+    await writeConfiguredPrinterIds(filePath, [second]);
+
+    expect(await readConfiguredPrinterIds(filePath)).toEqual([second]);
+    expect(
+      initialConfiguredPrinterIds(
+        await readConfiguredPrinterIds(filePath),
+        false,
+      ),
+    ).toEqual(new Set([second]));
+  });
+
   it("rejects corrupt stored printer data", async () => {
     const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
     const filePath = join(directory, "configured-printers.json");

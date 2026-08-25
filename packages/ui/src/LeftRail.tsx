@@ -1,12 +1,11 @@
 import {
   Check,
-  CircleHelp,
   FilePlus2,
   FolderOpen,
   Plus,
   Printer,
   Save,
-  Settings,
+  Trash2,
 } from "lucide-react";
 
 import { IconButton } from "./controls.js";
@@ -24,6 +23,7 @@ export function LeftRail({
   onNew,
   onOpen,
   onSaveAs,
+  onRemovePrinter,
 }: {
   readonly printers: readonly PrinterSummary[];
   readonly activePrinterId: string;
@@ -32,37 +32,44 @@ export function LeftRail({
   readonly onNew: () => void;
   readonly onOpen: () => void;
   readonly onSaveAs: () => void;
+  readonly onRemovePrinter?: (id: string) => void;
 }) {
   return (
     <aside className="left-rail">
       <section className="rail-section printers-section">
         <div className="section-heading">
           <span>PRINTERS</span>
-          <IconButton label="Printer settings">
-            <Settings size={15} />
-          </IconButton>
         </div>
         <div className="printer-list">
           {printers.map((printer) => (
-            <button
-              className={`printer-item ${printer.id === activePrinterId ? "selected" : ""}`}
-              key={printer.id}
-              onClick={() => onSelectPrinter(printer.id)}
-              type="button"
-            >
-              <span className="printer-icon">
-                <Printer size={19} />
-              </span>
-              <span className="printer-copy">
-                <strong>{printer.name}</strong>
-                <small>
-                  <StatusDot state={printer.state} /> {printer.statusMessage}
-                </small>
-              </span>
-              {printer.id === activePrinterId && (
-                <Check className="selected-check" size={16} />
+            <div className="printer-row" key={printer.id}>
+              <button
+                className={`printer-item ${printer.id === activePrinterId ? "selected" : ""}`}
+                onClick={() => onSelectPrinter(printer.id)}
+                type="button"
+              >
+                <span className="printer-icon">
+                  <Printer size={19} />
+                </span>
+                <span className="printer-copy">
+                  <strong>{printer.name}</strong>
+                  <small>
+                    <StatusDot state={printer.state} /> {printer.statusMessage}
+                  </small>
+                </span>
+                {printer.id === activePrinterId && (
+                  <Check className="selected-check" size={16} />
+                )}
+              </button>
+              {onRemovePrinter && (
+                <IconButton
+                  label={`Remove ${printer.name}`}
+                  onClick={() => onRemovePrinter(printer.id)}
+                >
+                  <Trash2 size={14} />
+                </IconButton>
               )}
-            </button>
+            </div>
           ))}
         </div>
         <button className="add-printer" onClick={onAddPrinter} type="button">
@@ -83,9 +90,6 @@ export function LeftRail({
           <Save size={17} /> Save workspace as…
         </button>
       </section>
-      <div className="rail-footer">
-        <CircleHelp size={16} /> Help & shortcuts
-      </div>
     </aside>
   );
 }

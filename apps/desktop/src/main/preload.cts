@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld("labelmakerHost", {
   discoverPrinters: () => ipcRenderer.invoke("labelmaker:discover-printers"),
   addPrinter: (printerId: string) =>
     ipcRenderer.invoke("labelmaker:add-printer", printerId),
+  removePrinter: (printerId: string) =>
+    ipcRenderer.invoke("labelmaker:remove-printer", printerId),
   newWorkspace: (hasUnsavedChanges: boolean, document: unknown) =>
     ipcRenderer.invoke("labelmaker:new-workspace", hasUnsavedChanges, document),
   openWorkspace: (hasUnsavedChanges: boolean, document: unknown) =>

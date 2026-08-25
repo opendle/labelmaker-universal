@@ -62,6 +62,9 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             onNew={() => void controller.newWorkspace()}
             onOpen={() => void controller.openWorkspace()}
             onSaveAs={() => void controller.save(true)}
+            onRemovePrinter={(printerId) =>
+              void controller.removePrinter(printerId)
+            }
             onSelectPrinter={(printerId) =>
               dispatch({ type: "set-active-printer", printerId })
             }

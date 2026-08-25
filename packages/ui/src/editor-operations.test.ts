@@ -1,7 +1,11 @@
 import type { LabelDocument } from "@labelmaker/domain";
 import { describe, expect, it } from "vitest";
 
-import { trimPlate, type TextInkMeasurer } from "./editor-operations.js";
+import {
+  toggleFlagPlate,
+  trimPlate,
+  type TextInkMeasurer,
+} from "./editor-operations.js";
 
 const measure: TextInkMeasurer = (_element, line) => ({
   advanceMm: line === "I" ? 2 : 10,
@@ -76,5 +80,29 @@ describe("trimPlate", () => {
     expect(trimPlate(document, "plate", measure).plates[0]!.size.widthMm).toBe(
       trimPlate(withoutImage, "plate", measure).plates[0]!.size.widthMm,
     );
+  });
+});
+
+describe("toggleFlagPlate", () => {
+  it("keeps a wide text frame inside both flag sides and toggles back", () => {
+    const original = document.plates[0]!;
+    const flag = toggleFlagPlate({
+      ...original,
+      name: "Wide frame",
+      elements: [original.elements[0]!],
+    });
+    const textElements = flag.elements.filter(
+      (element) => element.kind === "text",
+    );
+    expect(textElements).toHaveLength(2);
+    expect(textElements.every((element) => element.xMm >= 0)).toBe(true);
+    expect(textElements.every((element) => element.widthMm > 0)).toBe(true);
+    expect(textElements[0]?.text).toBe("I\nWIDE");
+    expect(toggleFlagPlate(flag).name).toBe("Wide frame");
+    expect(
+      toggleFlagPlate(flag).elements.filter(
+        (element) => element.kind === "text",
+      ),
+    ).toHaveLength(1);
   });
 });

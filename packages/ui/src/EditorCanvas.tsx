@@ -1,17 +1,11 @@
 import type { LabelElement, LabelPlate, TextElement } from "@labelmaker/domain";
-import {
-  Cable,
-  Flag,
-  Image as ImageIcon,
-  Type,
-  ZoomIn,
-  ZoomOut,
-} from "lucide-react";
+import { Flag, Image as ImageIcon, Type, ZoomIn, ZoomOut } from "lucide-react";
 import {
   useEffect,
   useRef,
   useState,
   type ChangeEvent,
+  type CSSProperties,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
@@ -22,6 +16,145 @@ import { clamp } from "./editor-operations.js";
 import { PlateToolbarSettings } from "./Inspector.js";
 
 type ResizeCorner = "nw" | "ne" | "sw" | "se";
+
+function CanvasRulers({
+  widthMm,
+  heightMm,
+  canvasScale,
+}: {
+  readonly widthMm: number;
+  readonly heightMm: number;
+  readonly canvasScale: number;
+}) {
+  const horizontal = Array.from(
+    { length: Math.floor(widthMm / 5) + 1 },
+    (_, index) => index * 5,
+  );
+  const vertical = Array.from(
+    { length: Math.floor(heightMm / 5) + 1 },
+    (_, index) => index * 5,
+  );
+  return (
+    <>
+      <div className="ruler ruler-top" aria-hidden="true">
+        {horizontal.map((mark) => (
+          <span
+            className={mark === 0 ? "origin" : undefined}
+            key={mark}
+            style={{ left: `${mark * canvasScale}px` }}
+          >
+            {mark} mm
+          </span>
+        ))}
+      </div>
+      <div className="ruler ruler-left" aria-hidden="true">
+        {vertical.map((mark) => (
+          <span
+            className={mark === 0 ? "origin" : undefined}
+            key={mark}
+            style={{ top: `${mark * canvasScale}px` }}
+          >
+            {mark} mm
+          </span>
+        ))}
+      </div>
+      <div
+        className="ruler-grid-bottom"
+        style={{ width: `${widthMm * canvasScale}px` }}
+      />
+      <div
+        className="ruler-grid-left"
+        style={{ height: `${heightMm * canvasScale}px` }}
+      />
+    </>
+  );
+}
+
+function CanvasZoomControl({
+  zoom,
+  onZoom,
+}: {
+  readonly zoom: number;
+  readonly onZoom: (zoom: number) => void;
+}) {
+  return (
+    <div className="zoom-control">
+      <IconButton
+        label="Zoom out"
+        onClick={() => onZoom(clamp(zoom - 10, 60, 140))}
+      >
+        <ZoomOut size={15} />
+      </IconButton>
+      <span>{zoom}%</span>
+      <IconButton
+        label="Zoom in"
+        onClick={() => onZoom(clamp(zoom + 10, 60, 140))}
+      >
+        <ZoomIn size={15} />
+      </IconButton>
+    </div>
+  );
+}
+
+function CanvasToolbar({
+  plate,
+  onAddText,
+  onAddImage,
+  onAddSpecial,
+  onUpdatePlate,
+  onTrim,
+}: {
+  readonly plate: LabelPlate;
+  readonly onAddText: () => void;
+  readonly onAddImage: (file: File) => void;
+  readonly onAddSpecial: (kind: "flag") => void;
+  readonly onUpdatePlate: (plate: LabelPlate) => void;
+  readonly onTrim: () => void;
+}) {
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div className="editor-toolbar">
+      <div className="editor-tools">
+        <button className="tool-button" onClick={onAddText} type="button">
+          <Type size={17} /> Add text
+        </button>
+        <button
+          className="tool-button"
+          onClick={() => imageInputRef.current?.click()}
+          type="button"
+        >
+          <ImageIcon size={17} /> Add image
+        </button>
+        <input
+          ref={imageInputRef}
+          accept="image/*"
+          aria-label="Choose image"
+          className="file-input"
+          onChange={(event: ChangeEvent<HTMLInputElement>) => {
+            const file = event.target.files?.[0];
+            if (file) onAddImage(file);
+            event.target.value = "";
+          }}
+          type="file"
+        />
+        <span className="toolbar-separator" />
+        <button
+          aria-pressed={plate.name.startsWith("Flag ")}
+          className="tool-button"
+          onClick={() => onAddSpecial("flag")}
+          type="button"
+        >
+          <Flag size={16} /> Flag
+        </button>
+      </div>
+      <PlateToolbarSettings
+        onChange={onUpdatePlate}
+        onTrim={onTrim}
+        plate={plate}
+      />
+    </div>
+  );
+}
 
 export function EditorCanvas({
   plate,
@@ -41,16 +174,16 @@ export function EditorCanvas({
   readonly zoom: number;
   readonly onAddText: () => void;
   readonly onAddImage: (file: File) => void;
-  readonly onAddSpecial: (kind: "flag" | "wrap") => void;
+  readonly onAddSpecial: (kind: "flag") => void;
   readonly onSelectElement: (id: string | null) => void;
   readonly onChangeElement: (element: LabelElement) => void;
   readonly onUpdatePlate: (plate: LabelPlate) => void;
   readonly onTrim: () => void;
   readonly onZoom: (zoom: number) => void;
 }) {
-  const imageInputRef = useRef<HTMLInputElement>(null);
   const editOnClickRef = useRef<string | null>(null);
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
   const canvasScale = Math.min(9, 720 / plate.size.widthMm) * (zoom / 100);
   const canvasBounds = (elementNode: HTMLElement) =>
     elementNode.closest<HTMLElement>(".label-canvas")?.getBoundingClientRect();
@@ -189,125 +322,119 @@ export function EditorCanvas({
     });
   };
 
-  const chooseImage = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) onAddImage(file);
-    event.target.value = "";
+  const startPan = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.button !== 0) return;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const initial = pan;
+    event.preventDefault();
+    const onMove = (moveEvent: PointerEvent) =>
+      setPan({
+        x: initial.x + moveEvent.clientX - startX,
+        y: initial.y + moveEvent.clientY - startY,
+      });
+    const onUp = () => {
+      globalThis.removeEventListener("pointermove", onMove);
+      globalThis.removeEventListener("pointerup", onUp);
+    };
+    globalThis.addEventListener("pointermove", onMove);
+    globalThis.addEventListener("pointerup", onUp);
   };
 
   return (
     <main className="editor-area">
-      <div className="editor-toolbar">
-        <div className="editor-tools">
-          <button className="tool-button" onClick={onAddText} type="button">
-            <Type size={17} /> Add text
-          </button>
-          <button
-            className="tool-button"
-            onClick={() => imageInputRef.current?.click()}
-            type="button"
-          >
-            <ImageIcon size={17} /> Add image
-          </button>
-          <input
-            ref={imageInputRef}
-            accept="image/*"
-            aria-label="Choose image"
-            className="file-input"
-            onChange={chooseImage}
-            type="file"
-          />
-          <span className="toolbar-separator" />
-          <button
-            className="tool-button"
-            onClick={() => onAddSpecial("flag")}
-            type="button"
-          >
-            <Flag size={16} /> Flag
-          </button>
-          <button
-            className="tool-button"
-            onClick={() => onAddSpecial("wrap")}
-            type="button"
-          >
-            <Cable size={16} /> Wrap
-          </button>
-        </div>
-        <PlateToolbarSettings
-          onChange={onUpdatePlate}
-          onTrim={onTrim}
-          plate={plate}
-        />
-      </div>
-      <div className="work-surface">
-        <div className="ruler ruler-top" aria-hidden="true" />
-        <section
-          aria-label={`${plate.name} label canvas`}
-          className="label-canvas"
-          style={{
-            width: `${plate.size.widthMm * canvasScale}px`,
-            height: `${plate.size.heightMm * canvasScale}px`,
-          }}
+      <CanvasToolbar
+        onAddImage={onAddImage}
+        onAddSpecial={onAddSpecial}
+        onAddText={onAddText}
+        onTrim={onTrim}
+        onUpdatePlate={onUpdatePlate}
+        plate={plate}
+      />
+      <div
+        className="work-surface"
+        onPointerDown={(event) => {
+          const target = event.target as HTMLElement;
+          if (
+            !target.closest(".canvas-element, .zoom-control, button") ||
+            target.closest(".canvas-clear-selection")
+          ) {
+            startPan(event);
+          }
+        }}
+        onWheel={(event) => {
+          event.preventDefault();
+          onZoom(clamp(zoom + (event.deltaY < 0 ? 10 : -10), 60, 140));
+        }}
+      >
+        <div
+          className="canvas-stage"
+          style={
+            {
+              transform: `translate(${pan.x}px, ${pan.y}px)`,
+              "--grid-step": `${5 * canvasScale}px`,
+            } as CSSProperties
+          }
         >
-          <button
-            aria-label="Clear element selection"
-            className="canvas-clear-selection"
-            onClick={() => onSelectElement(null)}
-            tabIndex={-1}
-            type="button"
+          <CanvasRulers
+            canvasScale={canvasScale}
+            heightMm={plate.size.heightMm}
+            widthMm={plate.size.widthMm}
           />
-          {plate.elements.map((element) => (
-            <CanvasElementView
-              canvasScale={canvasScale}
-              editing={element.id === editingElementId}
-              element={element}
-              key={element.id}
-              onActivate={(target) => {
-                if (
-                  editOnClickRef.current === target.id &&
-                  target.kind === "text"
-                ) {
-                  setEditingElementId(target.id);
-                } else {
-                  onSelectElement(target.id);
-                }
-                editOnClickRef.current = null;
-              }}
-              onDoubleClick={(target) => {
-                if (target.kind === "text") setEditingElementId(target.id);
-              }}
-              onEndEdit={() => setEditingElementId(null)}
-              onFocus={(target) => onSelectElement(target.id)}
-              onMoveKey={moveWithKeyboard}
-              onMoveStart={startMove}
-              onResizeStart={startResize}
-              onRotateStart={startRotate}
-              onTextInput={(target, text) =>
-                onChangeElement({ ...target, text })
-              }
-              plate={plate}
-              selected={element.id === selectedElementId}
+          <section
+            aria-label={`${plate.name} label canvas`}
+            className="label-canvas"
+            style={{
+              width: `${plate.size.widthMm * canvasScale}px`,
+              height: `${plate.size.heightMm * canvasScale}px`,
+            }}
+          >
+            <button
+              aria-label="Clear element selection"
+              className="canvas-clear-selection"
+              onClick={() => onSelectElement(null)}
+              tabIndex={-1}
+              type="button"
             />
-          ))}
-        </section>
+            {plate.elements.map((element) => (
+              <CanvasElementView
+                canvasScale={canvasScale}
+                editing={element.id === editingElementId}
+                element={element}
+                key={element.id}
+                onActivate={(target) => {
+                  if (
+                    editOnClickRef.current === target.id &&
+                    target.kind === "text"
+                  ) {
+                    setEditingElementId(target.id);
+                  } else {
+                    onSelectElement(target.id);
+                  }
+                  editOnClickRef.current = null;
+                }}
+                onDoubleClick={(target) => {
+                  if (target.kind === "text") setEditingElementId(target.id);
+                }}
+                onEndEdit={() => setEditingElementId(null)}
+                onFocus={(target) => onSelectElement(target.id)}
+                onMoveKey={moveWithKeyboard}
+                onMoveStart={startMove}
+                onResizeStart={startResize}
+                onRotateStart={startRotate}
+                onTextInput={(target, text) =>
+                  onChangeElement({ ...target, text })
+                }
+                plate={plate}
+                selected={element.id === selectedElementId}
+              />
+            ))}
+          </section>
+        </div>
         <div className="canvas-meta">
           203 dpi · Print area {plate.size.widthMm} × {plate.size.heightMm} mm
         </div>
-        <div className="zoom-control">
-          <IconButton
-            label="Zoom out"
-            onClick={() => onZoom(clamp(zoom - 10, 60, 140))}
-          >
-            <ZoomOut size={15} />
-          </IconButton>
-          <span>{zoom}%</span>
-          <IconButton
-            label="Zoom in"
-            onClick={() => onZoom(clamp(zoom + 10, 60, 140))}
-          >
-            <ZoomIn size={15} />
-          </IconButton>
-        </div>
+        <CanvasZoomControl onZoom={onZoom} zoom={zoom} />
       </div>
     </main>
   );

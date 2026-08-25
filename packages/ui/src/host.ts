@@ -50,6 +50,8 @@ export interface LabelmakerHost {
   listPrinters(): Promise<readonly PrinterSummary[]>;
   discoverPrinters(): Promise<readonly PrinterSummary[]>;
   addPrinter(printerId: string): Promise<readonly PrinterSummary[]>;
+  /** Remove a configured printer. Older hosts may omit this until supported. */
+  removePrinter?(printerId: string): Promise<readonly PrinterSummary[]>;
   newWorkspace(
     hasUnsavedChanges: boolean,
     document: LabelDocument,

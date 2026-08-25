@@ -47,6 +47,7 @@ import {
   replacementChoiceFromResponse,
   resolveWorkspaceReplacement,
 } from "./workspace-replacement.js";
+import { getReadyPrinterSession } from "./printer-session.js";
 
 const registry = new PrinterAdapterRegistry();
 const includeMockPrinters = mockPrintersEnabled(
@@ -209,25 +210,45 @@ async function allDescriptors(): Promise<readonly PrinterDescriptor[]> {
 
 async function summarize(printer: PrinterDescriptor) {
   const adapter = registry.get(printer.adapterId);
-  const session = await printerSession(printer);
-  const [status, capabilities]: [
-    PrinterStatus,
-    Awaited<ReturnType<typeof session.capabilities>>,
-  ] = await Promise.all([session.status(), session.capabilities()]);
-  return {
-    id: printer.id,
-    adapterId: printer.adapterId,
-    name: printer.displayName,
-    model: printerModel(adapter, printer),
-    transport: printer.transport,
-    state: status.state,
-    statusMessage: status.message ?? status.state,
-    dpi: capabilities.dpi,
-    rasterWidthPixels: capabilities.rasterWidthPixels,
-    ...(status.batteryPercent === undefined
-      ? {}
-      : { batteryPercent: status.batteryPercent }),
-  };
+  try {
+    // A cached Bluetooth session can be closed by macOS while the app is
+    // still running. Refresh status before showing it and replace a stale
+    // session so the next print can reconnect.
+    const session = await printerSession(printer);
+    const [status, capabilities]: [
+      PrinterStatus,
+      Awaited<ReturnType<typeof session.capabilities>>,
+    ] = await Promise.all([session.status(), session.capabilities()]);
+    return {
+      id: printer.id,
+      adapterId: printer.adapterId,
+      name: printer.displayName,
+      model: printerModel(adapter, printer),
+      transport: printer.transport,
+      state: status.state,
+      statusMessage: status.message ?? status.state,
+      dpi: capabilities.dpi,
+      rasterWidthPixels: capabilities.rasterWidthPixels,
+      ...(status.batteryPercent === undefined
+        ? {}
+        : { batteryPercent: status.batteryPercent }),
+    };
+  } catch (error) {
+    await discardPrinterSession(printer.id);
+    context.log.warn("Printer status could not be refreshed", {
+      printerId: printer.id,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+    return {
+      id: printer.id,
+      adapterId: printer.adapterId,
+      name: printer.displayName,
+      model: printerModel(adapter, printer),
+      transport: printer.transport,
+      state: "disconnected" as const,
+      statusMessage: "Not connected",
+    };
+  }
 }
 
 async function printerSession(
@@ -243,6 +264,25 @@ async function printerSession(
     printerSessions.delete(printer.id);
     throw error;
   }
+}
+
+async function discardPrinterSession(printerId: string): Promise<void> {
+  const pending = printerSessions.get(printerId);
+  printerSessions.delete(printerId);
+  if (!pending) return;
+  try {
+    await (await pending).close();
+  } catch {
+    // The transport is already broken. The cached session must still be
+    // removed so the next operation can create a fresh connection.
+  }
+}
+
+/** Return a live session, reconnecting once when macOS dropped the old one. */
+async function readyPrinterSession(
+  printer: PrinterDescriptor,
+): Promise<PrinterSession> {
+  return getReadyPrinterSession(printer, printerSession, discardPrinterSession);
 }
 
 function discoveredSummary(printer: PrinterDescriptor) {
@@ -309,6 +349,31 @@ function registerIpc(): void {
       await writeConfiguredPrinterIds(configuredPrintersPath(), nextPrinterIds);
       configuredPrinterIds.add(printerId);
       return summaries;
+    },
+  );
+
+  ipcMain.handle(
+    "labelmaker:remove-printer",
+    async (_event, printerId: unknown) => {
+      if (typeof printerId !== "string" || !printerId.trim())
+        throw new TypeError("Printer ID must be a non-empty string");
+      if (!configuredPrinterIds.has(printerId))
+        throw new Error("Printer is not configured");
+      if (activePrinterJobs.has(printerId))
+        throw new Error("The printer has an active print job");
+
+      const nextPrinterIds = new Set(configuredPrinterIds);
+      nextPrinterIds.delete(printerId);
+      await writeConfiguredPrinterIds(configuredPrintersPath(), nextPrinterIds);
+      configuredPrinterIds = nextPrinterIds;
+      await discardPrinterSession(printerId);
+
+      const descriptors = await allDescriptors();
+      return Promise.all(
+        descriptors
+          .filter((item) => configuredPrinterIds.has(item.id))
+          .map(summarize),
+      );
     },
   );
 
@@ -396,7 +461,7 @@ function registerIpc(): void {
     activePrinterJobs.add(descriptor.id);
     let session: PrinterSession | undefined;
     try {
-      session = await printerSession(descriptor);
+      session = await readyPrinterSession(descriptor);
       return await printToSession(
         validatedRequest,
         descriptor,

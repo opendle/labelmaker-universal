@@ -3,7 +3,6 @@ import {
   AlignCenter,
   AlignLeft,
   AlignRight,
-  Bold,
   Crop,
   Italic,
   RotateCcw,
@@ -82,31 +81,33 @@ function TextInspector({
         />
         <div className="field">
           <span>WEIGHT</span>
-          <div className="text-style-buttons">
-            {[300, 400, 600, 700].map((fontWeight) => (
-              <button
-                aria-label={
-                  fontWeight === 300
-                    ? "Light"
-                    : fontWeight === 400
-                      ? "Regular"
-                      : fontWeight === 600
-                        ? "Semi bold"
-                        : "Bold"
-                }
-                className={element.fontWeight === fontWeight ? "active" : ""}
-                key={fontWeight}
-                onClick={() => onChange({ ...element, fontWeight })}
-                style={{ fontWeight }}
-                type="button"
-              >
-                {fontWeight === 700 ? <Bold size={14} /> : "A"}
-              </button>
-            ))}
+          <div className="text-style-buttons" aria-label="Weight and style">
+            <span className="weight-group">
+              {[300, 400, 600, 700].map((fontWeight) => (
+                <button
+                  aria-label={
+                    fontWeight === 300
+                      ? "Light"
+                      : fontWeight === 400
+                        ? "Regular"
+                        : fontWeight === 600
+                          ? "Semi bold"
+                          : "Bold"
+                  }
+                  className={`weight-button weight-${fontWeight} ${element.fontWeight === fontWeight ? "active" : ""}`}
+                  key={fontWeight}
+                  onClick={() => onChange({ ...element, fontWeight })}
+                  style={{ fontWeight }}
+                  type="button"
+                >
+                  B
+                </button>
+              ))}
+            </span>
             <button
               aria-label="Italic"
               aria-pressed={element.fontStyle === "italic"}
-              className={element.fontStyle === "italic" ? "active" : ""}
+              className={`italic-button ${element.fontStyle === "italic" ? "active" : ""}`}
               onClick={() =>
                 onChange({
                   ...element,
@@ -142,7 +143,7 @@ function TextInspector({
         ))}
       </div>
       <div className="property-label">POSITION</div>
-      <div className="field-row">
+      <div className="field-row position-row">
         <NumberField
           label="X position"
           shortLabel="X"
@@ -155,15 +156,15 @@ function TextInspector({
           value={element.yMm}
           onChange={(yMm) => onChange({ ...element, yMm })}
         />
+        <NumberField
+          icon
+          label="Rotation"
+          shortLabel="ROTATION"
+          unit="°"
+          value={element.rotationDeg}
+          onChange={(rotationDeg) => onChange({ ...element, rotationDeg })}
+        />
       </div>
-      <NumberField
-        icon
-        label="Rotation"
-        shortLabel="ROTATION"
-        unit="°"
-        value={element.rotationDeg}
-        onChange={(rotationDeg) => onChange({ ...element, rotationDeg })}
-      />
     </div>
   );
 }

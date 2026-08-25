@@ -16,9 +16,9 @@ import {
   clamp,
   createImage,
   createPlate,
-  createSpecialPlate,
   createText,
   trimPlate,
+  toggleFlagPlate,
 } from "./editor-operations.js";
 import type { LabelmakerHost } from "./host.js";
 
@@ -240,6 +240,38 @@ export function useLabelmakerController(host: LabelmakerHost) {
     [host],
   );
 
+  const removePrinter = useCallback(
+    async (printerId: string) => {
+      if (!host.removePrinter) {
+        dispatch({
+          type: "set-toast",
+          toast: {
+            tone: "neutral",
+            message: "Printer removal is not available.",
+          },
+        });
+        return;
+      }
+      try {
+        const printers = await host.removePrinter(printerId);
+        dispatch({ type: "set-printers", printers });
+        dispatch({
+          type: "set-toast",
+          toast: { tone: "success", message: "Printer removed" },
+        });
+      } catch {
+        dispatch({
+          type: "set-toast",
+          toast: {
+            tone: "error",
+            message: "The printer could not be removed.",
+          },
+        });
+      }
+    },
+    [host],
+  );
+
   const print = useCallback(
     async (all: boolean) => {
       if (!activePlate || !activePrinter || activePrinter.state !== "ready") {
@@ -310,19 +342,13 @@ export function useLabelmakerController(host: LabelmakerHost) {
     dispatch({ type: "select-element", elementId: element.id });
   }, [activePlate, updatePlate]);
   const addSpecial = useCallback(
-    (kind: "flag" | "wrap") => {
-      const plate = createSpecialPlate(state.workspace, kind);
-      editWorkspace({
-        ...state.workspace,
-        plates: [...state.workspace.plates, plate],
-      });
-      dispatch({
-        type: "select-plate",
-        plateId: plate.id,
-        elementId: plate.elements[0]?.id ?? null,
-      });
+    (kind: "flag") => {
+      if (!activePlate || kind !== "flag") return;
+      editWorkspace(
+        replacePlate(state.workspace, activePlate.id, toggleFlagPlate),
+      );
     },
-    [editWorkspace, state.workspace],
+    [activePlate, editWorkspace, state.workspace],
   );
 
   const addImage = useCallback(
@@ -446,6 +472,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
     openWorkspace,
     startDiscovery,
     addPrinter,
+    removePrinter,
     print,
     addPlate,
     addText,

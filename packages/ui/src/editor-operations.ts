@@ -76,65 +76,78 @@ export function createImage(plate: LabelPlate, source: string): ImageElement {
   };
 }
 
-export function createSpecialPlate(
-  workspace: LabelDocument,
-  kind: "flag" | "wrap",
-): LabelPlate {
-  const number = workspace.plates.length + 1;
-  const heightMm = workspace.defaultPlateSize.heightMm;
-  if (kind === "wrap") {
+/** Convert the active plate to a two-sided flag without replacing its text. */
+export function toggleFlagPlate(plate: LabelPlate): LabelPlate {
+  const isFlag = plate.name.startsWith("Flag ");
+  if (isFlag) {
+    const textIds = new Set<string>();
+    let textCount = 0;
+    for (const element of plate.elements) {
+      if (element.kind === "text") {
+        if (textCount > 0) textIds.add(element.id);
+        textCount += 1;
+      }
+    }
+    const remainingText = plate.elements.find(
+      (element) => element.kind === "text" && !textIds.has(element.id),
+    );
+    const elements: LabelElement[] = [];
+    for (const element of plate.elements) {
+      if (
+        textIds.has(element.id) ||
+        (element.kind === "rectangle" && element.id.startsWith("flag-guide"))
+      ) {
+        continue;
+      }
+      elements.push(
+        element.id === remainingText?.id && element.kind === "text"
+          ? {
+              ...element,
+              xMm: Math.min(4, Math.max(0, plate.size.widthMm - 1)),
+              widthMm: Math.max(1, plate.size.widthMm - 8),
+            }
+          : element,
+      );
+    }
     return {
-      id: makeId("plate"),
-      name: `Cable wrap ${number}`,
-      size: { widthMm: 62, heightMm },
-      margins: { leftMm: 0, rightMm: 0 },
-      elements: [
-        {
-          id: makeId("element"),
-          kind: "text",
-          xMm: 34,
-          yMm: 3,
-          widthMm: 26,
-          heightMm: Math.max(6, heightMm - 6),
-          rotationDeg: 0,
-          text: "CABLE",
-          fontFamily: "Inter",
-          fontSizePt: 13,
-          fontWeight: 700,
-          align: "center",
-        },
-      ],
+      ...plate,
+      name: plate.name.replace(/^Flag\s+/, ""),
+      elements,
     };
   }
+  const source = plate.elements.find((element) => element.kind === "text");
+  if (!source || source.kind !== "text") return plate;
+  const gapMm = 2;
+  const halfWidth = Math.max(1, (plate.size.widthMm - gapMm) / 2);
+  const sourceWidth = Math.min(
+    Math.max(1, source.widthMm),
+    Math.max(1, halfWidth - 1),
+  );
+  const sourceX = Math.max(0, Math.min(source.xMm, halfWidth - sourceWidth));
+  const sourceText = {
+    ...source,
+    xMm: sourceX,
+    widthMm: sourceWidth,
+  };
+  const peer = {
+    ...sourceText,
+    id: `${source.id}-flag-peer`,
+    xMm: halfWidth + gapMm,
+  };
   return {
-    id: makeId("plate"),
-    name: `Flag ${number}`,
-    size: { widthMm: 64, heightMm },
-    margins: { leftMm: 0, rightMm: 0 },
+    ...plate,
+    name: `Flag ${plate.name}`,
     elements: [
-      ...[2, 35].map(
-        (xMm): TextElement => ({
-          id: makeId("element"),
-          kind: "text",
-          xMm,
-          yMm: 3,
-          widthMm: 27,
-          heightMm: Math.max(6, heightMm - 6),
-          rotationDeg: 0,
-          text: "CABLE",
-          fontFamily: "Inter",
-          fontSizePt: 13,
-          fontWeight: 700,
-          align: "center",
-        }),
-      ),
+      ...plate.elements.filter((element) => element.id !== source.id),
+      sourceText,
+      peer,
       {
-        id: makeId("guide"),
+        id: `flag-guide-${plate.id}`,
         kind: "rectangle",
-        xMm: 31.9,
+        xMm: halfWidth + gapMm / 2,
         yMm: 1,
         widthMm: 0.2,
-        heightMm: Math.max(1, heightMm - 2),
+        heightMm: Math.max(1, plate.size.heightMm - 2),
         rotationDeg: 0,
         strokeWidthMm: 0,
         filled: true,
@@ -148,10 +161,14 @@ export function updateElementAndFlagPeer(
   plate: LabelPlate,
   updated: LabelElement,
 ): LabelPlate {
+  let textCount = 0;
+  for (const element of plate.elements) {
+    if (element.kind === "text") textCount += 1;
+  }
   const isFlagText =
     plate.name.startsWith("Flag ") &&
     updated.kind === "text" &&
-    plate.elements.filter((element) => element.kind === "text").length === 2;
+    textCount === 2;
   return {
     ...plate,
     elements: plate.elements.map((element) => {
@@ -281,14 +298,23 @@ export function trimPlate(
 ): LabelDocument {
   return replacePlate(workspace, plateId, (plate) => {
     if (plate.elements.length === 0) return plate;
-    const bounds = plate.elements
-      .map((element) => elementInkBounds(element, measure))
-      .filter((bound): bound is HorizontalBounds => bound !== null);
+    const bounds: HorizontalBounds[] = [];
+    for (const element of plate.elements) {
+      const bound = elementInkBounds(element, measure);
+      if (bound) bounds.push(bound);
+    }
     if (bounds.length === 0) return plate;
-    const minX = Math.min(...bounds.map((bound) => bound.minX));
-    const maxX = Math.max(...bounds.map((bound) => bound.maxX));
-    const leftMm = Math.max(0, plate.margins.leftMm);
-    const rightMm = Math.max(0, plate.margins.rightMm);
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    for (const bound of bounds) {
+      minX = Math.min(minX, bound.minX);
+      maxX = Math.max(maxX, bound.maxX);
+    }
+    // Keep a small amount of white around the measured black ink. Explicit
+    // user margins still take precedence when they are larger.
+    const inkMarginMm = 0.25;
+    const leftMm = Math.max(inkMarginMm, plate.margins.leftMm);
+    const rightMm = Math.max(inkMarginMm, plate.margins.rightMm);
     const offsetX = leftMm - minX;
     return {
       ...plate,

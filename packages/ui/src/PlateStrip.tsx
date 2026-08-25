@@ -1,9 +1,5 @@
-import type {
-  ImageElement,
-  LabelDocument,
-  TextElement,
-} from "@labelmaker/domain";
-import { Image as ImageIcon, Plus } from "lucide-react";
+import type { LabelDocument } from "@labelmaker/domain";
+import { Plus } from "lucide-react";
 
 export function PlateStrip({
   workspace,
@@ -19,17 +15,11 @@ export function PlateStrip({
   return (
     <footer className="plate-strip">
       <div className="strip-heading">
-        <span>PLATES</span>
+        <span>LABELS</span>
         <small>{workspace.plates.length} labels</small>
       </div>
       <div className="plate-thumbnails">
         {workspace.plates.map((plate, index) => {
-          const text = plate.elements.find(
-            (element) => element.kind === "text",
-          ) as TextElement | undefined;
-          const image = plate.elements.find(
-            (element) => element.kind === "image",
-          ) as ImageElement | undefined;
           return (
             <button
               className={`plate-thumb ${plate.id === activePlateId ? "selected" : ""}`}
@@ -46,7 +36,55 @@ export function PlateStrip({
                   aspectRatio: `${plate.size.widthMm}/${plate.size.heightMm}`,
                 }}
               >
-                {text?.text ?? (image ? <ImageIcon size={14} /> : "")}
+                {plate.elements.map((element) => {
+                  const frame = {
+                    left: `${(element.xMm / plate.size.widthMm) * 100}%`,
+                    top: `${(element.yMm / plate.size.heightMm) * 100}%`,
+                    width: `${(element.widthMm / plate.size.widthMm) * 100}%`,
+                    height: `${(element.heightMm / plate.size.heightMm) * 100}%`,
+                    transform: `rotate(${element.rotationDeg}deg)`,
+                  };
+                  if (element.kind === "text") {
+                    return (
+                      <span
+                        className="mini-label-text"
+                        key={element.id}
+                        style={{
+                          ...frame,
+                          fontFamily: element.fontFamily,
+                          fontSize: `${Math.max(4, element.fontSizePt * 0.2)}px`,
+                          fontStyle: element.fontStyle ?? "normal",
+                          fontWeight: element.fontWeight,
+                          textAlign: element.align,
+                        }}
+                      >
+                        {element.text}
+                      </span>
+                    );
+                  }
+                  if (element.kind === "image") {
+                    return (
+                      <img
+                        alt=""
+                        className={`mini-label-image fit-${element.fit}`}
+                        key={element.id}
+                        src={element.source}
+                        style={frame}
+                      />
+                    );
+                  }
+                  if (element.kind === "rectangle") {
+                    return (
+                      <span
+                        aria-hidden="true"
+                        className={`mini-label-shape ${element.filled ? "filled" : "outlined"}`}
+                        key={element.id}
+                        style={frame}
+                      />
+                    );
+                  }
+                  return null;
+                })}
               </span>
               <span className="thumb-name">{plate.name}</span>
             </button>

@@ -267,21 +267,21 @@ describe("LabelmakerApp", () => {
     expect(screen.getByLabelText("X position")).toHaveValue(-9.6);
   });
 
-  it("adds a ready-to-edit flag plate", async () => {
+  it("toggles the current label into a flag without replacing its content", async () => {
     const user = userEvent.setup();
     render(<LabelmakerApp host={createHost()} />);
 
     await user.click(screen.getByRole("button", { name: "Flag" }));
 
-    expect(screen.getByText("4 labels")).toBeInTheDocument();
-    expect(screen.getByLabelText("Plate name")).toHaveValue("Flag 4");
-    expect(screen.getByText("Flag 4")).toBeInTheDocument();
+    expect(screen.getByText("3 labels")).toBeInTheDocument();
+    expect(screen.getByLabelText("Plate name")).toHaveValue("Flag Resistors");
+    expect(screen.getByText("Flag Resistors")).toBeInTheDocument();
     expect(
-      screen.getAllByRole("button", { name: "Text element: CABLE" }),
+      screen.getAllByRole("button", { name: "Text element: RESISTORS" }),
     ).toHaveLength(2);
 
     await user.click(
-      screen.getAllByRole("button", { name: "Text element: CABLE" })[0]!,
+      screen.getAllByRole("button", { name: "Text element: RESISTORS" })[0]!,
     );
     const editor = screen.getByRole("textbox", { name: "Edit text on label" });
     fireEvent.change(editor, { target: { value: "SIGNAL" } });
@@ -289,20 +289,19 @@ describe("LabelmakerApp", () => {
     expect(
       screen.getAllByRole("button", { name: "Text element: SIGNAL" }),
     ).toHaveLength(2);
+
+    await user.click(screen.getByRole("button", { name: "Flag" }));
+    expect(screen.getByLabelText("Plate name")).toHaveValue("Resistors");
+    expect(
+      screen.getAllByRole("button", { name: "Text element: SIGNAL" }),
+    ).toHaveLength(1);
   });
 
-  it("adds a ready-to-edit cable-wrap plate", async () => {
-    const user = userEvent.setup();
+  it("does not expose the removed wrap action", async () => {
     render(<LabelmakerApp host={createHost()} />);
-
-    await user.click(screen.getByRole("button", { name: "Wrap" }));
-
-    expect(screen.getByText("4 labels")).toBeInTheDocument();
-    expect(screen.getByLabelText("Plate name")).toHaveValue("Cable wrap 4");
-    expect(screen.getByText("Cable wrap 4")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Text element: CABLE" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Wrap" }),
+    ).not.toBeInTheDocument();
   });
 
   it("prints the current plate and all plates through distinct commands", async () => {

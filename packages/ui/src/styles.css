@@ -59,7 +59,7 @@ textarea:focus-visible {
 }
 .application-content {
   display: grid;
-  grid-template-rows: 58px minmax(0, 1fr) 112px;
+  grid-template-rows: 58px minmax(0, 1fr) 92px;
   width: 100%;
   height: 100%;
 }
@@ -247,6 +247,26 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+.printer-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.printer-row > .icon-button {
+  position: absolute;
+  right: 4px;
+  bottom: 5px;
+  width: 24px;
+  height: 24px;
+  opacity: 0;
+  color: #9a5f52;
+  pointer-events: none;
+}
+.printer-row:hover > .icon-button,
+.printer-row > .icon-button:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 .printer-item {
   width: 100%;
@@ -441,17 +461,106 @@ textarea:focus-visible {
   background-color: #e6e5df;
   background-image: radial-gradient(#cac8c0 0.65px, transparent 0.65px);
   background-size: 12px 12px;
+  cursor: grab;
+  touch-action: none;
+}
+.work-surface:active {
+  cursor: grabbing;
+}
+.canvas-stage {
+  position: relative;
+  flex: 0 0 auto;
+  transition: transform 0.08s linear;
 }
 .ruler-top {
   position: absolute;
-  top: 16px;
-  width: min(65%, 600px);
-  height: 7px;
-  opacity: 0.45;
+  left: 0;
+  top: -24px;
+  width: 100%;
+  height: 22px;
+  border-bottom: 1px solid #a8a49a;
+  color: #77736a;
+  font-family: "DM Mono", monospace;
+  font-size: 7px;
+  pointer-events: none;
+}
+.ruler-top span {
+  position: absolute;
+  bottom: 4px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+}
+.ruler-top span.origin {
+  transform: none;
+}
+.ruler-top span::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 1px;
+  height: 5px;
+  background: #817e75;
+}
+.ruler-left {
+  position: absolute;
+  left: -48px;
+  top: 0;
+  width: 46px;
+  height: 100%;
+  border-right: 1px solid #a8a49a;
+  color: #77736a;
+  font-family: "DM Mono", monospace;
+  font-size: 7px;
+  pointer-events: none;
+}
+.ruler-left span {
+  position: absolute;
+  right: 5px;
+  white-space: nowrap;
+  transform: translateY(-50%);
+}
+.ruler-left span.origin {
+  transform: none;
+  top: 0 !important;
+}
+.ruler-left span::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  width: 5px;
+  height: 1px;
+  background: #817e75;
+}
+.ruler-grid-bottom {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  height: 42px;
+  opacity: 0.44;
+  pointer-events: none;
   background: repeating-linear-gradient(
     90deg,
-    #817e75 0 1px,
-    transparent 1px 18px
+    transparent 0,
+    transparent calc(var(--grid-step) - 1px),
+    #a09c92 calc(var(--grid-step) - 1px),
+    #a09c92 var(--grid-step)
+  );
+}
+.ruler-grid-left {
+  position: absolute;
+  left: -42px;
+  top: 0;
+  width: 42px;
+  opacity: 0.44;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0,
+    transparent calc(var(--grid-step) - 1px),
+    #a09c92 calc(var(--grid-step) - 1px),
+    #a09c92 var(--grid-step)
   );
 }
 .label-canvas {
@@ -726,13 +835,21 @@ textarea:focus-visible {
   grid-template-columns: 1fr 1fr;
   gap: 9px;
 }
+.position-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
 .text-style-buttons {
   height: 30px;
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  display: flex;
+  align-items: stretch;
   border: 1px solid #d5d1c8;
   border-radius: 5px;
   overflow: hidden;
+}
+.weight-group {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(4, 1fr);
 }
 .text-style-buttons button {
   min-width: 0;
@@ -746,6 +863,23 @@ textarea:focus-visible {
   color: #77736b;
   font-size: 10px;
   cursor: pointer;
+}
+.text-style-buttons .italic-button {
+  flex: 0 0 29px;
+  margin-left: 6px;
+  border-left: 1px solid #d5d1c8;
+}
+.text-style-buttons .weight-300 {
+  color: #aaa59b;
+}
+.text-style-buttons .weight-400 {
+  color: #817c72;
+}
+.text-style-buttons .weight-600 {
+  color: #4e4a43;
+}
+.text-style-buttons .weight-700 {
+  color: #27251f;
 }
 .text-style-buttons button:last-child {
   border-right: 0;
@@ -974,7 +1108,7 @@ textarea:focus-visible {
   display: grid;
   grid-template-columns: 82px minmax(0, 1fr);
   min-height: 0;
-  padding: 7px 12px;
+  padding: 5px 12px;
   border-top: 1px solid #d6d3ca;
   background: #f7f6f2;
   box-shadow: 0 -2px 7px rgba(50, 45, 35, 0.04);
@@ -1006,11 +1140,11 @@ textarea:focus-visible {
   position: relative;
   flex: 0 0 108px;
   min-width: 0;
-  padding: 10px 7px 5px;
+  padding: 5px 7px 3px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 7px;
+  gap: 4px;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
@@ -1045,9 +1179,10 @@ textarea:focus-visible {
   color: white;
 }
 .mini-label {
+  position: relative;
   width: 100%;
   max-height: 36px;
-  min-height: 28px;
+  min-height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1059,6 +1194,29 @@ textarea:focus-visible {
   font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.04em;
+}
+.mini-label-text,
+.mini-label-image,
+.mini-label-shape {
+  position: absolute;
+  display: block;
+  overflow: hidden;
+  line-height: 1;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+.mini-label-text {
+  color: #24221e;
+}
+.mini-label-image {
+  object-fit: contain;
+}
+.mini-label-shape.outlined {
+  border: 1px solid #8f8a80;
+}
+.mini-label-shape.filled {
+  background: #8f8a80;
 }
 .thumb-name {
   overflow: hidden;
