@@ -72,10 +72,11 @@ export function useLabelmakerController(host: LabelmakerHost) {
   }, [host]);
 
   useEffect(() => {
-    if (!state.toast) return;
+    if (!state.toast || state.toast.busy) return;
+    const durationMs = state.toast.tone === "error" ? 8000 : 6000;
     const timer = globalThis.setTimeout(
       () => dispatch({ type: "set-toast", toast: null }),
-      4000,
+      durationMs,
     );
     return () => globalThis.clearTimeout(timer);
   }, [state.toast]);

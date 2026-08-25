@@ -1136,17 +1136,18 @@ textarea:focus-visible {
   align-items: stretch;
   gap: 11px;
   overflow-x: auto;
-  padding: 0 3px 4px;
+  padding: 0 3px 2px;
 }
 .plate-thumb {
   position: relative;
-  flex: 0 0 108px;
+  flex: 0 0 172px;
   min-width: 0;
-  padding: 5px 7px 3px;
+  padding: 4px 6px 2px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 4px;
+  justify-content: center;
+  gap: 2px;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
@@ -1183,7 +1184,7 @@ textarea:focus-visible {
 .mini-label {
   position: relative;
   width: 100%;
-  max-height: 36px;
+  max-height: 52px;
   min-height: 24px;
   display: flex;
   align-items: center;
@@ -1472,6 +1473,13 @@ textarea:focus-visible {
 .toast.success svg {
   color: #75d4a4;
 }
+.toast.error {
+  background: #b42318;
+  box-shadow: 0 10px 30px rgba(120, 24, 18, 0.28);
+}
+.toast.error svg {
+  color: white;
+}
 .mini-spinner {
   width: 13px;
   height: 13px;
@@ -1506,7 +1514,7 @@ textarea:focus-visible {
     grid-template-columns: 68px minmax(0, 1fr);
   }
   .plate-thumb {
-    flex-basis: 100px;
+    flex-basis: 160px;
   }
   .editor-toolbar {
     padding-right: 9px;

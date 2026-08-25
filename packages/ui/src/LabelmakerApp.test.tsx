@@ -16,7 +16,10 @@ import type { LabelmakerHost } from "./host.js";
 import { LabelmakerApp } from "./LabelmakerApp.js";
 import { sampleDocument } from "./sample.js";
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 function createHost(overrides: Partial<LabelmakerHost> = {}): LabelmakerHost {
   return {
@@ -678,6 +681,7 @@ describe("LabelmakerApp", () => {
   });
 
   it("shows static icons for canceled and failed operations", async () => {
+    const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
     const user = userEvent.setup();
     const host = createHost({
       saveWorkspace: vi.fn().mockResolvedValue({ status: "canceled" }),
@@ -689,14 +693,17 @@ describe("LabelmakerApp", () => {
       "Printers could not be loaded. Try again.",
     );
     const errorToast = errorMessage.closest("output");
+    expect(errorToast).toHaveClass("error");
     expect(errorToast?.querySelector(".mini-spinner")).toBeNull();
     expect(errorToast?.querySelector("svg")).not.toBeNull();
+    expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 8000);
 
     await user.click(screen.getByRole("button", { name: /^Save$/ }));
     const canceledMessage = await screen.findByText("Save canceled");
     const canceledToast = canceledMessage.closest("output");
     expect(canceledToast?.querySelector(".mini-spinner")).toBeNull();
     expect(canceledToast?.querySelector("svg")).not.toBeNull();
+    expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 6000);
   });
 
   it("uses a spinner only while a print operation is active", async () => {
