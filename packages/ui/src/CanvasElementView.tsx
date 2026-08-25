@@ -110,6 +110,13 @@ export function CanvasElementView({
             onChange={(event) =>
               onTextInput(element, event.currentTarget.value)
             }
+            style={{
+              fontFamily: element.fontFamily,
+              fontSize: `${Math.max(10, element.fontSizePt * canvasScale * 0.25)}px`,
+              fontStyle: element.fontStyle ?? "normal",
+              fontWeight: element.fontWeight,
+              textAlign: element.align,
+            }}
             value={element.text}
           />
         </span>

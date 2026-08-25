@@ -125,25 +125,41 @@ describe("LabelmakerApp", () => {
       screen.getByRole("button", { name: "Text element: RESISTORS" }),
     );
     const editor = screen.getByRole("textbox", { name: "Edit text on label" });
+    const elementFrame = editor.closest<HTMLElement>(".canvas-element")!;
+    const originalStyle = {
+      family: elementFrame.style.getPropertyValue("--element-font-family"),
+      size: elementFrame.style.getPropertyValue("--element-font-size"),
+      weight: elementFrame.style.getPropertyValue("--element-font-weight"),
+      justify: elementFrame.style.getPropertyValue("--element-justify"),
+      rotation: elementFrame.style.getPropertyValue("--element-rotation"),
+    };
     fireEvent.change(editor, { target: { value: "LINE 1\nLINE 2" } });
-    fireEvent.blur(editor);
+    fireEvent.pointerDown(document.body);
+    expect(
+      screen.queryByRole("textbox", { name: "Edit text on label" }),
+    ).not.toBeInTheDocument();
 
     const element = screen.getByRole("button", {
       name: "Text element: LINE 1\nLINE 2",
     });
-    const elementFrame = element.closest<HTMLElement>(".canvas-element")!;
-    expect(editor).toHaveClass("inline-text-editor");
-    expect(editor).toHaveValue("LINE 1\nLINE 2");
+    const updatedFrame = element.closest<HTMLElement>(".canvas-element")!;
+    expect(originalStyle).toEqual({
+      family: updatedFrame.style.getPropertyValue("--element-font-family"),
+      size: updatedFrame.style.getPropertyValue("--element-font-size"),
+      weight: updatedFrame.style.getPropertyValue("--element-font-weight"),
+      justify: updatedFrame.style.getPropertyValue("--element-justify"),
+      rotation: updatedFrame.style.getPropertyValue("--element-rotation"),
+    });
     await user.selectOptions(screen.getByLabelText("Typeface"), "Georgia");
-    expect(elementFrame.style.getPropertyValue("--element-font-family")).toBe(
+    expect(updatedFrame.style.getPropertyValue("--element-font-family")).toBe(
       "Georgia",
     );
     await user.click(screen.getByRole("button", { name: "Italic" }));
-    expect(elementFrame.style.getPropertyValue("--element-font-style")).toBe(
+    expect(updatedFrame.style.getPropertyValue("--element-font-style")).toBe(
       "italic",
     );
     await user.click(screen.getByRole("button", { name: "Regular" }));
-    expect(elementFrame.style.getPropertyValue("--element-font-weight")).toBe(
+    expect(updatedFrame.style.getPropertyValue("--element-font-weight")).toBe(
       "400",
     );
   });

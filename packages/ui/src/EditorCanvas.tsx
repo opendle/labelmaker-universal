@@ -148,6 +148,30 @@ function CanvasToolbar({
   );
 }
 
+function useCommitInlineEdit(
+  editingElementId: string | null,
+  setEditingElementId: (id: string | null) => void,
+) {
+  useEffect(() => {
+    if (!editingElementId) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const editor = target.closest<HTMLElement>(".inline-text-editor");
+      if (editor?.dataset.elementId !== editingElementId) {
+        setEditingElementId(null);
+      }
+    };
+    globalThis.document.addEventListener("pointerdown", onPointerDown, true);
+    return () =>
+      globalThis.document.removeEventListener(
+        "pointerdown",
+        onPointerDown,
+        true,
+      );
+  }, [editingElementId, setEditingElementId]);
+}
+
 export function EditorCanvas({
   plate,
   selectedElementId,
@@ -176,6 +200,7 @@ export function EditorCanvas({
   const editOnClickRef = useRef<string | null>(null);
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  useCommitInlineEdit(editingElementId, setEditingElementId);
   const canvasScale = Math.min(9, 720 / plate.size.widthMm) * (zoom / 100);
   const canvasBounds = (elementNode: HTMLElement) =>
     elementNode.closest<HTMLElement>(".label-canvas")?.getBoundingClientRect();
