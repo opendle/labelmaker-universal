@@ -34,6 +34,8 @@ export interface MediaSize {
 export interface PrinterCapabilities {
   readonly dpi: number;
   readonly rasterWidthPixels: number;
+  /** Symmetric physical tape area that the print head cannot reach. */
+  readonly verticalMarginMm?: number;
   readonly colorModes: readonly ["monochrome"];
   readonly media: readonly MediaSize[];
   readonly maxCopies: number;
@@ -107,6 +109,7 @@ export interface AdapterContext {
 
 export interface PrinterAdapter {
   readonly manifest: AdapterManifest;
+  readonly offlineCapabilities?: Pick<PrinterCapabilities, "verticalMarginMm">;
   discover(
     options: DiscoveryOptions,
     context: AdapterContext,

@@ -46,11 +46,16 @@ export function useLabelmakerController(host: LabelmakerHost) {
 
   useEffect(() => {
     let active = true;
-    const refresh = (showError: boolean) => {
+    const refresh = (showError: boolean, preferredId?: string | null) => {
       void host
         .listPrinters()
         .then((printers) => {
-          if (active) dispatch({ type: "set-printers", printers });
+          if (active)
+            dispatch({
+              type: "set-printers",
+              printers,
+              ...(preferredId ? { preferredId } : {}),
+            });
         })
         .catch(() => {
           if (active && showError)
@@ -63,13 +68,36 @@ export function useLabelmakerController(host: LabelmakerHost) {
             });
         });
     };
-    refresh(true);
+    if (host.getActivePrinterId) {
+      void host
+        .getActivePrinterId()
+        .then((preferredId) => refresh(true, preferredId))
+        .catch(() => refresh(true));
+    } else {
+      refresh(true);
+    }
     const timer = globalThis.setInterval(() => refresh(false), 5000);
     return () => {
       active = false;
       globalThis.clearInterval(timer);
     };
   }, [host]);
+
+  const selectPrinter = useCallback(
+    (printerId: string) => {
+      dispatch({ type: "set-active-printer", printerId });
+      void host.setActivePrinterId?.(printerId).catch(() => {
+        dispatch({
+          type: "set-toast",
+          toast: {
+            tone: "error",
+            message: "The printer selection could not be saved.",
+          },
+        });
+      });
+    },
+    [host],
+  );
 
   useEffect(() => {
     if (!state.toast || state.toast.busy) return;
@@ -231,6 +259,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
       try {
         const printers = await host.addPrinter(printerId);
         dispatch({ type: "set-printers", printers, preferredId: printerId });
+        selectPrinter(printerId);
         dispatch({
           type: "set-toast",
           toast: { tone: "success", message: "Printer added" },
@@ -247,7 +276,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
         return false;
       }
     },
-    [host],
+    [host, selectPrinter],
   );
 
   const removePrinter = useCallback(
@@ -264,7 +293,18 @@ export function useLabelmakerController(host: LabelmakerHost) {
       }
       try {
         const printers = await host.removePrinter(printerId);
-        dispatch({ type: "set-printers", printers });
+        const preferredId =
+          state.activePrinterId === printerId
+            ? printers[0]?.id
+            : state.activePrinterId;
+        dispatch({
+          type: "set-printers",
+          printers,
+          ...(preferredId ? { preferredId } : {}),
+        });
+        if (preferredId && preferredId !== state.activePrinterId) {
+          selectPrinter(preferredId);
+        }
         dispatch({
           type: "set-toast",
           toast: { tone: "success", message: "Printer removed" },
@@ -279,7 +319,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
         });
       }
     },
-    [host],
+    [host, selectPrinter, state.activePrinterId],
   );
 
   const print = useCallback(
@@ -486,6 +526,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
     startDiscovery,
     addPrinter,
     removePrinter,
+    selectPrinter,
     print,
     addPlate,
     addText,

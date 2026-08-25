@@ -14,6 +14,7 @@ import { CanvasElementView } from "./CanvasElementView.js";
 import { IconButton } from "./controls.js";
 import { clamp } from "./editor-operations.js";
 import { PlateToolbarSettings } from "./Inspector.js";
+import { printableHeightMm, printableMarginPercent } from "./label-layout.js";
 
 type ResizeCorner = "nw" | "ne" | "sw" | "se";
 
@@ -172,6 +173,23 @@ function useCommitInlineEdit(
   }, [editingElementId, setEditingElementId]);
 }
 
+function NonprintableZones({ marginPercent }: { marginPercent: number }) {
+  return (
+    <>
+      <span
+        aria-hidden="true"
+        className="nonprintable-zone top"
+        style={{ height: `${marginPercent}%` }}
+      />
+      <span
+        aria-hidden="true"
+        className="nonprintable-zone bottom"
+        style={{ height: `${marginPercent}%` }}
+      />
+    </>
+  );
+}
+
 export function EditorCanvas({
   plate,
   selectedElementId,
@@ -184,6 +202,7 @@ export function EditorCanvas({
   onUpdatePlate,
   onTrim,
   onZoom,
+  verticalMarginMm,
 }: {
   readonly plate: LabelPlate;
   readonly selectedElementId: string | null;
@@ -196,12 +215,17 @@ export function EditorCanvas({
   readonly onUpdatePlate: (plate: LabelPlate) => void;
   readonly onTrim: () => void;
   readonly onZoom: (zoom: number) => void;
+  readonly verticalMarginMm: number;
 }) {
   const editOnClickRef = useRef<string | null>(null);
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   useCommitInlineEdit(editingElementId, setEditingElementId);
   const canvasScale = Math.min(9, 720 / plate.size.widthMm) * (zoom / 100);
+  const marginPercent = printableMarginPercent(
+    verticalMarginMm,
+    plate.size.heightMm,
+  );
   const canvasBounds = (elementNode: HTMLElement) =>
     elementNode.closest<HTMLElement>(".label-canvas")?.getBoundingClientRect();
 
@@ -376,6 +400,8 @@ export function EditorCanvas({
             !target.closest(".canvas-element, .zoom-control, button") ||
             target.closest(".canvas-clear-selection")
           ) {
+            setEditingElementId(null);
+            onSelectElement(null);
             startPan(event);
           }
         }}
@@ -446,10 +472,12 @@ export function EditorCanvas({
                 selected={element.id === selectedElementId}
               />
             ))}
+            <NonprintableZones marginPercent={marginPercent} />
           </section>
         </div>
         <div className="canvas-meta">
-          203 dpi · Print area {plate.size.widthMm} × {plate.size.heightMm} mm
+          203 dpi · Printable area {plate.size.widthMm} ×{" "}
+          {printableHeightMm(plate.size.heightMm, verticalMarginMm)} mm
         </div>
         <CanvasZoomControl onZoom={onZoom} zoom={zoom} />
       </div>

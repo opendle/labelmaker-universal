@@ -11,6 +11,7 @@ import type { ValidatedPrintRequest } from "./print-request.js";
 export interface PrintRasterTarget {
   readonly dpi: number;
   readonly rasterWidthPixels: number;
+  readonly verticalMarginMm?: number;
 }
 
 export type DesktopPlateRenderer = (
@@ -52,6 +53,9 @@ export async function printToSession(
       await renderPlate(plate, {
         dpi: capabilities.dpi,
         rasterWidthPixels: capabilities.rasterWidthPixels,
+        ...(capabilities.verticalMarginMm === undefined
+          ? {}
+          : { verticalMarginMm: capabilities.verticalMarginMm }),
       }),
     );
   }

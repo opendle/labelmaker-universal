@@ -29,7 +29,7 @@ adapters.
 
 ## Initial interface
 
-- A narrow left rail contains printers and workspace actions.
+- The top bar contains workspace actions and a compact printer selector.
 - The center contains the WYSIWYG plate canvas.
 - A plate strip gives each plate a thumbnail and a large add button.
 - A compact inspector contains plate size and selected-element settings.
@@ -39,12 +39,14 @@ adapters.
 ## First-release scope
 
 - Printer list, selection, mock discovery, and add-printer flow.
+- Restore the last selected printer on the next launch.
 - New, open, save, and save-as workspace actions.
 - Multiple plates in one workspace.
 - Label width and height settings.
 - Text elements with position, size, alignment, weight, and rotation.
 - Image import and basic placement.
 - Zoomed WYSIWYG canvas and monochrome print preview.
+- Capability-driven non-printable area guides.
 - Print one plate or all plates through the selected adapter.
 - Undo and redo for editor changes.
 

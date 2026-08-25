@@ -15,6 +15,7 @@ export interface DesktopPrinterSummary {
   readonly statusMessage: string;
   readonly dpi?: number;
   readonly rasterWidthPixels?: number;
+  readonly verticalMarginMm?: number;
   readonly batteryPercent?: number;
 }
 
@@ -23,11 +24,13 @@ interface PrinterSummaryOptions {
   readonly retryDelayMs?: number;
   readonly probe?: boolean;
   readonly onFailure?: (error: unknown) => void;
+  readonly verticalMarginMm?: number;
 }
 
 function availableSummary(
   printer: PrinterDescriptor,
   model: string,
+  verticalMarginMm?: number,
 ): DesktopPrinterSummary {
   return {
     id: printer.id,
@@ -37,6 +40,7 @@ function availableSummary(
     transport: printer.transport,
     state: "connecting",
     statusMessage: "Available",
+    ...(verticalMarginMm === undefined ? {} : { verticalMarginMm }),
   };
 }
 
@@ -58,7 +62,8 @@ export async function summarizePrinter(
   ) {
     throw new RangeError("Printer summary retry options are invalid");
   }
-  if (options.probe === false) return availableSummary(printer, model);
+  if (options.probe === false)
+    return availableSummary(printer, model, options.verticalMarginMm);
 
   let lastError: unknown;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -76,6 +81,9 @@ export async function summarizePrinter(
         statusMessage: status.message ?? status.state,
         dpi: capabilities.dpi,
         rasterWidthPixels: capabilities.rasterWidthPixels,
+        ...(capabilities.verticalMarginMm === undefined
+          ? {}
+          : { verticalMarginMm: capabilities.verticalMarginMm }),
         ...(status.batteryPercent === undefined
           ? {}
           : { batteryPercent: status.batteryPercent }),
@@ -90,5 +98,5 @@ export async function summarizePrinter(
   }
 
   options.onFailure?.(lastError);
-  return availableSummary(printer, model);
+  return availableSummary(printer, model, options.verticalMarginMm);
 }

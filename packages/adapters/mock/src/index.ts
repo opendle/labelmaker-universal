@@ -30,6 +30,7 @@ const printers: readonly PrinterDescriptor[] = [
 const capabilities: PrinterCapabilities = {
   dpi: 203,
   rasterWidthPixels: 96,
+  verticalMarginMm: 2,
   colorModes: ["monochrome"],
   media: [
     {
@@ -76,6 +77,7 @@ class MockPrinterSession implements PrinterSession {
 }
 
 export class MockPrinterAdapter implements PrinterAdapter {
+  readonly offlineCapabilities = { verticalMarginMm: 2 } as const;
   readonly manifest = {
     id: "mock",
     displayName: "Mock printers",

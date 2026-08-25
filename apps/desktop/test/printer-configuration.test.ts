@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   initialConfiguredPrinterIds,
   mockPrintersEnabled,
+  readActivePrinterId,
   readConfiguredPrinterIds,
   readConfiguredPrinterIdsWithLegacy,
   writeConfiguredPrinterIds,
@@ -91,6 +92,20 @@ describe("desktop printer configuration", () => {
         false,
       ),
     ).toEqual(new Set([second]));
+  });
+
+  it("remembers the last selected configured printer", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const filePath = join(directory, "configured-printers.json");
+    const first = "makeid:macos-bt-first";
+    const second = "makeid:macos-bt-second";
+
+    await writeConfiguredPrinterIds(filePath, [first, second], second);
+
+    expect(await readActivePrinterId(filePath)).toBe(second);
+    expect(JSON.parse(await readFile(filePath, "utf8"))).toMatchObject({
+      activePrinterId: second,
+    });
   });
 
   it("rejects corrupt stored printer data", async () => {

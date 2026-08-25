@@ -8,7 +8,6 @@ import { EditorCanvas } from "./EditorCanvas.js";
 import { trimPlate, updateElementAndFlagPeer } from "./editor-operations.js";
 import type { LabelmakerHost } from "./host.js";
 import { Inspector } from "./Inspector.js";
-import { LeftRail } from "./LeftRail.js";
 import { PlateStrip } from "./PlateStrip.js";
 import { useLabelmakerController } from "./useLabelmakerController.js";
 
@@ -26,6 +25,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   );
 
   if (!activePlate) return null;
+  const verticalMarginMm = controller.activePrinter?.verticalMarginMm ?? 0;
   const saveState = state.dirty
     ? "Edited"
     : state.savedAt
@@ -38,38 +38,33 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
     <div className="app-shell">
       <div className="application-content">
         <AppHeader
+          activePrinterId={state.activePrinterId}
           canPrint={controller.canPrint}
           canRedo={state.future.length > 0}
           canUndo={state.past.length > 0}
+          onAddPrinter={() => void controller.startDiscovery()}
+          onNew={() => void controller.newWorkspace()}
+          onOpen={() => void controller.openWorkspace()}
           onPreview={() => dispatch({ type: "open-preview" })}
           onPrint={(all) => void controller.print(all)}
           onPrintMenuChange={(open) =>
             dispatch({ type: "set-print-menu", open })
           }
           onRedo={() => dispatch({ type: "redo" })}
+          onRemovePrinter={(printerId) =>
+            void controller.removePrinter(printerId)
+          }
           onSave={() => void controller.save(false)}
+          onSelectPrinter={controller.selectPrinter}
           onUndo={() => dispatch({ type: "undo" })}
           plateCount={state.workspace.plates.length}
           platform={host.platform}
           printMenuOpen={state.printMenuOpen}
+          printers={state.printers}
           saveState={saveState}
           workspaceName={state.workspace.name}
         />
         <div className="desktop-body">
-          <LeftRail
-            activePrinterId={state.activePrinterId}
-            onAddPrinter={() => void controller.startDiscovery()}
-            onNew={() => void controller.newWorkspace()}
-            onOpen={() => void controller.openWorkspace()}
-            onSaveAs={() => void controller.save(true)}
-            onRemovePrinter={(printerId) =>
-              void controller.removePrinter(printerId)
-            }
-            onSelectPrinter={(printerId) =>
-              dispatch({ type: "set-active-printer", printerId })
-            }
-            printers={state.printers}
-          />
           <EditorCanvas
             onAddImage={controller.addImage}
             onAddSpecial={controller.addSpecial}
@@ -97,6 +92,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             onZoom={(zoom) => dispatch({ type: "set-zoom", zoom })}
             plate={activePlate}
             selectedElementId={state.selectedElementId}
+            verticalMarginMm={verticalMarginMm}
             zoom={state.zoom}
           />
           <Inspector
@@ -130,6 +126,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
           onSelectPlate={(plateId, elementId) =>
             dispatch({ type: "select-plate", plateId, elementId })
           }
+          verticalMarginMm={verticalMarginMm}
           workspace={state.workspace}
         />
       </div>
@@ -150,6 +147,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
         }}
         open={state.previewOpen}
         plate={activePlate}
+        verticalMarginMm={verticalMarginMm}
       />
       {state.toast && (
         <output aria-live="polite" className={`toast ${state.toast.tone}`}>

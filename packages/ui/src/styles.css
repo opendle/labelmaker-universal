@@ -59,7 +59,7 @@ textarea:focus-visible {
 }
 .application-content {
   display: grid;
-  grid-template-rows: 58px minmax(0, 1fr) 92px;
+  grid-template-rows: 68px minmax(0, 1fr) 92px;
   width: 100%;
   height: 100%;
 }
@@ -67,7 +67,7 @@ textarea:focus-visible {
 .titlebar {
   -webkit-app-region: drag;
   display: grid;
-  grid-template-columns: 180px 1fr auto;
+  grid-template-columns: auto minmax(120px, 1fr) auto;
   align-items: center;
   padding: 0 14px;
   background: rgba(250, 249, 246, 0.96);
@@ -80,16 +80,57 @@ textarea:focus-visible {
 .titlebar .print-control {
   -webkit-app-region: no-drag;
 }
+
+.header-leading {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.window-drag-spacer {
+  flex: 0 0 0;
+}
 .window-drag-spacer.macos {
-  min-width: 74px;
+  flex-basis: 74px;
+}
+.workspace-actions {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.header-action {
+  width: 46px;
+  height: 54px;
+  padding: 4px 2px 3px;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #5f5b53;
+  font-size: 9px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.header-action:hover {
+  border-color: #ddd9d0;
+  background: white;
 }
 .document-identity {
   justify-self: center;
   display: flex;
   align-items: center;
   gap: 9px;
+  min-width: 0;
+  padding: 0 12px;
 }
 .document-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 13.5px;
   font-weight: 600;
 }
@@ -108,6 +149,94 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   gap: 7px;
+}
+.printer-picker {
+  position: relative;
+}
+.printer-trigger {
+  width: 166px;
+  height: 40px;
+  padding: 0 8px;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) 15px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d4d1c8;
+  border-radius: 7px;
+  background: white;
+  color: #5d5951;
+  text-align: left;
+  cursor: pointer;
+}
+.printer-trigger-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.printer-trigger-copy strong,
+.printer-trigger-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.printer-trigger-copy strong {
+  font-size: 10.5px;
+}
+.printer-trigger-copy small {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 8.5px;
+}
+.printer-menu {
+  position: absolute;
+  top: 45px;
+  right: 0;
+  z-index: 25;
+  width: 260px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 12px 35px rgba(40, 35, 25, 0.18);
+}
+.header-printer-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.header-printer-option {
+  width: 100%;
+  min-height: 50px;
+  padding: 6px 34px 6px 6px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 16px;
+  gap: 7px;
+  align-items: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.header-printer-option:hover {
+  background: #f2f0eb;
+}
+.header-printer-row > .icon-button {
+  position: absolute;
+  right: 5px;
+  width: 25px;
+  height: 25px;
+  color: #9a5f52;
+}
+.printer-menu-empty {
+  margin: 0;
+  padding: 12px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
 }
 .toolbar-cluster {
   display: flex;
@@ -207,7 +336,7 @@ textarea:focus-visible {
 
 .desktop-body {
   display: grid;
-  grid-template-columns: 218px minmax(0, 1fr) 232px;
+  grid-template-columns: minmax(0, 1fr) 232px;
   grid-template-rows: 44px minmax(0, 1fr);
   min-height: 0;
 }
@@ -401,7 +530,7 @@ textarea:focus-visible {
   background: #e8e7e2;
 }
 .editor-toolbar {
-  grid-column: 2 / 4;
+  grid-column: 1 / 3;
   grid-row: 1;
   display: flex;
   align-items: center;
@@ -452,7 +581,7 @@ textarea:focus-visible {
   background: var(--line);
 }
 .work-surface {
-  grid-column: 2;
+  grid-column: 1;
   grid-row: 2;
   position: relative;
   display: flex;
@@ -584,6 +713,40 @@ textarea:focus-visible {
   inset: 3px;
   border: 1px dashed rgba(155, 150, 139, 0.35);
   pointer-events: none;
+}
+.nonprintable-zone,
+.mini-nonprintable,
+.preview-nonprintable {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  pointer-events: none;
+  background-color: rgba(116, 111, 101, 0.12);
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0,
+    transparent 4px,
+    rgba(116, 111, 101, 0.1) 4px,
+    rgba(116, 111, 101, 0.1) 5px
+  );
+}
+.nonprintable-zone.top,
+.mini-nonprintable.top,
+.preview-nonprintable.top {
+  top: 0;
+  border-bottom: 1px dashed rgba(105, 100, 91, 0.42);
+}
+.nonprintable-zone.bottom,
+.mini-nonprintable.bottom,
+.preview-nonprintable.bottom {
+  bottom: 0;
+  border-top: 1px dashed rgba(105, 100, 91, 0.42);
+}
+.nonprintable-zone {
+  z-index: 1;
+}
+.canvas-element {
+  z-index: 2;
 }
 .canvas-clear-selection {
   position: absolute;
@@ -774,7 +937,7 @@ textarea:focus-visible {
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--line);
-  grid-column: 3;
+  grid-column: 2;
   grid-row: 2;
 }
 .inspector-header {
@@ -1197,6 +1360,7 @@ textarea:focus-visible {
   font-size: 8px;
   font-weight: 700;
   letter-spacing: 0.04em;
+  container-type: inline-size;
 }
 .mini-label-text,
 .mini-label-image,
@@ -1208,6 +1372,7 @@ textarea:focus-visible {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   pointer-events: none;
+  z-index: 2;
 }
 .mini-label-text {
   color: #24221e;
@@ -1220,6 +1385,9 @@ textarea:focus-visible {
 }
 .mini-label-shape.filled {
   background: #8f8a80;
+}
+.mini-nonprintable {
+  z-index: 1;
 }
 .thumb-name {
   overflow: hidden;
@@ -1407,14 +1575,21 @@ textarea:focus-visible {
   font-size: 28px;
   letter-spacing: 0.04em;
   aspect-ratio: var(--preview-aspect-ratio);
+  container-type: inline-size;
 }
-.preview-label > * {
+.preview-label > :not(.preview-nonprintable) {
   position: absolute;
   left: var(--preview-left);
   top: var(--preview-top);
   width: var(--preview-width);
   height: var(--preview-height);
   transform: var(--preview-rotation);
+}
+.preview-label > :not(.preview-nonprintable) {
+  z-index: 2;
+}
+.preview-nonprintable {
+  z-index: 1;
 }
 .preview-label > i {
   background: var(--preview-shape-background);
@@ -1502,10 +1677,19 @@ textarea:focus-visible {
 
 @media (max-width: 1180px) {
   .desktop-body {
-    grid-template-columns: 190px minmax(0, 1fr) 210px;
+    grid-template-columns: minmax(0, 1fr) 210px;
   }
   .titlebar {
-    grid-template-columns: 140px 1fr auto;
+    grid-template-columns: auto minmax(80px, 1fr) auto;
+  }
+  .window-drag-spacer.macos {
+    flex-basis: 70px;
+  }
+  .header-action {
+    width: 42px;
+  }
+  .printer-trigger {
+    width: 142px;
   }
   .button.secondary {
     padding: 0 9px;
@@ -1532,10 +1716,13 @@ textarea:focus-visible {
 
 @media (max-height: 820px) {
   .application-content {
-    grid-template-rows: 52px minmax(0, 1fr) 100px;
+    grid-template-rows: 62px minmax(0, 1fr) 100px;
   }
   .titlebar {
-    height: 52px;
+    height: 62px;
+  }
+  .header-action {
+    height: 50px;
   }
   .property-stack {
     gap: 9px;

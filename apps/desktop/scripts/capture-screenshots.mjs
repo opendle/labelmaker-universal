@@ -26,6 +26,12 @@ async function capture(width, height, name, setup) {
     }
     const page = await application.firstWindow();
     await page.waitForSelector(".label-canvas");
+    await page.waitForFunction(() => {
+      const name = document
+        .querySelector(".printer-trigger-copy strong")
+        ?.textContent?.trim();
+      return Boolean(name && name !== "No printer");
+    });
     await setup?.(page);
     const layout = await page.evaluate(() => ({
       clientHeight: document.documentElement.clientHeight,

@@ -1,16 +1,20 @@
 import type { LabelDocument } from "@labelmaker/domain";
 import { Plus } from "lucide-react";
 
+import { containerFontSize, printableMarginPercent } from "./label-layout.js";
+
 export function PlateStrip({
   workspace,
   activePlateId,
   onSelectPlate,
   onAddPlate,
+  verticalMarginMm,
 }: {
   readonly workspace: LabelDocument;
   readonly activePlateId: string;
   readonly onSelectPlate: (plateId: string, elementId: string | null) => void;
   readonly onAddPlate: () => void;
+  readonly verticalMarginMm: number;
 }) {
   return (
     <footer className="plate-strip">
@@ -20,13 +24,15 @@ export function PlateStrip({
       </div>
       <div className="plate-thumbnails">
         {workspace.plates.map((plate, index) => {
+          const marginPercent = printableMarginPercent(
+            verticalMarginMm,
+            plate.size.heightMm,
+          );
           return (
             <button
               className={`plate-thumb ${plate.id === activePlateId ? "selected" : ""}`}
               key={plate.id}
-              onClick={() =>
-                onSelectPlate(plate.id, plate.elements[0]?.id ?? null)
-              }
+              onClick={() => onSelectPlate(plate.id, null)}
               type="button"
             >
               <span className="plate-number">{index + 1}</span>
@@ -52,7 +58,10 @@ export function PlateStrip({
                         style={{
                           ...frame,
                           fontFamily: element.fontFamily,
-                          fontSize: `${Math.max(4, element.fontSizePt * 0.2)}px`,
+                          fontSize: containerFontSize(
+                            element.fontSizePt,
+                            plate.size.widthMm,
+                          ),
                           fontStyle: element.fontStyle ?? "normal",
                           fontWeight: element.fontWeight,
                           textAlign: element.align,
@@ -85,19 +94,29 @@ export function PlateStrip({
                   }
                   return null;
                 })}
+                <span
+                  aria-hidden="true"
+                  className="mini-nonprintable top"
+                  style={{ height: `${marginPercent}%` }}
+                />
+                <span
+                  aria-hidden="true"
+                  className="mini-nonprintable bottom"
+                  style={{ height: `${marginPercent}%` }}
+                />
               </span>
               <span className="thumb-name">{plate.name}</span>
             </button>
           );
         })}
         <button
-          aria-label="Add plate"
+          aria-label="Add label"
           className="add-plate"
           onClick={onAddPlate}
           type="button"
         >
           <Plus size={25} />
-          <span>New plate</span>
+          <span>New label</span>
         </button>
       </div>
     </footer>

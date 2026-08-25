@@ -39,6 +39,7 @@ import { validatePrintRequest } from "./print-request.js";
 import {
   initialConfiguredPrinterIds,
   mockPrintersEnabled,
+  readActivePrinterId,
   readConfiguredPrinterIdsWithLegacy,
   writeConfiguredPrinterIds,
 } from "./printer-configuration.js";
@@ -62,6 +63,7 @@ if (process.platform === "darwin") {
   registry.register(new MakeIdE1Adapter(new MacOsMakeIdTransportProvider()));
 }
 let configuredPrinterIds = initialConfiguredPrinterIds([], includeMockPrinters);
+let activePrinterId: string | undefined;
 const printerSessions = new Map<string, Promise<PrinterSession>>();
 const activePrinterJobs = new Set<string>();
 const workspacePaths = new Map<number, string>();
@@ -233,6 +235,9 @@ async function summarize(printer: PrinterDescriptor) {
       // RFCOMM channel. A real session is opened when the user prints. If a
       // print already created a session, this refresh can reuse it.
       probe: printer.adapterId !== "makeid" || printerSessions.has(printer.id),
+      ...(adapter.offlineCapabilities?.verticalMarginMm === undefined
+        ? {}
+        : { verticalMarginMm: adapter.offlineCapabilities.verticalMarginMm }),
       onFailure: (error) =>
         context.log.warn("Printer status could not be refreshed", {
           printerId: printer.id,
@@ -286,6 +291,9 @@ function discoveredSummary(printer: PrinterDescriptor) {
     transport: printer.transport,
     state: "connecting" as const,
     statusMessage: "Paired",
+    ...(adapter.offlineCapabilities?.verticalMarginMm === undefined
+      ? {}
+      : { verticalMarginMm: adapter.offlineCapabilities.verticalMarginMm }),
   };
 }
 
@@ -300,6 +308,27 @@ function printerModel(
 }
 
 function registerIpc(): void {
+  ipcMain.handle(
+    "labelmaker:get-active-printer",
+    () => activePrinterId ?? null,
+  );
+
+  ipcMain.handle(
+    "labelmaker:set-active-printer",
+    async (_event, printerId: unknown) => {
+      if (typeof printerId !== "string" || !configuredPrinterIds.has(printerId))
+        throw new TypeError(
+          "Active printer ID must identify a configured printer",
+        );
+      activePrinterId = printerId;
+      await writeConfiguredPrinterIds(
+        configuredPrintersPath(),
+        configuredPrinterIds,
+        activePrinterId,
+      );
+    },
+  );
+
   ipcMain.handle("labelmaker:list-printers", async () => {
     const descriptors = await allDescriptors(false);
     return Promise.all(
@@ -337,7 +366,11 @@ function registerIpc(): void {
           .filter((item) => nextPrinterIds.has(item.id))
           .map(summarize),
       );
-      await writeConfiguredPrinterIds(configuredPrintersPath(), nextPrinterIds);
+      await writeConfiguredPrinterIds(
+        configuredPrintersPath(),
+        nextPrinterIds,
+        activePrinterId,
+      );
       configuredPrinterIds.add(printerId);
       return summaries;
     },
@@ -355,7 +388,16 @@ function registerIpc(): void {
 
       const nextPrinterIds = new Set(configuredPrinterIds);
       nextPrinterIds.delete(printerId);
-      await writeConfiguredPrinterIds(configuredPrintersPath(), nextPrinterIds);
+      if (activePrinterId === printerId) {
+        activePrinterId = [...nextPrinterIds].find((id) =>
+          id.startsWith("makeid:"),
+        );
+      }
+      await writeConfiguredPrinterIds(
+        configuredPrintersPath(),
+        nextPrinterIds,
+        activePrinterId,
+      );
       configuredPrinterIds = nextPrinterIds;
       await discardPrinterSession(printerId);
 
@@ -491,11 +533,16 @@ async function restoreConfiguredPrinters(): Promise<void> {
       ),
       includeMockPrinters,
     );
+    activePrinterId = await readActivePrinterId(configuredPrintersPath());
+    if (activePrinterId && !configuredPrinterIds.has(activePrinterId)) {
+      activePrinterId = undefined;
+    }
   } catch (error) {
     context.log.warn("Saved printer configuration could not be loaded", {
       error: error instanceof Error ? error.message : "Unknown error",
     });
     configuredPrinterIds = initialConfiguredPrinterIds([], includeMockPrinters);
+    activePrinterId = undefined;
   }
 }
 

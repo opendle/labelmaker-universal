@@ -42,6 +42,7 @@ const MAKEID_E1_MAX_COPIES = 9;
 const capabilities: PrinterCapabilities = {
   dpi: 203,
   rasterWidthPixels: MAKEID_PRINT_HEAD_PIXELS,
+  verticalMarginMm: 2,
   colorModes: ["monochrome"],
   media: [
     {
@@ -120,6 +121,7 @@ interface MakeIdConnectionData {
  * package does not open a Bluetooth connection on its own.
  */
 export class MakeIdE1Adapter implements PrinterAdapter {
+  readonly offlineCapabilities = { verticalMarginMm: 2 } as const;
   readonly manifest = {
     id: MAKEID_ADAPTER_ID,
     displayName: "MakeID E1",

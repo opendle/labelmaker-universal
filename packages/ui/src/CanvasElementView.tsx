@@ -6,6 +6,7 @@ import type {
 } from "react";
 
 import { SelectionHandles } from "./controls.js";
+import { pointsToMillimeters } from "./label-layout.js";
 
 type ResizeCorner = "nw" | "ne" | "sw" | "se";
 type ElementStyle = CSSProperties & Record<`--${string}`, string | number>;
@@ -84,7 +85,7 @@ export function CanvasElementView({
     element.kind === "text"
       ? {
           "--element-font-family": element.fontFamily,
-          "--element-font-size": `${Math.max(10, element.fontSizePt * canvasScale * 0.25)}px`,
+          "--element-font-size": `${Math.max(10, pointsToMillimeters(element.fontSizePt) * canvasScale)}px`,
           "--element-font-style": element.fontStyle ?? "normal",
           "--element-font-weight": element.fontWeight,
           "--element-justify":
@@ -112,7 +113,7 @@ export function CanvasElementView({
             }
             style={{
               fontFamily: element.fontFamily,
-              fontSize: `${Math.max(10, element.fontSizePt * canvasScale * 0.25)}px`,
+              fontSize: `${Math.max(10, pointsToMillimeters(element.fontSizePt) * canvasScale)}px`,
               fontStyle: element.fontStyle ?? "normal",
               fontWeight: element.fontWeight,
               textAlign: element.align,

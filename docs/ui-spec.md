@@ -9,8 +9,8 @@ and excessive decoration.
 
 ## Window layout
 
-- **Top bar:** workspace name, save state, undo, redo, preview, and print.
-- **Left rail:** configured printers, add-printer action, and workspace actions.
+- **Top bar:** large New, Open, and Save actions; workspace name and save state;
+  undo, redo, preview, printer selection, add-printer, and print.
 - **Center:** one WYSIWYG label canvas with a neutral work surface.
 - **Editor toolbar:** element actions on the left and always-visible plate name,
   width, height, margins, and trim controls on the right. It spans the center
@@ -20,12 +20,15 @@ and excessive decoration.
 - **Bottom plate strip:** a compact row of ordered plate thumbnails and one
   large `+` plate.
 
-The center canvas keeps priority when the window becomes narrow. Secondary rail
-content can collapse, but printer status and the plate strip remain reachable.
+The center canvas keeps priority when the window becomes narrow. Printer status
+and the plate strip remain reachable.
 
 ## Required mock interactions
 
 - Select a printer and see its state.
+- Select one printer from a compact header menu. Keep printer removal in that
+  menu, place add-printer next to it, and restore the last selected printer on
+  the next launch.
 - Open an add-printer dialog with mock discovery results.
 - While a printer is added, show progress and disable conflicting dialog
   actions. Close the dialog after success and keep it open after failure.
@@ -36,6 +39,10 @@ content can collapse, but printer status and the plate strip remain reachable.
 - Edit text directly on the plate. Double-click an unselected text element, or
   single-click a selected text element, to enter text-edit mode.
 - Preserve text line breaks on the canvas and in printed output.
+- Scale text in the canvas, print preview, and plate strip from the same
+  physical point size.
+- Show capability-reported top and bottom non-printable areas on the canvas and
+  in previews. Do not scale those areas into the printed raster.
 - Resize text elements from corner handles and rotate them from a separate
   rotation handle. Elements can extend outside the plate bounds.
 - Apply a typeface, font size, light/regular/semi-bold/bold weight, italic
@@ -53,6 +60,9 @@ content can collapse, but printer status and the plate strip remain reachable.
 - Show unsaved state, save state, preview, and a mock print result.
 - Before New or Open replaces a changed workspace, offer Save, Discard, and
   Cancel. A canceled or failed save must keep the changed workspace open.
+- Clear text editing and element selection when the user clicks an empty part
+  of the label or work surface. Selecting another element replaces the current
+  selection.
 
 On macOS, use the native window controls from Electron. Do not draw a second
 set of traffic-light controls in the application header.

@@ -53,6 +53,7 @@ describe("MakeIdE1Adapter", () => {
     expect(result).toMatchObject({
       dpi: 203,
       rasterWidthPixels: 96,
+      verticalMarginMm: 2,
       maxCopies: 9,
       supportsCut: false,
       supportsStatus: true,

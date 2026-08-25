@@ -4,6 +4,7 @@ import { useState, type CSSProperties } from "react";
 
 import { IconButton } from "./controls.js";
 import type { PrinterSummary } from "./host.js";
+import { containerFontSize, printableMarginPercent } from "./label-layout.js";
 import { Modal } from "./Modal.js";
 
 export function AddPrinterDialog({
@@ -117,7 +118,13 @@ export function AddPrinterDialog({
   );
 }
 
-function PreviewPlate({ plate }: { readonly plate: LabelPlate }) {
+function PreviewPlate({
+  plate,
+  verticalMarginMm,
+}: {
+  readonly plate: LabelPlate;
+  readonly verticalMarginMm: number;
+}) {
   type PreviewStyle = CSSProperties & Record<`--${string}`, string | number>;
   return (
     <div
@@ -172,7 +179,10 @@ function PreviewPlate({ plate }: { readonly plate: LabelPlate }) {
               {
                 ...style,
                 "--preview-font-family": item.fontFamily,
-                "--preview-font-size": `${item.fontSizePt}px`,
+                "--preview-font-size": containerFontSize(
+                  item.fontSizePt,
+                  plate.size.widthMm,
+                ),
                 "--preview-font-style": item.fontStyle ?? "normal",
                 "--preview-font-weight": item.fontWeight,
               } as PreviewStyle
@@ -182,6 +192,20 @@ function PreviewPlate({ plate }: { readonly plate: LabelPlate }) {
           </span>
         );
       })}
+      <span
+        aria-hidden="true"
+        className="preview-nonprintable top"
+        style={{
+          height: `${printableMarginPercent(verticalMarginMm, plate.size.heightMm)}%`,
+        }}
+      />
+      <span
+        aria-hidden="true"
+        className="preview-nonprintable bottom"
+        style={{
+          height: `${printableMarginPercent(verticalMarginMm, plate.size.heightMm)}%`,
+        }}
+      />
     </div>
   );
 }
@@ -192,12 +216,14 @@ export function PreviewDialog({
   canPrint,
   onClose,
   onPrint,
+  verticalMarginMm,
 }: {
   readonly open: boolean;
   readonly plate: LabelPlate;
   readonly canPrint: boolean;
   readonly onClose: () => void;
   readonly onPrint: () => void;
+  readonly verticalMarginMm: number;
 }) {
   if (!open) return null;
   return (
@@ -209,14 +235,14 @@ export function PreviewDialog({
       <div className="dialog-header">
         <div>
           <h2 id="preview-title">Print preview</h2>
-          <p>{plate.name} · 1 plate</p>
+          <p>{plate.name} · 1 label</p>
         </div>
         <IconButton initialFocus label="Close preview" onClick={onClose}>
           <X size={18} />
         </IconButton>
       </div>
       <div className="preview-surface">
-        <PreviewPlate plate={plate} />
+        <PreviewPlate plate={plate} verticalMarginMm={verticalMarginMm} />
       </div>
       <div className="preview-details">
         <span>
@@ -236,7 +262,7 @@ export function PreviewDialog({
           onClick={onPrint}
           type="button"
         >
-          <Printer size={16} /> Print plate
+          <Printer size={16} /> Print label
         </button>
       </div>
     </Modal>

@@ -19,13 +19,14 @@ describe("desktop printer summaries", () => {
       "MakeID E1",
       getSession,
       async () => undefined,
-      { probe: false },
+      { probe: false, verticalMarginMm: 2 },
     );
 
     expect(summary).toMatchObject({
       id: printer.id,
       state: "connecting",
       statusMessage: "Available",
+      verticalMarginMm: 2,
     });
     expect(getSession).not.toHaveBeenCalled();
   });
@@ -81,6 +82,7 @@ function fakeSession(): PrinterSession {
     capabilities: async () => ({
       dpi: 203,
       rasterWidthPixels: 96,
+      verticalMarginMm: 2,
       colorModes: ["monochrome"],
       media: [],
       maxCopies: 1,

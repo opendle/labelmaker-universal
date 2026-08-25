@@ -9,6 +9,7 @@ export interface PrinterSummary {
   readonly transport: PrinterTransport;
   readonly state: PrinterState;
   readonly statusMessage: string;
+  readonly verticalMarginMm?: number;
   readonly batteryPercent?: number;
 }
 
@@ -52,6 +53,8 @@ export interface LabelmakerHost {
   addPrinter(printerId: string): Promise<readonly PrinterSummary[]>;
   /** Remove a configured printer. Older hosts may omit this until supported. */
   removePrinter?(printerId: string): Promise<readonly PrinterSummary[]>;
+  getActivePrinterId?(): Promise<string | null>;
+  setActivePrinterId?(printerId: string): Promise<void>;
   newWorkspace(
     hasUnsavedChanges: boolean,
     document: LabelDocument,

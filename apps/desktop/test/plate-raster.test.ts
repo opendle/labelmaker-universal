@@ -19,11 +19,11 @@ describe("desktop plate rasterization", () => {
       ),
     };
 
-    const svg = buildPlateSvg(changed, 320, 96);
+    const svg = buildPlateSvg(changed, 320, 96, 2);
 
     expect(svg).toContain("A &lt; B &amp; C");
     expect(svg).toContain('font-family="A &quot;Font&quot;"');
-    expect(svg).toContain('viewBox="0 0 40 16"');
+    expect(svg).toContain('viewBox="0 2 40 12"');
   });
 
   it("renders line breaks and italic text as separate SVG lines", () => {

@@ -34,6 +34,7 @@ function createHost(overrides: Partial<LabelmakerHost> = {}): LabelmakerHost {
         state: "ready",
         statusMessage: "Ready",
         batteryPercent: 82,
+        verticalMarginMm: 2,
       },
     ]),
     discoverPrinters: vi.fn().mockResolvedValue([
@@ -90,12 +91,104 @@ describe("LabelmakerApp", () => {
     expect(await screen.findByText("Studio Labeler")).toBeInTheDocument();
     expect(screen.getByText("3 labels")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Add plate" }));
+    await user.click(screen.getByRole("button", { name: "Add label" }));
 
     expect(screen.getByText("4 labels")).toBeInTheDocument();
     expect(screen.getByLabelText("Plate name")).toHaveValue("Plate 4");
     expect(screen.getByText("Plate 4")).toBeInTheDocument();
     expect(screen.getByText("Edited")).toBeInTheDocument();
+  });
+
+  it("scales label previews from physical text size and marks the printable area", async () => {
+    render(<LabelmakerApp host={createHost()} />);
+    await screen.findByText("Studio Labeler");
+
+    const canvasElement = screen
+      .getByRole("button", { name: "Text element: RESISTORS" })
+      .closest<HTMLElement>(".canvas-element")!;
+    expect(
+      Number.parseFloat(
+        canvasElement.style.getPropertyValue("--element-font-size"),
+      ),
+    ).toBeCloseTo(57.15, 1);
+    const miniText = document.querySelector<HTMLElement>(".mini-label-text")!;
+    expect(miniText.style.fontSize).toContain("cqi");
+    expect(screen.getByText(/Printable area 62 ×\s*12 mm/)).toBeInTheDocument();
+    const zones = screen
+      .getByRole("region", { name: "Resistors label canvas" })
+      .querySelectorAll<HTMLElement>(".nonprintable-zone");
+    expect(zones).toHaveLength(2);
+    expect(zones[0]).toHaveStyle({ height: "12.5%" });
+  });
+
+  it("clears text editing and selection on the label background", async () => {
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+    const text = screen.getByRole("button", {
+      name: "Text element: RESISTORS",
+    });
+    const frame = text.closest<HTMLElement>(".canvas-element")!;
+    await user.click(text);
+    expect(
+      screen.getByRole("textbox", { name: "Edit text on label" }),
+    ).toBeInTheDocument();
+
+    const canvas = screen.getByRole("region", {
+      name: "Resistors label canvas",
+    });
+    fireEvent.pointerDown(canvas, { button: 0, pointerId: 1 });
+    fireEvent.pointerUp(window, { pointerId: 1 });
+
+    expect(
+      screen.queryByRole("textbox", { name: "Edit text on label" }),
+    ).not.toBeInTheDocument();
+    expect(frame).not.toHaveClass("selected");
+  });
+
+  it("restores and updates the selected printer from the header menu", async () => {
+    const first = {
+      id: "makeid:first",
+      adapterId: "makeid",
+      name: "First printer",
+      model: "MakeID E1",
+      transport: "bluetooth-classic" as const,
+      state: "ready" as const,
+      statusMessage: "Ready",
+      verticalMarginMm: 2,
+    };
+    const second = { ...first, id: "makeid:second", name: "Second printer" };
+    const setActivePrinterId = vi.fn().mockResolvedValue(undefined);
+    const removePrinter = vi.fn().mockResolvedValue([second]);
+    const user = userEvent.setup();
+    render(
+      <LabelmakerApp
+        host={createHost({
+          getActivePrinterId: vi.fn().mockResolvedValue(second.id),
+          listPrinters: vi.fn().mockResolvedValue([first, second]),
+          removePrinter,
+          setActivePrinterId,
+        })}
+      />,
+    );
+
+    const trigger = await screen.findByRole("button", {
+      name: "Selected printer: Second printer",
+    });
+    await user.click(trigger);
+    await user.click(
+      screen.getByRole("menuitemradio", { name: /First printer/ }),
+    );
+    await waitFor(() =>
+      expect(setActivePrinterId).toHaveBeenCalledWith(first.id),
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Selected printer: First printer" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Remove First printer" }),
+    );
+    await waitFor(() => expect(removePrinter).toHaveBeenCalledWith(first.id));
   });
 
   it("edits text and saves through the host interface", async () => {
@@ -173,7 +266,7 @@ describe("LabelmakerApp", () => {
     const leftMargin = screen.getByLabelText("Left margin");
     await user.clear(leftMargin);
     await user.type(leftMargin, "2");
-    await user.click(screen.getByRole("button", { name: "New workspace" }));
+    await user.click(screen.getByRole("button", { name: "New" }));
 
     await waitFor(() => expect(newWorkspace).toHaveBeenCalledOnce());
     expect(newWorkspace).toHaveBeenCalledWith(
@@ -191,7 +284,7 @@ describe("LabelmakerApp", () => {
     const user = userEvent.setup();
     render(<LabelmakerApp host={host} />);
 
-    await user.click(screen.getByRole("button", { name: "New workspace" }));
+    await user.click(screen.getByRole("button", { name: "New" }));
 
     await waitFor(() =>
       expect(host.newWorkspace).toHaveBeenCalledWith(false, sampleDocument),
@@ -205,7 +298,7 @@ describe("LabelmakerApp", () => {
     const user = userEvent.setup();
     render(<LabelmakerApp host={host} />);
 
-    await user.click(screen.getByRole("button", { name: "Open workspace…" }));
+    await user.click(screen.getByRole("button", { name: "Open" }));
 
     await waitFor(() =>
       expect(host.openWorkspace).toHaveBeenCalledWith(false, sampleDocument),
@@ -219,9 +312,7 @@ describe("LabelmakerApp", () => {
     const user = userEvent.setup();
     render(<LabelmakerApp host={host} />);
 
-    await user.click(
-      screen.getByRole("button", { name: "Save workspace as…" }),
-    );
+    fireEvent.keyDown(window, { key: "s", ctrlKey: true, shiftKey: true });
 
     await waitFor(() => expect(host.saveWorkspaceAs).toHaveBeenCalledOnce());
     expect(screen.getByRole("status")).toHaveTextContent(
@@ -369,7 +460,7 @@ describe("LabelmakerApp", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("prints the current plate and all plates through distinct commands", async () => {
+  it("prints the current label and all labels through distinct commands", async () => {
     const host = createHost();
     const user = userEvent.setup();
     render(<LabelmakerApp host={host} />);
@@ -383,7 +474,7 @@ describe("LabelmakerApp", () => {
 
     await user.click(screen.getByRole("button", { name: "Print options" }));
     await user.click(
-      screen.getByRole("menuitem", { name: "Print all 3 plates" }),
+      screen.getByRole("menuitem", { name: "Print all 3 labels" }),
     );
     await waitFor(() => expect(host.print).toHaveBeenCalledTimes(2));
     expect(host.print).toHaveBeenLastCalledWith(
@@ -414,8 +505,8 @@ describe("LabelmakerApp", () => {
     expect(screen.getByRole("button", { name: /^Print$/ })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Print options" })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: "Preview" }));
-    expect(screen.getByRole("button", { name: "Print plate" })).toBeEnabled();
-    await user.click(screen.getByRole("button", { name: "Print plate" }));
+    expect(screen.getByRole("button", { name: "Print label" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Print label" }));
     await waitFor(() => expect(host.print).toHaveBeenCalledTimes(1));
   });
 
@@ -423,7 +514,7 @@ describe("LabelmakerApp", () => {
     const user = userEvent.setup();
     render(<LabelmakerApp host={createHost()} />);
 
-    await user.click(screen.getByRole("button", { name: "Add plate" }));
+    await user.click(screen.getByRole("button", { name: "Add label" }));
     expect(screen.getByText("4 labels")).toBeInTheDocument();
     fireEvent.keyDown(window, { key: "z", ctrlKey: true });
     expect(screen.getByText("3 labels")).toBeInTheDocument();
@@ -438,6 +529,9 @@ describe("LabelmakerApp", () => {
     fireEvent.keyDown(window, { key: "-", ctrlKey: true });
     expect(screen.getByText("100%")).toBeInTheDocument();
 
+    await user.click(
+      screen.getByRole("button", { name: "Text element: NEW LABEL" }),
+    );
     fireEvent.keyDown(window, { key: "Delete" });
     expect(
       screen.queryByRole("button", { name: "Text element: NEW LABEL" }),
@@ -493,7 +587,7 @@ describe("LabelmakerApp", () => {
     fireEvent(window, pointerEvent("pointermove", 31, 10));
     fireEvent(window, pointerEvent("pointerup", 31, 10));
     expect(screen.getByLabelText("X position")).toHaveValue(7.1);
-    expect(screen.getByLabelText("Y position")).toHaveValue(5.2);
+    expect(screen.getByLabelText("Y position")).toHaveValue(4.1);
   });
 
   it("resizes text with handles and allows keyboard overflow", async () => {
@@ -588,9 +682,9 @@ describe("LabelmakerApp", () => {
     const trigger = screen.getByRole("button", { name: "Print options" });
     await user.click(trigger);
     const current = screen.getByRole("menuitem", {
-      name: "Print current plate",
+      name: "Print current label",
     });
-    const all = screen.getByRole("menuitem", { name: "Print all 3 plates" });
+    const all = screen.getByRole("menuitem", { name: "Print all 3 labels" });
     await waitFor(() => expect(current).toHaveFocus());
     await user.keyboard("{ArrowDown}");
     expect(all).toHaveFocus();
@@ -626,9 +720,9 @@ describe("LabelmakerApp", () => {
     render(<LabelmakerApp host={host} />);
     await user.click(screen.getByRole("button", { name: /^Save$/ }));
     expect(await screen.findByText("Save canceled")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Open workspace…" }));
+    await user.click(screen.getByRole("button", { name: "Open" }));
     expect(await screen.findByText("Open canceled")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "New workspace" }));
+    await user.click(screen.getByRole("button", { name: "New" }));
     expect(
       await screen.findByText(
         "A new workspace could not be created. Try again.",
@@ -673,7 +767,7 @@ describe("LabelmakerApp", () => {
     expect(
       await screen.findByText("Printers could not be loaded. Try again."),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add plate" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Add label" })).toBeEnabled();
   });
 
   it("shows static icons for canceled and failed operations", async () => {
