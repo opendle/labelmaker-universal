@@ -479,6 +479,7 @@ textarea:focus-visible {
   content: "";
   pointer-events: none;
   opacity: 0.44;
+  background-position: 120px 120px;
   background-image:
     repeating-linear-gradient(
       90deg,
