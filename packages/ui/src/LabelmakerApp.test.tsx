@@ -328,7 +328,7 @@ describe("LabelmakerApp", () => {
     );
   });
 
-  it("disables every print entry point for an offline printer", async () => {
+  it("allows a print retry for an offline printer", async () => {
     const host = createHost({
       listPrinters: vi.fn().mockResolvedValue([
         {
@@ -346,13 +346,12 @@ describe("LabelmakerApp", () => {
     render(<LabelmakerApp host={host} />);
 
     await screen.findByText("Offline Labeler");
-    expect(screen.getByRole("button", { name: /^Print$/ })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Print options" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^Print$/ })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Print options" })).toBeEnabled();
     await user.click(screen.getByRole("button", { name: "Preview" }));
-    expect(screen.getByRole("button", { name: "Print plate" })).toBeDisabled();
-    expect(host.print).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Print plate" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "Print plate" }));
+    await waitFor(() => expect(host.print).toHaveBeenCalledTimes(1));
   });
 
   it("supports undo, redo, zoom, and delete keyboard shortcuts", async () => {

@@ -13,8 +13,8 @@ import {
 } from "./transport.js";
 
 const DEFAULT_CONNECT_TIMEOUT_MS = 20_000;
-const CONNECT_ATTEMPTS = 3;
-const CONNECT_RETRY_DELAY_MS = 750;
+const CONNECT_ATTEMPTS = 5;
+const CONNECT_RETRY_DELAYS_MS = [750, 1_500, 3_000, 5_000] as const;
 const CLOSE_GRACE_MS = 2_000;
 const MAX_DISCOVERY_OUTPUT_BYTES = 1024 * 1024;
 
@@ -102,7 +102,10 @@ export class MacOsMakeIdTransportProvider implements MakeIdTransportProvider {
         lastError = error;
         await transport.close();
         if (attempt < CONNECT_ATTEMPTS) {
-          await abortableDelay(CONNECT_RETRY_DELAY_MS, signal);
+          await abortableDelay(
+            CONNECT_RETRY_DELAYS_MS[attempt - 1] ?? 5_000,
+            signal,
+          );
         }
       }
     }

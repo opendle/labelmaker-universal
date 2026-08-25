@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 
 import {
@@ -7,6 +8,7 @@ import {
   ipcMain,
   type IpcMainInvokeEvent,
   type MessageBoxOptions,
+  type NativeImage,
   type OpenDialogOptions,
   type SaveDialogOptions,
 } from "electron";
@@ -61,6 +63,7 @@ let configuredPrinterIds = initialConfiguredPrinterIds([], includeMockPrinters);
 const printerSessions = new Map<string, Promise<PrinterSession>>();
 const activePrinterJobs = new Set<string>();
 const workspacePaths = new Map<number, string>();
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
 const context: AdapterContext = {
   log: {
     debug: (message, detail) => console.debug(message, detail ?? {}),
@@ -210,45 +213,52 @@ async function allDescriptors(): Promise<readonly PrinterDescriptor[]> {
 
 async function summarize(printer: PrinterDescriptor) {
   const adapter = registry.get(printer.adapterId);
-  try {
-    // A cached Bluetooth session can be closed by macOS while the app is
-    // still running. Refresh status before showing it and replace a stale
-    // session so the next print can reconnect.
-    const session = await printerSession(printer);
-    const [status, capabilities]: [
-      PrinterStatus,
-      Awaited<ReturnType<typeof session.capabilities>>,
-    ] = await Promise.all([session.status(), session.capabilities()]);
-    return {
-      id: printer.id,
-      adapterId: printer.adapterId,
-      name: printer.displayName,
-      model: printerModel(adapter, printer),
-      transport: printer.transport,
-      state: status.state,
-      statusMessage: status.message ?? status.state,
-      dpi: capabilities.dpi,
-      rasterWidthPixels: capabilities.rasterWidthPixels,
-      ...(status.batteryPercent === undefined
-        ? {}
-        : { batteryPercent: status.batteryPercent }),
-    };
-  } catch (error) {
-    await discardPrinterSession(printer.id);
-    context.log.warn("Printer status could not be refreshed", {
-      printerId: printer.id,
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-    return {
-      id: printer.id,
-      adapterId: printer.adapterId,
-      name: printer.displayName,
-      model: printerModel(adapter, printer),
-      transport: printer.transport,
-      state: "disconnected" as const,
-      statusMessage: "Not connected",
-    };
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      // A cached Bluetooth session can be closed by macOS while the app is
+      // still running. Refresh status before showing it and replace a stale
+      // session so the next print can reconnect.
+      const session = await printerSession(printer);
+      const [status, capabilities]: [
+        PrinterStatus,
+        Awaited<ReturnType<typeof session.capabilities>>,
+      ] = await Promise.all([session.status(), session.capabilities()]);
+      return {
+        id: printer.id,
+        adapterId: printer.adapterId,
+        name: printer.displayName,
+        model: printerModel(adapter, printer),
+        transport: printer.transport,
+        state: status.state,
+        statusMessage: status.message ?? status.state,
+        dpi: capabilities.dpi,
+        rasterWidthPixels: capabilities.rasterWidthPixels,
+        ...(status.batteryPercent === undefined
+          ? {}
+          : { batteryPercent: status.batteryPercent }),
+      };
+    } catch (error) {
+      lastError = error;
+      await discardPrinterSession(printer.id);
+      if (attempt < 2) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
   }
+  context.log.warn("Printer status could not be refreshed", {
+    printerId: printer.id,
+    error: lastError instanceof Error ? lastError.message : "Unknown error",
+  });
+  return {
+    id: printer.id,
+    adapterId: printer.adapterId,
+    name: printer.displayName,
+    model: printerModel(adapter, printer),
+    transport: printer.transport,
+    state: "disconnected" as const,
+    statusMessage: "Not connected",
+  };
 }
 
 async function printerSession(
@@ -543,7 +553,40 @@ async function rasterizeSvg(
   }
 }
 
-function createWindow(): void {
+async function renderAppIcon(): Promise<NativeImage> {
+  const iconPath = fileURLToPath(
+    new URL("../renderer/app-icon.svg", import.meta.url),
+  );
+  const svg = readFileSync(iconPath).toString("base64");
+  const surface = new BrowserWindow({
+    show: false,
+    width: 512,
+    height: 512,
+    useContentSize: true,
+    transparent: true,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      offscreen: true,
+      sandbox: true,
+    },
+  });
+  try {
+    await surface.loadURL(`data:image/svg+xml;base64,${svg}`);
+    const icon = await surface.webContents.capturePage({
+      x: 0,
+      y: 0,
+      width: 512,
+      height: 512,
+    });
+    if (icon.isEmpty()) throw new Error("The app icon could not be rendered");
+    return icon;
+  } finally {
+    surface.destroy();
+  }
+}
+
+function createWindow(icon?: NativeImage): BrowserWindow {
   const requestedSize =
     process.env.LABELMAKER_WINDOW_SIZE?.split("x").map(Number);
   const width = requestedSize?.[0] ?? 1440;
@@ -556,6 +599,7 @@ function createWindow(): void {
     show: false,
     backgroundColor: "#efeee9",
     title: "Labelmaker Universal",
+    ...(icon ? { icon } : {}),
     ...(process.platform === "darwin"
       ? { titleBarStyle: "hiddenInset" as const }
       : {}),
@@ -574,20 +618,36 @@ function createWindow(): void {
   void window.loadFile(
     fileURLToPath(new URL("../renderer/index.html", import.meta.url)),
   );
+  return window;
 }
 
-app.whenReady().then(async () => {
-  await restoreConfiguredPrinters();
-  registerIpc();
-  createWindow();
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+if (!hasSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    const window = BrowserWindow.getAllWindows()[0];
+    if (!window) return;
+    if (window.isMinimized()) window.restore();
+    window.show();
+    window.focus();
   });
-});
 
-app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") app.quit();
-});
+  app.whenReady().then(async () => {
+    await restoreConfiguredPrinters();
+    registerIpc();
+    const window = createWindow();
+    const icon = await renderAppIcon();
+    window.setIcon(icon);
+    if (process.platform === "darwin" && app.dock) app.dock.setIcon(icon);
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow(icon);
+    });
+  });
+
+  app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") app.quit();
+  });
+}
 
 app.on("before-quit", () => {
   for (const pending of printerSessions.values()) {

@@ -472,6 +472,29 @@ textarea:focus-visible {
   flex: 0 0 auto;
   transition: transform 0.08s linear;
 }
+.canvas-stage::before {
+  position: absolute;
+  inset: -120px;
+  z-index: 0;
+  content: "";
+  pointer-events: none;
+  opacity: 0.44;
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      transparent 0,
+      transparent calc(var(--grid-step) - 1px),
+      #a09c92 calc(var(--grid-step) - 1px),
+      #a09c92 var(--grid-step)
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0,
+      transparent calc(var(--grid-step) - 1px),
+      #a09c92 calc(var(--grid-step) - 1px),
+      #a09c92 var(--grid-step)
+    );
+}
 .ruler-top {
   position: absolute;
   left: 0;
@@ -492,6 +515,9 @@ textarea:focus-visible {
 }
 .ruler-top span.origin {
   transform: none;
+}
+.ruler-top span.origin::before {
+  left: 0;
 }
 .ruler-top span::before {
   content: "";
@@ -524,6 +550,9 @@ textarea:focus-visible {
   transform: none;
   top: 0 !important;
 }
+.ruler-left span.origin::after {
+  top: 0;
+}
 .ruler-left span::after {
   content: "";
   position: absolute;
@@ -533,38 +562,9 @@ textarea:focus-visible {
   height: 1px;
   background: #817e75;
 }
-.ruler-grid-bottom {
-  position: absolute;
-  left: 0;
-  top: 100%;
-  height: 42px;
-  opacity: 0.44;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    90deg,
-    transparent 0,
-    transparent calc(var(--grid-step) - 1px),
-    #a09c92 calc(var(--grid-step) - 1px),
-    #a09c92 var(--grid-step)
-  );
-}
-.ruler-grid-left {
-  position: absolute;
-  left: -42px;
-  top: 0;
-  width: 42px;
-  opacity: 0.44;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent 0,
-    transparent calc(var(--grid-step) - 1px),
-    #a09c92 calc(var(--grid-step) - 1px),
-    #a09c92 var(--grid-step)
-  );
-}
 .label-canvas {
   position: relative;
+  z-index: 1;
   max-width: 78%;
   max-height: 62%;
   background: var(--paper);

@@ -39,27 +39,35 @@ export function useLabelmakerController(host: LabelmakerHost) {
   const activePrinter = state.printers.find(
     (printer) => printer.id === state.activePrinterId,
   );
-  const canPrint = activePrinter?.state === "ready";
+  // The main process performs a fresh status check and reconnect before the
+  // job. Keep print enabled for a configured printer so a stale renderer
+  // status does not block a recoverable connection.
+  const canPrint = activePrinter !== undefined;
 
   useEffect(() => {
     let active = true;
-    void host
-      .listPrinters()
-      .then((printers) => {
-        if (active) dispatch({ type: "set-printers", printers });
-      })
-      .catch(() => {
-        if (active)
-          dispatch({
-            type: "set-toast",
-            toast: {
-              tone: "error",
-              message: "Printers could not be loaded. Try again.",
-            },
-          });
-      });
+    const refresh = (showError: boolean) => {
+      void host
+        .listPrinters()
+        .then((printers) => {
+          if (active) dispatch({ type: "set-printers", printers });
+        })
+        .catch(() => {
+          if (active && showError)
+            dispatch({
+              type: "set-toast",
+              toast: {
+                tone: "error",
+                message: "Printers could not be loaded. Try again.",
+              },
+            });
+        });
+    };
+    refresh(true);
+    const timer = globalThis.setInterval(() => refresh(false), 5000);
     return () => {
       active = false;
+      globalThis.clearInterval(timer);
     };
   }, [host]);
 
@@ -274,13 +282,13 @@ export function useLabelmakerController(host: LabelmakerHost) {
 
   const print = useCallback(
     async (all: boolean) => {
-      if (!activePlate || !activePrinter || activePrinter.state !== "ready") {
+      if (!activePlate || !activePrinter) {
         dispatch({ type: "set-print-menu", open: false });
         dispatch({
           type: "set-toast",
           toast: {
             tone: "error",
-            message: "Select a ready printer before printing.",
+            message: "Select a printer before printing.",
           },
         });
         return;
@@ -290,7 +298,10 @@ export function useLabelmakerController(host: LabelmakerHost) {
         type: "set-toast",
         toast: {
           tone: "neutral",
-          message: "Sending label to printer…",
+          message:
+            activePrinter.state === "ready"
+              ? "Sending label to printer…"
+              : "Connecting to printer…",
           busy: true,
         },
       });

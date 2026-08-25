@@ -12,6 +12,23 @@ const printer: PrinterDescriptor = {
 };
 
 describe("desktop printer session recovery", () => {
+  it("retries a transient status response before closing a live session", async () => {
+    const session = fakeSession("ready");
+    const status = vi
+      .fn()
+      .mockResolvedValueOnce({ state: "busy", message: "Starting" })
+      .mockResolvedValueOnce({ state: "ready", message: "Ready" });
+    session.status = status;
+    const getSession = vi.fn(async () => session);
+    const discard = vi.fn(async () => undefined);
+
+    await expect(
+      getReadyPrinterSession(printer, getSession, discard, 2, 2, 0),
+    ).resolves.toBe(session);
+    expect(status).toHaveBeenCalledTimes(2);
+    expect(discard).not.toHaveBeenCalled();
+  });
+
   it("discards a stale session and reconnects before printing", async () => {
     const stale = fakeSession("disconnected");
     const fresh = fakeSession("ready");

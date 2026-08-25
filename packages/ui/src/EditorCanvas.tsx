@@ -58,14 +58,6 @@ function CanvasRulers({
           </span>
         ))}
       </div>
-      <div
-        className="ruler-grid-bottom"
-        style={{ width: `${widthMm * canvasScale}px` }}
-      />
-      <div
-        className="ruler-grid-left"
-        style={{ height: `${heightMm * canvasScale}px` }}
-      />
     </>
   );
 }
