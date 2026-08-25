@@ -2,8 +2,8 @@
 
 ## Rules
 
-- Store one workspace as one UTF-8 JSON file.
-- Use the `.labelmaker.json` extension during the initial format phase.
+- Store one workspace as gzip-compressed UTF-8 YAML.
+- Use the `.lbl` extension.
 - Include `schemaVersion` and migrate old versions explicitly.
 - Store physical positions and sizes in millimeters.
 - Keep UI-only state, printer selections, and recent-file data out of the file.
@@ -15,44 +15,46 @@
   when the platform supports an atomic replacement.
 
 The desktop shell keeps the current file path in the Electron main process. It
-does not add that path to the saved JSON or expose raw file-system access to the
+does not add that path to the saved YAML or expose raw file-system access to the
 renderer.
 
 ## Version 1 shape
 
-```json
-{
-  "schemaVersion": 1,
-  "id": "workspace-id",
-  "name": "Workshop labels",
-  "defaultPlateSize": { "widthMm": 40, "heightMm": 16 },
-  "plates": [
-    {
-      "id": "plate-id",
-      "name": "Drawer 1",
-      "size": { "widthMm": 40, "heightMm": 16 },
-      "margins": { "leftMm": 0, "rightMm": 0 },
-      "elements": [
-        {
-          "id": "element-id",
-          "kind": "text",
-          "xMm": 2,
-          "yMm": 3,
-          "widthMm": 36,
-          "heightMm": 8,
-          "rotationDeg": 0,
-          "text": "RESISTORS",
-          "fontFamily": "Inter",
-          "fontSizePt": 12,
-          "fontWeight": 600,
-          "fontStyle": "normal",
-          "align": "center"
-        }
-      ]
-    }
-  ]
-}
+```yaml
+schemaVersion: 1
+id: workspace-id
+name: Workshop labels
+defaultPlateSize:
+  widthMm: 40
+  heightMm: 16
+plates:
+  - id: plate-id
+    name: Drawer 1
+    size:
+      widthMm: 40
+      heightMm: 16
+    margins:
+      leftMm: 0
+      rightMm: 0
+    elements:
+      - id: element-id
+        kind: text
+        xMm: 2
+        yMm: 3
+        widthMm: 36
+        heightMm: 8
+        rotationDeg: 0
+        text: RESISTORS
+        fontFamily: Inter
+        fontSizePt: 12
+        fontWeight: 600
+        fontStyle: normal
+        align: center
 ```
+
+The gzip stream is the complete `.lbl` file. After decompression, it contains
+one YAML document and a final line break. Both the compressed file and the
+decompressed YAML have a 25 MiB size limit.
 
 The TypeScript types can include planned element kinds before the editor exposes
 them. The loader must still reject unknown schema versions and invalid values.

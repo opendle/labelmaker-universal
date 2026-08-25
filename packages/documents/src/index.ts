@@ -8,8 +8,9 @@ import type {
   ShapeElement,
   TextElement,
 } from "@labelmaker/domain";
+import { parse, stringify } from "yaml";
 
-export const LABELMAKER_FILE_EXTENSION = ".labelmaker.json";
+export const LABELMAKER_FILE_EXTENSION = ".lbl";
 export const MAX_WORKSPACE_BYTES = 25 * 1024 * 1024;
 
 const MAX_PLATES = 1_000;
@@ -19,7 +20,8 @@ const MAX_CONTENT_LENGTH = 20 * 1024 * 1024;
 const MAX_MEASUREMENT_MM = 10_000;
 
 export type DocumentErrorCode =
-  | "INVALID_JSON"
+  | "INVALID_YAML"
+  | "INVALID_GZIP"
   | "UNSUPPORTED_SCHEMA_VERSION"
   | "INVALID_DOCUMENT"
   | "DOCUMENT_TOO_LARGE";
@@ -295,11 +297,15 @@ export function parseLabelDocument(text: string): LabelDocument {
   }
   let value: unknown;
   try {
-    value = JSON.parse(text);
+    value = parse(text, {
+      maxAliasCount: 100,
+      prettyErrors: false,
+      uniqueKeys: true,
+    });
   } catch {
     throw new LabelDocumentError(
-      "INVALID_JSON",
-      "Workspace file is not valid JSON",
+      "INVALID_YAML",
+      "Workspace file is not valid YAML",
     );
   }
   return validateLabelDocument(value);
@@ -307,7 +313,7 @@ export function parseLabelDocument(text: string): LabelDocument {
 
 export function serializeLabelDocument(document: LabelDocument): string {
   const validated = validateLabelDocument(document);
-  const text = `${JSON.stringify(validated, null, 2)}\n`;
+  const text = stringify(validated, { lineWidth: 0 });
   if (new TextEncoder().encode(text).byteLength > MAX_WORKSPACE_BYTES) {
     throw new LabelDocumentError(
       "DOCUMENT_TOO_LARGE",

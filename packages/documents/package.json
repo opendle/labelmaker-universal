@@ -10,6 +10,7 @@
     "typecheck": "tsc --build --pretty false"
   },
   "dependencies": {
-    "@labelmaker/domain": "0.0.0"
+    "@labelmaker/domain": "0.0.0",
+    "yaml": "2.8.1"
   }
 }

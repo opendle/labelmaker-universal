@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { copyFile, open, readFile, rename, rm, stat } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
+import { promisify } from "node:util";
+import { gunzip, gzip } from "node:zlib";
 
 import {
   LabelDocumentError,
@@ -9,6 +11,9 @@ import {
   serializeLabelDocument,
 } from "@labelmaker/documents";
 import type { LabelDocument } from "@labelmaker/domain";
+
+const gzipAsync = promisify(gzip);
+const gunzipAsync = promisify(gunzip);
 
 export async function readWorkspaceFile(
   filePath: string,
@@ -20,7 +25,25 @@ export async function readWorkspaceFile(
       `Workspace files must be smaller than ${MAX_WORKSPACE_BYTES} bytes`,
     );
   }
-  return parseLabelDocument(await readFile(filePath, "utf8"));
+  const compressed = await readFile(filePath);
+  let contents: Buffer;
+  try {
+    contents = await gunzipAsync(compressed, {
+      maxOutputLength: MAX_WORKSPACE_BYTES,
+    });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ERR_BUFFER_TOO_LARGE") {
+      throw new LabelDocumentError(
+        "DOCUMENT_TOO_LARGE",
+        `Workspace files must be smaller than ${MAX_WORKSPACE_BYTES} bytes`,
+      );
+    }
+    throw new LabelDocumentError(
+      "INVALID_GZIP",
+      "Workspace file is not valid gzip data",
+    );
+  }
+  return parseLabelDocument(contents.toString("utf8"));
 }
 
 export async function writeWorkspaceFile(
@@ -28,6 +51,15 @@ export async function writeWorkspaceFile(
   document: LabelDocument,
 ): Promise<void> {
   const contents = serializeLabelDocument(document);
+  const compressed = await gzipAsync(Buffer.from(contents, "utf8"), {
+    level: 9,
+  });
+  if (compressed.byteLength > MAX_WORKSPACE_BYTES) {
+    throw new LabelDocumentError(
+      "DOCUMENT_TOO_LARGE",
+      `Workspace files must be smaller than ${MAX_WORKSPACE_BYTES} bytes`,
+    );
+  }
   const temporaryPath = join(
     dirname(filePath),
     `.${basename(filePath)}.${process.pid}.${randomUUID()}.tmp`,
@@ -35,7 +67,7 @@ export async function writeWorkspaceFile(
   try {
     const handle = await open(temporaryPath, "wx", 0o600);
     try {
-      await handle.writeFile(contents, "utf8");
+      await handle.writeFile(compressed);
       await handle.sync();
     } finally {
       await handle.close();

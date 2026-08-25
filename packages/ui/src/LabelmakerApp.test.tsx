@@ -63,17 +63,17 @@ function createHost(overrides: Partial<LabelmakerHost> = {}): LabelmakerHost {
         id: "opened-workspace",
         name: "Opened workspace",
       },
-      fileName: "opened.labelmaker.json",
+      fileName: "opened.lbl",
     }),
     saveWorkspace: vi.fn().mockResolvedValue({
       status: "saved",
       savedAt: "2026-08-25T00:00:00Z",
-      fileName: "workshop.labelmaker.json",
+      fileName: "workshop.lbl",
     }),
     saveWorkspaceAs: vi.fn().mockResolvedValue({
       status: "saved",
       savedAt: "2026-08-25T00:00:00Z",
-      fileName: "workshop-copy.labelmaker.json",
+      fileName: "workshop-copy.lbl",
     }),
     print: vi
       .fn()
@@ -115,9 +115,7 @@ describe("LabelmakerApp", () => {
 
     await user.click(screen.getByRole("button", { name: /^Save$/ }));
     await waitFor(() => expect(host.saveWorkspace).toHaveBeenCalledOnce());
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Saved workshop.labelmaker.json",
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("Saved workshop.lbl");
   });
 
   it("edits multiline text on the label and applies visible text styles", async () => {
@@ -213,9 +211,7 @@ describe("LabelmakerApp", () => {
       expect(host.openWorkspace).toHaveBeenCalledWith(false, sampleDocument),
     );
     expect(screen.getByText("Opened workspace")).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Opened opened.labelmaker.json",
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("Opened opened.lbl");
   });
 
   it("saves a copy through the Save As host operation", async () => {
@@ -229,7 +225,7 @@ describe("LabelmakerApp", () => {
 
     await waitFor(() => expect(host.saveWorkspaceAs).toHaveBeenCalledOnce());
     expect(screen.getByRole("status")).toHaveTextContent(
-      "Saved workshop-copy.labelmaker.json",
+      "Saved workshop-copy.lbl",
     );
   });
 

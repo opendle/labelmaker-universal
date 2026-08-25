@@ -16,6 +16,7 @@ describe("workspace documents", () => {
     const serialized = serializeLabelDocument(document);
 
     expect(serialized.endsWith("\n")).toBe(true);
+    expect(serialized).toContain("schemaVersion: 1");
     expect(parseLabelDocument(serialized)).toEqual(document);
   });
 
@@ -78,9 +79,9 @@ describe("workspace documents", () => {
     expect(() => validateLabelDocument(invalid)).toThrow("duplicates the ID");
   });
 
-  it("rejects invalid JSON with a safe message", () => {
-    expect(() => parseLabelDocument("not-json")).toThrow(
-      "Workspace file is not valid JSON",
+  it("rejects invalid YAML with a safe message", () => {
+    expect(() => parseLabelDocument("workspace: [not-closed")).toThrow(
+      "Workspace file is not valid YAML",
     );
   });
 });

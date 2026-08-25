@@ -141,7 +141,10 @@ function safeWorkspaceStem(name: string): string {
 function withWorkspaceExtension(filePath: string): string {
   const lowerPath = filePath.toLowerCase();
   if (lowerPath.endsWith(LABELMAKER_FILE_EXTENSION)) return filePath;
-  const stem = lowerPath.endsWith(".json") ? filePath.slice(0, -5) : filePath;
+  const legacyExtension = ".labelmaker.json";
+  const stem = lowerPath.endsWith(legacyExtension)
+    ? filePath.slice(0, -legacyExtension.length)
+    : filePath;
   return `${stem}${LABELMAKER_FILE_EXTENSION}`;
 }
 
@@ -154,8 +157,8 @@ async function selectSavePath(
     defaultPath: `${safeWorkspaceStem(document.name)}${LABELMAKER_FILE_EXTENSION}`,
     filters: [
       {
-        name: "Labelmaker workspace (*.labelmaker.json)",
-        extensions: ["json"],
+        name: "Labelmaker workspace (*.lbl)",
+        extensions: ["lbl"],
       },
     ],
     properties: ["showOverwriteConfirmation"],
@@ -397,8 +400,8 @@ function registerIpc(): void {
         title: "Open workspace",
         filters: [
           {
-            name: "Labelmaker workspace (*.labelmaker.json)",
-            extensions: ["json"],
+            name: "Labelmaker workspace (*.lbl)",
+            extensions: ["lbl"],
           },
         ],
         properties: ["openFile"],

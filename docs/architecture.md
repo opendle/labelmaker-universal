@@ -26,9 +26,9 @@ physical units, and identifiers. It has no runtime or platform dependency.
 ### Documents
 
 `@labelmaker/documents` validates, parses, and serializes workspace files. It
-depends only on the domain types and does not access the file system. Desktop
-and server shells provide storage and keep the active file path outside the
-saved document.
+depends on the domain types and the YAML codec. It does not access the file
+system. Desktop and server shells provide gzip compression, storage, and the
+active file path outside the saved document.
 
 ### Printing
 
