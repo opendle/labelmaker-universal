@@ -1,0 +1,23 @@
+{
+  "name": "@labelmaker/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --build --pretty false"
+  },
+  "dependencies": {
+    "@labelmaker/domain": "0.0.0",
+    "@labelmaker/printing": "0.0.0",
+    "lucide-react": "0.542.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  }
+}

@@ -1,0 +1,42 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+release/
+coverage/
+*.tsbuildinfo
+
+# Test and visual artifacts
+test-results/
+playwright-report/
+artifacts/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Logs and runtime state
+*.log
+*.pid
+*.sock
+.labelmaker/
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Electron packaging
+*.dmg
+*.AppImage
+*.exe
+*.msi
+*.deb
+*.rpm

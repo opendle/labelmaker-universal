@@ -1,0 +1,76 @@
+import type { LabelDocument } from "@labelmaker/domain";
+
+export const sampleDocument: LabelDocument = {
+  schemaVersion: 1,
+  id: "workspace-workshop",
+  name: "Workshop labels",
+  defaultPlateSize: { widthMm: 62, heightMm: 18 },
+  plates: [
+    {
+      id: "plate-resistors",
+      name: "Resistors",
+      size: { widthMm: 62, heightMm: 18 },
+      margins: { leftMm: 0, rightMm: 0 },
+      elements: [
+        {
+          id: "element-resistors",
+          kind: "text",
+          xMm: 4,
+          yMm: 4.2,
+          widthMm: 54,
+          heightMm: 9.6,
+          rotationDeg: 0,
+          text: "RESISTORS",
+          fontFamily: "Inter",
+          fontSizePt: 18,
+          fontWeight: 700,
+          align: "center",
+        },
+      ],
+    },
+    {
+      id: "plate-capacitors",
+      name: "Capacitors",
+      size: { widthMm: 62, heightMm: 18 },
+      margins: { leftMm: 0, rightMm: 0 },
+      elements: [
+        {
+          id: "element-capacitors",
+          kind: "text",
+          xMm: 4,
+          yMm: 4.2,
+          widthMm: 54,
+          heightMm: 9.6,
+          rotationDeg: 0,
+          text: "CAPACITORS",
+          fontFamily: "Inter",
+          fontSizePt: 18,
+          fontWeight: 700,
+          align: "center",
+        },
+      ],
+    },
+    {
+      id: "plate-connectors",
+      name: "Connectors",
+      size: { widthMm: 62, heightMm: 18 },
+      margins: { leftMm: 0, rightMm: 0 },
+      elements: [
+        {
+          id: "element-connectors",
+          kind: "text",
+          xMm: 4,
+          yMm: 4.2,
+          widthMm: 54,
+          heightMm: 9.6,
+          rotationDeg: 0,
+          text: "CONNECTORS",
+          fontFamily: "Inter",
+          fontSizePt: 18,
+          fontWeight: 700,
+          align: "center",
+        },
+      ],
+    },
+  ],
+};

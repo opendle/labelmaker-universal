@@ -1,0 +1,3 @@
+interface:
+  display_name: "Printer Adapter Development"
+  short_description: "Add isolated printer and protocol adapters"

@@ -1,0 +1,62 @@
+# Product specification
+
+## Purpose
+
+Labelmaker Universal lets a user design labels and print them on devices from
+different manufacturers. The product must hide printer protocol details behind
+adapters.
+
+## First-release user flow
+
+1. Open the desktop application.
+2. Select a saved printer or add a printer.
+3. Open or create a label workspace.
+4. Select one plate in that workspace.
+5. Edit the plate on a direct-manipulation canvas.
+6. Add another plate with a large `+` control when needed.
+7. Save the complete workspace as one file.
+8. Preview and print one plate or all plates.
+
+## Main concepts
+
+- **Printer:** A configured physical or mock printer.
+- **Adapter:** A manufacturer or protocol integration that discovers and drives
+  compatible printers.
+- **Workspace:** One saved label document.
+- **Plate:** One label inside a workspace. A workspace contains one or more
+  plates in a stable order.
+- **Element:** Text, an image, a shape, a QR code, or a barcode placed on a plate.
+
+## Initial interface
+
+- A narrow left rail contains printers and workspace actions.
+- The center contains the WYSIWYG plate canvas.
+- A plate strip gives each plate a thumbnail and a large add button.
+- A compact inspector contains plate size and selected-element settings.
+- Save, preview, and print are always easy to find.
+- Empty states teach one action. They do not show large explanations.
+
+## First-release scope
+
+- Printer list, selection, mock discovery, and add-printer flow.
+- New, open, save, and save-as workspace actions.
+- Multiple plates in one workspace.
+- Label width and height settings.
+- Text elements with position, size, alignment, weight, and rotation.
+- Image import and basic placement.
+- Zoomed WYSIWYG canvas and monochrome print preview.
+- Print one plate or all plates through the selected adapter.
+- Undo and redo for editor changes.
+
+## Later scope
+
+- QR codes, barcodes, reusable templates, variable data, CSV batch printing,
+  cloud synchronization, and third-party adapter distribution.
+- These items must not make the initial UI or contracts needlessly complex.
+
+## Quality goals
+
+- A new user can create and print a text label without documentation.
+- The on-screen preview matches the generated raster within one printer pixel.
+- A printer failure cannot corrupt the open workspace.
+- Unsupported printer capabilities are disabled or explained before printing.

@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/domain" },
+    { "path": "packages/documents" },
+    { "path": "packages/printing" },
+    { "path": "packages/rendering" },
+    { "path": "packages/adapters/makeid" },
+    { "path": "packages/adapters/mock" },
+    { "path": "packages/ui" }
+  ]
+}

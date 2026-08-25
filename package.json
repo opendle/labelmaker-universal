@@ -1,0 +1,49 @@
+{
+  "name": "labelmaker-universal",
+  "version": "0.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "description": "A portable desktop label editor with pluggable printer adapters.",
+  "type": "module",
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "packages/adapters/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "check": "npm run format:check && npm run react:doctor && npm run typecheck && npm run test && npm run build",
+    "dev": "npm run dev --workspace @labelmaker/desktop",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "react:doctor": "node scripts/react-doctor-gate.mjs",
+    "test": "vitest run",
+    "typecheck": "tsc --build && tsc --project tsconfig.tests.json && npm run typecheck --workspaces --if-present",
+    "ui:screenshot": "npm run screenshot --workspace @labelmaker/desktop"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@testing-library/jest-dom": "6.8.0",
+    "@testing-library/react": "16.3.0",
+    "@testing-library/user-event": "14.6.1",
+    "@types/node": "24.10.13",
+    "@types/react": "19.1.10",
+    "@types/react-dom": "19.1.7",
+    "@vitejs/plugin-react": "6.1.0",
+    "electron": "44.0.0",
+    "jsdom": "26.1.0",
+    "prettier": "3.8.2",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "typescript": "7.0.2",
+    "vite": "8.2.2",
+    "vitest": "4.1.11"
+  },
+  "allowScripts": {
+    "electron@44.0.0": true
+  }
+}
