@@ -8,6 +8,25 @@ the editor.
 The first target is an Electron application for macOS, Windows, and Linux. The
 same core can later run behind a local or container-hosted print service.
 
+## Screenshots
+
+<p align="center">
+  <img src="artifacts/screenshots/labelmaker-primary-1440x960.png" alt="Labelmaker Universal editor with a selected text element and three label plates" width="100%">
+</p>
+
+<p align="center">
+  <img src="artifacts/screenshots/labelmaker-plate-settings-1440x960.png" alt="Plate width, height, trim, and margin controls" width="49%">
+  <img src="artifacts/screenshots/labelmaker-flag-1440x960.png" alt="Flag label editor with repeated cable text" width="49%">
+</p>
+
+<p align="center">
+  <img src="artifacts/screenshots/labelmaker-add-printer-1440x960.png" alt="Bluetooth printer discovery dialog" width="100%">
+</p>
+
+The mock shows movable elements, multi-label workspaces, plate sizing and
+margins, trim-to-content, special label layouts, and printer discovery. Physical
+MakeID E1 printing is not yet verified.
+
 ## Repository map
 
 ```text
