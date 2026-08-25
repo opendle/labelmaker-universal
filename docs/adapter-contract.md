@@ -41,6 +41,12 @@ Discovery returns transient descriptors. Saved printer configuration uses a
 generated application ID plus adapter-owned connection data. Display names and
 operating-system device addresses are not stable identity on their own.
 
+Discovery is paired-only by default. `DiscoveryOptions.includeUnpaired` can
+request compatible unpaired devices during an explicit Add Printer search.
+Adapters can use operating-system pairing or authorization flows for that
+search. Routine configured-printer lists, removal, status, and print resolution
+must not scan unpaired devices.
+
 ## Test requirements
 
 - Unit-test framing, checksums, raster conversion, chunk boundaries, and error

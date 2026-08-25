@@ -91,6 +91,8 @@ export interface PrinterSession {
 
 export interface DiscoveryOptions {
   readonly timeoutMs: number;
+  /** Include compatible devices that are not paired with the local system. */
+  readonly includeUnpaired?: boolean;
   readonly signal?: AbortSignal;
 }
 

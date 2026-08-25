@@ -242,6 +242,56 @@ describe("LabelmakerApp", () => {
     ).toBeInTheDocument();
     expect(await screen.findByText("Workshop Printer")).toBeInTheDocument();
     expect(host.discoverPrinters).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByRole("button", { name: "My printer is not listed" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows printer add progress and closes after a successful add", async () => {
+    const host = createHost();
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={host} />);
+
+    await user.click(screen.getByRole("button", { name: "Add printer" }));
+    const add = await screen.findByRole("button", { name: "Add" });
+    await user.click(add);
+
+    await waitFor(() =>
+      expect(host.addPrinter).toHaveBeenCalledWith("mock-workshop"),
+    );
+    expect(
+      screen.queryByRole("dialog", { name: "Add a printer" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("disables conflicting add controls while pairing is pending", async () => {
+    let resolveAdd!: () => void;
+    const host = createHost({
+      addPrinter: vi.fn().mockImplementation(
+        () =>
+          new Promise<readonly never[]>((resolve) => {
+            resolveAdd = () => resolve([]);
+          }),
+      ),
+    });
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={host} />);
+
+    await user.click(screen.getByRole("button", { name: "Add printer" }));
+    await user.click(await screen.findByRole("button", { name: "Add" }));
+
+    expect(screen.getByRole("button", { name: "Adding…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Search again" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Close add printer" }),
+    ).toBeDisabled();
+
+    resolveAdd();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Add a printer" }),
+      ).not.toBeInTheDocument(),
+    );
   });
 
   it("adds an image as a movable plate element", async () => {
@@ -609,6 +659,8 @@ describe("LabelmakerApp", () => {
     expect(
       screen.getByRole("dialog", { name: "Add a printer" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Search again" })).toBeEnabled();
   });
 
   it("reports printer list failure without blocking the editor", async () => {

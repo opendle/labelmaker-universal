@@ -226,15 +226,15 @@ export function useLabelmakerController(host: LabelmakerHost) {
   }, [host]);
 
   const addPrinter = useCallback(
-    async (printerId: string) => {
+    async (printerId: string): Promise<boolean> => {
       try {
         const printers = await host.addPrinter(printerId);
         dispatch({ type: "set-printers", printers, preferredId: printerId });
-        dispatch({ type: "close-add-printer" });
         dispatch({
           type: "set-toast",
           toast: { tone: "success", message: "Printer added" },
         });
+        return true;
       } catch {
         dispatch({
           type: "set-toast",
@@ -243,6 +243,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
             message: "The printer could not be added. Try again.",
           },
         });
+        return false;
       }
     },
     [host],

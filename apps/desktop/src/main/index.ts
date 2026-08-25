@@ -29,7 +29,6 @@ import type {
   PrinterAdapter,
   PrinterDescriptor,
   PrinterSession,
-  PrinterStatus,
 } from "@labelmaker/printing";
 import { PrinterAdapterRegistry } from "@labelmaker/printing";
 
@@ -40,7 +39,7 @@ import { validatePrintRequest } from "./print-request.js";
 import {
   initialConfiguredPrinterIds,
   mockPrintersEnabled,
-  readConfiguredPrinterIds,
+  readConfiguredPrinterIdsWithLegacy,
   writeConfiguredPrinterIds,
 } from "./printer-configuration.js";
 import { readWorkspaceFile, writeWorkspaceFile } from "./workspace-files.js";
@@ -49,6 +48,10 @@ import {
   resolveWorkspaceReplacement,
 } from "./workspace-replacement.js";
 import { getReadyPrinterSession } from "./printer-session.js";
+import { summarizePrinter } from "./printer-summary.js";
+
+const APPLICATION_NAME = "Labelmaker Universal";
+app.setName(APPLICATION_NAME);
 
 const registry = new PrinterAdapterRegistry();
 const includeMockPrinters = mockPrintersEnabled(
@@ -201,63 +204,39 @@ async function saveWorkspace(
   }
 }
 
-async function allDescriptors(): Promise<readonly PrinterDescriptor[]> {
+async function allDescriptors(
+  includeUnpaired = false,
+): Promise<readonly PrinterDescriptor[]> {
   const discovered = await Promise.all(
     registry
       .list()
-      .map((adapter) => adapter.discover({ timeoutMs: 5_000 }, context)),
+      .map((adapter) =>
+        adapter.discover({ timeoutMs: 5_000, includeUnpaired }, context),
+      ),
   );
   return discovered.flat();
 }
 
 async function summarize(printer: PrinterDescriptor) {
   const adapter = registry.get(printer.adapterId);
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      // A cached Bluetooth session can be closed by macOS while the app is
-      // still running. Refresh status before showing it and replace a stale
-      // session so the next print can reconnect.
-      const session = await printerSession(printer);
-      const [status, capabilities]: [
-        PrinterStatus,
-        Awaited<ReturnType<typeof session.capabilities>>,
-      ] = await Promise.all([session.status(), session.capabilities()]);
-      return {
-        id: printer.id,
-        adapterId: printer.adapterId,
-        name: printer.displayName,
-        model: printerModel(adapter, printer),
-        transport: printer.transport,
-        state: status.state,
-        statusMessage: status.message ?? status.state,
-        dpi: capabilities.dpi,
-        rasterWidthPixels: capabilities.rasterWidthPixels,
-        ...(status.batteryPercent === undefined
-          ? {}
-          : { batteryPercent: status.batteryPercent }),
-      };
-    } catch (error) {
-      lastError = error;
-      await discardPrinterSession(printer.id);
-      if (attempt < 2) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
-    }
-  }
-  context.log.warn("Printer status could not be refreshed", {
-    printerId: printer.id,
-    error: lastError instanceof Error ? lastError.message : "Unknown error",
-  });
-  return {
-    id: printer.id,
-    adapterId: printer.adapterId,
-    name: printer.displayName,
-    model: printerModel(adapter, printer),
-    transport: printer.transport,
-    state: "disconnected" as const,
-    statusMessage: "Not connected",
-  };
+  return summarizePrinter(
+    printer,
+    printerModel(adapter, printer),
+    printerSession,
+    discardPrinterSession,
+    {
+      attempts: 1,
+      // Listing a paired MakeID printer must not open and retain its exclusive
+      // RFCOMM channel. A real session is opened when the user prints. If a
+      // print already created a session, this refresh can reuse it.
+      probe: printer.adapterId !== "makeid" || printerSessions.has(printer.id),
+      onFailure: (error) =>
+        context.log.warn("Printer status could not be refreshed", {
+          printerId: printer.id,
+          error: error instanceof Error ? error.message : "Unknown error",
+        }),
+    },
+  );
 }
 
 async function printerSession(
@@ -319,7 +298,7 @@ function printerModel(
 
 function registerIpc(): void {
   ipcMain.handle("labelmaker:list-printers", async () => {
-    const descriptors = await allDescriptors();
+    const descriptors = await allDescriptors(false);
     return Promise.all(
       descriptors
         .filter((item) => configuredPrinterIds.has(item.id))
@@ -329,7 +308,7 @@ function registerIpc(): void {
 
   ipcMain.handle("labelmaker:discover-printers", async () => {
     await new Promise((resolve) => setTimeout(resolve, 450));
-    const descriptors = await allDescriptors();
+    const descriptors = await allDescriptors(true);
     return Promise.all(
       descriptors
         .filter((item) => !configuredPrinterIds.has(item.id))
@@ -346,7 +325,7 @@ function registerIpc(): void {
     async (_event, printerId: unknown) => {
       if (typeof printerId !== "string")
         throw new TypeError("Printer ID must be a string");
-      const descriptors = await allDescriptors();
+      const descriptors = await allDescriptors(true);
       if (!descriptors.some((item) => item.id === printerId))
         throw new Error("Printer was not found");
       const nextPrinterIds = new Set(configuredPrinterIds).add(printerId);
@@ -377,7 +356,7 @@ function registerIpc(): void {
       configuredPrinterIds = nextPrinterIds;
       await discardPrinterSession(printerId);
 
-      const descriptors = await allDescriptors();
+      const descriptors = await allDescriptors(false);
       return Promise.all(
         descriptors
           .filter((item) => configuredPrinterIds.has(item.id))
@@ -460,7 +439,7 @@ function registerIpc(): void {
   ipcMain.handle("labelmaker:print", async (_event, request: unknown) => {
     const validatedRequest = validatePrintRequest(request);
     const descriptor = findConfiguredPrintTarget(
-      await allDescriptors(),
+      await allDescriptors(false),
       configuredPrinterIds,
       validatedRequest.printerId,
     );
@@ -491,10 +470,22 @@ function configuredPrintersPath(): string {
   return join(app.getPath("userData"), "configured-printers.json");
 }
 
+function legacyConfiguredPrintersPath(): string {
+  return join(
+    app.getPath("appData"),
+    "@labelmaker",
+    "desktop",
+    "configured-printers.json",
+  );
+}
+
 async function restoreConfiguredPrinters(): Promise<void> {
   try {
     configuredPrinterIds = initialConfiguredPrinterIds(
-      await readConfiguredPrinterIds(configuredPrintersPath()),
+      await readConfiguredPrinterIdsWithLegacy(
+        configuredPrintersPath(),
+        legacyConfiguredPrintersPath(),
+      ),
       includeMockPrinters,
     );
   } catch (error) {
@@ -564,7 +555,7 @@ function createWindow(): void {
     minHeight: 650,
     show: false,
     backgroundColor: "#efeee9",
-    title: "Labelmaker Universal",
+    title: APPLICATION_NAME,
     ...(process.platform === "darwin"
       ? { titleBarStyle: "hiddenInset" as const }
       : {}),

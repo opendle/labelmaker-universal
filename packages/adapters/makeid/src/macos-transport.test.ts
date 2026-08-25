@@ -65,6 +65,26 @@ describe("MacOsMakeIdTransportProvider", () => {
     }
   });
 
+  it("passes the unpaired discovery request to the native helper", async () => {
+    const helper = `
+      if (process.argv[1] !== "discover" || process.argv[2] !== "--include-unpaired") process.exit(8);
+      process.stdout.write(JSON.stringify([{ id: "01:23:45:67:89:AB", name: "YichipFPGA-1308" }]));
+    `;
+    const provider = new MacOsMakeIdTransportProvider({
+      helperPath: process.execPath,
+      helperArguments: ["-e", helper],
+    });
+
+    await expect(
+      provider.discover({ timeoutMs: 1_000, includeUnpaired: true }),
+    ).resolves.toEqual([
+      {
+        id: expect.stringMatching(/^macos-bt-[0-9a-f]{24}$/),
+        name: "YichipFPGA-1308",
+      },
+    ]);
+  });
+
   it("bounds a read when the helper does not reply", async () => {
     const discoveryHelper = `
       if (process.argv[1] === "discover") process.stdout.write('[{"id":"01:23:45:67:89:AB","name":"YichipFPGA-1308"}]');

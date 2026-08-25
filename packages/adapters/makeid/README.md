@@ -15,6 +15,8 @@ The remaining opt-in checks below are not complete.
 provider uses that port to:
 
 - discover paired Bluetooth Classic devices;
+- optionally run a native Bluetooth inquiry for nearby unpaired devices;
+- confirm the MakeID E1 pairing request through Apple's IOBluetooth API;
 - open the E1 RFCOMM channel 1;
 - open a byte-stream connection;
 - implement bounded reads, complete writes, and close.
@@ -29,7 +31,14 @@ or interface messages.
 
 ## macOS hardware checks
 
-Pair the E1 in macOS Bluetooth settings first. Then run the status-only probe:
+The desktop discovery path can include nearby unpaired E1 devices. When a
+selected E1 is not paired, the macOS helper starts native pairing and accepts
+the E1 confirmation request before it opens RFCOMM. Keep the printer powered
+on and nearby. If the pairing request needs a physical action on the printer,
+complete that action. Manual pairing in macOS Bluetooth settings remains a
+supported fallback.
+
+Then run the status-only probe:
 
 ```sh
 npm run hardware:probe --workspace @labelmaker/adapter-makeid

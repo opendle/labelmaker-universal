@@ -136,7 +136,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
       <AddPrinterDialog
         discovered={state.discovered}
         discovering={state.discovering}
-        onAdd={(id) => void controller.addPrinter(id)}
+        onAdd={controller.addPrinter}
         onClose={closeAddPrinter}
         onSearch={() => void controller.startDiscovery()}
         open={state.addPrinterOpen}

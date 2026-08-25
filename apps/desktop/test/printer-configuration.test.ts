@@ -8,6 +8,7 @@ import {
   initialConfiguredPrinterIds,
   mockPrintersEnabled,
   readConfiguredPrinterIds,
+  readConfiguredPrinterIdsWithLegacy,
   writeConfiguredPrinterIds,
 } from "../src/main/printer-configuration.js";
 
@@ -39,6 +40,39 @@ describe("desktop printer configuration", () => {
       ),
     ).toEqual(new Set([printerId]));
     expect(await readFile(filePath, "utf8")).not.toContain("mock-studio");
+  });
+
+  it("migrates printers from the old application-name directory", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const filePath = join(directory, "current", "configured-printers.json");
+    const legacyFilePath = join(
+      directory,
+      "legacy",
+      "configured-printers.json",
+    );
+    const printerId = "makeid:macos-bt-legacy";
+    await writeConfiguredPrinterIds(legacyFilePath, [printerId]);
+
+    expect(
+      await readConfiguredPrinterIdsWithLegacy(filePath, legacyFilePath),
+    ).toEqual([printerId]);
+    expect(await readConfiguredPrinterIds(filePath)).toEqual([printerId]);
+  });
+
+  it("does not restore removed printers when the current file is empty", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const filePath = join(directory, "current", "configured-printers.json");
+    const legacyFilePath = join(
+      directory,
+      "legacy",
+      "configured-printers.json",
+    );
+    await writeConfiguredPrinterIds(filePath, []);
+    await writeConfiguredPrinterIds(legacyFilePath, ["makeid:old-printer"]);
+
+    expect(
+      await readConfiguredPrinterIdsWithLegacy(filePath, legacyFilePath),
+    ).toEqual([]);
   });
 
   it("persists removing one printer without removing the other configured printers", async () => {

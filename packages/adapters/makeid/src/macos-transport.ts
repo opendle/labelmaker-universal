@@ -56,7 +56,10 @@ export class MacOsMakeIdTransportProvider implements MakeIdTransportProvider {
       throw new RangeError("Discovery timeoutMs must be a positive integer");
     }
     throwIfAborted(options.signal);
-    const child = this.#spawn(["discover"]);
+    const child = this.#spawn([
+      "discover",
+      ...(options.includeUnpaired ? ["--include-unpaired"] : []),
+    ]);
     const stdout: Buffer[] = [];
     let stdoutLength = 0;
     child.stdout.on("data", (chunk: Buffer) => {

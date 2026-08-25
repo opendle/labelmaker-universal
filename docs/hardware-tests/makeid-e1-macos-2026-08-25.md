@@ -25,6 +25,10 @@ The test report does not contain the Bluetooth device address.
 | Corrected feed-line direction | Pass; text read from left to right             |
 | Content and output            | Pass; user reported a perfect print            |
 | Zero-margin trimmed job       | Pass; desktop job completed                    |
+| Native pairing after forget   | Pass; IOBluetooth pairing completed            |
+| Status after native pairing   | Pass; printer reported `Ready`                 |
+| Remove and add flow           | Pass; progress shown and dialog closed         |
+| Print after remove and add    | Pass; desktop job completed                    |
 
 ## Confirmed implementation values
 
@@ -37,6 +41,19 @@ The test report does not contain the Bluetooth device address.
 - Bit order in one head line: most-significant bit first.
 - Feed-line order: reverse the editor horizontal pixel order before transfer.
 - Raster chunk size: 170 feed lines. A multi-frame label printed without gaps.
+
+## Pairing recovery
+
+After the printer was forgotten in macOS, Bluetooth Settings showed it with a
+keyboard icon and did not complete pairing. The device class label was not a
+protocol change: a native IOBluetooth inquiry found the same E1, native pairing
+completed, and the printer still advertised `SPP slave` on RFCOMM channel 1.
+The status probe then returned `Ready`.
+
+The desktop Add Printer flow was checked after this recovery. The saved printer
+was removed, discovered again, added with a visible processing state, and used
+for a successful desktop print. The app reports a paired printer as `Available`
+until a print opens a live protocol session.
 
 ## Remaining opt-in checks
 

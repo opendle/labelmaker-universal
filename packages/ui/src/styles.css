@@ -255,13 +255,14 @@ textarea:focus-visible {
 }
 .printer-row > .icon-button {
   position: absolute;
+  z-index: 1;
   right: 4px;
   bottom: 5px;
   width: 24px;
   height: 24px;
-  opacity: 0;
+  opacity: 0.65;
   color: #9a5f52;
-  pointer-events: none;
+  pointer-events: auto;
 }
 .printer-row:hover > .icon-button,
 .printer-row > .icon-button:focus-visible {

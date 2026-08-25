@@ -27,11 +27,30 @@ export function initialConfiguredPrinterIds(
 export async function readConfiguredPrinterIds(
   filePath: string,
 ): Promise<readonly string[]> {
+  return (await tryReadConfiguredPrinterIds(filePath)) ?? [];
+}
+
+/** Move configuration from the old package-name directory on first launch. */
+export async function readConfiguredPrinterIdsWithLegacy(
+  filePath: string,
+  legacyFilePath: string,
+): Promise<readonly string[]> {
+  const current = await tryReadConfiguredPrinterIds(filePath);
+  if (current !== undefined) return current;
+  const legacy = await tryReadConfiguredPrinterIds(legacyFilePath);
+  if (legacy === undefined) return [];
+  await writeConfiguredPrinterIds(filePath, legacy);
+  return legacy;
+}
+
+async function tryReadConfiguredPrinterIds(
+  filePath: string,
+): Promise<readonly string[] | undefined> {
   let contents: string;
   try {
     contents = await readFile(filePath, "utf8");
   } catch (error) {
-    if (isNodeError(error) && error.code === "ENOENT") return [];
+    if (isNodeError(error) && error.code === "ENOENT") return undefined;
     throw error;
   }
   const parsed: unknown = JSON.parse(contents);

@@ -1,6 +1,6 @@
 import type { LabelPlate } from "@labelmaker/domain";
 import { Bluetooth, Check, Printer, X } from "lucide-react";
-import type { CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 
 import { IconButton } from "./controls.js";
 import type { PrinterSummary } from "./host.js";
@@ -19,17 +19,37 @@ export function AddPrinterDialog({
   readonly discovered: readonly PrinterSummary[];
   readonly onClose: () => void;
   readonly onSearch: () => void;
-  readonly onAdd: (id: string) => void;
+  readonly onAdd: (id: string) => boolean | Promise<boolean>;
 }) {
+  const [addingPrinterId, setAddingPrinterId] = useState<string | null>(null);
+  const adding = addingPrinterId !== null;
+  const handleAdd = async (printerId: string) => {
+    if (adding) return;
+    setAddingPrinterId(printerId);
+    try {
+      const added = await onAdd(printerId);
+      if (added) onClose();
+    } finally {
+      setAddingPrinterId(null);
+    }
+  };
+  const guardedClose = () => {
+    if (!adding) onClose();
+  };
   if (!open) return null;
   return (
-    <Modal labelId="add-printer-title" onClose={onClose}>
+    <Modal labelId="add-printer-title" onClose={guardedClose}>
       <div className="dialog-header">
         <div>
           <h2 id="add-printer-title">Add a printer</h2>
           <p>Nearby compatible printers</p>
         </div>
-        <IconButton initialFocus label="Close add printer" onClick={onClose}>
+        <IconButton
+          disabled={adding}
+          initialFocus
+          label="Close add printer"
+          onClick={onClose}
+        >
           <X size={18} />
         </IconButton>
       </div>
@@ -61,10 +81,18 @@ export function AddPrinterDialog({
             </div>
             <button
               className="button primary small"
-              onClick={() => onAdd(printer.id)}
+              disabled={adding}
+              onClick={() => void handleAdd(printer.id)}
               type="button"
             >
-              Add
+              {addingPrinterId === printer.id ? (
+                <>
+                  <span aria-hidden="true" className="mini-spinner" />
+                  Adding…
+                </>
+              ) : (
+                "Add"
+              )}
             </button>
           </div>
         ))}
@@ -78,14 +106,11 @@ export function AddPrinterDialog({
       <div className="dialog-footer">
         <button
           className="button secondary"
-          disabled={discovering}
+          disabled={discovering || adding}
           onClick={onSearch}
           type="button"
         >
           Search again
-        </button>
-        <button className="text-button" type="button">
-          My printer is not listed
         </button>
       </div>
     </Modal>

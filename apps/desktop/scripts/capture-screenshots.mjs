@@ -18,6 +18,12 @@ async function capture(width, height, name, setup) {
     },
   });
   try {
+    const applicationName = await application.evaluate(({ app }) =>
+      app.getName(),
+    );
+    if (applicationName !== "Labelmaker Universal") {
+      throw new Error(`Unexpected application name: ${applicationName}`);
+    }
     const page = await application.firstWindow();
     await page.waitForSelector(".label-canvas");
     await setup?.(page);

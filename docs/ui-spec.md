@@ -27,6 +27,9 @@ content can collapse, but printer status and the plate strip remain reachable.
 
 - Select a printer and see its state.
 - Open an add-printer dialog with mock discovery results.
+- While a printer is added, show progress and disable conflicting dialog
+  actions. Close the dialog after success and keep it open after failure.
+- Do not show controls that have no action.
 - Select plate thumbnails.
 - Add a plate with the large `+` control.
 - Select, move, and edit a text element.
