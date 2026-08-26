@@ -1,0 +1,4 @@
+interface:
+  display_name: "Self-Review"
+  short_description: "Review and fix recent task changes"
+  default_prompt: "Use $selfreview in automode to review and fix my current task changes before commit."

@@ -10,6 +10,8 @@ Read these files before you change behavior:
 
 Use the `labelmaker-desktop-ui` skill for editor or desktop UI work. Use the
 `printer-adapter-development` skill for printer support.
+Use the `selfreview` skill in automode at the end of each task that changes the
+repository, after the first checks and before the commit.
 
 ## Product rules
 
@@ -66,6 +68,8 @@ Use the `labelmaker-desktop-ui` skill for editor or desktop UI work. Use the
 
 ## Task completion
 
+- Run `selfreview` in automode. Fix all material findings and complete its
+  quality gates before you commit.
 - After all requested work and checks are complete, make a signed commit that
   contains the integrated task changes and push it to the `main` branch.
 - Do not commit partial work while another agent still changes the shared
