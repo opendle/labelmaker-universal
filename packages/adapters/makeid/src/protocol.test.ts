@@ -76,6 +76,13 @@ describe("MakeID protocol primitives", () => {
       errorCode: 5,
     });
   });
+
+  it("rejects a response whose declared length does not match its bytes", () => {
+    const bytes = response({});
+    bytes[1] = 35;
+
+    expect(() => parseMakeIdResponse(bytes)).toThrow(/length field/);
+  });
 });
 
 function response(options: { flags?: number; printing?: boolean }): Uint8Array {

@@ -195,7 +195,19 @@ export class MakeIdE1Adapter implements PrinterAdapter {
       context.log.info("MakeID E1 transport connected");
       return new MakeIdE1Session(printer, transport, context, this.#options);
     } catch (error) {
-      throw normalizeAdapterError(error, signal);
+      const normalized = normalizeAdapterError(error, signal);
+      if (
+        normalized.code === "makeid.transport" ||
+        normalized.code === "makeid.timeout"
+      ) {
+        throw new MakeIdAdapterError(
+          normalized.code,
+          "Could not connect to the MakeID E1. Make sure it is on and not connected to another device.",
+          true,
+          { cause: normalized },
+        );
+      }
+      throw normalized;
     }
   }
 }
@@ -276,6 +288,7 @@ export function encodeMakeIdE1Page(
 
 class MakeIdE1Session implements PrinterSession {
   #closed = false;
+  #operationTail: Promise<void> = Promise.resolve();
 
   constructor(
     readonly printer: PrinterDescriptor,
@@ -290,13 +303,15 @@ class MakeIdE1Session implements PrinterSession {
   }
 
   async status(signal?: AbortSignal): Promise<PrinterStatus> {
-    this.#assertOpen(signal);
-    try {
-      const response = await this.#query(signal);
-      return mapResponseToStatus(response);
-    } catch (error) {
-      throw normalizeAdapterError(error, signal);
-    }
+    return this.#runExclusive(async () => {
+      this.#assertOpen(signal);
+      try {
+        const response = await this.#query(signal);
+        return mapResponseToStatus(response);
+      } catch (error) {
+        throw normalizeAdapterError(error, signal);
+      }
+    });
   }
 
   async print(
@@ -304,68 +319,71 @@ class MakeIdE1Session implements PrinterSession {
     onProgress?: (progress: PrintProgress) => void,
     signal?: AbortSignal,
   ): Promise<void> {
-    this.#assertOpen(signal);
-    validateJob(job, this.printer);
-    const darkness = readDarkness(job);
+    return this.#runExclusive(async () => {
+      this.#assertOpen(signal);
+      validateJob(job, this.printer);
+      const darkness = readDarkness(job);
 
-    try {
-      const initial = await this.#query(signal);
-      if (initial.kind !== "success" || initial.printing) {
-        throw new MakeIdAdapterError(
-          "makeid.not-ready",
-          "The MakeID E1 is not ready to print",
-          true,
-        );
-      }
-
-      for (let pageIndex = 0; pageIndex < job.pages.length; pageIndex += 1) {
-        throwIfAborted(signal);
-        const page = job.pages[pageIndex];
-        if (!page) {
-          throw invalidJob(`page ${pageIndex + 1} is missing`);
+      try {
+        const initial = await this.#query(signal);
+        if (initial.kind !== "success" || initial.printing) {
+          throw new MakeIdAdapterError(
+            "makeid.not-ready",
+            "The MakeID E1 is not ready to print",
+            true,
+          );
         }
-        const frames = encodeMakeIdE1Page(page, {
-          chunkLines: this.options.chunkLines,
-          copies: job.copies,
-          darkness,
-        });
 
-        for (let frameIndex = 0; frameIndex < frames.length; frameIndex += 1) {
-          const frame = frames[frameIndex];
-          if (!frame) {
-            throw invalidJob(`frame ${frameIndex + 1} is missing`);
+        for (let pageIndex = 0; pageIndex < job.pages.length; pageIndex += 1) {
+          throwIfAborted(signal);
+          const page = job.pages[pageIndex];
+          if (!page) {
+            throw invalidJob(`page ${pageIndex + 1} is missing`);
           }
-          await this.#sendRasterFrame(frame, signal);
+          const frames = encodeMakeIdE1Page(page, {
+            chunkLines: this.options.chunkLines,
+            copies: job.copies,
+            darkness,
+          });
+
+          for (
+            let frameIndex = 0;
+            frameIndex < frames.length;
+            frameIndex += 1
+          ) {
+            const frame = frames[frameIndex];
+            if (!frame) {
+              throw invalidJob(`frame ${frameIndex + 1} is missing`);
+            }
+            await this.#sendRasterFrame(frame, signal);
+          }
+
+          await this.#waitForCompletion(signal);
+          this.#reportProgress(onProgress, {
+            completedPages: pageIndex + 1,
+            totalPages: job.pages.length,
+            message: `Printed label ${pageIndex + 1} of ${job.pages.length}`,
+          });
         }
 
-        await this.#waitForCompletion(signal);
-        onProgress?.({
-          completedPages: pageIndex + 1,
-          totalPages: job.pages.length,
-          message: `Printed label ${pageIndex + 1} of ${job.pages.length}`,
-        });
+        await this.#finishCompletedTransfer(signal);
+      } catch (error) {
+        if (signal?.aborted) {
+          await this.#sendBestEffortReset();
+        }
+        throw normalizeAdapterError(error, signal);
       }
-
-      // Public captures show state 0x03 after a completed transfer. Its exact
-      // meaning may be "cancel", "finish", or "reset". Do not wait for a reply.
-      await this.transport.write(
-        buildMakeIdControlFrame(MakeIdControlState.CancelOrReset),
-        signal,
-      );
-    } catch (error) {
-      if (signal?.aborted) {
-        await this.#sendBestEffortReset();
-      }
-      throw normalizeAdapterError(error, signal);
-    }
+    });
   }
 
   async close(): Promise<void> {
-    if (this.#closed) {
-      return;
-    }
-    this.#closed = true;
-    await this.transport.close();
+    return this.#runExclusive(async () => {
+      if (this.#closed) {
+        return;
+      }
+      this.#closed = true;
+      await this.transport.close();
+    });
   }
 
   async #query(signal?: AbortSignal): Promise<MakeIdResponse> {
@@ -442,16 +460,75 @@ class MakeIdE1Session implements PrinterSession {
     );
   }
 
-  async #sendBestEffortReset(): Promise<void> {
-    if (!this.transport.open) {
-      return;
-    }
+  async #finishCompletedTransfer(signal?: AbortSignal): Promise<void> {
     try {
       await this.transport.write(
         buildMakeIdControlFrame(MakeIdControlState.CancelOrReset),
+        signal,
       );
+      const response = await this.#readResponse(signal);
+      if (
+        response.kind !== "empty" &&
+        response.kind !== "exited" &&
+        (response.kind !== "success" || response.printing)
+      ) {
+        throw new MakeIdAdapterError(
+          "makeid.protocol",
+          "The MakeID E1 returned an invalid final response",
+          false,
+        );
+      }
+    } catch (error) {
+      // The printer already confirmed that all pages are complete. Do not
+      // report a retryable print failure, because a retry can print duplicates.
+      // Close this session so that a late or invalid final reply cannot be read
+      // as the first reply of the next operation.
+      this.context.log.warn(
+        "The MakeID E1 final reply was not usable. The session was closed.",
+        { reason: adapterErrorReason(error) },
+      );
+      this.#closed = true;
+      try {
+        await this.transport.close();
+      } catch {
+        // The session is already unusable. Keep the completed print successful.
+      }
+    }
+  }
+
+  async #sendBestEffortReset(): Promise<void> {
+    try {
+      if (this.transport.open) {
+        await this.transport.write(
+          buildMakeIdControlFrame(MakeIdControlState.CancelOrReset),
+        );
+      }
     } catch {
       // The original cancellation error is more useful than a cleanup error.
+    } finally {
+      // A reset can produce a reply after cancellation. Close the transport so
+      // that no later operation can consume that reply as its own response.
+      this.#closed = true;
+      try {
+        await this.transport.close();
+      } catch {
+        // The original cancellation error is more useful than a close error.
+      }
+    }
+  }
+
+  #reportProgress(
+    onProgress: ((progress: PrintProgress) => void) | undefined,
+    progress: PrintProgress,
+  ): void {
+    try {
+      onProgress?.(progress);
+    } catch (error) {
+      // A caller callback must not stop the printer protocol after a page is
+      // physically complete.
+      this.context.log.warn("The MakeID print progress callback failed.", {
+        reason: adapterErrorReason(error),
+      });
     }
   }
 
@@ -465,6 +542,33 @@ class MakeIdE1Session implements PrinterSession {
       );
     }
   }
+
+  async #runExclusive<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = this.#operationTail;
+    let release: () => void = () => undefined;
+    this.#operationTail = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
+  }
+}
+
+function adapterErrorReason(error: unknown): string {
+  if (error instanceof MakeIdAdapterError) {
+    return error.code;
+  }
+  if (error instanceof MakeIdTransportTimeoutError) {
+    return "transport-timeout";
+  }
+  if (error instanceof Error) {
+    return error.name;
+  }
+  return "unknown";
 }
 
 function readConnection(printer: PrinterDescriptor): MakeIdConnectionData {

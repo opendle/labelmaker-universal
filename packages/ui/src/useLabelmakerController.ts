@@ -4,7 +4,14 @@ import type {
   LabelPlate,
   TextElement,
 } from "@labelmaker/domain";
-import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 
 import {
   appReducer,
@@ -24,6 +31,8 @@ import type { LabelmakerHost, PrinterSettings } from "./host.js";
 
 export function useLabelmakerController(host: LabelmakerHost) {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const printInProgress = useRef(false);
   const activePlate = useMemo(
     () =>
       state.workspace.plates.find((plate) => plate.id === state.activePlateId),
@@ -42,11 +51,14 @@ export function useLabelmakerController(host: LabelmakerHost) {
   // The main process performs a fresh status check and reconnect before the
   // job. Keep print enabled for a configured printer so a stale renderer
   // status does not block a recoverable connection.
-  const canPrint = activePrinter !== undefined;
+  const canPrint = activePrinter !== undefined && !isPrinting;
 
   useEffect(() => {
     let active = true;
+    let refreshPending = false;
     const refresh = (showError: boolean, preferredId?: string | null) => {
+      if (refreshPending) return;
+      refreshPending = true;
       void host
         .listPrinters()
         .then((printers) => {
@@ -66,6 +78,9 @@ export function useLabelmakerController(host: LabelmakerHost) {
                 message: "Printers could not be loaded. Try again.",
               },
             });
+        })
+        .finally(() => {
+          refreshPending = false;
         });
     };
     if (host.getActivePrinterId) {
@@ -355,6 +370,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
 
   const print = useCallback(
     async (all: boolean) => {
+      if (printInProgress.current) return;
       if (!activePlate || !activePrinter) {
         dispatch({ type: "set-print-menu", open: false });
         dispatch({
@@ -366,6 +382,8 @@ export function useLabelmakerController(host: LabelmakerHost) {
         });
         return;
       }
+      printInProgress.current = true;
+      setIsPrinting(true);
       dispatch({ type: "set-print-menu", open: false });
       dispatch({
         type: "set-toast",
@@ -390,15 +408,17 @@ export function useLabelmakerController(host: LabelmakerHost) {
           type: "set-toast",
           toast: { tone: "success", message: result.message },
         });
-      } catch {
+      } catch (error) {
         dispatch({
           type: "set-toast",
           toast: {
             tone: "error",
-            message:
-              "The label could not be printed. Check the printer and try again.",
+            message: printFailureMessage(error),
           },
         });
+      } finally {
+        printInProgress.current = false;
+        setIsPrinting(false);
       }
     },
     [activePlate, activePrinter, host, state.workspace],
@@ -438,10 +458,13 @@ export function useLabelmakerController(host: LabelmakerHost) {
   const addImage = useCallback(
     (file: File) => {
       if (!activePlate) return;
-      if (!file.type.startsWith("image/")) {
+      if (!PRINTABLE_IMAGE_TYPES.has(file.type.toLowerCase())) {
         dispatch({
           type: "set-toast",
-          toast: { tone: "error", message: "Choose an image file" },
+          toast: {
+            tone: "error",
+            message: "Choose a PNG, JPEG, GIF, WebP, or BMP image.",
+          },
         });
         return;
       }
@@ -568,6 +591,30 @@ export function useLabelmakerController(host: LabelmakerHost) {
     updateElement,
     editWorkspace,
   };
+}
+
+const PRINTABLE_IMAGE_TYPES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "image/bmp",
+]);
+
+function printFailureMessage(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return "The label could not be printed. Check the printer and try again.";
+  }
+  const message = error.message
+    .replace(
+      /^Error invoking remote method '[^']+':\s*(?:[A-Za-z][A-Za-z0-9]*Error:\s*)?/i,
+      "",
+    )
+    .trim();
+  if (!message || message.length > 240) {
+    return "The label could not be printed. Check the printer and try again.";
+  }
+  return message;
 }
 
 export type LabelmakerController = ReturnType<typeof useLabelmakerController>;

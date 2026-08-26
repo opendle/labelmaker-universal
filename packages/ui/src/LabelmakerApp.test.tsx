@@ -592,6 +592,24 @@ describe("LabelmakerApp", () => {
     expect(screen.getByText("Edited")).toBeInTheDocument();
   });
 
+  it("rejects an image format which the print renderer cannot use", async () => {
+    render(<LabelmakerApp host={createHost()} />);
+
+    const file = new File(["fixture"], "fixture.svg", {
+      type: "image/svg+xml",
+    });
+    fireEvent.change(screen.getByLabelText("Choose image"), {
+      target: { files: [file] },
+    });
+
+    expect(
+      await screen.findByText("Choose a PNG, JPEG, GIF, WebP, or BMP image."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Image element" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("trims a plate to its content and horizontal margins", async () => {
     const user = userEvent.setup();
     render(<LabelmakerApp host={createHost()} />);
@@ -944,15 +962,19 @@ describe("LabelmakerApp", () => {
     const user = userEvent.setup();
     const host = createHost({
       addPrinter: vi.fn().mockRejectedValue(new Error("pairing")),
-      print: vi.fn().mockRejectedValue(new Error("paper")),
+      print: vi
+        .fn()
+        .mockRejectedValue(
+          new Error(
+            "Error invoking remote method 'labelmaker:print': MakeIdAdapterError: Printer needs attention",
+          ),
+        ),
     });
     render(<LabelmakerApp host={host} />);
     await screen.findByText("Studio Labeler");
     await user.click(screen.getByRole("button", { name: /^Print$/ }));
     expect(
-      await screen.findByText(
-        "The label could not be printed. Check the printer and try again.",
-      ),
+      await screen.findByText("Printer needs attention"),
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Add printer" }));
     await user.click(await screen.findByRole("button", { name: "Add" }));
@@ -978,6 +1000,39 @@ describe("LabelmakerApp", () => {
       await screen.findByText("Printers could not be loaded. Try again."),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add label" })).toBeEnabled();
+  });
+
+  it("does not overlap periodic printer refresh requests", async () => {
+    let finishList!: (printers: readonly []) => void;
+    let runInterval!: () => void;
+    const listPrinters = vi.fn(
+      () =>
+        new Promise<readonly []>((resolve) => {
+          finishList = resolve;
+        }),
+    );
+    const nativeSetInterval = globalThis.setInterval;
+    vi.spyOn(globalThis, "setInterval").mockImplementation(
+      (handler, timeout, ...arguments_) => {
+        if (timeout === 5000) {
+          runInterval = handler as () => void;
+          return 1;
+        }
+        return nativeSetInterval(handler, timeout, ...arguments_);
+      },
+    );
+    render(<LabelmakerApp host={createHost({ listPrinters })} />);
+    await waitFor(() => expect(listPrinters).toHaveBeenCalledOnce());
+
+    runInterval();
+    runInterval();
+    expect(listPrinters).toHaveBeenCalledOnce();
+
+    finishList([]);
+    await waitFor(() => {
+      runInterval();
+      expect(listPrinters).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("shows static icons for canceled and failed operations", async () => {
@@ -1027,6 +1082,9 @@ describe("LabelmakerApp", () => {
     expect(
       sending.closest("output")?.querySelector(".mini-spinner"),
     ).not.toBeNull();
+    expect(screen.getByRole("button", { name: /^Print$/ })).toBeDisabled();
+    await user.click(screen.getByRole("button", { name: /^Print$/ }));
+    expect(host.print).toHaveBeenCalledOnce();
     finishPrint?.({ message: "Printed" });
     await screen.findByText("Printed");
     expect(

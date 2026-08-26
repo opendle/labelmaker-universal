@@ -39,6 +39,15 @@ interface PrinterSummaryOptions {
   readonly settings?: PrinterSettings;
 }
 
+export function shouldProbePrinterStatus(
+  adapterId: string,
+  hasSession: boolean,
+  hasActiveJob: boolean,
+): boolean {
+  if (hasActiveJob) return false;
+  return adapterId !== "makeid" || hasSession;
+}
+
 function capabilitySummary(
   capabilities: OfflineCapabilities | PrinterCapabilities | undefined,
   settings: PrinterSettings | undefined,
@@ -59,9 +68,10 @@ function capabilitySummary(
   };
 }
 
-function availableSummary(
+function offlineSummary(
   printer: PrinterDescriptor,
   model: string,
+  statusMessage: string,
   capabilities?: OfflineCapabilities,
   settings?: PrinterSettings,
 ): DesktopPrinterSummary {
@@ -71,8 +81,8 @@ function availableSummary(
     name: printer.displayName,
     model,
     transport: printer.transport,
-    state: "connecting",
-    statusMessage: "Available",
+    state: "disconnected",
+    statusMessage,
     ...capabilitySummary(capabilities, settings),
   };
 }
@@ -82,7 +92,10 @@ export async function summarizePrinter(
   printer: PrinterDescriptor,
   model: string,
   getSession: (printer: PrinterDescriptor) => Promise<PrinterSession>,
-  discardSession: (printerId: string) => Promise<void>,
+  discardSession: (
+    printerId: string,
+    expectedSession?: PrinterSession,
+  ) => Promise<void>,
   options: PrinterSummaryOptions = {},
 ): Promise<DesktopPrinterSummary> {
   const attempts = options.attempts ?? 3;
@@ -96,17 +109,19 @@ export async function summarizePrinter(
     throw new RangeError("Printer summary retry options are invalid");
   }
   if (options.probe === false)
-    return availableSummary(
+    return offlineSummary(
       printer,
       model,
+      "Saved; not checked",
       options.offlineCapabilities,
       options.settings,
     );
 
   let lastError: unknown;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
+    let session: PrinterSession | undefined;
     try {
-      const session = await getSession(printer);
+      session = await getSession(printer);
       const [status, capabilities]: [PrinterStatus, PrinterCapabilities] =
         await Promise.all([session.status(), session.capabilities()]);
       return {
@@ -124,7 +139,7 @@ export async function summarizePrinter(
       };
     } catch (error) {
       lastError = error;
-      await discardSession(printer.id);
+      await discardSession(printer.id, session);
       if (attempt + 1 < attempts && retryDelayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
       }
@@ -132,9 +147,10 @@ export async function summarizePrinter(
   }
 
   options.onFailure?.(lastError);
-  return availableSummary(
+  return offlineSummary(
     printer,
     model,
+    "Not reachable",
     options.offlineCapabilities,
     options.settings,
   );

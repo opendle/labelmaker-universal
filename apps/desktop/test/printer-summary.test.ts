@@ -1,7 +1,10 @@
 import type { PrinterDescriptor, PrinterSession } from "@labelmaker/printing";
 import { describe, expect, it, vi } from "vitest";
 
-import { summarizePrinter } from "../src/main/printer-summary.js";
+import {
+  shouldProbePrinterStatus,
+  summarizePrinter,
+} from "../src/main/printer-summary.js";
 
 const printer: PrinterDescriptor = {
   id: "makeid:paired-test",
@@ -12,6 +15,12 @@ const printer: PrinterDescriptor = {
 };
 
 describe("desktop printer summaries", () => {
+  it("does not probe a cached session while its print job is active", () => {
+    expect(shouldProbePrinterStatus("makeid", true, true)).toBe(false);
+    expect(shouldProbePrinterStatus("makeid", true, false)).toBe(true);
+    expect(shouldProbePrinterStatus("makeid", false, false)).toBe(false);
+  });
+
   it("does not take the RFCOMM channel only to list a paired printer", async () => {
     const getSession = vi.fn(async () => fakeSession());
     const summary = await summarizePrinter(
@@ -38,8 +47,8 @@ describe("desktop printer summaries", () => {
 
     expect(summary).toMatchObject({
       id: printer.id,
-      state: "connecting",
-      statusMessage: "Available",
+      state: "disconnected",
+      statusMessage: "Saved; not checked",
       dpi: 203,
       printableWidthMm: 12,
       darkness: { value: 24 },
@@ -47,7 +56,7 @@ describe("desktop printer summaries", () => {
     expect(getSession).not.toHaveBeenCalled();
   });
 
-  it("keeps a printer available when a status query cannot open RFCOMM", async () => {
+  it("reports a printer as unreachable when a live status query fails", async () => {
     const session = fakeSession();
     session.status = vi.fn(async () => {
       throw new Error("RFCOMM channel closed");
@@ -63,10 +72,10 @@ describe("desktop printer summaries", () => {
 
     expect(summary).toMatchObject({
       id: printer.id,
-      state: "connecting",
-      statusMessage: "Available",
+      state: "disconnected",
+      statusMessage: "Not reachable",
     });
-    expect(discard).toHaveBeenCalledWith(printer.id);
+    expect(discard).toHaveBeenCalledWith(printer.id, session);
   });
 
   it("refreshes status after a reconnect and reports the live printer", async () => {

@@ -60,6 +60,8 @@ and the plate strip remain reachable.
 - Add a text element.
 - Add an image element. Text and image are separate actions, and both element
   types can move on the plate.
+- Accept only PNG, JPEG, GIF, WebP, and BMP images that the print renderer can
+  use.
 - Set left and right plate margins, with zero as the default.
 - Trim the plate width to the rendered text ink bounds plus the selected
   margins. Round the result up to a whole millimeter and divide only the
@@ -78,6 +80,9 @@ and the plate strip remain reachable.
   two halves plus the 2 mm separation. Turning flag mode on and off without an
   edit must restore the original label exactly.
 - Show unsaved state, save state, preview, and a mock print result.
+- Disable all print actions while a print job is active.
+- Show the safe printer or render error from a failed print job.
+- Do not report a paired printer as live until a status query succeeds.
 - Before New or Open replaces a changed workspace, offer Save, Discard, and
   Cancel. A canceled or failed save must keep the changed workspace open.
 - Clear text editing and element selection when the user clicks an empty part

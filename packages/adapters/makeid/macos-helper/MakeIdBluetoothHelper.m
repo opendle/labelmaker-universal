@@ -1,5 +1,6 @@
 #import <Foundation/Foundation.h>
 #import <IOBluetooth/IOBluetooth.h>
+#import <CommonCrypto/CommonDigest.h>
 
 static void Fail(NSString *message, int code) {
   NSData *data = [[message stringByAppendingString:@"\n"] dataUsingEncoding:NSUTF8StringEncoding];
@@ -144,9 +145,48 @@ static void PairDevice(IOBluetoothDevice *device) {
   }
 }
 
-static void Connect(NSString *address) {
-  IOBluetoothDevice *device = [IOBluetoothDevice deviceWithAddressString:address];
-  if (device == nil) Fail(@"The Bluetooth device address is invalid", 3);
+static NSString *OpaqueDeviceId(NSString *address) {
+  NSData *data =
+      [address.uppercaseString dataUsingEncoding:NSUTF8StringEncoding];
+  unsigned char digest[CC_SHA256_DIGEST_LENGTH];
+  CC_SHA256(data.bytes, (CC_LONG)data.length, digest);
+  NSMutableString *hex = [NSMutableString stringWithCapacity:24];
+  for (NSUInteger index = 0; index < 12; index += 1) {
+    [hex appendFormat:@"%02x", digest[index]];
+  }
+  return [@"macos-bt-" stringByAppendingString:hex];
+}
+
+static BOOL IsOpaqueDeviceId(NSString *value) {
+  if (value.length != 33 || ![value hasPrefix:@"macos-bt-"]) return NO;
+  NSString *suffix = [value substringFromIndex:9];
+  NSCharacterSet *hex =
+      [NSCharacterSet characterSetWithCharactersInString:@"0123456789abcdefABCDEF"];
+  NSCharacterSet *invalid = hex.invertedSet;
+  return [suffix rangeOfCharacterFromSet:invalid].location == NSNotFound;
+}
+
+static IOBluetoothDevice *ResolveDevice(NSString *deviceId) {
+  if (!IsOpaqueDeviceId(deviceId)) {
+    IOBluetoothDevice *device = [IOBluetoothDevice deviceWithAddressString:deviceId];
+    if (device == nil) Fail(@"The Bluetooth device ID is invalid", 3);
+    return device;
+  }
+
+  for (IOBluetoothDevice *device in [IOBluetoothDevice pairedDevices] ?: @[]) {
+    NSString *address = device.addressString;
+    if (address.length > 0 &&
+        [OpaqueDeviceId(address) caseInsensitiveCompare:deviceId] ==
+            NSOrderedSame) {
+      return device;
+    }
+  }
+  Fail(@"The saved Bluetooth printer is not available", 4);
+  return nil;
+}
+
+static void Connect(NSString *deviceId) {
+  IOBluetoothDevice *device = ResolveDevice(deviceId);
   PairDevice(device);
 
   MakeIdRFCOMMBridge *bridge = [MakeIdRFCOMMBridge new];
@@ -203,6 +243,6 @@ int main(int argc, const char *argv[]) {
       Connect([NSString stringWithUTF8String:argv[2]]);
       return 0;
     }
-    Fail(@"Usage: makeid-bluetooth-helper discover | connect DEVICE_ADDRESS", 64);
+    Fail(@"Usage: makeid-bluetooth-helper discover | connect DEVICE_ID", 64);
   }
 }

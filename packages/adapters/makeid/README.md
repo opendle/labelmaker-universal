@@ -21,6 +21,15 @@ provider uses that port to:
 - open a byte-stream connection;
 - implement bounded reads, complete writes, and close.
 
+The session serializes status, print, and close operations on the RFCOMM byte
+stream. It consumes the final `0x03` reply before it reuses a session. If that
+reply is missing or invalid, it keeps the confirmed print successful and closes
+the dirty session. A new operation then uses a new connection.
+
+The macOS provider resolves a saved opaque printer ID inside the native helper.
+It does not need a nearby-device inquiry after an application restart. All
+RFCOMM open attempts have one 30-second deadline.
+
 The adapter filters discovery to `YichipFPGA-*` and explicit `MakeID E1` names.
 It does not claim other MakeID models. `RecordingMakeIdTransport` supports unit
 tests and future capture comparison tools without Bluetooth hardware.

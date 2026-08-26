@@ -1,4 +1,11 @@
-import { mkdtemp, readFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  stat,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -42,6 +49,9 @@ describe("desktop printer configuration", () => {
       ),
     ).toEqual(new Set([printerId]));
     expect(await readFile(filePath, "utf8")).not.toContain("mock-studio");
+    if (process.platform !== "win32") {
+      expect((await stat(filePath)).mode & 0o777).toBe(0o600);
+    }
   });
 
   it("migrates printers from the old application-name directory", async () => {
@@ -127,16 +137,93 @@ describe("desktop printer configuration", () => {
     });
   });
 
+  it("completes concurrent writes and stores the last requested state", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const filePath = join(directory, "configured-printers.json");
+    const writeCount = 100;
+
+    const writes = Array.from({ length: writeCount }, (_, index) => {
+      const printerId = `makeid:concurrent-${index}`;
+      return writeConfiguredPrinterIds(filePath, [printerId], printerId, {
+        [printerId]: { darkness: index % 32 },
+      });
+    });
+
+    await expect(Promise.all(writes)).resolves.toHaveLength(writeCount);
+    const lastPrinterId = `makeid:concurrent-${writeCount - 1}`;
+    expect(await readConfiguredPrinterIds(filePath)).toEqual([lastPrinterId]);
+    expect(await readActivePrinterId(filePath)).toBe(lastPrinterId);
+    expect(await readPrinterSettings(filePath)).toEqual({
+      [lastPrinterId]: { darkness: (writeCount - 1) % 32 },
+    });
+    expect(await readdir(directory)).toEqual(["configured-printers.json"]);
+  });
+
+  it("does not use or replace the old fixed temporary path", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const filePath = join(directory, "configured-printers.json");
+    const oldTemporaryPath = `${filePath}.tmp`;
+    await writeFile(oldTemporaryPath, "keep this file", "utf8");
+
+    await writeConfiguredPrinterIds(filePath, ["makeid:valid"]);
+
+    expect(await readFile(oldTemporaryPath, "utf8")).toBe("keep this file");
+    expect(await readConfiguredPrinterIds(filePath)).toEqual(["makeid:valid"]);
+  });
+
+  it("removes its temporary file when the atomic rename fails", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const filePath = join(directory, "configured-printers.json");
+    await mkdir(filePath);
+
+    await expect(
+      writeConfiguredPrinterIds(filePath, ["makeid:valid"]),
+    ).rejects.toThrow();
+    expect(await readdir(directory)).toEqual(["configured-printers.json"]);
+  });
+
   it("rejects corrupt stored printer data", async () => {
     const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
     const filePath = join(directory, "configured-printers.json");
     await writeConfiguredPrinterIds(filePath, ["makeid:valid"]);
     const invalid = `${filePath}.invalid`;
-    await import("node:fs/promises").then(({ writeFile }) =>
-      writeFile(invalid, '{"version":1,"printerIds":["mock-studio"]}'),
-    );
+    await writeFile(invalid, '{"version":1,"printerIds":["mock-studio"]}');
 
     await expect(readConfiguredPrinterIds(invalid)).rejects.toThrow(
+      "saved printer configuration is invalid",
+    );
+  });
+
+  it("rejects malformed stored printer data", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const filePath = join(directory, "configured-printers.json");
+    await writeFile(filePath, '{"version":1,"printerIds":', "utf8");
+
+    await expect(readConfiguredPrinterIds(filePath)).rejects.toThrow(
+      SyntaxError,
+    );
+  });
+
+  it.each([
+    ["a darkness above the MakeID limit", { darkness: 32 }],
+    ["a negative darkness", { darkness: -1 }],
+    ["a fractional darkness", { darkness: 20.5 }],
+    ["a nonnumeric darkness", { darkness: "20" }],
+    ["an unknown setting", { darkness: 20, density: 3 }],
+  ])("rejects restored settings with %s", async (_label, settings) => {
+    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const filePath = join(directory, "configured-printers.json");
+    await writeFile(
+      filePath,
+      JSON.stringify({
+        version: 1,
+        printerIds: ["makeid:valid"],
+        printerSettings: { "makeid:valid": settings },
+      }),
+      "utf8",
+    );
+
+    await expect(readPrinterSettings(filePath)).rejects.toThrow(
       "saved printer configuration is invalid",
     );
   });

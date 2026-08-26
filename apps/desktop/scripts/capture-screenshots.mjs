@@ -218,10 +218,11 @@ await capture(1440, 960, "labelmaker-trim-1440x960.png", async (page) => {
 });
 await capture(1440, 960, "labelmaker-image-1440x960.png", async (page) => {
   await page.getByLabel("Choose image").setInputFiles({
-    name: "storage-bin.svg",
-    mimeType: "image/svg+xml",
+    name: "storage-bin.png",
+    mimeType: "image/png",
     buffer: Buffer.from(
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 80"><rect x="8" y="20" width="104" height="52" rx="8" fill="#111"/><path d="M24 20V10h72v10M38 36v22M60 36v22M82 36v22" fill="none" stroke="white" stroke-width="6" stroke-linecap="round"/></svg>',
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "base64",
     ),
   });
   await page.getByRole("button", { name: "Image element" }).waitFor();

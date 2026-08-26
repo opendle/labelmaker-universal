@@ -8,6 +8,7 @@ import type {
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  configuredPrinterDescriptors,
   findConfiguredPrintTarget,
   printToSession,
 } from "../src/main/desktop-print.js";
@@ -54,6 +55,23 @@ describe("desktop physical print dispatch", () => {
         makeIdPrinter.id,
       ),
     ).toBe(makeIdPrinter);
+  });
+
+  it("rebuilds a saved MakeID target when discovery returns no printer", () => {
+    const printerId = "makeid:macos-bt-0123456789abcdef01234567";
+
+    expect(configuredPrinterDescriptors([], new Set([printerId]))).toEqual([
+      {
+        id: printerId,
+        adapterId: "makeid",
+        displayName: "MakeID E1",
+        transport: "bluetooth-classic",
+        connection: {
+          model: "E1",
+          transportDeviceId: "macos-bt-0123456789abcdef01234567",
+        },
+      },
+    ]);
   });
 
   it("waits for the MakeID session and sends its exact printer ID", async () => {

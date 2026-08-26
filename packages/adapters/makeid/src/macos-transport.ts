@@ -13,15 +13,21 @@ import {
 } from "./transport.js";
 
 const DEFAULT_CONNECT_TIMEOUT_MS = 20_000;
+const DEFAULT_TOTAL_CONNECT_TIMEOUT_MS = 30_000;
 const CONNECT_ATTEMPTS = 5;
 const CONNECT_RETRY_DELAYS_MS = [750, 1_500, 3_000, 5_000] as const;
 const CLOSE_GRACE_MS = 2_000;
 const MAX_DISCOVERY_OUTPUT_BYTES = 1024 * 1024;
+const MAKEID_FRAME_MARKER = 0x66;
+const MIN_INBOUND_FRAME_BYTES = 6;
+const MAX_INBOUND_FRAME_BYTES = 4_096;
+const MAX_INBOUND_BUFFER_BYTES = MAX_INBOUND_FRAME_BYTES * 2;
 
 export interface MacOsMakeIdTransportProviderOptions {
   readonly helperPath?: string;
   readonly helperArguments?: readonly string[];
   readonly connectTimeoutMs?: number;
+  readonly totalConnectTimeoutMs?: number;
 }
 
 /** Bluetooth Classic RFCOMM transport for paired MakeID printers on macOS. */
@@ -29,6 +35,7 @@ export class MacOsMakeIdTransportProvider implements MakeIdTransportProvider {
   readonly #helperPath: string;
   readonly #helperArguments: readonly string[];
   readonly #connectTimeoutMs: number;
+  readonly #totalConnectTimeoutMs: number;
   readonly #deviceAddresses = new Map<string, string>();
 
   constructor(options: MacOsMakeIdTransportProviderOptions = {}) {
@@ -41,11 +48,19 @@ export class MacOsMakeIdTransportProvider implements MakeIdTransportProvider {
     this.#helperArguments = options.helperArguments ?? [];
     this.#connectTimeoutMs =
       options.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS;
+    this.#totalConnectTimeoutMs =
+      options.totalConnectTimeoutMs ?? DEFAULT_TOTAL_CONNECT_TIMEOUT_MS;
     if (
       !Number.isInteger(this.#connectTimeoutMs) ||
       this.#connectTimeoutMs < 1
     ) {
       throw new RangeError("connectTimeoutMs must be a positive integer");
+    }
+    if (
+      !Number.isInteger(this.#totalConnectTimeoutMs) ||
+      this.#totalConnectTimeoutMs < 1
+    ) {
+      throw new RangeError("totalConnectTimeoutMs must be a positive integer");
     }
   }
 
@@ -90,26 +105,36 @@ export class MacOsMakeIdTransportProvider implements MakeIdTransportProvider {
     signal?: AbortSignal,
   ): Promise<MakeIdTransport> {
     const address = this.#deviceAddresses.get(deviceId);
-    if (address === undefined)
-      throw new Error("Discover the MakeID printer before connecting");
+    const helperDeviceId =
+      address ?? (isOpaqueDeviceId(deviceId) ? deviceId.toLowerCase() : null);
+    if (helperDeviceId === null) {
+      throw new Error("The saved MakeID printer ID is invalid");
+    }
     throwIfAborted(signal);
     let lastError: unknown;
+    const deadline = Date.now() + this.#totalConnectTimeoutMs;
     for (let attempt = 1; attempt <= CONNECT_ATTEMPTS; attempt += 1) {
       const transport = new MacOsMakeIdTransport(
-        this.#spawn(["connect", address]),
+        this.#spawn(["connect", helperDeviceId]),
       );
       try {
-        await transport.waitUntilReady(this.#connectTimeoutMs, signal);
+        const remainingMs = Math.max(1, deadline - Date.now());
+        await transport.waitUntilReady(
+          Math.min(this.#connectTimeoutMs, remainingMs),
+          signal,
+        );
         return transport;
       } catch (error) {
         lastError = error;
         await transport.close();
-        if (attempt < CONNECT_ATTEMPTS) {
-          await abortableDelay(
+        if (attempt < CONNECT_ATTEMPTS && Date.now() < deadline) {
+          const delayMs = Math.min(
             CONNECT_RETRY_DELAYS_MS[attempt - 1] ?? 5_000,
-            signal,
+            Math.max(0, deadline - Date.now()),
           );
+          await abortableDelay(delayMs, signal);
         }
+        if (Date.now() >= deadline) break;
       }
     }
     throw lastError;
@@ -135,6 +160,7 @@ class MacOsMakeIdTransport implements MakeIdTransport {
     this.#child = child;
     child.stdout.on("data", (chunk: Buffer) => {
       this.#buffer = Buffer.concat([this.#buffer, chunk]);
+      this.#boundBuffer();
       this.#wake(this.#readWaiters);
     });
     child.stderr.setEncoding("utf8");
@@ -229,14 +255,62 @@ class MacOsMakeIdTransport implements MakeIdTransport {
   }
 
   #takeFrameLength(): number | undefined {
-    if (this.#buffer.length < 3) return undefined;
-    const length = (this.#buffer[1] ?? 0) | ((this.#buffer[2] ?? 0) << 8);
-    if (length < 6) {
-      throw new Error(
-        "The MakeID Bluetooth stream has an invalid frame length",
-      );
+    while (this.#buffer.length > 0) {
+      const markerIndex = this.#buffer.indexOf(MAKEID_FRAME_MARKER);
+      if (markerIndex < 0) {
+        this.#buffer = Buffer.alloc(0);
+        return undefined;
+      }
+      if (markerIndex > 0) {
+        this.#buffer = this.#buffer.subarray(markerIndex);
+      }
+      if (this.#buffer.length < 3) return undefined;
+
+      const length = (this.#buffer[1] ?? 0) | ((this.#buffer[2] ?? 0) << 8);
+      if (
+        length < MIN_INBOUND_FRAME_BYTES ||
+        length > MAX_INBOUND_FRAME_BYTES
+      ) {
+        this.#buffer = this.#buffer.subarray(1);
+        continue;
+      }
+      if (this.#buffer.length >= length) return length;
+
+      const nextCompleteFrame = this.#findCompleteFrame(1);
+      if (nextCompleteFrame !== undefined) {
+        this.#buffer = this.#buffer.subarray(nextCompleteFrame);
+        continue;
+      }
+      return undefined;
     }
-    return this.#buffer.length >= length ? length : undefined;
+    return undefined;
+  }
+
+  #findCompleteFrame(start: number): number | undefined {
+    let markerIndex = this.#buffer.indexOf(MAKEID_FRAME_MARKER, start);
+    while (markerIndex >= 0) {
+      if (this.#buffer.length - markerIndex < 3) return undefined;
+      const length =
+        (this.#buffer[markerIndex + 1] ?? 0) |
+        ((this.#buffer[markerIndex + 2] ?? 0) << 8);
+      if (
+        length >= MIN_INBOUND_FRAME_BYTES &&
+        length <= MAX_INBOUND_FRAME_BYTES &&
+        this.#buffer.length - markerIndex >= length
+      ) {
+        return markerIndex;
+      }
+      markerIndex = this.#buffer.indexOf(MAKEID_FRAME_MARKER, markerIndex + 1);
+    }
+    return undefined;
+  }
+
+  #boundBuffer(): void {
+    if (this.#buffer.length <= MAX_INBOUND_BUFFER_BYTES) return;
+    const usefulStart = this.#buffer.length - MAX_INBOUND_FRAME_BYTES;
+    const markerIndex = this.#buffer.indexOf(MAKEID_FRAME_MARKER, usefulStart);
+    this.#buffer =
+      markerIndex >= 0 ? this.#buffer.subarray(markerIndex) : Buffer.alloc(0);
   }
 
   #takeFrame(): Uint8Array | undefined {
@@ -327,6 +401,10 @@ function isBluetoothAddress(value: string): boolean {
 
 function opaqueDeviceId(address: string): string {
   return `macos-bt-${createHash("sha256").update(address.toUpperCase()).digest("hex").slice(0, 24)}`;
+}
+
+function isOpaqueDeviceId(value: string): boolean {
+  return /^macos-bt-[0-9a-f]{24}$/i.test(value);
 }
 
 function cleanHelperError(stderr: string): string {

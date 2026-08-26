@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type { LabelPlate } from "@labelmaker/domain";
 import type {
   PrinterCapabilities,
@@ -32,12 +34,41 @@ export function findConfiguredPrintTarget(
   return descriptor;
 }
 
+/**
+ * Rebuild the minimum stable MakeID descriptor from its persisted opaque ID.
+ * This lets a configured paired printer connect even when a routine discovery
+ * call is slow or returns no transient descriptor.
+ */
+export function configuredPrinterDescriptors(
+  discovered: readonly PrinterDescriptor[],
+  configuredPrinterIds: ReadonlySet<string>,
+): readonly PrinterDescriptor[] {
+  const descriptors = new Map(
+    discovered
+      .filter((printer) => configuredPrinterIds.has(printer.id))
+      .map((printer) => [printer.id, printer] as const),
+  );
+  for (const printerId of configuredPrinterIds) {
+    if (descriptors.has(printerId)) continue;
+    const transportDeviceId = makeIdTransportDeviceId(printerId);
+    if (!transportDeviceId) continue;
+    descriptors.set(printerId, {
+      id: printerId,
+      adapterId: "makeid",
+      displayName: "MakeID E1",
+      transport: "bluetooth-classic",
+      connection: { model: "E1", transportDeviceId },
+    });
+  }
+  return [...descriptors.values()];
+}
+
 export async function printToSession(
   request: ValidatedPrintRequest,
   descriptor: PrinterDescriptor,
   session: PrinterSession,
   renderPlate: DesktopPlateRenderer,
-  createJobId: () => string = () => `print-job-${Date.now()}`,
+  createJobId: () => string = () => `print-job-${randomUUID()}`,
   settings: PrinterSettings = {},
 ): Promise<{ readonly message: string }> {
   if (
@@ -76,6 +107,15 @@ export async function printToSession(
   return {
     message: `${count} ${count === 1 ? "label" : "labels"} sent to ${descriptor.displayName}`,
   };
+}
+
+function makeIdTransportDeviceId(printerId: string): string | undefined {
+  const prefix = "makeid:";
+  if (!printerId.startsWith(prefix)) return undefined;
+  const transportDeviceId = printerId.slice(prefix.length);
+  return /^macos-bt-[0-9a-f]{24}$/.test(transportDeviceId)
+    ? transportDeviceId
+    : undefined;
 }
 
 function nearestMediaId(

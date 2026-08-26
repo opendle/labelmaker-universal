@@ -16,6 +16,8 @@ The authoritative TypeScript contract is in `packages/printing/src/index.ts`.
 - Report current capabilities and printer status.
 - Validate raster dimensions and media constraints before transfer.
 - Serialize and send print jobs with cancellation and useful progress events.
+- Serialize all session operations that use one command stream.
+- Read or explicitly discard each command reply before the session is reused.
 - Close connections and native resources after use.
 - Convert protocol failures to stable application error codes.
 
@@ -50,6 +52,10 @@ Discovery returns transient descriptors. Saved printer configuration uses a
 generated application ID plus adapter-owned connection data. Display names and
 operating-system device addresses are not stable identity on their own.
 
+A configured printer must remain resolvable after an application restart. A
+routine print must not depend on a nearby-device inquiry. An adapter can resolve
+a saved opaque device ID in its platform transport.
+
 Discovery is paired-only by default. `DiscoveryOptions.includeUnpaired` can
 request compatible unpaired devices during an explicit Add Printer search.
 Adapters can use operating-system pairing or authorization flows for that
@@ -62,6 +68,8 @@ must not scan unpaired devices.
   parsing with fixed vectors.
 - Test discovery filters without physical hardware.
 - Provide a record or fake transport for session tests.
+- Test two sequential print jobs on one reused session.
+- Test a status request that occurs while a print job is active.
 - Keep physical-printer smoke tests separate and opt-in.
 - Run the adapter contract suite for every adapter.
 

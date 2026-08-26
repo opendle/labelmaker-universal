@@ -161,6 +161,15 @@ export function parseMakeIdResponse(bytes: Uint8Array): MakeIdResponse {
   if (bytes[0] !== MAKEID_FRAME_MARKER) {
     throw new MakeIdProtocolError("A MakeID response has an invalid marker");
   }
+  if (bytes.length < 3) {
+    throw new MakeIdProtocolError("A MakeID response has no length field");
+  }
+  const declaredLength = (bytes[1] ?? 0) | ((bytes[2] ?? 0) << 8);
+  if (declaredLength !== bytes.length) {
+    throw new MakeIdProtocolError(
+      `A MakeID response length field is ${declaredLength}; received ${bytes.length} bytes`,
+    );
+  }
   if (bytes.length >= 6 && bytes[3] === MakeIdCommand.EmptyResponse) {
     return { kind: "empty", errorCode: 0, printing: false };
   }

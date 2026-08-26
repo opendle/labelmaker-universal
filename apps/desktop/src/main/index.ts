@@ -33,7 +33,11 @@ import type {
 } from "@labelmaker/printing";
 import { PrinterAdapterRegistry } from "@labelmaker/printing";
 
-import { findConfiguredPrintTarget, printToSession } from "./desktop-print.js";
+import {
+  configuredPrinterDescriptors,
+  findConfiguredPrintTarget,
+  printToSession,
+} from "./desktop-print.js";
 import { installAppIcon } from "./app-icon.js";
 import { renderPlateForPrinter } from "./plate-raster.js";
 import { validatePrintRequest } from "./print-request.js";
@@ -50,8 +54,14 @@ import {
   replacementChoiceFromResponse,
   resolveWorkspaceReplacement,
 } from "./workspace-replacement.js";
-import { getReadyPrinterSession } from "./printer-session.js";
-import { summarizePrinter } from "./printer-summary.js";
+import {
+  getReadyPrinterSession,
+  PrinterSessionManager,
+} from "./printer-session.js";
+import {
+  shouldProbePrinterStatus,
+  summarizePrinter,
+} from "./printer-summary.js";
 
 const APPLICATION_NAME = "Labelmaker Universal";
 app.setName(APPLICATION_NAME);
@@ -67,9 +77,12 @@ if (process.platform === "darwin") {
 let configuredPrinterIds = initialConfiguredPrinterIds([], includeMockPrinters);
 let activePrinterId: string | undefined;
 const printerSettings = new Map<string, PrinterSettings>();
-const printerSessions = new Map<string, Promise<PrinterSession>>();
+const printerSessions = new PrinterSessionManager((printer) =>
+  registry.get(printer.adapterId).connect(printer, context),
+);
 const activePrinterJobs = new Set<string>();
 const workspacePaths = new Map<number, string>();
+let quitPrinterClosePromise: Promise<void> | undefined;
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 const context: AdapterContext = {
   log: {
@@ -215,14 +228,27 @@ async function saveWorkspace(
 async function allDescriptors(
   includeUnpaired = false,
 ): Promise<readonly PrinterDescriptor[]> {
-  const discovered = await Promise.all(
-    registry
-      .list()
-      .map((adapter) =>
-        adapter.discover({ timeoutMs: 5_000, includeUnpaired }, context),
-      ),
+  const requests = registry
+    .list()
+    .map((adapter) =>
+      adapter.discover({ timeoutMs: 5_000, includeUnpaired }, context),
+    );
+  if (includeUnpaired) return (await Promise.all(requests)).flat();
+
+  const results = await Promise.allSettled(requests);
+  for (const result of results) {
+    if (result.status === "rejected") {
+      context.log.warn("Routine printer discovery failed", {
+        error:
+          result.reason instanceof Error
+            ? result.reason.message
+            : "Unknown error",
+      });
+    }
+  }
+  return results.flatMap((result) =>
+    result.status === "fulfilled" ? result.value : [],
   );
-  return discovered.flat();
 }
 
 async function summarize(printer: PrinterDescriptor) {
@@ -237,7 +263,11 @@ async function summarize(printer: PrinterDescriptor) {
       // Listing a paired MakeID printer must not open and retain its exclusive
       // RFCOMM channel. A real session is opened when the user prints. If a
       // print already created a session, this refresh can reuse it.
-      probe: printer.adapterId !== "makeid" || printerSessions.has(printer.id),
+      probe: shouldProbePrinterStatus(
+        printer.adapterId,
+        printerSessions.has(printer.id),
+        activePrinterJobs.has(printer.id),
+      ),
       ...(adapter.offlineCapabilities === undefined
         ? {}
         : { offlineCapabilities: adapter.offlineCapabilities }),
@@ -256,28 +286,14 @@ async function summarize(printer: PrinterDescriptor) {
 async function printerSession(
   printer: PrinterDescriptor,
 ): Promise<PrinterSession> {
-  const existing = printerSessions.get(printer.id);
-  if (existing) return existing;
-  const pending = registry.get(printer.adapterId).connect(printer, context);
-  printerSessions.set(printer.id, pending);
-  try {
-    return await pending;
-  } catch (error) {
-    printerSessions.delete(printer.id);
-    throw error;
-  }
+  return printerSessions.get(printer);
 }
 
-async function discardPrinterSession(printerId: string): Promise<void> {
-  const pending = printerSessions.get(printerId);
-  printerSessions.delete(printerId);
-  if (!pending) return;
-  try {
-    await (await pending).close();
-  } catch {
-    // The transport is already broken. The cached session must still be
-    // removed so the next operation can create a fresh connection.
-  }
+async function discardPrinterSession(
+  printerId: string,
+  expectedSession?: PrinterSession,
+): Promise<void> {
+  await printerSessions.discard(printerId, expectedSession);
 }
 
 /** Return a live session, reconnecting once when macOS dropped the old one. */
@@ -296,7 +312,7 @@ function discoveredSummary(printer: PrinterDescriptor) {
     model: printerModel(adapter, printer),
     transport: printer.transport,
     state: "connecting" as const,
-    statusMessage: "Paired",
+    statusMessage: "Found nearby",
     ...(adapter.offlineCapabilities ?? {}),
     ...(adapter.offlineCapabilities?.darkness === undefined
       ? {}
@@ -345,12 +361,11 @@ function registerIpc(): void {
   );
 
   ipcMain.handle("labelmaker:list-printers", async () => {
-    const descriptors = await allDescriptors(false);
-    return Promise.all(
-      descriptors
-        .filter((item) => configuredPrinterIds.has(item.id))
-        .map(summarize),
+    const descriptors = configuredPrinterDescriptors(
+      await allDescriptors(false),
+      configuredPrinterIds,
     );
+    return Promise.all(descriptors.map(summarize));
   });
 
   ipcMain.handle("labelmaker:discover-printers", async () => {
@@ -373,22 +388,27 @@ function registerIpc(): void {
       if (typeof printerId !== "string")
         throw new TypeError("Printer ID must be a string");
       const descriptors = await allDescriptors(true);
-      if (!descriptors.some((item) => item.id === printerId))
-        throw new Error("Printer was not found");
+      const descriptor = descriptors.find((item) => item.id === printerId);
+      if (!descriptor) throw new Error("Printer was not found");
+      const verifiedSession = await readyPrinterSession(descriptor);
       const nextPrinterIds = new Set(configuredPrinterIds).add(printerId);
-      const summaries = await Promise.all(
-        descriptors
-          .filter((item) => nextPrinterIds.has(item.id))
-          .map(summarize),
-      );
-      await writeConfiguredPrinterIds(
-        configuredPrintersPath(),
-        nextPrinterIds,
-        activePrinterId,
-        Object.fromEntries(printerSettings),
-      );
+      try {
+        await writeConfiguredPrinterIds(
+          configuredPrintersPath(),
+          nextPrinterIds,
+          activePrinterId,
+          Object.fromEntries(printerSettings),
+        );
+      } catch (error) {
+        await printerSessions.discard(printerId, verifiedSession);
+        throw error;
+      }
       configuredPrinterIds.add(printerId);
-      return summaries;
+      return Promise.all(
+        configuredPrinterDescriptors(descriptors, nextPrinterIds).map(
+          summarize,
+        ),
+      );
     },
   );
 
@@ -421,12 +441,11 @@ function registerIpc(): void {
       configuredPrinterIds = nextPrinterIds;
       await discardPrinterSession(printerId);
 
-      const descriptors = await allDescriptors(false);
-      return Promise.all(
-        descriptors
-          .filter((item) => configuredPrinterIds.has(item.id))
-          .map(summarize),
+      const descriptors = configuredPrinterDescriptors(
+        await allDescriptors(false),
+        configuredPrinterIds,
       );
+      return Promise.all(descriptors.map(summarize));
     },
   );
 
@@ -435,7 +454,10 @@ function registerIpc(): void {
     async (_event, printerId: unknown, value: unknown) => {
       if (typeof printerId !== "string" || !configuredPrinterIds.has(printerId))
         throw new TypeError("Printer settings need a configured printer");
-      const descriptors = await allDescriptors(false);
+      const descriptors = configuredPrinterDescriptors(
+        await allDescriptors(false),
+        configuredPrinterIds,
+      );
       const descriptor = descriptors.find((item) => item.id === printerId);
       if (!descriptor) throw new Error("Configured printer was not found");
       const adapter = registry.get(descriptor.adapterId);
@@ -468,11 +490,7 @@ function registerIpc(): void {
         Object.fromEntries(nextPrinterSettings),
       );
       printerSettings.set(printerId, { darkness });
-      return Promise.all(
-        descriptors
-          .filter((item) => configuredPrinterIds.has(item.id))
-          .map(summarize),
-      );
+      return Promise.all(descriptors.map(summarize));
     },
   );
 
@@ -550,7 +568,10 @@ function registerIpc(): void {
   ipcMain.handle("labelmaker:print", async (_event, request: unknown) => {
     const validatedRequest = validatePrintRequest(request);
     const descriptor = findConfiguredPrintTarget(
-      await allDescriptors(false),
+      configuredPrinterDescriptors(
+        await allDescriptors(false),
+        configuredPrinterIds,
+      ),
       configuredPrinterIds,
       validatedRequest.printerId,
     );
@@ -570,8 +591,7 @@ function registerIpc(): void {
         printerSettings.get(descriptor.id),
       );
     } catch (error) {
-      printerSessions.delete(descriptor.id);
-      await session?.close();
+      await printerSessions.discard(descriptor.id, session);
       throw error;
     } finally {
       activePrinterJobs.delete(descriptor.id);
@@ -731,9 +751,15 @@ if (!hasSingleInstanceLock) {
   });
 }
 
-app.on("before-quit", () => {
-  for (const pending of printerSessions.values()) {
-    void pending.then((session) => session.close()).catch(() => undefined);
-  }
-  printerSessions.clear();
+app.on("before-quit", (event) => {
+  if (quitPrinterClosePromise) return;
+  event.preventDefault();
+  quitPrinterClosePromise = printerSessions
+    .closeAll()
+    .catch((error) => {
+      context.log.warn("Printer sessions could not be closed cleanly", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    })
+    .finally(() => app.quit());
 });

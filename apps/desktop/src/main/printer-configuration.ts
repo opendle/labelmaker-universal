@@ -1,11 +1,13 @@
-import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { randomUUID } from "node:crypto";
+import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 
 import type { PrinterSettings } from "@labelmaker/printing";
 
 const CONFIGURATION_VERSION = 1;
 const MAX_PRINTERS = 100;
 const MAX_PRINTER_ID_LENGTH = 256;
+const pendingWrites = new Map<string, Promise<void>>();
 
 interface StoredPrinterConfiguration {
   readonly version: typeof CONFIGURATION_VERSION;
@@ -105,13 +107,41 @@ export async function writeConfiguredPrinterIds(
       ),
     ),
   };
+  const resolvedFilePath = resolve(filePath);
+  const previousWrite = pendingWrites.get(resolvedFilePath);
+  const write = (previousWrite ?? Promise.resolve())
+    .catch(() => undefined)
+    .then(() => writePrinterConfiguration(resolvedFilePath, stored));
+  pendingWrites.set(resolvedFilePath, write);
+
+  try {
+    await write;
+  } finally {
+    if (pendingWrites.get(resolvedFilePath) === write) {
+      pendingWrites.delete(resolvedFilePath);
+    }
+  }
+}
+
+async function writePrinterConfiguration(
+  filePath: string,
+  stored: StoredPrinterConfiguration,
+): Promise<void> {
   await mkdir(dirname(filePath), { recursive: true });
-  const temporaryPath = `${filePath}.tmp`;
-  await writeFile(temporaryPath, `${JSON.stringify(stored, null, 2)}\n`, {
-    encoding: "utf8",
-    mode: 0o600,
-  });
-  await rename(temporaryPath, filePath);
+  const temporaryPath = `${filePath}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    await writeFile(temporaryPath, `${JSON.stringify(stored, null, 2)}\n`, {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+    await rename(temporaryPath, filePath);
+  } finally {
+    try {
+      await unlink(temporaryPath);
+    } catch (error) {
+      if (!isNodeError(error) || error.code !== "ENOENT") throw error;
+    }
+  }
 }
 
 function isStoredPrinterConfiguration(
@@ -151,7 +181,7 @@ function isPrinterSettings(value: unknown): value is PrinterSettings {
       (typeof value.darkness === "number" &&
         Number.isInteger(value.darkness) &&
         value.darkness >= 0 &&
-        value.darkness <= 255))
+        value.darkness <= 31))
   );
 }
 
