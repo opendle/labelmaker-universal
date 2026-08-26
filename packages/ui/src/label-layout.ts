@@ -26,3 +26,7 @@ export function printableHeightMm(
 ): number {
   return Math.max(0, plateHeightMm - verticalMarginMm * 2);
 }
+
+export function displayMillimeters(value: number): number {
+  return Math.round(value * 10) / 10;
+}

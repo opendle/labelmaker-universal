@@ -2,8 +2,11 @@ import type { LabelDocument } from "@labelmaker/domain";
 import { describe, expect, it } from "vitest";
 
 import {
+  plateEditorWidthMm,
   toggleFlagPlate,
   trimPlate,
+  updateElementAndFlagPeer,
+  updatePlateEditorWidth,
   type TextInkMeasurer,
 } from "./editor-operations.js";
 
@@ -81,28 +84,48 @@ describe("trimPlate", () => {
       trimPlate(withoutImage, "plate", measure).plates[0]!.size.widthMm,
     );
   });
+
+  it("adds no hidden padding when both trim margins are zero", () => {
+    const zeroMargins = {
+      ...document,
+      plates: document.plates.map((plate) => ({
+        ...plate,
+        margins: { leftMm: 0, rightMm: 0 },
+      })),
+    };
+    expect(
+      trimPlate(zeroMargins, "plate", measure).plates[0]!.size.widthMm,
+    ).toBe(13);
+  });
 });
 
 describe("toggleFlagPlate", () => {
-  it("keeps a wide text frame inside both flag sides and toggles back", () => {
+  it("keeps all source geometry and toggles back exactly", () => {
     const original = document.plates[0]!;
-    const flag = toggleFlagPlate({
-      ...original,
-      name: "Wide frame",
-      elements: [original.elements[0]!],
-    });
+    const flag = toggleFlagPlate(original);
     const textElements = flag.elements.filter(
       (element) => element.kind === "text",
     );
     expect(textElements).toHaveLength(2);
-    expect(textElements.every((element) => element.xMm >= 0)).toBe(true);
-    expect(textElements.every((element) => element.widthMm > 0)).toBe(true);
+    expect(flag.size.widthMm).toBe(202);
+    expect(textElements[0]).toEqual(original.elements[0]);
+    expect(textElements[1]?.xMm).toBe(112);
     expect(textElements[0]?.text).toBe("I\nWIDE");
-    expect(toggleFlagPlate(flag).name).toBe("Wide frame");
-    expect(
-      toggleFlagPlate(flag).elements.filter(
-        (element) => element.kind === "text",
-      ),
-    ).toHaveLength(1);
+    expect(toggleFlagPlate(flag)).toEqual(original);
+  });
+
+  it("treats the configured flag width as one half and keeps peers aligned", () => {
+    const original = document.plates[0]!;
+    const flag = updatePlateEditorWidth(toggleFlagPlate(original), 80);
+    expect(plateEditorWidthMm(flag)).toBe(80);
+    expect(flag.size.widthMm).toBe(162);
+
+    const source = flag.elements.find((element) => element.id === "text")!;
+    const moved = updateElementAndFlagPeer(flag, { ...source, xMm: 12 });
+    const peer = moved.elements.find(
+      (element) => element.id === "text--flag-peer",
+    );
+    expect(peer?.xMm).toBe(94);
+    expect(toggleFlagPlate(moved).elements[0]?.xMm).toBe(12);
   });
 });

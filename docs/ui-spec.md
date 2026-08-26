@@ -41,22 +41,32 @@ and the plate strip remain reachable.
 - Preserve text line breaks on the canvas and in printed output.
 - Scale text in the canvas, print preview, and plate strip from the same
   physical point size.
+- Use the same element frame, alignment, line-height, and font rules in the
+  canvas, print preview, and plate strip.
+- Scale the canvas and its elements in one update when the user changes zoom.
+- Align every 5 mm background grid line to the center of its ruler tick.
 - Show capability-reported top and bottom non-printable areas on the canvas and
   in previews. Do not scale those areas into the printed raster.
 - Resize text elements from corner handles and rotate them from a separate
   rotation handle. Elements can extend outside the plate bounds.
 - Apply a typeface, font size, light/regular/semi-bold/bold weight, italic
   style, and alignment to selected text.
+- Offer twelve useful system typefaces and use Avenir Next, with a Segoe UI
+  fallback, for new text.
 - Change plate width and height.
 - Add a text element.
 - Add an image element. Text and image are separate actions, and both element
   types can move on the plate.
 - Set left and right plate margins, with zero as the default.
 - Trim the plate width to the rendered text ink bounds plus the selected
-  margins. The text element frame must not add blank trim space.
+  margins. Do not add hidden padding. The text element frame must not add blank
+  trim space.
 - Add a flag or cable-wrap plate from the special-label actions.
 - Keep the two printed sides of a flag identical. Editing either visible side
   updates the other side immediately, or expose only one editable source side.
+- In flag mode, the width field controls one half. The complete output width is
+  two halves plus the 2 mm separation. Turning flag mode on and off without an
+  edit must restore the original label exactly.
 - Show unsaved state, save state, preview, and a mock print result.
 - Before New or Open replaces a changed workspace, offer Save, Discard, and
   Cancel. A canceled or failed save must keep the changed workspace open.

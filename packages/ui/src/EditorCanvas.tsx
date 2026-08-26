@@ -1,67 +1,18 @@
-import type { LabelElement, LabelPlate, TextElement } from "@labelmaker/domain";
+import type { LabelElement, LabelPlate } from "@labelmaker/domain";
 import { Flag, Image as ImageIcon, Type, ZoomIn, ZoomOut } from "lucide-react";
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type CSSProperties,
-  type KeyboardEvent,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 
 import { CanvasElementView } from "./CanvasElementView.js";
+import { CanvasGrid, CanvasRulers } from "./CanvasGuides.js";
 import { IconButton } from "./controls.js";
-import { clamp } from "./editor-operations.js";
+import { clamp, isFlagPlate } from "./editor-operations.js";
 import { PlateToolbarSettings } from "./Inspector.js";
-import { printableHeightMm, printableMarginPercent } from "./label-layout.js";
-
-type ResizeCorner = "nw" | "ne" | "sw" | "se";
-
-function CanvasRulers({
-  widthMm,
-  heightMm,
-  canvasScale,
-}: {
-  readonly widthMm: number;
-  readonly heightMm: number;
-  readonly canvasScale: number;
-}) {
-  const horizontal = Array.from(
-    { length: Math.floor(widthMm / 5) + 1 },
-    (_, index) => index * 5,
-  );
-  const vertical = Array.from(
-    { length: Math.floor(heightMm / 5) + 1 },
-    (_, index) => index * 5,
-  );
-  return (
-    <>
-      <div className="ruler ruler-top" aria-hidden="true">
-        {horizontal.map((mark) => (
-          <span
-            className={mark === 0 ? "origin" : undefined}
-            key={mark}
-            style={{ left: `${mark * canvasScale}px` }}
-          >
-            {mark} mm
-          </span>
-        ))}
-      </div>
-      <div className="ruler ruler-left" aria-hidden="true">
-        {vertical.map((mark) => (
-          <span
-            className={mark === 0 ? "origin" : undefined}
-            key={mark}
-            style={{ top: `${mark * canvasScale}px` }}
-          >
-            {mark} mm
-          </span>
-        ))}
-      </div>
-    </>
-  );
-}
+import {
+  displayMillimeters,
+  printableHeightMm,
+  printableMarginPercent,
+} from "./label-layout.js";
+import { useCanvasInteractions } from "./useCanvasInteractions.js";
 
 function CanvasZoomControl({
   zoom,
@@ -132,7 +83,7 @@ function CanvasToolbar({
         />
         <span className="toolbar-separator" />
         <button
-          aria-pressed={plate.name.startsWith("Flag ")}
+          aria-pressed={isFlagPlate(plate)}
           className="tool-button"
           onClick={() => onAddSpecial("flag")}
           type="button"
@@ -217,17 +168,28 @@ export function EditorCanvas({
   readonly onZoom: (zoom: number) => void;
   readonly verticalMarginMm: number;
 }) {
-  const editOnClickRef = useRef<string | null>(null);
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
   useCommitInlineEdit(editingElementId, setEditingElementId);
   const canvasScale = Math.min(9, 720 / plate.size.widthMm) * (zoom / 100);
   const marginPercent = printableMarginPercent(
     verticalMarginMm,
     plate.size.heightMm,
   );
-  const canvasBounds = (elementNode: HTMLElement) =>
-    elementNode.closest<HTMLElement>(".label-canvas")?.getBoundingClientRect();
+  const {
+    editOnClickRef,
+    moveWithKeyboard,
+    pan,
+    startMove,
+    startPan,
+    startResize,
+    startRotate,
+  } = useCanvasInteractions({
+    editingElementId,
+    onChangeElement,
+    onSelectElement,
+    plate,
+    selectedElementId,
+  });
 
   useEffect(() => {
     if (!editingElementId) return;
@@ -236,151 +198,6 @@ export function EditorCanvas({
     ).find((item) => item.dataset.elementId === editingElementId);
     editor?.focus();
   }, [editingElementId]);
-
-  const startMove = (
-    event: ReactPointerEvent<HTMLElement>,
-    element: LabelElement,
-  ) => {
-    if (
-      (typeof event.button === "number" && event.button !== 0) ||
-      (event.target as HTMLElement).closest(".handle, [contenteditable=true]")
-    )
-      return;
-    event.preventDefault();
-    event.currentTarget.focus();
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-    editOnClickRef.current =
-      element.id === selectedElementId ? element.id : null;
-    onSelectElement(element.id);
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const bounds = canvasBounds(event.currentTarget);
-    if (!bounds) return;
-    const onMove = (moveEvent: PointerEvent) => {
-      if (moveEvent.clientX !== startX || moveEvent.clientY !== startY) {
-        editOnClickRef.current = null;
-      }
-      onChangeElement({
-        ...element,
-        xMm:
-          element.xMm +
-          ((moveEvent.clientX - startX) / bounds.width) * plate.size.widthMm,
-        yMm:
-          element.yMm +
-          ((moveEvent.clientY - startY) / bounds.height) * plate.size.heightMm,
-      });
-    };
-    const onUp = () => {
-      globalThis.removeEventListener("pointermove", onMove);
-      globalThis.removeEventListener("pointerup", onUp);
-    };
-    globalThis.addEventListener("pointermove", onMove);
-    globalThis.addEventListener("pointerup", onUp);
-  };
-
-  const startResize = (
-    event: ReactPointerEvent<HTMLButtonElement>,
-    element: TextElement,
-    corner: ResizeCorner,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const bounds = canvasBounds(event.currentTarget);
-    if (!bounds) return;
-    const onMove = (moveEvent: PointerEvent) => {
-      const dx =
-        ((moveEvent.clientX - startX) / bounds.width) * plate.size.widthMm;
-      const dy =
-        ((moveEvent.clientY - startY) / bounds.height) * plate.size.heightMm;
-      const left = corner.includes("w");
-      const top = corner.includes("n");
-      const widthMm = Math.max(0.5, element.widthMm + (left ? -dx : dx));
-      const heightMm = Math.max(0.5, element.heightMm + (top ? -dy : dy));
-      onChangeElement({
-        ...element,
-        xMm: left ? element.xMm + element.widthMm - widthMm : element.xMm,
-        yMm: top ? element.yMm + element.heightMm - heightMm : element.yMm,
-        widthMm,
-        heightMm,
-      });
-    };
-    const onUp = () => {
-      globalThis.removeEventListener("pointermove", onMove);
-      globalThis.removeEventListener("pointerup", onUp);
-    };
-    globalThis.addEventListener("pointermove", onMove);
-    globalThis.addEventListener("pointerup", onUp);
-  };
-
-  const startRotate = (
-    event: ReactPointerEvent<HTMLButtonElement>,
-    element: TextElement,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const bounds = event.currentTarget.parentElement?.getBoundingClientRect();
-    if (!bounds) return;
-    const centerX = bounds.left + bounds.width / 2;
-    const centerY = bounds.top + bounds.height / 2;
-    const onMove = (moveEvent: PointerEvent) => {
-      const rotationDeg = Math.round(
-        (Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX) *
-          180) /
-          Math.PI +
-          90,
-      );
-      onChangeElement({ ...element, rotationDeg });
-    };
-    const onUp = () => {
-      globalThis.removeEventListener("pointermove", onMove);
-      globalThis.removeEventListener("pointerup", onUp);
-    };
-    globalThis.addEventListener("pointermove", onMove);
-    globalThis.addEventListener("pointerup", onUp);
-  };
-
-  const moveWithKeyboard = (
-    event: KeyboardEvent<HTMLElement>,
-    element: LabelElement,
-  ) => {
-    if (editingElementId === element.id) return;
-    const delta = event.shiftKey ? 1 : 0.1;
-    const offsets: Partial<Record<string, readonly [number, number]>> = {
-      ArrowLeft: [-delta, 0],
-      ArrowRight: [delta, 0],
-      ArrowUp: [0, -delta],
-      ArrowDown: [0, delta],
-    };
-    const offset = offsets[event.key];
-    if (!offset) return;
-    event.preventDefault();
-    onChangeElement({
-      ...element,
-      xMm: element.xMm + offset[0],
-      yMm: element.yMm + offset[1],
-    });
-  };
-
-  const startPan = (event: ReactPointerEvent<HTMLElement>) => {
-    if (event.button !== 0) return;
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const initial = pan;
-    event.preventDefault();
-    const onMove = (moveEvent: PointerEvent) =>
-      setPan({
-        x: initial.x + moveEvent.clientX - startX,
-        y: initial.y + moveEvent.clientY - startY,
-      });
-    const onUp = () => {
-      globalThis.removeEventListener("pointermove", onMove);
-      globalThis.removeEventListener("pointerup", onUp);
-    };
-    globalThis.addEventListener("pointermove", onMove);
-    globalThis.addEventListener("pointerup", onUp);
-  };
 
   return (
     <main className="editor-area">
@@ -412,13 +229,13 @@ export function EditorCanvas({
       >
         <div
           className="canvas-stage"
-          style={
-            {
-              transform: `translate(${pan.x}px, ${pan.y}px)`,
-              "--grid-step": `${5 * canvasScale}px`,
-            } as CSSProperties
-          }
+          style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}
         >
+          <CanvasGrid
+            canvasScale={canvasScale}
+            heightMm={plate.size.heightMm}
+            widthMm={plate.size.widthMm}
+          />
           <CanvasRulers
             canvasScale={canvasScale}
             heightMm={plate.size.heightMm}
@@ -476,8 +293,11 @@ export function EditorCanvas({
           </section>
         </div>
         <div className="canvas-meta">
-          203 dpi · Printable area {plate.size.widthMm} ×{" "}
-          {printableHeightMm(plate.size.heightMm, verticalMarginMm)} mm
+          203 dpi · Printable area {displayMillimeters(plate.size.widthMm)} ×{" "}
+          {displayMillimeters(
+            printableHeightMm(plate.size.heightMm, verticalMarginMm),
+          )}{" "}
+          mm
         </div>
         <CanvasZoomControl onZoom={onZoom} zoom={zoom} />
       </div>

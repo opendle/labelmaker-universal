@@ -10,6 +10,11 @@ import {
 } from "lucide-react";
 
 import { IconButton } from "./controls.js";
+import {
+  plateEditorWidthMm,
+  updatePlateEditorWidth,
+} from "./editor-operations.js";
+import { TYPEFACES } from "./typefaces.js";
 
 function NumberField({
   label,
@@ -64,11 +69,11 @@ function TextInspector({
           }
           value={element.fontFamily}
         >
-          <option>Inter</option>
-          <option>Arial</option>
-          <option>Courier New</option>
-          <option>Georgia</option>
-          <option>Times New Roman</option>
+          {TYPEFACES.map((typeface) => (
+            <option key={typeface.label} value={typeface.value}>
+              {typeface.label}
+            </option>
+          ))}
         </select>
       </label>
       <div className="field-row">
@@ -272,16 +277,12 @@ export function PlateToolbarSettings({
             aria-label="Plate width"
             min={1}
             onChange={(event) =>
-              onChange({
-                ...plate,
-                size: {
-                  ...plate.size,
-                  widthMm: Math.max(1, Number(event.target.value)),
-                },
-              })
+              onChange(
+                updatePlateEditorWidth(plate, Number(event.target.value)),
+              )
             }
             type="number"
-            value={Math.round(plate.size.widthMm * 10) / 10}
+            value={Math.round(plateEditorWidthMm(plate) * 10) / 10}
           />
           <b>mm</b>
           <button

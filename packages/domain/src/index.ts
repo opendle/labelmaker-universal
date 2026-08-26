@@ -1,6 +1,8 @@
 export type Millimeters = number;
 export type Degrees = number;
 
+export const DEFAULT_TEXT_TYPEFACE = '"Avenir Next", "Segoe UI", sans-serif';
+
 export interface PhysicalSize {
   readonly widthMm: Millimeters;
   readonly heightMm: Millimeters;

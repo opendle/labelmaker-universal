@@ -111,7 +111,9 @@ describe("LabelmakerApp", () => {
         canvasElement.style.getPropertyValue("--element-font-size"),
       ),
     ).toBeCloseTo(57.15, 1);
-    const miniText = document.querySelector<HTMLElement>(".mini-label-text")!;
+    const miniText = document.querySelector<HTMLElement>(
+      ".mini-label .label-artwork-text",
+    )!;
     expect(miniText.style.fontSize).toContain("cqi");
     expect(screen.getByText(/Printable area 62 ×\s*12 mm/)).toBeInTheDocument();
     const zones = screen
@@ -119,6 +121,80 @@ describe("LabelmakerApp", () => {
       .querySelectorAll<HTMLElement>(".nonprintable-zone");
     expect(zones).toHaveLength(2);
     expect(zones[0]).toHaveStyle({ height: "12.5%" });
+
+    expect(miniText.style.left).toBe(
+      canvasElement.style.getPropertyValue("--element-left"),
+    );
+    expect(miniText.style.top).toBe(
+      canvasElement.style.getPropertyValue("--element-top"),
+    );
+    expect(miniText.style.width).toBe(
+      canvasElement.style.getPropertyValue("--element-width"),
+    );
+    expect(miniText.style.height).toBe(
+      canvasElement.style.getPropertyValue("--element-height"),
+    );
+  });
+
+  it("scales the label and its text by the same zoom ratio", async () => {
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+    const canvas = screen.getByRole("region", {
+      name: "Resistors label canvas",
+    });
+    const frame = screen
+      .getByRole("button", { name: "Text element: RESISTORS" })
+      .closest<HTMLElement>(".canvas-element")!;
+    const widthBefore = Number.parseFloat(canvas.style.width);
+    const fontBefore = Number.parseFloat(
+      frame.style.getPropertyValue("--element-font-size"),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Zoom in" }));
+
+    expect(Number.parseFloat(canvas.style.width) / widthBefore).toBeCloseTo(
+      1.1,
+      5,
+    );
+    expect(
+      Number.parseFloat(frame.style.getPropertyValue("--element-font-size")) /
+        fontBefore,
+    ).toBeCloseTo(1.1, 5);
+  });
+
+  it("uses the ruler coordinates for every five millimeter grid line", () => {
+    render(<LabelmakerApp host={createHost()} />);
+    const canvas = screen.getByRole("region", {
+      name: "Resistors label canvas",
+    });
+    const stage = canvas.closest<HTMLElement>(".canvas-stage")!;
+    const horizontalGridLine = Array.from(
+      stage.querySelectorAll<HTMLElement>(".canvas-grid .horizontal"),
+    ).find((line) => line.style.top === "45px");
+    const verticalRulerMark = Array.from(
+      stage.querySelectorAll<HTMLElement>(".ruler-left span"),
+    ).find((mark) => mark.textContent === "5 mm");
+    const verticalGridLine = Array.from(
+      stage.querySelectorAll<HTMLElement>(".canvas-grid .vertical"),
+    ).find((line) => line.style.left === "45px");
+    const horizontalRulerMark = Array.from(
+      stage.querySelectorAll<HTMLElement>(".ruler-top span"),
+    ).find((mark) => mark.textContent === "5 mm");
+
+    expect(horizontalGridLine?.style.top).toBe(verticalRulerMark?.style.top);
+    expect(verticalGridLine?.style.left).toBe(horizontalRulerMark?.style.left);
+  });
+
+  it("puts Preview beside Print and offers twelve typefaces", async () => {
+    render(<LabelmakerApp host={createHost()} />);
+    const preview = screen.getByRole("button", { name: "Preview" });
+    const print = screen.getByRole("button", { name: /^Print$/ });
+    expect(
+      preview.compareDocumentPosition(print) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const typeface = screen.getByLabelText("Typeface");
+    expect(typeface.querySelectorAll("option")).toHaveLength(12);
+    expect(typeface).toHaveValue('"Avenir Next", "Segoe UI", sans-serif');
   });
 
   it("clears text editing and selection on the label background", async () => {
@@ -246,7 +322,7 @@ describe("LabelmakerApp", () => {
     });
     await user.selectOptions(screen.getByLabelText("Typeface"), "Georgia");
     expect(updatedFrame.style.getPropertyValue("--element-font-family")).toBe(
-      "Georgia",
+      "Georgia, serif",
     );
     await user.click(screen.getByRole("button", { name: "Italic" }));
     expect(updatedFrame.style.getPropertyValue("--element-font-style")).toBe(
@@ -431,6 +507,10 @@ describe("LabelmakerApp", () => {
 
     expect(screen.getByText("3 labels")).toBeInTheDocument();
     expect(screen.getByLabelText("Plate name")).toHaveValue("Flag Resistors");
+    expect(screen.getByLabelText("Plate width")).toHaveValue(62);
+    expect(
+      screen.getByRole("region", { name: "Flag Resistors label canvas" }),
+    ).toHaveStyle({ width: "720px" });
     expect(screen.getByText("Flag Resistors")).toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: "Text element: RESISTORS" }),
@@ -448,6 +528,10 @@ describe("LabelmakerApp", () => {
 
     await user.click(screen.getByRole("button", { name: "Flag" }));
     expect(screen.getByLabelText("Plate name")).toHaveValue("Resistors");
+    expect(screen.getByLabelText("Plate width")).toHaveValue(62);
+    expect(
+      screen.getAllByRole("button", { name: "Text element: SIGNAL" }),
+    ).toHaveLength(1);
     expect(
       screen.getAllByRole("button", { name: "Text element: SIGNAL" }),
     ).toHaveLength(1);

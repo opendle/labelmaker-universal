@@ -1,5 +1,7 @@
 import type { LabelDocument } from "@labelmaker/domain";
 
+import { DEFAULT_TYPEFACE } from "./typefaces.js";
+
 export const sampleDocument: LabelDocument = {
   schemaVersion: 1,
   id: "workspace-workshop",
@@ -21,7 +23,7 @@ export const sampleDocument: LabelDocument = {
           heightMm: 9.6,
           rotationDeg: 0,
           text: "RESISTORS",
-          fontFamily: "Inter",
+          fontFamily: DEFAULT_TYPEFACE,
           fontSizePt: 18,
           fontWeight: 700,
           align: "center",
@@ -43,7 +45,7 @@ export const sampleDocument: LabelDocument = {
           heightMm: 9.6,
           rotationDeg: 0,
           text: "CAPACITORS",
-          fontFamily: "Inter",
+          fontFamily: DEFAULT_TYPEFACE,
           fontSizePt: 18,
           fontWeight: 700,
           align: "center",
@@ -65,7 +67,7 @@ export const sampleDocument: LabelDocument = {
           heightMm: 9.6,
           rotationDeg: 0,
           text: "CONNECTORS",
-          fontFamily: "Inter",
+          fontFamily: DEFAULT_TYPEFACE,
           fontSizePt: 18,
           fontWeight: 700,
           align: "center",

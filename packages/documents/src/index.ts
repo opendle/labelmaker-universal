@@ -1,12 +1,13 @@
-import type {
-  CodeElement,
-  ImageElement,
-  LabelDocument,
-  LabelElement,
-  LabelPlate,
-  PhysicalSize,
-  ShapeElement,
-  TextElement,
+import {
+  DEFAULT_TEXT_TYPEFACE,
+  type CodeElement,
+  type ImageElement,
+  type LabelDocument,
+  type LabelElement,
+  type LabelPlate,
+  type PhysicalSize,
+  type ShapeElement,
+  type TextElement,
 } from "@labelmaker/domain";
 import { parse, stringify } from "yaml";
 
@@ -348,7 +349,7 @@ export function createBlankLabelDocument(
             heightMm: 8,
             rotationDeg: 0,
             text: "NEW LABEL",
-            fontFamily: "Inter",
+            fontFamily: DEFAULT_TEXT_TYPEFACE,
             fontSizePt: 14,
             fontWeight: 600,
             fontStyle: "normal",

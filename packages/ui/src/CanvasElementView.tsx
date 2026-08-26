@@ -85,7 +85,7 @@ export function CanvasElementView({
     element.kind === "text"
       ? {
           "--element-font-family": element.fontFamily,
-          "--element-font-size": `${Math.max(10, pointsToMillimeters(element.fontSizePt) * canvasScale)}px`,
+          "--element-font-size": `${pointsToMillimeters(element.fontSizePt) * canvasScale}px`,
           "--element-font-style": element.fontStyle ?? "normal",
           "--element-font-weight": element.fontWeight,
           "--element-justify":
@@ -113,7 +113,7 @@ export function CanvasElementView({
             }
             style={{
               fontFamily: element.fontFamily,
-              fontSize: `${Math.max(10, pointsToMillimeters(element.fontSizePt) * canvasScale)}px`,
+              fontSize: `${pointsToMillimeters(element.fontSizePt) * canvasScale}px`,
               fontStyle: element.fontStyle ?? "normal",
               fontWeight: element.fontWeight,
               textAlign: element.align,

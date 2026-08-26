@@ -1,10 +1,10 @@
 import type { LabelPlate } from "@labelmaker/domain";
 import { Bluetooth, Check, Printer, X } from "lucide-react";
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 
 import { IconButton } from "./controls.js";
 import type { PrinterSummary } from "./host.js";
-import { containerFontSize, printableMarginPercent } from "./label-layout.js";
+import { LabelArtwork } from "./LabelArtwork.js";
 import { Modal } from "./Modal.js";
 
 export function AddPrinterDialog({
@@ -125,88 +125,12 @@ function PreviewPlate({
   readonly plate: LabelPlate;
   readonly verticalMarginMm: number;
 }) {
-  type PreviewStyle = CSSProperties & Record<`--${string}`, string | number>;
   return (
-    <div
+    <LabelArtwork
       className="preview-label"
-      style={
-        {
-          "--preview-aspect-ratio": `${plate.size.widthMm}/${plate.size.heightMm}`,
-        } as PreviewStyle
-      }
-    >
-      {plate.elements.map((item) => {
-        const style: PreviewStyle = {
-          "--preview-left": `${(item.xMm / plate.size.widthMm) * 100}%`,
-          "--preview-top": `${(item.yMm / plate.size.heightMm) * 100}%`,
-          "--preview-width": `${(item.widthMm / plate.size.widthMm) * 100}%`,
-          "--preview-height": `${(item.heightMm / plate.size.heightMm) * 100}%`,
-          "--preview-rotation": `rotate(${item.rotationDeg}deg)`,
-        };
-        if (item.kind === "image")
-          return (
-            <img
-              alt=""
-              className={`fit-${item.fit}`}
-              key={item.id}
-              src={item.source}
-              style={style}
-            />
-          );
-        if (item.kind === "rectangle")
-          return (
-            <i
-              key={item.id}
-              style={
-                {
-                  ...style,
-                  "--preview-shape-background": item.filled
-                    ? "#222"
-                    : "transparent",
-                  "--preview-shape-border": item.filled
-                    ? "0"
-                    : `${item.strokeWidthMm}px solid #222`,
-                } as PreviewStyle
-              }
-            />
-          );
-        if (item.kind !== "text") return null;
-        return (
-          <span
-            className={`preview-text align-${item.align}`}
-            key={item.id}
-            style={
-              {
-                ...style,
-                "--preview-font-family": item.fontFamily,
-                "--preview-font-size": containerFontSize(
-                  item.fontSizePt,
-                  plate.size.widthMm,
-                ),
-                "--preview-font-style": item.fontStyle ?? "normal",
-                "--preview-font-weight": item.fontWeight,
-              } as PreviewStyle
-            }
-          >
-            {item.text}
-          </span>
-        );
-      })}
-      <span
-        aria-hidden="true"
-        className="preview-nonprintable top"
-        style={{
-          height: `${printableMarginPercent(verticalMarginMm, plate.size.heightMm)}%`,
-        }}
-      />
-      <span
-        aria-hidden="true"
-        className="preview-nonprintable bottom"
-        style={{
-          height: `${printableMarginPercent(verticalMarginMm, plate.size.heightMm)}%`,
-        }}
-      />
-    </div>
+      plate={plate}
+      verticalMarginMm={verticalMarginMm}
+    />
   );
 }
 

@@ -163,9 +163,6 @@ export function AppHeader({
             <Redo2 size={17} />
           </IconButton>
         </div>
-        <button className="button secondary" onClick={onPreview} type="button">
-          <ImageIcon size={16} /> Preview
-        </button>
         <div className="printer-picker" ref={printerControlRef}>
           <button
             aria-label={
@@ -240,6 +237,9 @@ export function AppHeader({
         <IconButton label="Add printer" onClick={onAddPrinter}>
           <Plus size={18} />
         </IconButton>
+        <button className="button secondary" onClick={onPreview} type="button">
+          <ImageIcon size={16} /> Preview
+        </button>
         <div className="print-control" ref={printControlRef}>
           <button
             className="button primary"

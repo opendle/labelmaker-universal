@@ -1,6 +1,7 @@
 import { _electron as electron } from "playwright";
-import { mkdir } from "node:fs/promises";
-import { resolve } from "node:path";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 
 const appDirectory = resolve(import.meta.dirname, "..");
 const screenshotDirectory = process.env.LABELMAKER_SCREENSHOT_DIRECTORY
@@ -9,8 +10,11 @@ const screenshotDirectory = process.env.LABELMAKER_SCREENSHOT_DIRECTORY
 await mkdir(screenshotDirectory, { recursive: true });
 
 async function capture(width, height, name, setup) {
+  const profileDirectory = await mkdtemp(
+    join(tmpdir(), "labelmaker-screenshot-"),
+  );
   const application = await electron.launch({
-    args: ["--no-sandbox", appDirectory],
+    args: ["--no-sandbox", `--user-data-dir=${profileDirectory}`, appDirectory],
     env: {
       ...process.env,
       LABELMAKER_ENABLE_MOCK_PRINTER: "1",
@@ -33,6 +37,17 @@ async function capture(width, height, name, setup) {
       return Boolean(name && name !== "No printer");
     });
     await setup?.(page);
+    await page.evaluate(() => {
+      const label = document.querySelector(".label-canvas");
+      if (!(label instanceof HTMLElement)) throw new Error("Label is missing");
+      const declaredWidth = Number.parseFloat(label.style.width);
+      const renderedWidth = label.getBoundingClientRect().width;
+      if (Math.abs(declaredWidth - renderedWidth) > 0.05) {
+        throw new Error(
+          `Label scale changed after layout: ${declaredWidth} != ${renderedWidth}`,
+        );
+      }
+    });
     const layout = await page.evaluate(() => ({
       clientHeight: document.documentElement.clientHeight,
       clientWidth: document.documentElement.clientWidth,
@@ -50,6 +65,7 @@ async function capture(width, height, name, setup) {
     await page.screenshot({ path: resolve(screenshotDirectory, name) });
   } finally {
     await application.close();
+    await rm(profileDirectory, { recursive: true, force: true });
   }
 }
 
@@ -64,6 +80,40 @@ await capture(
 );
 await capture(1440, 960, "labelmaker-flag-1440x960.png", async (page) => {
   await page.getByRole("button", { name: "Flag" }).click();
+});
+await capture(1440, 960, "labelmaker-trim-1440x960.png", async (page) => {
+  await page.getByRole("button", { name: "Trim plate to content" }).click();
+  await page.evaluate(() => {
+    const label = document.querySelector(".label-canvas");
+    const frame = document.querySelector(".canvas-element");
+    const text = document.querySelector(
+      ".canvas-element-control .inline-text-editor",
+    );
+    if (
+      !(label instanceof HTMLElement) ||
+      !(frame instanceof HTMLElement) ||
+      !(text instanceof HTMLElement)
+    ) {
+      throw new Error("Trim geometry is missing");
+    }
+    const context = document.createElement("canvas").getContext("2d");
+    if (!context) throw new Error("Text measurement is not available");
+    const style = getComputedStyle(text);
+    context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const metrics = context.measureText(text.textContent ?? "");
+    const labelBounds = label.getBoundingClientRect();
+    const frameBounds = frame.getBoundingClientRect();
+    const originX = frameBounds.left + (frameBounds.width - metrics.width) / 2;
+    const leftError =
+      originX - metrics.actualBoundingBoxLeft - labelBounds.left;
+    const rightError =
+      originX + metrics.actualBoundingBoxRight - labelBounds.right;
+    if (Math.abs(leftError) > 0.05 || Math.abs(rightError) > 0.05) {
+      throw new Error(
+        `Trim does not match printed ink: ${leftError}, ${rightError}`,
+      );
+    }
+  });
 });
 await capture(1440, 960, "labelmaker-image-1440x960.png", async (page) => {
   await page.getByLabel("Choose image").setInputFiles({
