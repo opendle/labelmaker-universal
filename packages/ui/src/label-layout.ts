@@ -17,22 +17,35 @@ export function printableMarginPercent(
   marginMm: number,
   plateHeightMm: number,
 ): number {
-  return Math.min(50, Math.max(0, (marginMm / plateHeightMm) * 100));
+  return Math.min(100, Math.max(0, (marginMm / plateHeightMm) * 100));
 }
 
 export function printableHeightMm(
   plateHeightMm: number,
-  verticalMarginMm: number,
+  margins: PrintableMargins,
 ): number {
-  return Math.max(0, plateHeightMm - verticalMarginMm * 2);
+  return Math.max(0, plateHeightMm - margins.topMm - margins.bottomMm);
 }
 
-export function nonPrintableMarginMm(
+export interface PrintableMargins {
+  readonly topMm: number;
+  readonly bottomMm: number;
+}
+
+export function nonPrintableMarginsMm(
   plateHeightMm: number,
-  printableWidthMm: number | undefined,
-): number {
-  if (printableWidthMm === undefined) return 0;
-  return Math.max(0, (plateHeightMm - printableWidthMm) / 2);
+  printHeadSizeMm: number | undefined,
+  configuredTopMm = 0,
+  configuredBottomMm = 0,
+): PrintableMargins {
+  if (printHeadSizeMm === undefined) return { topMm: 0, bottomMm: 0 };
+  const nominalMediaHeightMm =
+    configuredTopMm + printHeadSizeMm + configuredBottomMm;
+  const mediaAdjustmentMm = (plateHeightMm - nominalMediaHeightMm) / 2;
+  return {
+    topMm: Math.max(0, configuredTopMm + mediaAdjustmentMm),
+    bottomMm: Math.max(0, configuredBottomMm + mediaAdjustmentMm),
+  };
 }
 
 export function displayMillimeters(value: number): number {

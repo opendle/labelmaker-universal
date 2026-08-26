@@ -1,48 +1,87 @@
 import type { LabelDocument } from "@labelmaker/domain";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
+import type { CSSProperties } from "react";
 
 import { LabelArtwork } from "./LabelArtwork.js";
-import { nonPrintableMarginMm } from "./label-layout.js";
+import { nonPrintableMarginsMm } from "./label-layout.js";
+
+const THUMBNAIL_PIXELS_PER_MM = 3.25;
 
 export function PlateStrip({
   workspace,
   activePlateId,
   onSelectPlate,
   onAddPlate,
-  printableWidthMm,
+  onDeletePlate,
+  printHeadSizeMm,
+  marginTopMm,
+  marginBottomMm,
 }: {
   readonly workspace: LabelDocument;
   readonly activePlateId: string;
   readonly onSelectPlate: (plateId: string, elementId: string | null) => void;
   readonly onAddPlate: () => void;
-  readonly printableWidthMm: number | undefined;
+  readonly onDeletePlate: (plateId: string) => void;
+  readonly printHeadSizeMm: number | undefined;
+  readonly marginTopMm: number | undefined;
+  readonly marginBottomMm: number | undefined;
 }) {
   return (
     <footer className="plate-strip">
       <div className="strip-heading">
         <span>LABELS</span>
-        <small>{workspace.plates.length} labels</small>
+        <small>
+          {workspace.plates.length}{" "}
+          {workspace.plates.length === 1 ? "label" : "labels"}
+        </small>
       </div>
       <div className="plate-thumbnails">
         {workspace.plates.map((plate, index) => {
           return (
-            <button
+            <div
               className={`plate-thumb ${plate.id === activePlateId ? "selected" : ""}`}
               key={plate.id}
-              onClick={() => onSelectPlate(plate.id, null)}
-              type="button"
+              style={
+                {
+                  "--label-preview-height": `${plate.size.heightMm * THUMBNAIL_PIXELS_PER_MM}px`,
+                  "--label-preview-width": `${plate.size.widthMm * THUMBNAIL_PIXELS_PER_MM}px`,
+                } as CSSProperties & Record<`--${string}`, string>
+              }
             >
-              <span className="plate-number">{index + 1}</span>
-              <LabelArtwork
-                className="mini-label"
-                plate={plate}
-                verticalMarginMm={nonPrintableMarginMm(
-                  plate.size.heightMm,
-                  printableWidthMm,
-                )}
-              />
-              <span className="thumb-name">{plate.name}</span>
-            </button>
+              <button
+                aria-label={`Select label ${index + 1}: ${plate.name}`}
+                className="plate-thumb-select"
+                onClick={() => onSelectPlate(plate.id, null)}
+                type="button"
+              >
+                <span className="plate-number">{index + 1}</span>
+                <LabelArtwork
+                  className="mini-label"
+                  plate={plate}
+                  printableMargins={nonPrintableMarginsMm(
+                    plate.size.heightMm,
+                    printHeadSizeMm,
+                    marginTopMm,
+                    marginBottomMm,
+                  )}
+                />
+                <span className="thumb-name">{plate.name}</span>
+              </button>
+              <button
+                aria-label={`Delete label ${plate.name}`}
+                className="plate-delete"
+                disabled={workspace.plates.length === 1}
+                onClick={() => onDeletePlate(plate.id)}
+                title={
+                  workspace.plates.length === 1
+                    ? "A workspace must contain one label"
+                    : `Delete ${plate.name}`
+                }
+                type="button"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
           );
         })}
         <button

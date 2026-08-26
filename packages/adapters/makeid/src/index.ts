@@ -43,6 +43,8 @@ const capabilities: PrinterCapabilities = {
   dpi: 203,
   rasterWidthPixels: MAKEID_PRINT_HEAD_PIXELS,
   printableWidthMm: 12,
+  printHeadMarginTopMm: 2,
+  printHeadMarginBottomMm: 2,
   darkness: { minimum: 0, maximum: 31, step: 1, defaultValue: 20 },
   colorModes: ["monochrome"],
   media: [
@@ -118,7 +120,7 @@ interface MakeIdConnectionData {
 /**
  * First-pass MakeID E1 adapter.
  *
- * The injected provider owns OS discovery and Bluetooth Classic RFCOMM. This
+ * The injected provider owns OS discovery and the Bluetooth byte stream. This
  * package does not open a Bluetooth connection on its own.
  */
 export class MakeIdE1Adapter implements PrinterAdapter {
@@ -126,13 +128,15 @@ export class MakeIdE1Adapter implements PrinterAdapter {
     dpi: 203,
     rasterWidthPixels: MAKEID_PRINT_HEAD_PIXELS,
     printableWidthMm: 12,
+    printHeadMarginTopMm: 2,
+    printHeadMarginBottomMm: 2,
     darkness: { minimum: 0, maximum: 31, step: 1, defaultValue: 20 },
   } as const;
   readonly manifest = {
     id: MAKEID_ADAPTER_ID,
     displayName: "MakeID E1",
     manufacturers: ["MakeID"],
-    transports: ["bluetooth-classic"],
+    transports: ["bluetooth-low-energy", "bluetooth-classic"],
   } as const;
 
   readonly #options: ResolvedOptions;
@@ -172,7 +176,9 @@ export class MakeIdE1Adapter implements PrinterAdapter {
         id: `${MAKEID_ADAPTER_ID}:${device.id}`,
         adapterId: MAKEID_ADAPTER_ID,
         displayName: device.name ?? "MakeID E1",
-        transport: "bluetooth-classic",
+        transport: device.id.toLowerCase().startsWith("macos-ble-")
+          ? "bluetooth-low-energy"
+          : "bluetooth-classic",
         connection,
       };
     });
@@ -202,7 +208,7 @@ export class MakeIdE1Adapter implements PrinterAdapter {
       ) {
         throw new MakeIdAdapterError(
           normalized.code,
-          "Could not connect to the MakeID E1. Turn it off and on. If macOS still shows it as connected, forget it in Bluetooth Settings, then add it again in Labelmaker.",
+          "Could not connect to the MakeID E1. Turn it off and on, keep it nearby, and try again. If it still fails, remove the saved printer and add it again.",
           true,
           { cause: normalized },
         );
@@ -220,7 +226,8 @@ export function isMakeIdE1Name(name: string | undefined): boolean {
   return (
     normalized.startsWith("yichipfpga-") ||
     normalized === "makeid e1" ||
-    normalized.startsWith("makeid e1-")
+    normalized.startsWith("makeid e1-") ||
+    /^e1\d{2}[a-z]\d{5}$/.test(normalized)
   );
 }
 
@@ -574,7 +581,8 @@ function adapterErrorReason(error: unknown): string {
 function readConnection(printer: PrinterDescriptor): MakeIdConnectionData {
   if (
     printer.adapterId !== MAKEID_ADAPTER_ID ||
-    printer.transport !== "bluetooth-classic"
+    (printer.transport !== "bluetooth-low-energy" &&
+      printer.transport !== "bluetooth-classic")
   ) {
     throw new MakeIdAdapterError(
       "makeid.invalid-printer",

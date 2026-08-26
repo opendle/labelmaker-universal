@@ -23,6 +23,10 @@ contextBridge.exposeInMainWorld("labelmakerHost", {
       printerId,
       settings,
     ),
+  loadWorkspaceRecovery: () =>
+    ipcRenderer.invoke("labelmaker:load-workspace-recovery"),
+  storeWorkspaceRecovery: (state: unknown) =>
+    ipcRenderer.invoke("labelmaker:store-workspace-recovery", state),
   newWorkspace: (hasUnsavedChanges: boolean, document: unknown) =>
     ipcRenderer.invoke("labelmaker:new-workspace", hasUnsavedChanges, document),
   openWorkspace: (hasUnsavedChanges: boolean, document: unknown) =>

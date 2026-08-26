@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Labelmaker Universal lets a user design labels and print them on devices from
+Labelmaker lets a user design labels and print them on devices from
 different manufacturers. The product must hide printer protocol details behind
 adapters.
 
@@ -40,7 +40,10 @@ adapters.
 
 - Printer list, selection, mock discovery, and add-printer flow.
 - Restore the last selected printer on the next launch.
-- Per-printer output settings for reported capabilities, including darkness.
+- Restore the complete last editor session on launch, including unsaved work.
+  Invalid recovery data must not stop the application from starting.
+- Per-printer output settings for print-head size, independent top and bottom
+  margins, reported capabilities such as darkness, and a display-only name.
 - New, open, save, and save-as workspace actions.
 - Multiple plates in one workspace.
 - Label width and height settings.
@@ -49,6 +52,7 @@ adapters.
 - Zoomed WYSIWYG canvas and monochrome print preview.
 - Capability-driven non-printable area guides.
 - Print one plate or all plates through the selected adapter.
+- Optional print-only mirroring for each plate.
 - Undo and redo for editor changes.
 
 ## Later scope

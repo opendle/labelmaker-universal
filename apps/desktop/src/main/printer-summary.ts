@@ -19,6 +19,7 @@ export interface DesktopPrinterSummary {
   readonly id: string;
   readonly adapterId: string;
   readonly name: string;
+  readonly deviceName: string;
   readonly model: string;
   readonly transport: PrinterDescriptor["transport"];
   readonly state: PrinterStatus["state"];
@@ -26,6 +27,8 @@ export interface DesktopPrinterSummary {
   readonly dpi?: number;
   readonly rasterWidthPixels?: number;
   readonly printableWidthMm?: number;
+  readonly marginTopMm?: number;
+  readonly marginBottomMm?: number;
   readonly darkness?: DesktopNumericSetting;
   readonly batteryPercent?: number;
 }
@@ -37,6 +40,8 @@ interface PrinterSummaryOptions {
   readonly onFailure?: (error: unknown) => void;
   readonly offlineCapabilities?: OfflineCapabilities;
   readonly settings?: PrinterSettings;
+  /** Keep a transport alive when a background status check times out. */
+  readonly preserveSessionOnFailure?: boolean;
   readonly unprobedState?: PrinterStatus["state"];
   readonly unprobedStatusMessage?: string;
 }
@@ -76,7 +81,12 @@ function capabilitySummary(
   return {
     dpi: capabilities.dpi,
     rasterWidthPixels: capabilities.rasterWidthPixels,
-    printableWidthMm: capabilities.printableWidthMm,
+    printableWidthMm:
+      settings?.printHeadSizeMm ?? capabilities.printableWidthMm,
+    marginTopMm:
+      settings?.marginTopMm ?? capabilities.printHeadMarginTopMm ?? 0,
+    marginBottomMm:
+      settings?.marginBottomMm ?? capabilities.printHeadMarginBottomMm ?? 0,
     ...(capabilities.darkness === undefined
       ? {}
       : {
@@ -99,7 +109,8 @@ function offlineSummary(
   return {
     id: printer.id,
     adapterId: printer.adapterId,
-    name: printer.displayName,
+    name: settings?.displayName ?? printer.displayName,
+    deviceName: printer.displayName,
     model,
     transport: printer.transport,
     state,
@@ -134,7 +145,7 @@ export async function summarizePrinter(
       printer,
       model,
       options.unprobedState ?? "disconnected",
-      options.unprobedStatusMessage ?? "Connects when you print",
+      options.unprobedStatusMessage ?? "Connects on print",
       options.offlineCapabilities,
       options.settings,
     );
@@ -149,7 +160,8 @@ export async function summarizePrinter(
       return {
         id: printer.id,
         adapterId: printer.adapterId,
-        name: printer.displayName,
+        name: options.settings?.displayName ?? printer.displayName,
+        deviceName: printer.displayName,
         model,
         transport: printer.transport,
         state: status.state,
@@ -161,7 +173,9 @@ export async function summarizePrinter(
       };
     } catch (error) {
       lastError = error;
-      await discardSession(printer.id, session);
+      if (!options.preserveSessionOnFailure) {
+        await discardSession(printer.id, session);
+      }
       if (attempt + 1 < attempts && retryDelayMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
       }

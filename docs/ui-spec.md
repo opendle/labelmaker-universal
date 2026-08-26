@@ -10,30 +10,41 @@ and excessive decoration.
 ## Window layout
 
 - **Top bar:** large New, Open, and Save actions; workspace name and save state;
-  undo, redo, preview, printer selection, add-printer, and print.
+  undo, redo, preview, a printer menu with an add-printer action, and print.
 - **Center:** one WYSIWYG label canvas with a neutral work surface.
 - **Editor toolbar:** element actions on the left and always-visible plate name,
   width, height, margins, and trim controls on the right. It spans the center
   and inspector columns.
 - **Right inspector:** selected-element properties only. Plate settings do not
   need a separate inspector mode or button.
-- **Bottom plate strip:** a compact row of ordered plate thumbnails and one
-  large `+` plate.
+- **Bottom plate strip:** a compact row of ordered plate thumbnails, delete
+  actions, and one large `+` plate. Use one physical scale for all thumbnails
+  and fit each thumbnail control to its label width.
 
 The center canvas keeps priority when the window becomes narrow. Printer status
 and the plate strip remain reachable.
+
+The application chrome follows the operating system light or dark appearance.
+The label canvas, plate thumbnails, and print previews stay white in both
+appearances so that they show the physical label and printed result accurately.
 
 ## Required mock interactions
 
 - Select a printer and see its state.
 - Select one printer from a compact header menu. Keep printer removal in that
-  menu, place add-printer next to it, and restore the last selected printer on
-  the next launch.
+  menu. Put a full-width `+ Add a printer` action at the end of the menu. Restore
+  the last selected printer on the next launch. When there is no configured
+  printer, replace the menu with a direct `Add printer` action.
+- Restore the last editor session on launch. Restore the workspace, unsaved
+  state, active label, selected element, zoom, last save time, and saved `.lbl`
+  file association. Store recovery state outside the `.lbl` file. If recovery
+  data is missing or invalid, start with the default workspace.
 - Open an add-printer dialog with mock discovery results.
 - While a printer is added, show progress and disable conflicting dialog
   actions. Close the dialog after success and keep it open after failure.
 - Do not show controls that have no action.
 - Select plate thumbnails.
+- Delete a plate from its thumbnail. Keep at least one plate in the workspace.
 - Add a plate with the large `+` control.
 - Select, move, and edit a text element.
 - Edit text directly on the plate. Double-click an unselected text element, or
@@ -68,12 +79,16 @@ and the plate strip remain reachable.
   rounding remainder equally between the left and right sides. The text element
   frame must not add blank trim space.
 - Keep the plate width field in whole millimeters.
-- Open printer settings from each configured printer. Show fixed capabilities,
-  including resolution and printable width. Show the calculated top and bottom
-  margins for the current label. Let the user change only capabilities that the
-  printer reports as adjustable, such as darkness, and store those settings for
-  that printer.
+- Open printer settings from each configured printer. Keep the current label
+  out of this dialog. Show resolution and raster width as fixed capabilities.
+  Let the user set a display-only printer name and restore the device name.
+  This setting must not change the printer ID or connection data.
+  Let the user change print-head size and independent top and bottom margins in
+  0.1 mm steps. Let the user change other capabilities that the printer reports
+  as adjustable, such as darkness. Store all values for that printer.
 - Add a flag or cable-wrap plate from the special-label actions.
+- Put a Mirror toggle next to Flag. Mirror the printed output and the main print
+  preview. Keep the editor canvas and plate-strip artwork unchanged.
 - Keep the two printed sides of a flag identical. Editing either visible side
   updates the other side immediately, or expose only one editable source side.
 - In flag mode, the width field controls one half. The complete output width is
@@ -91,6 +106,9 @@ and the plate strip remain reachable.
 
 On macOS, use the native window controls from Electron. Do not draw a second
 set of traffic-light controls in the application header.
+
+Cmd+Q must quit on the first command. Save recovery state before exit. Close
+printer sessions as best effort, but do not let a transport hold the app open.
 
 ## Visual test sizes
 

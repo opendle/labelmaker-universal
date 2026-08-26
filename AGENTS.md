@@ -1,4 +1,4 @@
-# Labelmaker Universal — agent instructions
+# Labelmaker — agent instructions
 
 ## Start here
 

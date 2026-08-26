@@ -1,6 +1,6 @@
 ---
 name: labelmaker-desktop-ui
-description: Build or revise Labelmaker Universal's Electron and React desktop interface, WYSIWYG editor, plate strip, printer list, dialogs, and visual tests. Do not use for printer protocol implementation.
+description: Build or revise Labelmaker's Electron and React desktop interface, WYSIWYG editor, plate strip, printer list, dialogs, and visual tests. Do not use for printer protocol implementation.
 ---
 
 # Labelmaker Desktop UI

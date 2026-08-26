@@ -59,6 +59,58 @@ export function useLabelmakerController(host: LabelmakerHost) {
 
   useEffect(() => {
     let active = true;
+    const load = host.loadWorkspaceRecovery?.() ?? Promise.resolve(null);
+    void load
+      .then((recovery) => {
+        if (!active) return;
+        if (recovery) {
+          dispatch({
+            type: "restore-session",
+            workspace: recovery.document,
+            activePlateId: recovery.activePlateId,
+            selectedElementId: recovery.selectedElementId,
+            dirty: recovery.dirty,
+            savedAt: recovery.savedAt,
+            fileName: recovery.fileName,
+            zoom: recovery.zoom,
+          });
+        } else {
+          dispatch({ type: "recovery-ready" });
+        }
+      })
+      .catch(() => {
+        if (active) dispatch({ type: "recovery-ready" });
+      });
+    return () => {
+      active = false;
+    };
+  }, [host]);
+
+  useEffect(() => {
+    if (!state.recoveryReady || !host.storeWorkspaceRecovery) return;
+    void host
+      .storeWorkspaceRecovery({
+        document: state.workspace,
+        dirty: state.dirty,
+        activePlateId: state.activePlateId,
+        selectedElementId: state.selectedElementId,
+        zoom: state.zoom,
+        savedAt: state.savedAt,
+      })
+      .catch(() => undefined);
+  }, [
+    host,
+    state.activePlateId,
+    state.dirty,
+    state.recoveryReady,
+    state.savedAt,
+    state.selectedElementId,
+    state.workspace,
+    state.zoom,
+  ]);
+
+  useEffect(() => {
+    let active = true;
     let refreshPending = false;
     const refresh = (showError: boolean, preferredId?: string | null) => {
       if (refreshPending) return;
@@ -443,6 +495,30 @@ export function useLabelmakerController(host: LabelmakerHost) {
       elementId: plate.elements[0]?.id ?? null,
     });
   }, [editWorkspace, state.workspace]);
+  const deletePlate = useCallback(
+    (plateId: string) => {
+      if (state.workspace.plates.length === 1) return;
+      const deletedIndex = state.workspace.plates.findIndex(
+        (plate) => plate.id === plateId,
+      );
+      if (deletedIndex < 0) return;
+      const plates = state.workspace.plates.filter(
+        (plate) => plate.id !== plateId,
+      );
+      editWorkspace({ ...state.workspace, plates });
+      if (plateId === state.activePlateId) {
+        const nextPlate = plates[Math.min(deletedIndex, plates.length - 1)];
+        if (nextPlate) {
+          dispatch({
+            type: "select-plate",
+            plateId: nextPlate.id,
+            elementId: null,
+          });
+        }
+      }
+    },
+    [editWorkspace, state.activePlateId, state.workspace],
+  );
   const addText = useCallback(() => {
     if (!activePlate) return;
     const element = createText(activePlate);
@@ -591,6 +667,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
     updatePrinterSettings,
     print,
     addPlate,
+    deletePlate,
     addText,
     addImage,
     addSpecial,

@@ -11,6 +11,8 @@ export interface PlateRasterTarget {
   readonly dpi: number;
   readonly rasterWidthPixels: number;
   readonly printableWidthMm: number;
+  readonly marginTopMm?: number;
+  readonly marginBottomMm?: number;
 }
 
 export type SvgRasterizer = (
@@ -38,6 +40,8 @@ export async function renderPlateForPrinter(
       feedLengthPixels,
       target.rasterWidthPixels,
       target.printableWidthMm,
+      target.marginTopMm,
+      target.marginBottomMm,
     ),
     feedLengthPixels,
     target.rasterWidthPixels,
@@ -72,13 +76,28 @@ export function buildPlateSvg(
   widthPixels: number,
   heightPixels: number,
   printableWidthMm = plate.size.heightMm,
+  marginTopMm = 0,
+  marginBottomMm = 0,
 ): string {
   if (!Number.isFinite(printableWidthMm) || printableWidthMm <= 0) {
     throw new RangeError("Printer printable width must be greater than zero");
   }
-  const viewBoxY = (plate.size.heightMm - printableWidthMm) / 2;
+  if (
+    !Number.isFinite(marginTopMm) ||
+    marginTopMm < 0 ||
+    !Number.isFinite(marginBottomMm) ||
+    marginBottomMm < 0
+  ) {
+    throw new RangeError("Printer margins must be zero or greater");
+  }
+  const nominalMediaHeightMm = marginTopMm + printableWidthMm + marginBottomMm;
+  const viewBoxY =
+    marginTopMm + (plate.size.heightMm - nominalMediaHeightMm) / 2;
   const body = plate.elements.map(renderElement).join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPixels}" height="${heightPixels}" viewBox="0 ${number(viewBoxY)} ${number(plate.size.widthMm)} ${number(printableWidthMm)}"><rect x="0" y="0" width="${number(plate.size.widthMm)}" height="${number(plate.size.heightMm)}" fill="white"/>${body}</svg>`;
+  const artwork = plate.mirrorPrint
+    ? `<g transform="translate(${number(plate.size.widthMm)} 0) scale(-1 1)">${body}</g>`
+    : body;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPixels}" height="${heightPixels}" viewBox="0 ${number(viewBoxY)} ${number(plate.size.widthMm)} ${number(printableWidthMm)}"><rect x="0" y="0" width="${number(plate.size.widthMm)}" height="${number(plate.size.heightMm)}" fill="white"/>${artwork}</svg>`;
 }
 
 function renderElement(element: LabelElement): string {

@@ -65,6 +65,8 @@ export type LabelElement =
 export interface LabelPlate {
   readonly id: string;
   readonly name: string;
+  /** Mirror the printed output without changing the editor artwork. */
+  readonly mirrorPrint?: boolean;
   readonly size: PhysicalSize;
   readonly margins: PlateMargins;
   readonly elements: readonly LabelElement[];

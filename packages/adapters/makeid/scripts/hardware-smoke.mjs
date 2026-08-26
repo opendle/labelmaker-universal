@@ -2,8 +2,10 @@ import {
   MacOsMakeIdTransportProvider,
   MakeIdE1Adapter,
 } from "../dist/index.js";
+import { createInterface } from "node:readline/promises";
 
 const shouldPrint = process.argv.includes("--print");
+const shouldTestPowerCycle = process.argv.includes("--power-cycle");
 const context = {
   log: {
     debug: (message, detail) => console.error(message, detail ?? {}),
@@ -13,10 +15,13 @@ const context = {
   },
 };
 const adapter = new MakeIdE1Adapter(new MacOsMakeIdTransportProvider());
-const printers = await adapter.discover({ timeoutMs: 5_000 }, context);
+const printers = await adapter.discover(
+  { timeoutMs: 5_000, includeUnpaired: true },
+  context,
+);
 if (printers.length !== 1) {
   throw new Error(
-    `Expected one paired MakeID E1 printer; found ${printers.length}`,
+    `Expected one nearby MakeID E1 printer; found ${printers.length}`,
   );
 }
 const printer = printers[0];
@@ -26,7 +31,29 @@ try {
   console.log(
     JSON.stringify({ printer: printer.displayName, status }, null, 2),
   );
-  if (!shouldPrint) process.exitCode = status.state === "ready" ? 0 : 2;
+  if (!shouldPrint && !shouldTestPowerCycle) {
+    process.exitCode = status.state === "ready" ? 0 : 2;
+  }
+  if (shouldTestPowerCycle) {
+    if (status.state !== "ready") throw new Error("The printer is not ready");
+    const terminal = createInterface({
+      input: process.stdin,
+      output: process.stderr,
+    });
+    await terminal.question(
+      "Turn the printer off, wait five seconds, turn it on, then press Enter. ",
+    );
+    terminal.close();
+    const reconnectedStatus = await session.status();
+    console.log(
+      JSON.stringify(
+        { printer: printer.displayName, reconnectedStatus },
+        null,
+        2,
+      ),
+    );
+    process.exitCode = reconnectedStatus.state === "ready" ? 0 : 2;
+  }
   if (shouldPrint) {
     if (status.state !== "ready") throw new Error("The printer is not ready");
     const heightPixels = 80;

@@ -37,6 +37,15 @@ describe("desktop plate rasterization", () => {
     expect(svg).toContain('height="10" fill="white"');
   });
 
+  it("positions the print head with independent top and bottom margins", () => {
+    const plate = createBlankLabelDocument(() => "id").plates[0];
+    if (!plate) throw new Error("Expected a plate");
+
+    const svg = buildPlateSvg(plate, 320, 96, 12, 1, 3);
+
+    expect(svg).toContain('viewBox="0 1 40 12"');
+  });
+
   it("renders line breaks and italic text as separate SVG lines", () => {
     const plate = createBlankLabelDocument(() => "id").plates[0];
     if (!plate) throw new Error("Expected a plate");
@@ -55,6 +64,17 @@ describe("desktop plate rasterization", () => {
     expect(svg).toMatch(
       /<tspan[^>]+>FIRST<\/tspan><tspan[^>]+>SECOND<\/tspan>/,
     );
+  });
+
+  it("mirrors only the printed artwork when print mirroring is on", () => {
+    const plate = createBlankLabelDocument(() => "id").plates[0];
+    if (!plate) throw new Error("Expected a plate");
+
+    const svg = buildPlateSvg({ ...plate, mirrorPrint: true }, 320, 96);
+
+    expect(svg).toContain('<rect x="0" y="0" width="40"');
+    expect(svg).toContain('<g transform="translate(40 0) scale(-1 1)">');
+    expect(svg).toMatch(/<g[^>]+><text[\s\S]*<\/text><\/g><\/svg>$/);
   });
 
   it("transposes pixels and reverses the E1 feed-line order", async () => {

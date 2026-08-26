@@ -34,7 +34,7 @@ describe("desktop printer summaries", () => {
     expect(shouldProbePrinterStatus("makeid", false, false)).toBe(false);
   });
 
-  it("does not take the RFCOMM channel only to list a paired printer", async () => {
+  it("does not open Bluetooth only to list a saved printer", async () => {
     const getSession = vi.fn(async () => fakeSession());
     const summary = await summarizePrinter(
       printer,
@@ -47,6 +47,8 @@ describe("desktop printer summaries", () => {
           dpi: 203,
           rasterWidthPixels: 96,
           printableWidthMm: 12,
+          printHeadMarginTopMm: 2,
+          printHeadMarginBottomMm: 2,
           darkness: {
             minimum: 0,
             maximum: 31,
@@ -54,19 +56,45 @@ describe("desktop printer summaries", () => {
             defaultValue: 20,
           },
         },
-        settings: { darkness: 24 },
+        settings: {
+          displayName: "Shipping desk",
+          darkness: 24,
+          printHeadSizeMm: 11.8,
+          marginTopMm: 1.4,
+          marginBottomMm: 2.6,
+        },
       },
     );
 
     expect(summary).toMatchObject({
       id: printer.id,
+      name: "Shipping desk",
+      deviceName: "YichipFPGA-test",
       state: "disconnected",
-      statusMessage: "Connects when you print",
+      statusMessage: "Connects on print",
       dpi: 203,
-      printableWidthMm: 12,
+      printableWidthMm: 11.8,
+      marginTopMm: 1.4,
+      marginBottomMm: 2.6,
       darkness: { value: 24 },
     });
+    expect(printer.displayName).toBe("YichipFPGA-test");
     expect(getSession).not.toHaveBeenCalled();
+  });
+
+  it("uses the unchanged device name after the custom name is cleared", async () => {
+    const summary = await summarizePrinter(
+      printer,
+      "MakeID E1",
+      async () => fakeSession(),
+      async () => undefined,
+      { probe: false, settings: { darkness: 20 } },
+    );
+
+    expect(summary).toMatchObject({
+      name: "YichipFPGA-test",
+      deviceName: "YichipFPGA-test",
+    });
   });
 
   it("reports an active job without sending a concurrent status query", async () => {
@@ -107,6 +135,31 @@ describe("desktop printer summaries", () => {
       statusMessage: "Not reachable",
     });
     expect(discard).toHaveBeenCalledWith(printer.id, session);
+  });
+
+  it("keeps a reconnecting session after a background status timeout", async () => {
+    const session = fakeSession();
+    session.status = vi.fn(async () => {
+      throw new Error("The printer is temporarily off");
+    });
+    const discard = vi.fn(async () => undefined);
+    const summary = await summarizePrinter(
+      printer,
+      "MakeID E1",
+      async () => session,
+      discard,
+      {
+        attempts: 1,
+        retryDelayMs: 0,
+        preserveSessionOnFailure: true,
+      },
+    );
+
+    expect(summary).toMatchObject({
+      state: "disconnected",
+      statusMessage: "Not reachable",
+    });
+    expect(discard).not.toHaveBeenCalled();
   });
 
   it("refreshes status after a reconnect and reports the live printer", async () => {

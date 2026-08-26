@@ -15,6 +15,8 @@ export interface PrintRasterTarget {
   readonly dpi: number;
   readonly rasterWidthPixels: number;
   readonly printableWidthMm: number;
+  readonly marginTopMm: number;
+  readonly marginBottomMm: number;
 }
 
 export type DesktopPlateRenderer = (
@@ -50,14 +52,17 @@ export function configuredPrinterDescriptors(
   );
   for (const printerId of configuredPrinterIds) {
     if (descriptors.has(printerId)) continue;
-    const transportDeviceId = makeIdTransportDeviceId(printerId);
-    if (!transportDeviceId) continue;
+    const savedTransport = makeIdSavedTransport(printerId);
+    if (!savedTransport) continue;
     descriptors.set(printerId, {
       id: printerId,
       adapterId: "makeid",
       displayName: "MakeID E1",
-      transport: "bluetooth-classic",
-      connection: { model: "E1", transportDeviceId },
+      transport: savedTransport.transport,
+      connection: {
+        model: "E1",
+        transportDeviceId: savedTransport.transportDeviceId,
+      },
     });
   }
   return [...descriptors.values()];
@@ -78,6 +83,12 @@ export async function printToSession(
     throw new Error("The printer session does not match the print request");
   }
   const capabilities = await session.capabilities();
+  const printableWidthMm =
+    settings.printHeadSizeMm ?? capabilities.printableWidthMm;
+  const marginTopMm =
+    settings.marginTopMm ?? capabilities.printHeadMarginTopMm ?? 0;
+  const marginBottomMm =
+    settings.marginBottomMm ?? capabilities.printHeadMarginBottomMm ?? 0;
   const pages: RasterPage[] = [];
   for (const plateId of request.plateIds) {
     const plate = request.document.plates.find((item) => item.id === plateId);
@@ -86,7 +97,9 @@ export async function printToSession(
       await renderPlate(plate, {
         dpi: capabilities.dpi,
         rasterWidthPixels: capabilities.rasterWidthPixels,
-        printableWidthMm: capabilities.printableWidthMm,
+        printableWidthMm,
+        marginTopMm,
+        marginBottomMm,
       }),
     );
   }
@@ -105,17 +118,30 @@ export async function printToSession(
   });
   const count = request.plateIds.length;
   return {
-    message: `${count} ${count === 1 ? "label" : "labels"} sent to ${descriptor.displayName}`,
+    message: `${count} ${count === 1 ? "label" : "labels"} sent to ${settings.displayName ?? descriptor.displayName}`,
   };
 }
 
-function makeIdTransportDeviceId(printerId: string): string | undefined {
+function makeIdSavedTransport(printerId: string):
+  | {
+      readonly transportDeviceId: string;
+      readonly transport: "bluetooth-classic" | "bluetooth-low-energy";
+    }
+  | undefined {
   const prefix = "makeid:";
   if (!printerId.startsWith(prefix)) return undefined;
   const transportDeviceId = printerId.slice(prefix.length);
-  return /^macos-bt-[0-9a-f]{24}$/.test(transportDeviceId)
-    ? transportDeviceId
-    : undefined;
+  if (/^macos-bt-[0-9a-f]{24}$/.test(transportDeviceId)) {
+    return { transportDeviceId, transport: "bluetooth-classic" };
+  }
+  if (
+    /^macos-ble-[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/.test(
+      transportDeviceId,
+    )
+  ) {
+    return { transportDeviceId, transport: "bluetooth-low-energy" };
+  }
+  return undefined;
 }
 
 function nearestMediaId(

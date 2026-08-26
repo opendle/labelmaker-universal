@@ -30,8 +30,8 @@ The Mac App Store build is different from a normal Electron macOS build:
 - Use an explicit App ID, bundle ID, Team ID, and provisioning profile.
 - Add only the required sandbox entitlements. This application expects Bluetooth
   device access and user-selected file read/write access.
-- Prove MakeID E1 RFCOMM access in a sandboxed development build before the store
-  package becomes a release target.
+- Prove MakeID E1 CoreBluetooth access in a sandboxed development build before
+  the store package becomes a release target.
 - Create the App Store Connect app record before uploading the first build.
 - Upload with an Apple-supported tool and use a unique build number.
 
@@ -42,7 +42,7 @@ Connect API keys, or account identifiers in the repository.
 
 - The Apple Developer membership, Team ID, bundle ID, and signing identities are
   not available in this repository.
-- Bluetooth Classic RFCOMM has not been tested from an Electron `mas` build.
+- Bluetooth Low Energy has not been tested from an Electron `mas` build.
 - The application icon, privacy text, support URL, and store metadata are not
   final.
 

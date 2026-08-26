@@ -4,6 +4,8 @@ import type { PrinterState, PrinterTransport } from "@labelmaker/printing";
 export interface PrinterSummary {
   readonly id: string;
   readonly adapterId: string;
+  /** Unchanged name from the printer adapter. Use this to reset a custom name. */
+  readonly deviceName?: string;
   readonly name: string;
   readonly model: string;
   readonly transport: PrinterTransport;
@@ -12,6 +14,8 @@ export interface PrinterSummary {
   readonly dpi?: number;
   readonly rasterWidthPixels?: number;
   readonly printableWidthMm?: number;
+  readonly marginTopMm?: number;
+  readonly marginBottomMm?: number;
   readonly darkness?: {
     readonly minimum: number;
     readonly maximum: number;
@@ -23,7 +27,12 @@ export interface PrinterSummary {
 }
 
 export interface PrinterSettings {
+  /** Omit this value to show the unchanged device name. */
+  readonly displayName?: string;
   readonly darkness?: number;
+  readonly printHeadSizeMm?: number;
+  readonly marginTopMm?: number;
+  readonly marginBottomMm?: number;
 }
 
 export interface PrintRequest {
@@ -33,6 +42,18 @@ export interface PrintRequest {
 }
 
 export type HostPlatform = "macos" | "windows" | "linux";
+
+export interface WorkspaceRecoveryState {
+  readonly document: LabelDocument;
+  readonly dirty: boolean;
+  readonly activePlateId: string;
+  readonly selectedElementId: string | null;
+  readonly zoom: number;
+  readonly savedAt: string | null;
+  readonly fileName: string | null;
+}
+
+export type WorkspaceRecoveryUpdate = Omit<WorkspaceRecoveryState, "fileName">;
 
 export interface WorkspaceError {
   readonly code: string;
@@ -72,6 +93,8 @@ export interface LabelmakerHost {
     printerId: string,
     settings: PrinterSettings,
   ): Promise<readonly PrinterSummary[]>;
+  loadWorkspaceRecovery?(): Promise<WorkspaceRecoveryState | null>;
+  storeWorkspaceRecovery?(state: WorkspaceRecoveryUpdate): Promise<void>;
   newWorkspace(
     hasUnsavedChanges: boolean,
     document: LabelDocument,

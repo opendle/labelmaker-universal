@@ -15,6 +15,10 @@ Run the application from the repository root:
 npm run dev
 ```
 
+On macOS, this command prepares a local development app bundle so that the
+Dock, Force Quit window, and process list use the `Labelmaker` name.
+The generated bundle stays in the ignored `apps/desktop/.runtime` folder.
+
 The normal application does not show mock printers. Set
 `LABELMAKER_ENABLE_MOCK_PRINTER=1` only when you need the desktop mock fixture.
 The screenshot command sets this variable automatically.

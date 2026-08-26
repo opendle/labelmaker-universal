@@ -21,6 +21,8 @@ const result = spawnSync(
     "-framework",
     "Foundation",
     "-framework",
+    "CoreBluetooth",
+    "-framework",
     "IOBluetooth",
     "-o",
     output,

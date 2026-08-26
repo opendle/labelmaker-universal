@@ -1,19 +1,17 @@
 import { Check, CircleAlert, Info } from "lucide-react";
 import { useCallback } from "react";
 
-import {
-  AddPrinterDialog,
-  PreviewDialog,
-  PrinterSettingsDialog,
-} from "./AppDialogs.js";
+import { AddPrinterDialog } from "./AppDialogs.js";
 import { AppHeader } from "./AppHeader.js";
 import { replaceElement, replacePlate } from "./app-state.js";
 import { EditorCanvas } from "./EditorCanvas.js";
 import { trimPlate, updateElementAndFlagPeer } from "./editor-operations.js";
 import type { LabelmakerHost } from "./host.js";
 import { Inspector } from "./Inspector.js";
-import { nonPrintableMarginMm } from "./label-layout.js";
+import { nonPrintableMarginsMm } from "./label-layout.js";
 import { PlateStrip } from "./PlateStrip.js";
+import { PreviewDialog } from "./PreviewDialog.js";
+import { PrinterSettingsDialog } from "./PrinterSettingsDialog.js";
 import { useLabelmakerController } from "./useLabelmakerController.js";
 
 export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
@@ -34,9 +32,11 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   );
 
   if (!activePlate) return null;
-  const verticalMarginMm = nonPrintableMarginMm(
+  const printableMargins = nonPrintableMarginsMm(
     activePlate.size.heightMm,
     controller.activePrinter?.printableWidthMm,
+    controller.activePrinter?.marginTopMm,
+    controller.activePrinter?.marginBottomMm,
   );
   const settingsPrinter = state.printers.find(
     (printer) => printer.id === state.printerSettingsId,
@@ -111,7 +111,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             plate={activePlate}
             printerDpi={controller.activePrinter?.dpi}
             selectedElementId={state.selectedElementId}
-            verticalMarginMm={verticalMarginMm}
+            printableMargins={printableMargins}
             zoom={state.zoom}
           />
           <Inspector
@@ -142,10 +142,13 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
         <PlateStrip
           activePlateId={state.activePlateId}
           onAddPlate={controller.addPlate}
+          onDeletePlate={controller.deletePlate}
           onSelectPlate={(plateId, elementId) =>
             dispatch({ type: "select-plate", plateId, elementId })
           }
-          printableWidthMm={controller.activePrinter?.printableWidthMm}
+          marginBottomMm={controller.activePrinter?.marginBottomMm}
+          marginTopMm={controller.activePrinter?.marginTopMm}
+          printHeadSizeMm={controller.activePrinter?.printableWidthMm}
           workspace={state.workspace}
         />
       </div>
@@ -167,10 +170,10 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
         open={state.previewOpen}
         plate={activePlate}
         printerDpi={controller.activePrinter?.dpi}
-        verticalMarginMm={verticalMarginMm}
+        printableMargins={printableMargins}
       />
       <PrinterSettingsDialog
-        labelHeightMm={activePlate.size.heightMm}
+        key={settingsPrinter?.id ?? "closed-printer-settings"}
         onClose={closePrinterSettings}
         onSave={controller.updatePrinterSettings}
         open={state.printerSettingsId !== null}

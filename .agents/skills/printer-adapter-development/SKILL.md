@@ -1,6 +1,6 @@
 ---
 name: printer-adapter-development
-description: Add or change a printer manufacturer, protocol, discovery path, transport, or adapter test in Labelmaker Universal. Use for physical and mock printer integrations, not for editor-only UI work.
+description: Add or change a printer manufacturer, protocol, discovery path, transport, or adapter test in Labelmaker. Use for physical and mock printer integrations, not for editor-only UI work.
 ---
 
 # Printer Adapter Development

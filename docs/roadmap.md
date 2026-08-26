@@ -31,6 +31,7 @@
 ## Milestone 3 — MakeID E1 proof
 
 - [x] Verify the macOS RFCOMM transport on the physical MakeID E1 printer.
+- [x] Replace new macOS configurations with the power-cycle-safe BLE transport.
 - [x] Clean-room MakeID protocol candidates, fixtures, and tests.
 - [x] Hardware-independent status, cancellation, and retry flow.
 - [x] One-label proof on a physical MakeID E1.

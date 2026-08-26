@@ -1,5 +1,12 @@
 import type { LabelElement, LabelPlate } from "@labelmaker/domain";
-import { Flag, Image as ImageIcon, Type, ZoomIn, ZoomOut } from "lucide-react";
+import {
+  Flag,
+  FlipHorizontal2,
+  Image as ImageIcon,
+  Type,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 
 import { CanvasElementView } from "./CanvasElementView.js";
@@ -11,6 +18,7 @@ import {
   displayMillimeters,
   printableHeightMm,
   printableMarginPercent,
+  type PrintableMargins,
 } from "./label-layout.js";
 import { useCanvasInteractions } from "./useCanvasInteractions.js";
 
@@ -71,7 +79,7 @@ function CanvasToolbar({
         </button>
         <input
           ref={imageInputRef}
-          accept="image/*"
+          accept="image/png,image/jpeg,image/gif,image/webp,image/bmp"
           aria-label="Choose image"
           className="file-input"
           onChange={(event: ChangeEvent<HTMLInputElement>) => {
@@ -84,11 +92,21 @@ function CanvasToolbar({
         <span className="toolbar-separator" />
         <button
           aria-pressed={isFlagPlate(plate)}
-          className="tool-button"
+          className={`tool-button${isFlagPlate(plate) ? " active" : ""}`}
           onClick={() => onAddSpecial("flag")}
           type="button"
         >
           <Flag size={16} /> Flag
+        </button>
+        <button
+          aria-pressed={plate.mirrorPrint === true}
+          className={`tool-button${plate.mirrorPrint ? " active" : ""}`}
+          onClick={() =>
+            onUpdatePlate({ ...plate, mirrorPrint: !plate.mirrorPrint })
+          }
+          type="button"
+        >
+          <FlipHorizontal2 size={16} /> Mirror
         </button>
       </div>
       <PlateToolbarSettings
@@ -124,18 +142,24 @@ function useCommitInlineEdit(
   }, [editingElementId, setEditingElementId]);
 }
 
-function NonprintableZones({ marginPercent }: { marginPercent: number }) {
+function NonprintableZones({
+  topMarginPercent,
+  bottomMarginPercent,
+}: {
+  topMarginPercent: number;
+  bottomMarginPercent: number;
+}) {
   return (
     <>
       <span
         aria-hidden="true"
         className="nonprintable-zone top"
-        style={{ height: `${marginPercent}%` }}
+        style={{ height: `${topMarginPercent}%` }}
       />
       <span
         aria-hidden="true"
         className="nonprintable-zone bottom"
-        style={{ height: `${marginPercent}%` }}
+        style={{ height: `${bottomMarginPercent}%` }}
       />
     </>
   );
@@ -153,7 +177,7 @@ export function EditorCanvas({
   onUpdatePlate,
   onTrim,
   onZoom,
-  verticalMarginMm,
+  printableMargins,
   printerDpi,
 }: {
   readonly plate: LabelPlate;
@@ -167,14 +191,18 @@ export function EditorCanvas({
   readonly onUpdatePlate: (plate: LabelPlate) => void;
   readonly onTrim: () => void;
   readonly onZoom: (zoom: number) => void;
-  readonly verticalMarginMm: number;
+  readonly printableMargins: PrintableMargins;
   readonly printerDpi: number | undefined;
 }) {
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   useCommitInlineEdit(editingElementId, setEditingElementId);
   const canvasScale = Math.min(9, 720 / plate.size.widthMm) * (zoom / 100);
-  const marginPercent = printableMarginPercent(
-    verticalMarginMm,
+  const topMarginPercent = printableMarginPercent(
+    printableMargins.topMm,
+    plate.size.heightMm,
+  );
+  const bottomMarginPercent = printableMarginPercent(
+    printableMargins.bottomMm,
     plate.size.heightMm,
   );
   const {
@@ -291,7 +319,10 @@ export function EditorCanvas({
                 selected={element.id === selectedElementId}
               />
             ))}
-            <NonprintableZones marginPercent={marginPercent} />
+            <NonprintableZones
+              bottomMarginPercent={bottomMarginPercent}
+              topMarginPercent={topMarginPercent}
+            />
           </section>
         </div>
         <div className="canvas-meta">
@@ -300,7 +331,7 @@ export function EditorCanvas({
             : `${printerDpi} dpi`}{" "}
           · Printable area {displayMillimeters(plate.size.widthMm)} ×{" "}
           {displayMillimeters(
-            printableHeightMm(plate.size.heightMm, verticalMarginMm),
+            printableHeightMm(plate.size.heightMm, printableMargins),
           )}{" "}
           mm
         </div>

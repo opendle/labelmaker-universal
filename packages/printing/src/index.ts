@@ -1,6 +1,8 @@
 export type AdapterId = string;
 export type PrinterId = string;
 
+export const MAX_PRINTER_DISPLAY_NAME_LENGTH = 80;
+
 export type PrinterTransport =
   | "bluetooth-classic"
   | "bluetooth-low-energy"
@@ -43,6 +45,10 @@ export interface PrinterCapabilities {
   readonly rasterWidthPixels: number;
   /** Physical cross-feed width that the print head can reach. */
   readonly printableWidthMm: number;
+  /** Default head offset from the top edge of the nominal media. */
+  readonly printHeadMarginTopMm?: number;
+  /** Default head offset from the bottom edge of the nominal media. */
+  readonly printHeadMarginBottomMm?: number;
   readonly darkness?: NumericSettingCapability;
   readonly colorModes: readonly ["monochrome"];
   readonly media: readonly MediaSize[];
@@ -83,7 +89,11 @@ export interface PrintJob {
 }
 
 export interface PrinterSettings {
+  readonly displayName?: string;
   readonly darkness?: number;
+  readonly printHeadSizeMm?: number;
+  readonly marginTopMm?: number;
+  readonly marginBottomMm?: number;
 }
 
 export interface PrintProgress {
@@ -126,7 +136,12 @@ export interface PrinterAdapter {
     PrinterCapabilities,
     "dpi" | "rasterWidthPixels" | "printableWidthMm"
   > &
-    Partial<Pick<PrinterCapabilities, "darkness">>;
+    Partial<
+      Pick<
+        PrinterCapabilities,
+        "darkness" | "printHeadMarginTopMm" | "printHeadMarginBottomMm"
+      >
+    >;
   discover(
     options: DiscoveryOptions,
     context: AdapterContext,

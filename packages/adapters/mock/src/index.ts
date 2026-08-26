@@ -31,6 +31,8 @@ const capabilities: PrinterCapabilities = {
   dpi: 203,
   rasterWidthPixels: 96,
   printableWidthMm: 12,
+  printHeadMarginTopMm: 2,
+  printHeadMarginBottomMm: 2,
   darkness: { minimum: 0, maximum: 31, step: 1, defaultValue: 20 },
   colorModes: ["monochrome"],
   media: [
@@ -82,6 +84,8 @@ export class MockPrinterAdapter implements PrinterAdapter {
     dpi: 203,
     rasterWidthPixels: 96,
     printableWidthMm: 12,
+    printHeadMarginTopMm: 2,
+    printHeadMarginBottomMm: 2,
     darkness: { minimum: 0, maximum: 31, step: 1, defaultValue: 20 },
   } as const;
   readonly manifest = {

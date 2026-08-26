@@ -168,6 +168,13 @@ textarea:focus-visible {
   text-align: left;
   cursor: pointer;
 }
+.printer-add-trigger {
+  width: 132px;
+  grid-template-columns: 20px minmax(0, 1fr);
+}
+.printer-add-trigger strong {
+  font-size: 10.5px;
+}
 .printer-trigger-copy {
   min-width: 0;
   display: flex;
@@ -241,6 +248,27 @@ textarea:focus-visible {
   color: var(--muted);
   font-size: 11px;
   text-align: center;
+}
+.printer-menu-add {
+  width: 100%;
+  min-height: 37px;
+  margin-top: 5px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 5px 5px;
+  background: transparent;
+  color: #605c54;
+  font-size: 11px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.printer-menu-add:hover {
+  background: var(--soft-accent);
+  color: var(--accent-dark);
 }
 .toolbar-cluster {
   display: flex;
@@ -702,6 +730,7 @@ textarea:focus-visible {
   position: relative;
   z-index: 1;
   background: var(--paper);
+  color: #24221e;
   border: 0;
   outline: 1px solid #c9c5ba;
   box-shadow:
@@ -1317,16 +1346,24 @@ textarea.inline-text-editor:focus-visible {
 }
 .plate-thumb {
   position: relative;
-  flex: 0 0 172px;
+  flex: 0 0 calc(var(--label-preview-width) + 12px);
   min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+}
+.plate-thumb-select {
+  width: 100%;
+  height: 100%;
   padding: 4px 6px 2px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: center;
   gap: 2px;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  border: 0;
   background: transparent;
   cursor: pointer;
 }
@@ -1357,6 +1394,30 @@ textarea.inline-text-editor:focus-visible {
 .selected .plate-number {
   background: var(--accent);
   color: white;
+}
+.plate-delete {
+  position: absolute;
+  z-index: 3;
+  top: 4px;
+  right: 5px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(117, 110, 99, 0.3);
+  border-radius: 5px;
+  background: rgba(255, 254, 250, 0.92);
+  color: #777168;
+  cursor: pointer;
+}
+.plate-delete:hover:not(:disabled) {
+  border-color: #c7806b;
+  color: var(--accent-dark);
+}
+.plate-delete:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 .label-artwork {
   position: relative;
@@ -1402,8 +1463,8 @@ textarea.inline-text-editor:focus-visible {
   z-index: 1;
 }
 .mini-label {
-  width: min(100%, calc(52px * var(--label-aspect)));
-  min-height: 24px;
+  width: var(--label-preview-width);
+  height: var(--label-preview-height);
   outline: 1px solid #c9c5ba;
   box-shadow: 0 2px 5px rgba(40, 35, 25, 0.09);
 }
@@ -1551,24 +1612,47 @@ textarea.inline-text-editor:focus-visible {
 .printer-settings-content {
   padding: 16px;
 }
-.printer-settings-heading {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 11px;
-  border-radius: 8px;
-  background: #f0efea;
-}
-.printer-settings-heading > div {
+.printer-name-setting {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 6px;
 }
-.printer-settings-heading strong,
+.printer-name-setting > span {
+  font-size: 10px;
+  font-weight: 700;
+}
+.printer-name-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.printer-name-setting input {
+  width: 100%;
+  height: 32px;
+  min-width: 0;
+  padding: 0 9px;
+  border: 1px solid #d5d1c8;
+  border-radius: 6px;
+  background: white;
+  color: #37342e;
+  font-size: 11px;
+  user-select: text;
+}
+.printer-name-setting input:focus-visible {
+  border-color: #78a4d5;
+}
+.printer-name-control .button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.printer-name-setting small {
+  color: var(--muted);
+  font-size: 9.5px;
+}
 .darkness-setting strong {
   font-size: 11px;
 }
-.printer-settings-heading span,
 .darkness-setting small,
 .printer-setting-unavailable {
   color: var(--muted);
@@ -1603,6 +1687,38 @@ textarea.inline-text-editor:focus-visible {
   margin: 0;
   font-size: 11px;
   font-weight: 650;
+}
+.printer-geometry-settings {
+  margin: 12px 0;
+  padding: 10px 11px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.printer-geometry-settings legend {
+  padding: 0 4px;
+  color: #77736b;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.printer-geometry-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.printer-number-setting {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+.printer-number-setting > span:first-child {
+  color: var(--muted);
+  font-size: 9px;
+}
+.printer-number-setting .unit-input {
+  width: 100%;
 }
 .darkness-setting {
   display: flex;
@@ -1758,9 +1874,6 @@ textarea.inline-text-editor:focus-visible {
   .plate-strip {
     grid-template-columns: 68px minmax(0, 1fr);
   }
-  .plate-thumb {
-    flex-basis: 160px;
-  }
   .editor-toolbar {
     padding-right: 9px;
     padding-left: 9px;
@@ -1798,6 +1911,432 @@ textarea.inline-text-editor:focus-visible {
   }
   .toast {
     bottom: 116px;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    color: #f2f0eb;
+    background: #191a1c;
+    --ink: #f2f0eb;
+    --muted: #aaa79f;
+    --line: #3d3f43;
+    --panel: #242528;
+    --paper: #fffefa;
+    --accent: #ff7952;
+    --accent-dark: #d85632;
+    --soft-accent: #492b23;
+    --green: #55c98e;
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline-color: #7eb2ee;
+  }
+
+  .app-shell {
+    background: #1c1d1f;
+  }
+
+  .titlebar {
+    background: rgba(35, 36, 39, 0.97);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.035);
+  }
+
+  .header-action {
+    color: #c4c1ba;
+  }
+
+  .header-action:hover {
+    border-color: #4a4c50;
+    background: #303236;
+  }
+
+  .printer-trigger,
+  .button,
+  .button.secondary,
+  .popup-menu,
+  .printer-menu {
+    border-color: #505257;
+    background: #303236;
+    color: #efede7;
+  }
+
+  .printer-menu,
+  .popup-menu {
+    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.48);
+  }
+
+  .header-printer-option:hover,
+  .popup-menu button:hover {
+    background: #3a3c40;
+  }
+
+  .printer-menu-add {
+    border-top-color: #4a4c50;
+    color: #e2dfd8;
+  }
+
+  .printer-menu-add:hover {
+    background: var(--soft-accent);
+    color: #ff9a7c;
+  }
+
+  .header-printer-row > .icon-button,
+  .icon-button,
+  .toolbar-field > span,
+  .section-heading {
+    color: #b8b4ac;
+  }
+
+  .header-printer-row > .icon-button:last-child,
+  .printer-row > .icon-button {
+    color: #ee927c;
+  }
+
+  .icon-button:hover:not(:disabled) {
+    background: #383a3e;
+    color: #fff;
+  }
+
+  .button:hover:not(:disabled) {
+    filter: brightness(1.1);
+  }
+
+  .button.primary {
+    border-color: #99391f;
+    background: #bd492b;
+    color: #fff;
+  }
+
+  .button.primary:hover:not(:disabled) {
+    background: #c04a2a;
+    filter: none;
+  }
+
+  .left-rail,
+  .inspector {
+    background: var(--panel);
+  }
+
+  .printer-item:hover,
+  .rail-action:hover,
+  .inspector-plate-settings button:hover {
+    background: #303236;
+  }
+
+  .printer-item.selected {
+    border-color: #505258;
+    background: #313337;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+  }
+
+  .printer-icon {
+    color: #d6d3cc;
+    background: #383a3e;
+  }
+
+  .status-dot {
+    box-shadow: 0 0 0 2px #303236;
+  }
+
+  .status-disconnected {
+    background: #85878c;
+  }
+
+  .add-printer {
+    border-color: #686a6f;
+    color: #d0cdc5;
+  }
+
+  .add-printer:hover {
+    border-color: #74767b;
+    background: #303236;
+  }
+
+  .rail-action {
+    color: #d0cdc6;
+  }
+
+  .rail-footer,
+  .strip-heading > span,
+  .thumb-name {
+    color: #b5b1a8;
+  }
+
+  .editor-toolbar,
+  .plate-strip {
+    border-color: #3d3f43;
+    background: #292a2d;
+  }
+
+  .plate-strip {
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.18);
+  }
+
+  .tool-button:hover:not(:disabled),
+  .tool-button.active {
+    border-color: #505258;
+    background: #36383c;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  }
+
+  .work-surface,
+  .preview-surface {
+    background-color: #191a1c;
+    background-image: radial-gradient(#3d3f43 0.65px, transparent 0.65px);
+  }
+
+  .canvas-grid span {
+    background: #666970;
+  }
+
+  .ruler-top,
+  .ruler-left {
+    border-color: #6e7075;
+    color: #bbb8b0;
+  }
+
+  .ruler-top span::before,
+  .ruler-left span::after {
+    background: #8f9196;
+  }
+
+  .canvas-meta {
+    color: #b6b2aa;
+  }
+
+  .zoom-control {
+    border-color: #505258;
+    background: rgba(43, 45, 48, 0.94);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .zoom-control span {
+    color: #ccc9c1;
+  }
+
+  .field > span,
+  .property-label,
+  .margin-fieldset legend {
+    color: #b8b4ac;
+  }
+
+  .field input,
+  .field select,
+  .field textarea,
+  .printer-name-setting input,
+  .toolbar-field > input,
+  .toolbar-unit-input,
+  .unit-input,
+  .weight-group,
+  .text-style-buttons .italic-button,
+  .text-style-buttons button,
+  .trim-button,
+  .segmented,
+  .segmented button {
+    border-color: #55575c;
+    background: #303236;
+    color: #efede7;
+  }
+
+  .toolbar-unit-input input,
+  .unit-input input {
+    background: transparent;
+  }
+
+  .toolbar-unit-input b,
+  .unit-input b {
+    color: #aaa69e;
+  }
+
+  .text-style-buttons button {
+    border-right-color: #55575c;
+  }
+
+  .text-style-buttons .weight-300 {
+    color: #96989d;
+  }
+
+  .text-style-buttons .weight-400 {
+    color: #b4b5b8;
+  }
+
+  .text-style-buttons .weight-600 {
+    color: #dedee0;
+  }
+
+  .text-style-buttons .weight-700 {
+    color: #fff;
+  }
+
+  .text-style-buttons button.active,
+  .segmented button.active {
+    color: #ff9a7c;
+    background: var(--soft-accent);
+  }
+
+  .inline-trim-button {
+    border-left-color: #55575c;
+    color: #d1cec7;
+  }
+
+  .inline-trim-button:hover,
+  .trim-button:hover {
+    border-color: #a9604e;
+    color: #ff9a7c;
+    background: var(--soft-accent);
+  }
+
+  .margin-fieldset,
+  .printer-geometry-settings,
+  .image-inspector-preview {
+    border-color: #484a4e;
+  }
+
+  .image-inspector-preview {
+    background-color: #fff;
+  }
+
+  .inspector-note {
+    background: #303236;
+    color: #c3c0b8;
+  }
+
+  .printer-geometry-settings legend {
+    color: #c3c0b8;
+  }
+
+  .plate-thumb:hover {
+    background: #34363a;
+  }
+
+  .plate-thumb.selected {
+    border-color: var(--accent);
+    background: var(--soft-accent);
+    box-shadow: inset 0 0 0 1px rgba(255, 121, 82, 0.15);
+  }
+
+  .plate-delete {
+    border-color: #5b5d61;
+    background: rgba(42, 43, 46, 0.92);
+    color: #c8c4bc;
+  }
+
+  .plate-number {
+    background: #4a4c51;
+    color: #e4e1da;
+  }
+
+  .selected .plate-number {
+    background: #bd492b;
+    color: #fff;
+  }
+
+  .add-plate {
+    border-color: #686a6f;
+    color: #bbb8b0;
+  }
+
+  .add-plate:hover {
+    border-color: var(--accent);
+    color: #ff9a7c;
+    background: var(--soft-accent);
+  }
+
+  .modal-backdrop {
+    background: rgba(5, 6, 7, 0.64);
+  }
+
+  .dialog {
+    border-color: #505258;
+    background: #252629;
+    box-shadow: 0 24px 75px rgba(0, 0, 0, 0.6);
+  }
+
+  .discovery-banner {
+    background: #203b35;
+    color: #b9e4d8;
+  }
+
+  .discovery-check {
+    background: #315a50;
+  }
+
+  .spinner {
+    border-color: #4d756b;
+    border-top-color: #a4dfcf;
+  }
+
+  .discovery-item {
+    border-bottom-color: #414347;
+  }
+
+  .discovery-skeleton {
+    background: linear-gradient(90deg, #323438, #414348, #323438);
+    background-size: 200%;
+  }
+
+  .printer-capabilities {
+    background: #44464a;
+  }
+
+  .printer-capabilities > div {
+    background: #292a2d;
+  }
+
+  .darkness-setting {
+    border-color: #46484c;
+  }
+
+  .darkness-setting output {
+    background: var(--soft-accent);
+    color: #ff9a7c;
+  }
+
+  .dialog-footer {
+    background: #202124;
+  }
+
+  .text-button {
+    color: #cfcbc3;
+  }
+
+  .preview-details strong {
+    color: #e6e3dc;
+  }
+
+  .mini-spinner {
+    border-color: #74767b;
+    border-top-color: #fff;
+  }
+
+  /* Label paper and rendered label previews always use print colors. */
+  .label-canvas,
+  .label-artwork,
+  .mini-label,
+  .preview-label {
+    background: #fffefa;
+    color: #24221e;
+  }
+
+  .label-canvas {
+    outline-color: #aaa69c;
+    box-shadow:
+      0 14px 34px rgba(0, 0, 0, 0.5),
+      0 2px 6px rgba(0, 0, 0, 0.34);
+  }
+
+  .mini-label,
+  .preview-label {
+    outline-color: #a7a39a;
+  }
+
+  .handle {
+    background: #fff;
   }
 }
 

@@ -15,10 +15,12 @@ artifacts/*
 !artifacts/screenshots/
 artifacts/screenshots/*
 !artifacts/screenshots/labelmaker-add-printer-1440x960.png
+!artifacts/screenshots/labelmaker-dark-1440x960.png
 !artifacts/screenshots/labelmaker-flag-1440x960.png
 !artifacts/screenshots/labelmaker-plate-settings-1440x960.png
 !artifacts/screenshots/labelmaker-primary-1440x960.png
 !artifacts/screenshots/labelmaker-printer-settings-1440x960.png
+!artifacts/screenshots/labelmaker-printer-settings-dark-1440x960.png
 !artifacts/screenshots/labelmaker-text-editing-1440x960.png
 !artifacts/screenshots/labelmaker-trim-1440x960.png
 
@@ -43,6 +45,7 @@ Thumbs.db
 !.vscode/settings.json
 
 # Electron packaging
+apps/desktop/.runtime/
 *.dmg
 *.AppImage
 *.exe

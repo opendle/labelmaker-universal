@@ -7,6 +7,8 @@ export type {
   PrintRequest,
   WorkspaceError,
   WorkspaceLoadResult,
+  WorkspaceRecoveryState,
+  WorkspaceRecoveryUpdate,
   WorkspaceSaveResult,
 } from "./host.js";
 

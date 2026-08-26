@@ -2,7 +2,10 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
-import type { PrinterSettings } from "@labelmaker/printing";
+import {
+  MAX_PRINTER_DISPLAY_NAME_LENGTH,
+  type PrinterSettings,
+} from "@labelmaker/printing";
 
 const CONFIGURATION_VERSION = 1;
 const MAX_PRINTERS = 100;
@@ -46,6 +49,22 @@ export async function readPrinterSettings(
   filePath: string,
 ): Promise<Readonly<Record<string, PrinterSettings>>> {
   return (await tryReadPrinterConfiguration(filePath))?.printerSettings ?? {};
+}
+
+export function normalizePrinterDisplayName(value: unknown): string {
+  if (typeof value !== "string") {
+    throw new TypeError("Printer display name must be text");
+  }
+  const displayName = value.trim();
+  if (
+    displayName.length === 0 ||
+    displayName.length > MAX_PRINTER_DISPLAY_NAME_LENGTH
+  ) {
+    throw new RangeError(
+      `Printer display name must use 1 to ${MAX_PRINTER_DISPLAY_NAME_LENGTH} characters`,
+    );
+  }
+  return displayName;
 }
 
 /** Move configuration from the old package-name directory on first launch. */
@@ -174,14 +193,40 @@ function isStoredPrinterConfiguration(
 }
 
 function isPrinterSettings(value: unknown): value is PrinterSettings {
+  const allowedKeys = new Set([
+    "displayName",
+    "darkness",
+    "printHeadSizeMm",
+    "marginTopMm",
+    "marginBottomMm",
+  ]);
   return (
     isRecord(value) &&
-    Object.keys(value).every((key) => key === "darkness") &&
+    Object.keys(value).every((key) => allowedKeys.has(key)) &&
+    (!("displayName" in value) ||
+      (typeof value.displayName === "string" &&
+        value.displayName === value.displayName.trim() &&
+        value.displayName.length > 0 &&
+        value.displayName.length <= MAX_PRINTER_DISPLAY_NAME_LENGTH)) &&
     (!("darkness" in value) ||
       (typeof value.darkness === "number" &&
         Number.isInteger(value.darkness) &&
         value.darkness >= 0 &&
-        value.darkness <= 31))
+        value.darkness <= 31)) &&
+    (!("printHeadSizeMm" in value) ||
+      isTenthMillimeter(value.printHeadSizeMm, 0.1)) &&
+    (!("marginTopMm" in value) || isTenthMillimeter(value.marginTopMm, 0)) &&
+    (!("marginBottomMm" in value) || isTenthMillimeter(value.marginBottomMm, 0))
+  );
+}
+
+function isTenthMillimeter(value: unknown, minimum: number): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= minimum &&
+    value <= 100 &&
+    Math.abs(value * 10 - Math.round(value * 10)) < 1e-8
   );
 }
 

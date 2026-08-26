@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   encodeMakeIdE1Page,
+  isMakeIdE1Name,
   MakeIdAdapterError,
   MakeIdE1Adapter,
 } from "./index.js";
@@ -22,8 +23,12 @@ describe("MakeIdE1Adapter", () => {
   it("discovers only names which identify an E1", async () => {
     const provider = new FakeProvider(
       [
-        { id: "e1-a", name: "YichipFPGA-42A1" },
+        {
+          id: "macos-ble-01234567-89ab-cdef-0123-456789abcdef",
+          name: "E124H00894",
+        },
         { id: "e1-b", name: "MakeID E1" },
+        { id: "e1-c", name: "YichipFPGA-42A1" },
         { id: "l1", name: "MakeID L1" },
         { id: "speaker", name: "Kitchen speaker" },
       ],
@@ -34,14 +39,28 @@ describe("MakeIdE1Adapter", () => {
     const printers = await adapter.discover({ timeoutMs: 500 }, context);
 
     expect(printers.map((printer) => printer.displayName)).toEqual([
-      "YichipFPGA-42A1",
+      "E124H00894",
       "MakeID E1",
+      "YichipFPGA-42A1",
     ]);
     expect(printers[0]?.connection).toEqual({
       model: "E1",
-      transportDeviceId: "e1-a",
-      advertisedName: "YichipFPGA-42A1",
+      transportDeviceId: "macos-ble-01234567-89ab-cdef-0123-456789abcdef",
+      advertisedName: "E124H00894",
     });
+    expect(printers[0]?.transport).toBe("bluetooth-low-energy");
+    expect(adapter.manifest.transports).toEqual([
+      "bluetooth-low-energy",
+      "bluetooth-classic",
+    ]);
+  });
+
+  it("accepts the E1 serial advertisement without claiming similar names", () => {
+    expect(isMakeIdE1Name("E124H00894")).toBe(true);
+    expect(isMakeIdE1Name("e124h00894")).toBe(true);
+    expect(isMakeIdE1Name("E124H0089")).toBe(false);
+    expect(isMakeIdE1Name("E124HH0894")).toBe(false);
+    expect(isMakeIdE1Name("E1 Printer")).toBe(false);
   });
 
   it("reports the E1 print head and continuous tape capabilities", async () => {
@@ -54,12 +73,38 @@ describe("MakeIdE1Adapter", () => {
       dpi: 203,
       rasterWidthPixels: 96,
       printableWidthMm: 12,
+      printHeadMarginTopMm: 2,
+      printHeadMarginBottomMm: 2,
       darkness: { minimum: 0, maximum: 31, step: 1, defaultValue: 20 },
       maxCopies: 9,
       supportsCut: false,
       supportsStatus: true,
     });
     expect(result.media.map((media) => media.widthMm)).toEqual([9, 12, 16]);
+  });
+
+  it("connects a discovered BLE descriptor with its saved peripheral ID", async () => {
+    const transport = new RecordingMakeIdTransport();
+    const provider = new FakeProvider([], transport);
+    provider.connect = vi.fn(async () => transport);
+    const adapter = new MakeIdE1Adapter(provider);
+    const blePrinter: PrinterDescriptor = {
+      ...printer,
+      id: "makeid:macos-ble-01234567-89ab-cdef-0123-456789abcdef",
+      transport: "bluetooth-low-energy",
+      connection: {
+        model: "E1",
+        transportDeviceId: "macos-ble-01234567-89ab-cdef-0123-456789abcdef",
+      },
+    };
+
+    await expect(adapter.connect(blePrinter, context)).resolves.toMatchObject({
+      printer: blePrinter,
+    });
+    expect(provider.connect).toHaveBeenCalledWith(
+      "macos-ble-01234567-89ab-cdef-0123-456789abcdef",
+      undefined,
+    );
   });
 
   it("reports a useful recovery action when Bluetooth cannot connect", async () => {
@@ -74,7 +119,7 @@ describe("MakeIdE1Adapter", () => {
       code: "makeid.transport",
       retryable: true,
       message:
-        "Could not connect to the MakeID E1. Turn it off and on. If macOS still shows it as connected, forget it in Bluetooth Settings, then add it again in Labelmaker.",
+        "Could not connect to the MakeID E1. Turn it off and on, keep it nearby, and try again. If it still fails, remove the saved printer and add it again.",
     });
   });
 

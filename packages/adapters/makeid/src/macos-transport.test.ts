@@ -13,9 +13,49 @@ describe("MacOsMakeIdTransportProvider", () => {
         JSON.stringify([{ id: "01-23-45-67-89-ab", name: "YichipFPGA-1308" }]),
       ),
     ).toEqual([{ id: "01:23:45:67:89:AB", name: "YichipFPGA-1308" }]);
+    expect(
+      parseDiscoveryOutput(
+        JSON.stringify([
+          {
+            id: "macos-ble-01234567-89ab-cdef-0123-456789abcdef",
+            name: "YichipFPGA-1308",
+          },
+          { id: "macos-bt-0123456789abcdef01234567" },
+        ]),
+      ),
+    ).toEqual([
+      {
+        id: "macos-ble-01234567-89ab-cdef-0123-456789abcdef",
+        name: "YichipFPGA-1308",
+      },
+      { id: "macos-bt-0123456789abcdef01234567" },
+    ]);
     expect(() => parseDiscoveryOutput('[{"id":"not-an-address"}]')).toThrow(
       /invalid/,
     );
+  });
+
+  it("preserves a discovered CoreBluetooth peripheral ID for connect", async () => {
+    const peripheralId = "macos-ble-01234567-89ab-cdef-0123-456789abcdef";
+    const helper = `
+      if (process.argv[1] === "discover") {
+        process.stdout.write(JSON.stringify([{ id: ${JSON.stringify(peripheralId)}, name: "YichipFPGA-1308" }]));
+      } else if (process.argv[1] === "connect" && process.argv[2] === ${JSON.stringify(peripheralId)}) {
+        process.stderr.write("READY\\n");
+        process.stdin.resume();
+      } else process.exit(8);
+    `;
+    const provider = new MacOsMakeIdTransportProvider({
+      helperPath: process.execPath,
+      helperArguments: ["-e", helper],
+    });
+
+    const devices = await provider.discover({ timeoutMs: 1_000 });
+    expect(devices).toEqual([{ id: peripheralId, name: "YichipFPGA-1308" }]);
+    const device = devices[0];
+    if (!device) throw new Error("Expected a discovery result");
+    const transport = await provider.connect(device.id);
+    await transport.close();
   });
 
   it("discovers through the helper process and separates stream frames", async () => {
@@ -107,11 +147,14 @@ describe("MacOsMakeIdTransportProvider", () => {
     }
   });
 
-  it("connects a saved opaque printer ID without prior discovery", async () => {
+  it("bypasses warm-up for a saved Classic printer ID", async () => {
     const savedId = "macos-bt-0123456789abcdef01234567";
+    const directory = await mkdtemp(join(tmpdir(), "makeid-transport-test-"));
+    const invocationsPath = join(directory, "invocations");
     const helper = `
-      if (process.argv[2] !== ${JSON.stringify(savedId)}) process.exit(8);
+      require("node:fs").appendFileSync(${JSON.stringify(invocationsPath)}, process.argv[1] + "\\n");
       if (process.argv[1] !== "connect") process.exit(8);
+      if (process.argv[2] !== ${JSON.stringify(savedId)}) process.exit(8);
       process.stderr.write("READY\\n");
       process.stdin.resume();
     `;
@@ -120,8 +163,47 @@ describe("MacOsMakeIdTransportProvider", () => {
       helperArguments: ["-e", helper],
     });
 
-    const transport = await provider.connect(savedId);
-    await transport.close();
+    try {
+      const transport = await provider.connect(savedId);
+      await transport.close();
+      await expect(readFile(invocationsPath, "utf8")).resolves.toBe(
+        "connect\n",
+      );
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("warms up CoreBluetooth before it connects a saved peripheral", async () => {
+    const savedId = "macos-ble-fedcba98-7654-3210-fedc-ba9876543210";
+    const directory = await mkdtemp(join(tmpdir(), "makeid-transport-test-"));
+    const invocationsPath = join(directory, "invocations");
+    const helper = `
+      const fs = require("node:fs");
+      const mode = process.argv[1];
+      fs.appendFileSync(${JSON.stringify(invocationsPath)}, process.argv.slice(1).join(" ") + "\\n");
+      if (mode === "discover") {
+        if (process.argv[2] !== "--include-unpaired") process.exit(8);
+        process.stdout.write("[]");
+      } else if (mode === "connect" && process.argv[2] === ${JSON.stringify(savedId)}) {
+        process.stderr.write("READY\\n");
+        process.stdin.resume();
+      } else process.exit(8);
+    `;
+    const provider = new MacOsMakeIdTransportProvider({
+      helperPath: process.execPath,
+      helperArguments: ["-e", helper],
+    });
+
+    try {
+      const transport = await provider.connect(savedId.toUpperCase());
+      await transport.close();
+      await expect(readFile(invocationsPath, "utf8")).resolves.toBe(
+        `discover --include-unpaired\nconnect ${savedId}\n`,
+      );
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it("waits for the native late-open grace period before READY", async () => {
@@ -277,6 +359,105 @@ describe("MacOsMakeIdTransportProvider", () => {
       MakeIdTransportTimeoutError,
     );
     expect(Date.now() - startedAt).toBeLessThan(1_000);
+  });
+
+  it("does not connect when the CoreBluetooth warm-up fails", async () => {
+    const savedId = "macos-ble-fedcba98-7654-3210-fedc-ba9876543210";
+    const directory = await mkdtemp(join(tmpdir(), "makeid-transport-test-"));
+    const invocationsPath = join(directory, "invocations");
+    const helper = `
+      const mode = process.argv[1];
+      require("node:fs").appendFileSync(${JSON.stringify(invocationsPath)}, mode + "\\n");
+      if (mode === "discover") {
+        process.stderr.write("CoreBluetooth scan failed\\n");
+        process.exit(9);
+      }
+      process.stderr.write("READY\\n");
+      process.stdin.resume();
+    `;
+    const provider = new MacOsMakeIdTransportProvider({
+      helperPath: process.execPath,
+      helperArguments: ["-e", helper],
+      totalConnectTimeoutMs: 100,
+    });
+
+    try {
+      await expect(provider.connect(savedId)).rejects.toThrow(
+        "MakeID Bluetooth warm-up failed",
+      );
+      await expect(readFile(invocationsPath, "utf8")).resolves.toBe(
+        "discover\n",
+      );
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("aborts a CoreBluetooth warm-up without starting connect", async () => {
+    const savedId = "macos-ble-fedcba98-7654-3210-fedc-ba9876543210";
+    const directory = await mkdtemp(join(tmpdir(), "makeid-transport-test-"));
+    const invocationsPath = join(directory, "invocations");
+    const helper = `
+      const mode = process.argv[1];
+      require("node:fs").appendFileSync(${JSON.stringify(invocationsPath)}, mode + "\\n");
+      if (mode === "discover") setInterval(() => {}, 1_000);
+      else {
+        process.stderr.write("READY\\n");
+        process.stdin.resume();
+      }
+    `;
+    const provider = new MacOsMakeIdTransportProvider({
+      helperPath: process.execPath,
+      helperArguments: ["-e", helper],
+      totalConnectTimeoutMs: 5_000,
+    });
+    const controller = new AbortController();
+    const reason = new Error("Test warm-up cancellation");
+
+    try {
+      const connection = provider.connect(savedId, controller.signal);
+      setTimeout(() => controller.abort(reason), 100);
+      await expect(connection).rejects.toBe(reason);
+      await expect(readFile(invocationsPath, "utf8")).resolves.toBe(
+        "discover\n",
+      );
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("bounds CoreBluetooth warm-up and connect with one deadline", async () => {
+    const savedId = "macos-ble-fedcba98-7654-3210-fedc-ba9876543210";
+    const directory = await mkdtemp(join(tmpdir(), "makeid-transport-test-"));
+    const invocationsPath = join(directory, "invocations");
+    const helper = `
+      const mode = process.argv[1];
+      require("node:fs").appendFileSync(${JSON.stringify(invocationsPath)}, mode + "\\n");
+      if (mode === "discover") setInterval(() => {}, 1_000);
+      else {
+        process.stderr.write("READY\\n");
+        process.stdin.resume();
+      }
+    `;
+    const provider = new MacOsMakeIdTransportProvider({
+      helperPath: process.execPath,
+      helperArguments: ["-e", helper],
+      connectTimeoutMs: 5_000,
+      totalConnectTimeoutMs: 100,
+    });
+
+    try {
+      const startedAt = Date.now();
+      await expect(provider.connect(savedId)).rejects.toBeInstanceOf(
+        MakeIdTransportTimeoutError,
+      );
+      expect(Date.now() - startedAt).toBeLessThan(1_000);
+      await expect(readFile(invocationsPath, "utf8")).resolves.toBe(
+        "discover\n",
+      );
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });
 import { mkdtemp, readFile, rm } from "node:fs/promises";

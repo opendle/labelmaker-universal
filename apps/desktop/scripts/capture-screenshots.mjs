@@ -1,9 +1,56 @@
 import { _electron as electron } from "playwright";
+import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 
 const appDirectory = resolve(import.meta.dirname, "..");
+const launcherPath = resolve(import.meta.dirname, "launch-desktop.mjs");
+const preparedRuntime = spawnSync(
+  process.execPath,
+  [launcherPath, "--prepare-only"],
+  { encoding: "utf8" },
+);
+if (preparedRuntime.status !== 0) {
+  throw new Error(
+    `Could not prepare the desktop runtime: ${(preparedRuntime.stderr || preparedRuntime.stdout).trim()}`,
+  );
+}
+const desktopExecutable = preparedRuntime.stdout.trim();
+if (!desktopExecutable) {
+  throw new Error("The desktop runtime did not report an executable");
+}
+if (
+  process.platform === "darwin" &&
+  basename(desktopExecutable) !== "Labelmaker"
+) {
+  throw new Error(`Unexpected macOS executable: ${desktopExecutable}`);
+}
+if (process.platform === "darwin") {
+  const bundle = resolve(dirname(desktopExecutable), "../..");
+  const plist = join(bundle, "Contents", "Info.plist");
+  for (const [key, expected] of [
+    ["CFBundleDisplayName", "Labelmaker"],
+    ["CFBundleExecutable", "Labelmaker"],
+    ["CFBundleIconFile", "labelmaker.icns"],
+    ["CFBundleIdentifier", "io.labelmaker.universal.dev"],
+    [
+      "NSBluetoothAlwaysUsageDescription",
+      "Labelmaker uses Bluetooth to find and print labels on nearby printers.",
+    ],
+  ]) {
+    const value = spawnSync(
+      "/usr/bin/plutil",
+      ["-extract", key, "raw", plist],
+      { encoding: "utf8" },
+    );
+    if (value.status !== 0 || value.stdout.trim() !== expected) {
+      throw new Error(
+        `Unexpected ${key}: ${(value.stderr || value.stdout).trim()}`,
+      );
+    }
+  }
+}
 const screenshotDirectory = process.env.LABELMAKER_SCREENSHOT_DIRECTORY
   ? resolve(process.env.LABELMAKER_SCREENSHOT_DIRECTORY)
   : resolve(appDirectory, "../../artifacts/screenshots");
@@ -18,15 +65,23 @@ async function capture(width, height, name, setup) {
     env: {
       ...process.env,
       LABELMAKER_ENABLE_MOCK_PRINTER: "1",
+      LABELMAKER_DISABLE_HARDWARE_PRINTERS: "1",
+      LABELMAKER_DISABLE_LEGACY_PRINTER_CONFIGURATION: "1",
       LABELMAKER_WINDOW_SIZE: `${width}x${height}`,
     },
   });
   try {
-    const applicationName = await application.evaluate(({ app }) =>
-      app.getName(),
-    );
-    if (applicationName !== "Labelmaker Universal") {
-      throw new Error(`Unexpected application name: ${applicationName}`);
+    const applicationIdentity = await application.evaluate(({ app }) => ({
+      applicationName: app.getName(),
+      processTitle: process.title,
+    }));
+    if (
+      applicationIdentity.applicationName !== "Labelmaker" ||
+      applicationIdentity.processTitle !== "Labelmaker"
+    ) {
+      throw new Error(
+        `Unexpected application identity: ${JSON.stringify(applicationIdentity)}`,
+      );
     }
     const page = await application.firstWindow();
     await page.waitForSelector(".label-canvas");
@@ -37,6 +92,13 @@ async function capture(width, height, name, setup) {
       return Boolean(name && name !== "No printer");
     });
     await setup?.(page);
+    await page.evaluate(async () => {
+      await document.fonts.ready;
+      await new Promise((resolveFrame) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolveFrame)),
+      );
+    });
+    await page.waitForTimeout(250);
     await page.evaluate(() => {
       const label = document.querySelector(".label-canvas");
       if (!(label instanceof HTMLElement)) throw new Error("Label is missing");
@@ -70,11 +132,52 @@ async function capture(width, height, name, setup) {
 }
 
 await capture(1440, 960, "labelmaker-primary-1440x960.png");
+await capture(1440, 960, "labelmaker-dark-1440x960.png", async (page) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.evaluate(() => {
+    if (!window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      throw new Error("Dark color scheme is not active");
+    }
+    const shell = document.querySelector(".app-shell");
+    const label = document.querySelector(".label-canvas");
+    const thumbnail = document.querySelector(".mini-label");
+    if (
+      !(shell instanceof HTMLElement) ||
+      !(label instanceof HTMLElement) ||
+      !(thumbnail instanceof HTMLElement)
+    ) {
+      throw new Error("Dark theme targets are missing");
+    }
+    if (getComputedStyle(shell).backgroundColor !== "rgb(28, 29, 31)") {
+      throw new Error("Application chrome did not use the dark theme");
+    }
+    for (const paper of [label, thumbnail]) {
+      if (getComputedStyle(paper).backgroundColor !== "rgb(255, 254, 250)") {
+        throw new Error("Label paper did not stay white in the dark theme");
+      }
+    }
+  });
+});
 await capture(
   1440,
   960,
   "labelmaker-printer-settings-1440x960.png",
   async (page) => {
+    await page
+      .getByRole("button", { name: "Selected printer: Studio Labeler" })
+      .click();
+    await page
+      .getByRole("button", { name: "Settings for Studio Labeler" })
+      .click();
+    await page.getByRole("dialog", { name: "Printer settings" }).waitFor();
+  },
+);
+await capture(
+  1440,
+  960,
+  "labelmaker-printer-settings-dark-1440x960.png",
+  async (page) => {
+    await page.emulateMedia({ colorScheme: "dark" });
     await page
       .getByRole("button", { name: "Selected printer: Studio Labeler" })
       .click();
@@ -232,7 +335,10 @@ await capture(
   960,
   "labelmaker-add-printer-1440x960.png",
   async (page) => {
-    await page.getByRole("button", { name: "Add printer" }).click();
+    await page
+      .getByRole("button", { name: "Selected printer: Studio Labeler" })
+      .click();
+    await page.getByRole("menuitem", { name: "Add a printer" }).click();
     await page.getByText("Workshop Printer").waitFor();
   },
 );

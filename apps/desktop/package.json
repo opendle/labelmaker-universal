@@ -1,6 +1,6 @@
 {
   "name": "@labelmaker/desktop",
-  "productName": "Labelmaker Universal",
+  "productName": "Labelmaker",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "build": "npm run build:renderer && npm run build:main",
     "build:renderer": "vite build",
     "build:main": "tsc --project tsconfig.main.json",
-    "dev": "npm run build && electron .",
+    "dev": "npm run build && node scripts/launch-desktop.mjs",
     "hardware:print": "npm run build && node scripts/hardware-print.mjs",
     "screenshot": "npm run build && node scripts/run-screenshots.mjs",
     "typecheck": "tsc --project tsconfig.main.json --pretty false && tsc --project tsconfig.renderer.json --pretty false"

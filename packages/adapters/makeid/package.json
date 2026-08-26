@@ -7,6 +7,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc --build && node scripts/build-macos-helper.mjs",
+    "hardware:power-cycle": "npm run build && node scripts/hardware-smoke.mjs --power-cycle",
     "hardware:probe": "npm run build && node scripts/hardware-smoke.mjs --probe",
     "hardware:print": "npm run build && node scripts/hardware-smoke.mjs --print",
     "typecheck": "tsc --build --pretty false"

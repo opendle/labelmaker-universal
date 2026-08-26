@@ -1,21 +1,31 @@
 import type { LabelPlate } from "@labelmaker/domain";
 import type { CSSProperties } from "react";
 
-import { containerFontSize, printableMarginPercent } from "./label-layout.js";
+import {
+  containerFontSize,
+  printableMarginPercent,
+  type PrintableMargins,
+} from "./label-layout.js";
 
 type ArtworkStyle = CSSProperties & Record<`--${string}`, string | number>;
 
 export function LabelArtwork({
   plate,
-  verticalMarginMm,
+  printableMargins,
   className,
+  mirrorArtwork = false,
 }: {
   readonly plate: LabelPlate;
-  readonly verticalMarginMm: number;
+  readonly printableMargins: PrintableMargins;
   readonly className: string;
+  readonly mirrorArtwork?: boolean;
 }) {
-  const marginPercent = printableMarginPercent(
-    verticalMarginMm,
+  const topMarginPercent = printableMarginPercent(
+    printableMargins.topMm,
+    plate.size.heightMm,
+  );
+  const bottomMarginPercent = printableMarginPercent(
+    printableMargins.bottomMm,
     plate.size.heightMm,
   );
   const aspectRatio = plate.size.widthMm / plate.size.heightMm;
@@ -26,6 +36,7 @@ export function LabelArtwork({
         {
           "--label-aspect": aspectRatio,
           aspectRatio: String(aspectRatio),
+          ...(mirrorArtwork ? { transform: "scaleX(-1)" } : {}),
         } as ArtworkStyle
       }
     >
@@ -90,12 +101,12 @@ export function LabelArtwork({
       <span
         aria-hidden="true"
         className="artwork-nonprintable top"
-        style={{ height: `${marginPercent}%` }}
+        style={{ height: `${topMarginPercent}%` }}
       />
       <span
         aria-hidden="true"
         className="artwork-nonprintable bottom"
-        style={{ height: `${marginPercent}%` }}
+        style={{ height: `${bottomMarginPercent}%` }}
       />
     </span>
   );

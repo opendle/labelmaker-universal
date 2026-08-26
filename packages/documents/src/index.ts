@@ -246,6 +246,11 @@ function plateValue(
   return {
     id,
     name: stringValue(item.name, `${path}.name`),
+    ...(item.mirrorPrint === undefined
+      ? {}
+      : typeof item.mirrorPrint === "boolean"
+        ? { mirrorPrint: item.mirrorPrint }
+        : fail(`${path}.mirrorPrint must be a boolean`)),
     size: sizeValue(item.size, `${path}.size`),
     margins: {
       leftMm: numberValue(margins.leftMm, `${path}.margins.leftMm`, 0),

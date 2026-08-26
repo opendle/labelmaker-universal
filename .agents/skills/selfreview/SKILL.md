@@ -1,6 +1,6 @@
 ---
 name: selfreview
-description: Review your own recent Labelmaker Universal changes with a skeptical pass. Use after implementation to find defects, missing work, risks, and unintended changes before commit; automode fixes material findings and runs the required checks without a user prompt.
+description: Review your own recent Labelmaker changes with a skeptical pass. Use after implementation to find defects, missing work, risks, and unintended changes before commit; automode fixes material findings and runs the required checks without a user prompt.
 ---
 
 # Self-Review

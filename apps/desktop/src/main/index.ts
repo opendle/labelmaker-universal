@@ -5,6 +5,7 @@ import {
   BrowserWindow,
   dialog,
   ipcMain,
+  nativeTheme,
   type IpcMainInvokeEvent,
   type MessageBoxOptions,
   type OpenDialogOptions,
@@ -41,16 +42,25 @@ import {
 import { openPrinterForAddition } from "./printer-addition.js";
 import { installAppIcon } from "./app-icon.js";
 import { renderPlateForPrinter } from "./plate-raster.js";
+import { createProcessLogger } from "./process-logger.js";
+import { prepareToQuit } from "./quit-coordinator.js";
 import { validatePrintRequest } from "./print-request.js";
 import {
   initialConfiguredPrinterIds,
   mockPrintersEnabled,
+  normalizePrinterDisplayName,
   readActivePrinterId,
+  readConfiguredPrinterIds,
   readConfiguredPrinterIdsWithLegacy,
   readPrinterSettings,
   writeConfiguredPrinterIds,
 } from "./printer-configuration.js";
 import { readWorkspaceFile, writeWorkspaceFile } from "./workspace-files.js";
+import {
+  createWorkspaceRecoveryRecord,
+  readWorkspaceRecoveryFile,
+  WorkspaceRecoveryStore,
+} from "./workspace-recovery.js";
 import {
   replacementChoiceFromResponse,
   resolveWorkspaceReplacement,
@@ -65,15 +75,19 @@ import {
   summarizePrinter,
 } from "./printer-summary.js";
 
-const APPLICATION_NAME = "Labelmaker Universal";
+const APPLICATION_NAME = "Labelmaker";
 app.setName(APPLICATION_NAME);
+process.title = APPLICATION_NAME;
 
 const registry = new PrinterAdapterRegistry();
 const includeMockPrinters = mockPrintersEnabled(
   process.env.LABELMAKER_ENABLE_MOCK_PRINTER,
 );
 if (includeMockPrinters) registry.register(new MockPrinterAdapter());
-if (process.platform === "darwin") {
+if (
+  process.platform === "darwin" &&
+  process.env.LABELMAKER_DISABLE_HARDWARE_PRINTERS !== "1"
+) {
   registry.register(new MakeIdE1Adapter(new MacOsMakeIdTransportProvider()));
 }
 let configuredPrinterIds = initialConfiguredPrinterIds([], includeMockPrinters);
@@ -83,22 +97,30 @@ const printerSessions = new PrinterSessionManager((printer) =>
   registry.get(printer.adapterId).connect(printer, context),
 );
 const activePrinterJobs = new Set<string>();
+const deferredPrinterStatusIds = new Set<string>();
 const discoveredPrinters = new PrinterDiscoveryCache();
 const workspacePaths = new Map<number, string>();
-let quitPrinterClosePromise: Promise<void> | undefined;
+let workspaceRecoveryStore: WorkspaceRecoveryStore | undefined;
+let quitRecoveryFlushed = false;
+let quitRecoveryFlushStarted = false;
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 const context: AdapterContext = {
-  log: {
-    debug: (message, detail) => console.debug(message, detail ?? {}),
-    info: (message, detail) => console.info(message, detail ?? {}),
-    warn: (message, detail) => console.warn(message, detail ?? {}),
-    error: (message, detail) => console.error(message, detail ?? {}),
-  },
+  log: createProcessLogger(),
 };
 
 function assertBoolean(value: unknown, name: string): asserts value is boolean {
   if (typeof value !== "boolean")
     throw new TypeError(`${name} must be a boolean`);
+}
+
+function isTenthMillimeter(value: unknown, minimum: number): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= minimum &&
+    value <= 100 &&
+    Math.abs(value * 10 - Math.round(value * 10)) < 1e-8
+  );
 }
 
 function parentWindow(event: IpcMainInvokeEvent): BrowserWindow | undefined {
@@ -257,6 +279,14 @@ async function allDescriptors(
 async function summarize(printer: PrinterDescriptor) {
   const adapter = registry.get(printer.adapterId);
   const hasActiveJob = activePrinterJobs.has(printer.id);
+  const statusIsDeferred = deferredPrinterStatusIds.has(printer.id);
+  const shouldProbe =
+    !statusIsDeferred &&
+    shouldProbePrinterStatus(
+      printer.adapterId,
+      printerSessions.has(printer.id),
+      hasActiveJob,
+    );
   return summarizePrinter(
     printer,
     printerModel(adapter, printer),
@@ -264,28 +294,32 @@ async function summarize(printer: PrinterDescriptor) {
     discardPrinterSession,
     {
       attempts: 1,
-      // A routine list must not open and retain MakeID's exclusive RFCOMM
-      // channel. A configured or printing session can provide live status.
-      probe: shouldProbePrinterStatus(
-        printer.adapterId,
-        printerSessions.has(printer.id),
-        hasActiveJob,
-      ),
+      // A routine list must not open a MakeID connection. A cached BLE session
+      // can provide live status, but a timeout while the printer is off must
+      // not close the helper which is waiting to reconnect.
+      probe: shouldProbe,
+      preserveSessionOnFailure: printer.adapterId === "makeid",
       unprobedState: hasActiveJob ? "busy" : "disconnected",
       unprobedStatusMessage: hasActiveJob
         ? "Printing"
-        : "Connects when you print",
+        : statusIsDeferred
+          ? "Reconnects on print"
+          : "Connects on print",
       ...(adapter.offlineCapabilities === undefined
         ? {}
         : { offlineCapabilities: adapter.offlineCapabilities }),
       ...(printerSettings.has(printer.id)
         ? { settings: printerSettings.get(printer.id)! }
         : {}),
-      onFailure: (error) =>
+      onFailure: (error) => {
+        if (printer.adapterId === "makeid") {
+          deferredPrinterStatusIds.add(printer.id);
+        }
         context.log.warn("Printer status could not be refreshed", {
           printerId: printer.id,
           error: error instanceof Error ? error.message : "Unknown error",
-        }),
+        });
+      },
     },
   );
 }
@@ -316,6 +350,7 @@ function discoveredSummary(printer: PrinterDescriptor) {
     id: printer.id,
     adapterId: printer.adapterId,
     name: printer.displayName,
+    deviceName: printer.displayName,
     model: printerModel(adapter, printer),
     transport: printer.transport,
     state: "connecting" as const,
@@ -345,6 +380,36 @@ function printerModel(
 }
 
 function registerIpc(): void {
+  ipcMain.handle("labelmaker:load-workspace-recovery", async (event) => {
+    const recovery = await readWorkspaceRecoveryFile(workspaceRecoveryPath());
+    if (!recovery) return null;
+    if (recovery.filePath) {
+      workspacePaths.set(event.sender.id, recovery.filePath);
+    } else {
+      workspacePaths.delete(event.sender.id);
+    }
+    return {
+      document: recovery.document,
+      dirty: recovery.dirty,
+      activePlateId: recovery.activePlateId,
+      selectedElementId: recovery.selectedElementId,
+      zoom: recovery.zoom,
+      savedAt: recovery.savedAt,
+      fileName: recovery.filePath ? basename(recovery.filePath) : null,
+    };
+  });
+
+  ipcMain.handle(
+    "labelmaker:store-workspace-recovery",
+    (event, value: unknown) => {
+      const recovery = createWorkspaceRecoveryRecord(
+        value,
+        workspacePaths.get(event.sender.id),
+      );
+      workspaceRecoveryStore?.update(recovery);
+    },
+  );
+
   ipcMain.handle(
     "labelmaker:get-active-printer",
     () => activePrinterId ?? null,
@@ -453,6 +518,7 @@ function registerIpc(): void {
         Object.fromEntries(nextPrinterSettings),
       );
       printerSettings.delete(printerId);
+      deferredPrinterStatusIds.delete(printerId);
       configuredPrinterIds = nextPrinterIds;
       await discardPrinterSession(printerId);
 
@@ -481,30 +547,65 @@ function registerIpc(): void {
         typeof value !== "object" ||
         value === null ||
         Array.isArray(value) ||
-        Object.keys(value).some((key) => key !== "darkness")
+        Object.keys(value).some(
+          (key) =>
+            ![
+              "darkness",
+              "displayName",
+              "printHeadSizeMm",
+              "marginTopMm",
+              "marginBottomMm",
+            ].includes(key),
+        )
       ) {
         throw new TypeError("Printer settings are invalid");
       }
-      const darkness = (value as Record<string, unknown>).darkness;
+      const settings = value as Record<string, unknown>;
+      const displayName =
+        settings.displayName === undefined
+          ? undefined
+          : normalizePrinterDisplayName(settings.displayName);
+      const darkness = settings.darkness;
       if (
-        darknessCapability === undefined ||
-        typeof darkness !== "number" ||
-        !Number.isInteger(darkness) ||
-        darkness < darknessCapability.minimum ||
-        darkness > darknessCapability.maximum
+        darkness !== undefined &&
+        (darknessCapability === undefined ||
+          typeof darkness !== "number" ||
+          !Number.isInteger(darkness) ||
+          darkness < darknessCapability.minimum ||
+          darkness > darknessCapability.maximum)
       ) {
         throw new RangeError("Printer darkness is outside its supported range");
       }
-      const nextPrinterSettings = new Map(printerSettings).set(printerId, {
-        darkness,
-      });
+      const printHeadSizeMm = settings.printHeadSizeMm;
+      const marginTopMm = settings.marginTopMm;
+      const marginBottomMm = settings.marginBottomMm;
+      if (
+        !isTenthMillimeter(printHeadSizeMm, 0.1) ||
+        !isTenthMillimeter(marginTopMm, 0) ||
+        !isTenthMillimeter(marginBottomMm, 0)
+      ) {
+        throw new RangeError(
+          "Printer geometry must use 0.1 mm steps from 0 to 100 mm",
+        );
+      }
+      const updatedSettings: PrinterSettings = {
+        ...(displayName === undefined ? {} : { displayName }),
+        ...(darkness === undefined ? {} : { darkness }),
+        printHeadSizeMm,
+        marginTopMm,
+        marginBottomMm,
+      };
+      const nextPrinterSettings = new Map(printerSettings).set(
+        printerId,
+        updatedSettings,
+      );
       await writeConfiguredPrinterIds(
         configuredPrintersPath(),
         configuredPrinterIds,
         activePrinterId,
         Object.fromEntries(nextPrinterSettings),
       );
-      printerSettings.set(printerId, { darkness });
+      printerSettings.set(printerId, updatedSettings);
       return Promise.all(descriptors.map(summarize));
     },
   );
@@ -597,6 +698,7 @@ function registerIpc(): void {
     let session: PrinterSession | undefined;
     try {
       session = await readyPrinterSession(descriptor);
+      deferredPrinterStatusIds.delete(descriptor.id);
       return await printToSession(
         validatedRequest,
         descriptor,
@@ -618,6 +720,10 @@ function configuredPrintersPath(): string {
   return join(app.getPath("userData"), "configured-printers.json");
 }
 
+function workspaceRecoveryPath(): string {
+  return join(app.getPath("userData"), "workspace-recovery.json");
+}
+
 function legacyConfiguredPrintersPath(): string {
   return join(
     app.getPath("appData"),
@@ -629,11 +735,15 @@ function legacyConfiguredPrintersPath(): string {
 
 async function restoreConfiguredPrinters(): Promise<void> {
   try {
+    const storedPrinterIds =
+      process.env.LABELMAKER_DISABLE_LEGACY_PRINTER_CONFIGURATION === "1"
+        ? await readConfiguredPrinterIds(configuredPrintersPath())
+        : await readConfiguredPrinterIdsWithLegacy(
+            configuredPrintersPath(),
+            legacyConfiguredPrintersPath(),
+          );
     configuredPrinterIds = initialConfiguredPrinterIds(
-      await readConfiguredPrinterIdsWithLegacy(
-        configuredPrintersPath(),
-        legacyConfiguredPrintersPath(),
-      ),
+      storedPrinterIds,
       includeMockPrinters,
     );
     activePrinterId = await readActivePrinterId(configuredPrintersPath());
@@ -716,7 +826,7 @@ function createWindow(): void {
     minWidth: 900,
     minHeight: 650,
     show: false,
-    backgroundColor: "#efeee9",
+    backgroundColor: nativeTheme.shouldUseDarkColors ? "#1c1d1f" : "#efeee9",
     title: APPLICATION_NAME,
     ...(process.platform === "darwin"
       ? { titleBarStyle: "hiddenInset" as const }
@@ -729,11 +839,33 @@ function createWindow(): void {
     },
   });
   const webContentsId = window.webContents.id;
+  let recoveryFlushed = false;
+  let recoveryCloseStarted = false;
   void installAppIcon(window).catch((error: unknown) => {
-    console.error("Could not install the app icon", error);
+    context.log.error("Could not install the app icon", {
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
   });
   window.webContents.once("destroyed", () => {
     workspacePaths.delete(webContentsId);
+  });
+  window.on("close", (event) => {
+    if (recoveryFlushed || quitRecoveryFlushed || !workspaceRecoveryStore)
+      return;
+    event.preventDefault();
+    if (recoveryCloseStarted) return;
+    recoveryCloseStarted = true;
+    void workspaceRecoveryStore
+      .flush()
+      .catch((error: unknown) => {
+        context.log.warn("Workspace recovery state could not be saved", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      })
+      .finally(() => {
+        recoveryFlushed = true;
+        window.destroy();
+      });
   });
   window.once("ready-to-show", () => window.show());
   void window.loadFile(
@@ -754,6 +886,14 @@ if (!hasSingleInstanceLock) {
 
   app.whenReady().then(async () => {
     await restoreConfiguredPrinters();
+    workspaceRecoveryStore = new WorkspaceRecoveryStore(
+      workspaceRecoveryPath(),
+      (error) => {
+        context.log.warn("Workspace recovery state could not be saved", {
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      },
+    );
     registerIpc();
     createWindow();
     app.on("activate", () => {
@@ -767,14 +907,38 @@ if (!hasSingleInstanceLock) {
 }
 
 app.on("before-quit", (event) => {
-  if (quitPrinterClosePromise) return;
-  event.preventDefault();
-  quitPrinterClosePromise = printerSessions
-    .closeAll()
-    .catch((error) => {
+  if (quitRecoveryFlushed) return;
+  const recoveryStore = workspaceRecoveryStore;
+  if (!recoveryStore) {
+    void printerSessions.closeAll().catch((error) => {
       context.log.warn("Printer sessions could not be closed cleanly", {
         error: error instanceof Error ? error.message : "Unknown error",
       });
-    })
-    .finally(() => app.quit());
+    });
+    return;
+  }
+  event.preventDefault();
+  if (quitRecoveryFlushStarted) return;
+  quitRecoveryFlushStarted = true;
+  prepareToQuit({
+    closePrinters: () => printerSessions.closeAll(),
+    flushRecovery: () => recoveryStore.flush(),
+    onPrinterCloseError: (error) => {
+      context.log.warn("Printer sessions could not be closed cleanly", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    },
+    onRecoveryError: (error) => {
+      context.log.warn("Workspace recovery state could not be saved", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    },
+    readyToQuit: () => {
+      quitRecoveryFlushed = true;
+      // The first quit event was canceled for the recovery flush. Exit after
+      // that flush because a nested app.quit() can leave macOS without a
+      // second effective quit event.
+      app.exit(0);
+    },
+  });
 });

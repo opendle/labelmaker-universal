@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for helping Labelmaker Universal support more printers and better
+Thank you for helping Labelmaker support more printers and better
 label workflows.
 
 ## Before a change

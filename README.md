@@ -1,6 +1,6 @@
-# Labelmaker Universal
+# Labelmaker
 
-Labelmaker Universal is a portable desktop label editor with independent
+Labelmaker is a portable desktop label editor with independent
 printer adapters. A document can contain many label plates. Users can design,
 save, preview, and print each plate without exposing printer protocol details to
 the editor.
@@ -11,7 +11,7 @@ same core can later run behind a local or container-hosted print service.
 ## Screenshots
 
 <p align="center">
-  <img src="artifacts/screenshots/labelmaker-primary-1440x960.png" alt="Labelmaker Universal editor with a selected text element and three label plates" width="100%">
+  <img src="artifacts/screenshots/labelmaker-primary-1440x960.png" alt="Labelmaker editor with a selected text element and three label plates" width="100%">
 </p>
 
 <p align="center">

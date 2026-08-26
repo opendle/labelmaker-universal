@@ -74,6 +74,29 @@ describe("desktop physical print dispatch", () => {
     ]);
   });
 
+  it("rebuilds a saved MakeID BLE target after an application restart", () => {
+    const printerId = "makeid:macos-ble-01234567-89ab-cdef-0123-456789abcdef";
+
+    expect(configuredPrinterDescriptors([], new Set([printerId]))).toEqual([
+      {
+        id: printerId,
+        adapterId: "makeid",
+        displayName: "MakeID E1",
+        transport: "bluetooth-low-energy",
+        connection: {
+          model: "E1",
+          transportDeviceId: "macos-ble-01234567-89ab-cdef-0123-456789abcdef",
+        },
+      },
+    ]);
+  });
+
+  it("does not rebuild a malformed saved MakeID BLE target", () => {
+    const printerId = "makeid:macos-ble-not-a-peripheral-uuid";
+
+    expect(configuredPrinterDescriptors([], new Set([printerId]))).toEqual([]);
+  });
+
   it("waits for the MakeID session and sends its exact printer ID", async () => {
     const document = createBlankLabelDocument(() => "test-id");
     const plate = document.plates[0];
@@ -104,7 +127,13 @@ describe("desktop physical print dispatch", () => {
       session,
       renderPlate,
       () => "fixed-job-id",
-      { darkness: 24 },
+      {
+        displayName: "Shipping desk",
+        darkness: 24,
+        printHeadSizeMm: 11.8,
+        marginTopMm: 1.4,
+        marginBottomMm: 2.6,
+      },
     ).then((result) => {
       settled = true;
       return result;
@@ -121,13 +150,16 @@ describe("desktop physical print dispatch", () => {
     expect(renderPlate).toHaveBeenCalledWith(plate, {
       dpi: 203,
       rasterWidthPixels: 96,
-      printableWidthMm: 12,
+      printableWidthMm: 11.8,
+      marginTopMm: 1.4,
+      marginBottomMm: 2.6,
     });
 
     finishPrint?.();
     await expect(resultPromise).resolves.toEqual({
-      message: "1 label sent to YichipFPGA-test",
+      message: "1 label sent to Shipping desk",
     });
+    expect(makeIdPrinter.displayName).toBe("YichipFPGA-test");
   });
 
   it("rejects a session for a different printer before it can print", async () => {

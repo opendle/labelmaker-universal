@@ -30,13 +30,13 @@ export interface MacOsMakeIdTransportProviderOptions {
   readonly totalConnectTimeoutMs?: number;
 }
 
-/** Bluetooth Classic RFCOMM transport for paired MakeID printers on macOS. */
+/** CoreBluetooth transport with a legacy Classic fallback on macOS. */
 export class MacOsMakeIdTransportProvider implements MakeIdTransportProvider {
   readonly #helperPath: string;
   readonly #helperArguments: readonly string[];
   readonly #connectTimeoutMs: number;
   readonly #totalConnectTimeoutMs: number;
-  readonly #deviceAddresses = new Map<string, string>();
+  readonly #nativeDeviceIds = new Map<string, string>();
 
   constructor(options: MacOsMakeIdTransportProviderOptions = {}) {
     if (process.platform !== "darwin" && options.helperPath === undefined) {
@@ -93,8 +93,8 @@ export class MacOsMakeIdTransportProvider implements MakeIdTransportProvider {
     }
     return parseDiscoveryOutput(Buffer.concat(stdout).toString("utf8")).map(
       (device) => {
-        const id = opaqueDeviceId(device.id);
-        this.#deviceAddresses.set(id, device.id);
+        const id = platformDeviceId(device.id);
+        this.#nativeDeviceIds.set(id, device.id);
         return device.name === undefined ? { id } : { id, name: device.name };
       },
     );
@@ -104,9 +104,14 @@ export class MacOsMakeIdTransportProvider implements MakeIdTransportProvider {
     deviceId: string,
     signal?: AbortSignal,
   ): Promise<MakeIdTransport> {
-    const address = this.#deviceAddresses.get(deviceId);
+    const discoveredId = this.#nativeDeviceIds.get(deviceId);
     const helperDeviceId =
-      address ?? (isOpaqueDeviceId(deviceId) ? deviceId.toLowerCase() : null);
+      discoveredId ??
+      (isPlatformDeviceId(deviceId)
+        ? deviceId.toLowerCase()
+        : isBluetoothAddress(deviceId)
+          ? normalizeBluetoothAddress(deviceId)
+          : null);
     if (helperDeviceId === null) {
       throw new Error("The saved MakeID printer ID is invalid");
     }
@@ -114,11 +119,15 @@ export class MacOsMakeIdTransportProvider implements MakeIdTransportProvider {
     let lastError: unknown;
     const deadline = Date.now() + this.#totalConnectTimeoutMs;
     for (let attempt = 1; attempt <= CONNECT_ATTEMPTS; attempt += 1) {
-      const transport = new MacOsMakeIdTransport(
-        this.#spawn(["connect", helperDeviceId]),
-      );
+      let transport: MacOsMakeIdTransport | undefined;
       try {
-        const remainingMs = Math.max(1, deadline - Date.now());
+        if (isCoreBluetoothDeviceId(helperDeviceId)) {
+          await this.#warmUpCoreBluetooth(deadline, signal);
+        }
+        const remainingMs = this.#remainingConnectTime(deadline);
+        transport = new MacOsMakeIdTransport(
+          this.#spawn(["connect", helperDeviceId]),
+        );
         await transport.waitUntilReady(
           Math.min(this.#connectTimeoutMs, remainingMs),
           signal,
@@ -126,7 +135,7 @@ export class MacOsMakeIdTransportProvider implements MakeIdTransportProvider {
         return transport;
       } catch (error) {
         lastError = error;
-        await transport.close();
+        await transport?.close();
         if (attempt < CONNECT_ATTEMPTS && Date.now() < deadline) {
           const delayMs = Math.min(
             CONNECT_RETRY_DELAYS_MS[attempt - 1] ?? 5_000,
@@ -138,6 +147,38 @@ export class MacOsMakeIdTransportProvider implements MakeIdTransportProvider {
       }
     }
     throw lastError;
+  }
+
+  async #warmUpCoreBluetooth(
+    deadline: number,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    throwIfAborted(signal);
+    const child = this.#spawn(["discover", "--include-unpaired"]);
+    let stdoutLength = 0;
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdoutLength += chunk.length;
+    });
+
+    const result = await waitForExit(
+      child,
+      this.#remainingConnectTime(deadline),
+      signal,
+    );
+    if (stdoutLength > MAX_DISCOVERY_OUTPUT_BYTES) {
+      throw new Error("The MakeID Bluetooth discovery result is too large");
+    }
+    if (result.code !== 0) {
+      throw new Error("MakeID Bluetooth warm-up failed");
+    }
+  }
+
+  #remainingConnectTime(deadline: number): number {
+    const remainingMs = deadline - Date.now();
+    if (remainingMs < 1) {
+      throw new MakeIdTransportTimeoutError(this.#totalConnectTimeoutMs);
+    }
+    return remainingMs;
   }
 
   #spawn(arguments_: readonly string[]): ChildProcessWithoutNullStreams {
@@ -381,14 +422,14 @@ export function parseDiscoveryOutput(
       item === null ||
       !("id" in item) ||
       typeof item.id !== "string" ||
-      !isBluetoothAddress(item.id) ||
+      !isNativeDeviceId(item.id) ||
       ("name" in item &&
         item.name !== undefined &&
         typeof item.name !== "string")
     ) {
       throw new TypeError("The MakeID Bluetooth discovery result is invalid");
     }
-    const id = item.id.replaceAll("-", ":").toUpperCase();
+    const id = normalizeNativeDeviceId(item.id);
     return "name" in item && typeof item.name === "string"
       ? { id, name: item.name }
       : { id };
@@ -399,12 +440,40 @@ function isBluetoothAddress(value: string): boolean {
   return /^(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}$/i.test(value);
 }
 
-function opaqueDeviceId(address: string): string {
+function normalizeBluetoothAddress(address: string): string {
+  return address.replaceAll("-", ":").toUpperCase();
+}
+
+function classicOpaqueDeviceId(address: string): string {
   return `macos-bt-${createHash("sha256").update(address.toUpperCase()).digest("hex").slice(0, 24)}`;
 }
 
-function isOpaqueDeviceId(value: string): boolean {
+function isClassicOpaqueDeviceId(value: string): boolean {
   return /^macos-bt-[0-9a-f]{24}$/i.test(value);
+}
+
+function isCoreBluetoothDeviceId(value: string): boolean {
+  return /^macos-ble-[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(value);
+}
+
+function isPlatformDeviceId(value: string): boolean {
+  return isCoreBluetoothDeviceId(value) || isClassicOpaqueDeviceId(value);
+}
+
+function isNativeDeviceId(value: string): boolean {
+  return isPlatformDeviceId(value) || isBluetoothAddress(value);
+}
+
+function normalizeNativeDeviceId(value: string): string {
+  return isBluetoothAddress(value)
+    ? normalizeBluetoothAddress(value)
+    : value.toLowerCase();
+}
+
+function platformDeviceId(nativeDeviceId: string): string {
+  return isBluetoothAddress(nativeDeviceId)
+    ? classicOpaqueDeviceId(nativeDeviceId)
+    : nativeDeviceId.toLowerCase();
 }
 
 function cleanHelperError(stderr: string): string {
@@ -451,6 +520,7 @@ async function waitForExit(
     child.once("close", finish);
     child.once("error", fail);
     signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) abort();
   });
 }
 

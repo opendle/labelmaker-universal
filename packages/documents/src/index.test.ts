@@ -47,6 +47,28 @@ describe("workspace documents", () => {
     );
   });
 
+  it("preserves the optional print mirror setting", () => {
+    const mirrored = {
+      ...document,
+      plates: [{ ...document.plates[0]!, mirrorPrint: true }],
+    };
+
+    expect(parseLabelDocument(serializeLabelDocument(mirrored))).toEqual(
+      mirrored,
+    );
+  });
+
+  it("rejects an invalid print mirror setting", () => {
+    const invalid = structuredClone(document) as unknown as {
+      plates: Array<{ mirrorPrint: unknown }>;
+    };
+    invalid.plates[0]!.mirrorPrint = "yes";
+
+    expect(() => validateLabelDocument(invalid)).toThrow(
+      "workspace.plates[0].mirrorPrint must be a boolean",
+    );
+  });
+
   it("reports the path of an invalid nested value", () => {
     const invalid = structuredClone(document) as unknown as {
       plates: Array<{ size: { widthMm: unknown } }>;

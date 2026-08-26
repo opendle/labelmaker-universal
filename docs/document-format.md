@@ -30,6 +30,7 @@ defaultPlateSize:
 plates:
   - id: plate-id
     name: Drawer 1
+    mirrorPrint: false
     size:
       widthMm: 40
       heightMm: 16
@@ -61,6 +62,11 @@ them. The loader must still reject unknown schema versions and invalid values.
 
 Plate margins are part of the saved document. They define the horizontal space
 that the trim-to-content action keeps before and after printed elements.
+
+`mirrorPrint` is optional in schema version 1. When it is `true`, the desktop
+shell mirrors the print raster across the label width. The editor and label
+strip do not mirror the artwork. The main print preview shows the mirrored
+result. An omitted value means `false`.
 
 `fontStyle` can be `normal` or `italic`. It is optional in schema version 1 for
 compatibility with older workspace files. An omitted value means `normal`.

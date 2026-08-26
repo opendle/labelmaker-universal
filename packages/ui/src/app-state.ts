@@ -32,6 +32,7 @@ export interface AppState {
   readonly printMenuOpen: boolean;
   readonly toast: Toast | null;
   readonly zoom: number;
+  readonly recoveryReady: boolean;
 }
 
 export type AppAction =
@@ -74,7 +75,18 @@ export type AppAction =
   | { readonly type: "close-printer-settings" }
   | { readonly type: "set-print-menu"; readonly open: boolean }
   | { readonly type: "set-toast"; readonly toast: Toast | null }
-  | { readonly type: "set-zoom"; readonly zoom: number };
+  | { readonly type: "set-zoom"; readonly zoom: number }
+  | {
+      readonly type: "restore-session";
+      readonly workspace: LabelDocument;
+      readonly activePlateId: string;
+      readonly selectedElementId: string | null;
+      readonly dirty: boolean;
+      readonly savedAt: string | null;
+      readonly fileName: string | null;
+      readonly zoom: number;
+    }
+  | { readonly type: "recovery-ready" };
 
 export const initialAppState: AppState = {
   workspace: sampleDocument,
@@ -95,6 +107,7 @@ export const initialAppState: AppState = {
   printMenuOpen: false,
   toast: null,
   zoom: 100,
+  recoveryReady: false,
 };
 
 const HISTORY_LIMIT = 100;
@@ -222,6 +235,22 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, toast: action.toast };
     case "set-zoom":
       return { ...state, zoom: action.zoom };
+    case "restore-session":
+      return {
+        ...state,
+        workspace: action.workspace,
+        past: [],
+        future: [],
+        activePlateId: action.activePlateId,
+        selectedElementId: action.selectedElementId,
+        dirty: action.dirty,
+        savedAt: action.savedAt,
+        workspaceFileName: action.fileName,
+        zoom: action.zoom,
+        recoveryReady: true,
+      };
+    case "recovery-ready":
+      return { ...state, recoveryReady: true };
   }
 }
 

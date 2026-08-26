@@ -3,71 +3,80 @@
 This package contains the MakeID E1 adapter. It converts canonical 96-pixel
 monochrome raster pages into MakeID `0x66` frames. The protocol code has no
 operating-system dependency. The macOS transport uses a small helper around
-Apple's IOBluetooth framework.
+Apple's CoreBluetooth framework. The helper keeps the previous IOBluetooth
+Classic path only for saved legacy printer IDs.
 
 The macOS one-label path is verified on 16 mm media in
 [`docs/hardware-tests/makeid-e1-macos-2026-08-25.md`](../../../docs/hardware-tests/makeid-e1-macos-2026-08-25.md).
-The remaining opt-in checks below are not complete.
+On 2026-08-26, the CoreBluetooth helper discovered the live `E124H00894`,
+reconnected by its saved peripheral UUID, enabled notifications, and returned a
+ready status. The same session survived a printer power cycle. A fixed-raster
+adapter print and a rendered desktop print both completed correctly after that
+cycle. The extended hardware matrix below is not complete.
 
 ## Package boundary
 
 `MakeIdE1Adapter` needs an injected `MakeIdTransportProvider`. The macOS
 provider uses that port to:
 
-- discover paired Bluetooth Classic devices;
-- optionally run a native Bluetooth inquiry for nearby unpaired devices;
-- confirm the MakeID E1 pairing request through Apple's IOBluetooth API;
-- read the E1 Serial Port Profile RFCOMM channel from cached or live SDP data;
-- use RFCOMM channel 1 when the E1 SDP server does not reply;
-- open a byte-stream connection;
+- scan for nearby E1 Bluetooth Low Energy advertisements;
+- preserve the opaque, app-scoped CoreBluetooth peripheral UUID;
+- retrieve a saved peripheral by UUID without a new nearby scan;
+- subscribe to the E1 `ABF2` notification characteristic;
+- write outgoing protocol bytes to the E1 `ABF1` characteristic;
+- keep a legacy Bluetooth Classic connection path for saved `macos-bt-*` IDs;
 - implement bounded reads, complete writes, and close.
 
-The session serializes status, print, and close operations on the RFCOMM byte
+The session serializes status, print, and close operations on the Bluetooth byte
 stream. It consumes the final `0x03` reply before it reuses a session. If that
 reply is missing or invalid, it keeps the confirmed print successful and closes
 the dirty session. A new operation then uses a new connection.
 
-The macOS provider resolves a saved opaque printer ID inside the native helper.
-It does not need a nearby-device inquiry after an application restart. All
-RFCOMM open attempts have one 30-second deadline.
+The native helper reports a BLE printer as
+`macos-ble-<lowercase CoreBluetooth UUID>`. The TypeScript provider preserves
+this ID without hashing it. On a later launch, the helper resolves the saved
+UUID with `retrievePeripheralsWithIdentifiers:`. It writes `READY` only after
+the peripheral is connected, the required characteristics are present, and
+`ABF2` notifications are active. Standard input and output then form one raw
+binary stream. The TypeScript frame reader handles notification fragmentation
+and multiple frames in one notification.
 
-The tested E1 advertises `SPP slave` with Serial Port Profile UUID `0x1101` on
-RFCOMM channel 1. A fresh SDP query can start but not complete. The helper first
-uses cached service records, then uses a bounded fresh query, and then uses
-channel 1 as the known E1 fallback. The same native helper process selects the
-channel and opens it. If the live query times out, the helper closes its base
-connection and waits for Bluetooth service teardown before it uses the
-fallback.
+After an unexpected disconnect, the helper keeps that stream open, waits for
+Bluetooth and the saved peripheral, restores the GATT channel, and sends queued
+data only after notifications are active again. A timed-out background status
+check does not close this reconnecting helper. The next print checks the same
+session before it sends raster data.
 
-macOS can return `kIOReturnError` (`0xe00002bc`) from
-`openRFCOMMChannelSync` with a non-null channel which opens after the call
-returns. The helper keeps that channel and its delegate alive and waits on the
-main run loop for a bounded grace period. It accepts the channel only if
-`isOpen` becomes true. After a failed open, it clears the delegate, closes the
-channel, and waits for the Bluetooth service to settle. The provider then does
-one bounded retry.
+Old `macos-bt-<24 hex>` IDs remain valid when the native helper can resolve the
+legacy Classic printer. New discovery and configuration use the BLE ID. Both
+paths have one bounded connection deadline and one retry.
 
-The adapter filters discovery to `YichipFPGA-*` and explicit `MakeID E1` names.
-It does not claim other MakeID models. `RecordingMakeIdTransport` supports unit
-tests and future capture comparison tools without Bluetooth hardware.
+The adapter filters discovery to `YichipFPGA-*`, explicit `MakeID E1` names,
+and the strict E1 serial form such as `E124H00894`. It does not claim other
+MakeID models. `RecordingMakeIdTransport` supports unit tests and future
+capture comparison tools without Bluetooth hardware.
 
-The provider converts the Bluetooth address to an opaque local device ID before
-it crosses the adapter boundary. It does not include the address in normal logs
-or interface messages.
+The provider does not include a Bluetooth address or CoreBluetooth UUID in
+normal logs or interface messages.
 
 ## macOS hardware checks
 
-The desktop discovery path can include nearby unpaired E1 devices. When a
-selected E1 is not paired, the macOS helper starts native pairing and accepts
-the E1 confirmation request before it opens RFCOMM. Keep the printer powered
-on and nearby. If the pairing request needs a physical action on the printer,
-complete that action. Manual pairing in macOS Bluetooth settings remains a
-supported fallback.
+The desktop Add Printer search scans for nearby E1 advertisements, including
+the serial-name form such as `E124H00894`. Keep the printer powered on and near
+the Mac. CoreBluetooth manages the BLE connection; manual Classic pairing is
+not required for a new BLE printer.
 
 Then run the status-only probe:
 
 ```sh
 npm run hardware:probe --workspace @labelmaker/adapter-makeid
+```
+
+The power-cycle check keeps one session open. Follow its prompt to switch the
+printer off and on, then confirm that the restored session reports ready:
+
+```sh
+npm run hardware:power-cycle --workspace @labelmaker/adapter-makeid
 ```
 
 The probe sends only the six-byte status query. The print check is separate and
@@ -114,20 +123,20 @@ test data.
 
 Current reverse-engineering assumptions are:
 
-| Field or behavior      | Candidate value                          | Required check                                      |
-| ---------------------- | ---------------------------------------- | --------------------------------------------------- |
-| Frame marker           | `0x66`                                   | Confirm on an E1 capture                            |
-| Frame length           | 16-bit little-endian, includes all bytes | Confirm malformed-frame behavior                    |
-| Checksum               | Negative unsigned sum of prior bytes     | Compare with an E1 capture                          |
-| Status/control command | `0x10`                                   | Confirm query and cancellation states               |
-| Raster command         | `0x1B`                                   | Confirm on a new blank and patterned job            |
-| Raster encoding marker | byte 10 is `0x01`                        | Confirm that it means LZO                           |
-| Raster payload         | Literal-only LZO1X stream                | Print blank, solid, and alternating patterns        |
-| Media and cut fields   | `0x20` and `0x03`                        | Test all three tape widths and manual cut           |
-| Chunk size             | 170 head lines                           | Test short and multi-frame labels                   |
-| Response fields        | flags at byte 4, state at byte 35        | Capture ready, busy, paused, and error states       |
-| Final control state    | `0x03`                                   | Determine whether it means finish, reset, or cancel |
-| RFCOMM channel         | SDP result, then E1 fallback `1`         | Confirm against a successful macOS connection       |
+| Field or behavior      | Candidate value                           | Required check                                      |
+| ---------------------- | ----------------------------------------- | --------------------------------------------------- |
+| Frame marker           | `0x66`                                    | Confirm on an E1 capture                            |
+| Frame length           | 16-bit little-endian, includes all bytes  | Confirm malformed-frame behavior                    |
+| Checksum               | Negative unsigned sum of prior bytes      | Compare with an E1 capture                          |
+| Status/control command | `0x10`                                    | Confirm query and cancellation states               |
+| Raster command         | `0x1B`                                    | Confirm on a new blank and patterned job            |
+| Raster encoding marker | byte 10 is `0x01`                         | Confirm that it means LZO                           |
+| Raster payload         | Literal-only LZO1X stream                 | Print blank, solid, and alternating patterns        |
+| Media and cut fields   | `0x20` and `0x03`                         | Test all three tape widths and manual cut           |
+| Chunk size             | 170 head lines                            | Test short and multi-frame labels                   |
+| Response fields        | flags at byte 4, state at byte 35         | Capture ready, busy, paused, and error states       |
+| Final control state    | `0x03`                                    | Determine whether it means finish, reset, or cancel |
+| BLE characteristics    | writes on `ABF1`, notifications on `ABF2` | Confirm on another E1 firmware                      |
 
 ## Hardware test plan
 

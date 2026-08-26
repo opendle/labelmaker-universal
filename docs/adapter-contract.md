@@ -34,17 +34,19 @@ The authoritative TypeScript contract is in `packages/printing/src/index.ts`.
 
 The UI must derive available media, dimensions, printable head width, density
 controls, color modes, and copy limits from `PrinterCapabilities`. It calculates
-symmetric non-printable label areas from the label dimension across the print
-head and the physical printable head width. A missing capability stays hidden
-or disabled. An adapter can expose static offline capabilities when the UI must
-show physical limits without opening a printer session. Manufacturer-specific
-settings can use namespaced advanced options after the common controls are
-insufficient.
+non-printable label areas from the label dimension across the print head, the
+physical printable head width, and the adapter's default top and bottom head
+offsets. A narrower label that fits under the head has no non-printable area. A
+missing capability stays hidden or disabled. An adapter can expose static
+offline capabilities when the UI must show physical limits without opening a
+printer session. Manufacturer-specific settings can use namespaced advanced
+options after the common controls are insufficient.
 
 Common numeric settings report a minimum, maximum, step, and default value.
-Printer settings are outside the workspace document and belong to one configured
-printer. The desktop shell validates and stores them before it adds them to a
-print job.
+Printer settings are outside the workspace document and belong to one
+configured printer. The desktop shell validates and stores darkness, print-head
+size, and independent top and bottom margins before it renders a print job.
+Geometry values use 0.1 mm steps.
 
 ## Discovery and identity
 
@@ -76,5 +78,8 @@ must not scan unpaired devices.
 ## MakeID note
 
 The first physical target is MakeID E1. It uses a 96-pixel, 203-DPI head and a
-Bluetooth Classic RFCOMM print path. Its implementation belongs in
-`packages/adapters/makeid`; E1 assumptions must not enter the shared UI.
+Bluetooth Low Energy print path on macOS. New macOS configurations use the
+`ABF0` service, write to `ABF1`, and receive notifications from `ABF2`.
+Bluetooth Classic remains a migration path for saved legacy configurations.
+The implementation belongs in `packages/adapters/makeid`; E1 assumptions must
+not enter the shared UI.

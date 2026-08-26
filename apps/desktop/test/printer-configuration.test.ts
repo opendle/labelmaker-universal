@@ -14,6 +14,7 @@ import { describe, expect, it } from "vitest";
 import {
   initialConfiguredPrinterIds,
   mockPrintersEnabled,
+  normalizePrinterDisplayName,
   readActivePrinterId,
   readConfiguredPrinterIds,
   readConfiguredPrinterIdsWithLegacy,
@@ -126,15 +127,42 @@ describe("desktop printer configuration", () => {
     const second = "makeid:macos-bt-second";
 
     await writeConfiguredPrinterIds(filePath, [first, second], first, {
-      [first]: { darkness: 24 },
+      [first]: {
+        displayName: "Studio printer",
+        darkness: 24,
+        printHeadSizeMm: 11.8,
+        marginTopMm: 1.4,
+        marginBottomMm: 2.6,
+      },
       [second]: { darkness: 18 },
       "makeid:not-configured": { darkness: 31 },
     });
 
     expect(await readPrinterSettings(filePath)).toEqual({
-      [first]: { darkness: 24 },
+      [first]: {
+        displayName: "Studio printer",
+        darkness: 24,
+        printHeadSizeMm: 11.8,
+        marginTopMm: 1.4,
+        marginBottomMm: 2.6,
+      },
       [second]: { darkness: 18 },
     });
+  });
+
+  it("normalizes a custom printer display name", () => {
+    expect(normalizePrinterDisplayName("  Shipping desk  ")).toBe(
+      "Shipping desk",
+    );
+    expect(() => normalizePrinterDisplayName("   ")).toThrow(
+      "Printer display name must use 1 to 80 characters",
+    );
+    expect(() => normalizePrinterDisplayName("x".repeat(81))).toThrow(
+      "Printer display name must use 1 to 80 characters",
+    );
+    expect(() => normalizePrinterDisplayName(42)).toThrow(
+      "Printer display name must be text",
+    );
   });
 
   it("completes concurrent writes and stores the last requested state", async () => {
@@ -209,6 +237,12 @@ describe("desktop printer configuration", () => {
     ["a negative darkness", { darkness: -1 }],
     ["a fractional darkness", { darkness: 20.5 }],
     ["a nonnumeric darkness", { darkness: "20" }],
+    ["a zero print-head size", { printHeadSizeMm: 0 }],
+    ["a negative top margin", { marginTopMm: -0.1 }],
+    ["a margin outside 0.1 mm steps", { marginBottomMm: 1.25 }],
+    ["a blank display name", { displayName: "   " }],
+    ["an untrimmed display name", { displayName: " Studio printer " }],
+    ["a display name above its limit", { displayName: "x".repeat(81) }],
     ["an unknown setting", { darkness: 20, density: 3 }],
   ])("rejects restored settings with %s", async (_label, settings) => {
     const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
