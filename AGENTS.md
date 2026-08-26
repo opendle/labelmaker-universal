@@ -51,8 +51,8 @@ repository, after the first checks and before the commit.
 - Validate untrusted files, IPC payloads, adapter results, and server requests.
 - Keep Electron `contextIsolation` enabled and `nodeIntegration` disabled.
 - Run `npm run check` before handoff. React Doctor must score 100 with zero
-  diagnostics. Run the UI smoke test and inspect current screenshots after
-  visual changes.
+  diagnostics. Run `npm run ui:screenshot` and inspect current screenshots only
+  after a material UI change. Do not run it for small UI changes.
 - Review the complete diff after tests. Do not commit generated build output,
   dependencies, local secrets, or temporary screenshots.
 
