@@ -29,7 +29,8 @@ const mockPrinter: PrinterDescriptor = {
 const capabilities: PrinterCapabilities = {
   dpi: 203,
   rasterWidthPixels: 96,
-  verticalMarginMm: 2,
+  printableWidthMm: 12,
+  darkness: { minimum: 0, maximum: 31, step: 1, defaultValue: 20 },
   colorModes: ["monochrome"],
   media: [
     {
@@ -85,6 +86,7 @@ describe("desktop physical print dispatch", () => {
       session,
       renderPlate,
       () => "fixed-job-id",
+      { darkness: 24 },
     ).then((result) => {
       settled = true;
       return result;
@@ -95,12 +97,13 @@ describe("desktop physical print dispatch", () => {
       id: "fixed-job-id",
       printerId: makeIdPrinter.id,
       copies: 1,
+      darkness: 24,
       mediaId: "makeid-e1-16mm-continuous",
     });
     expect(renderPlate).toHaveBeenCalledWith(plate, {
       dpi: 203,
       rasterWidthPixels: 96,
-      verticalMarginMm: 2,
+      printableWidthMm: 12,
     });
 
     finishPrint?.();

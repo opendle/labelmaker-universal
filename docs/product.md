@@ -40,6 +40,7 @@ adapters.
 
 - Printer list, selection, mock discovery, and add-printer flow.
 - Restore the last selected printer on the next launch.
+- Per-printer output settings for reported capabilities, including darkness.
 - New, open, save, and save-as workspace actions.
 - Multiple plates in one workspace.
 - Label width and height settings.

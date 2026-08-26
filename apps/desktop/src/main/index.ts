@@ -28,6 +28,7 @@ import type {
   AdapterContext,
   PrinterAdapter,
   PrinterDescriptor,
+  PrinterSettings,
   PrinterSession,
 } from "@labelmaker/printing";
 import { PrinterAdapterRegistry } from "@labelmaker/printing";
@@ -41,6 +42,7 @@ import {
   mockPrintersEnabled,
   readActivePrinterId,
   readConfiguredPrinterIdsWithLegacy,
+  readPrinterSettings,
   writeConfiguredPrinterIds,
 } from "./printer-configuration.js";
 import { readWorkspaceFile, writeWorkspaceFile } from "./workspace-files.js";
@@ -64,6 +66,7 @@ if (process.platform === "darwin") {
 }
 let configuredPrinterIds = initialConfiguredPrinterIds([], includeMockPrinters);
 let activePrinterId: string | undefined;
+const printerSettings = new Map<string, PrinterSettings>();
 const printerSessions = new Map<string, Promise<PrinterSession>>();
 const activePrinterJobs = new Set<string>();
 const workspacePaths = new Map<number, string>();
@@ -235,9 +238,12 @@ async function summarize(printer: PrinterDescriptor) {
       // RFCOMM channel. A real session is opened when the user prints. If a
       // print already created a session, this refresh can reuse it.
       probe: printer.adapterId !== "makeid" || printerSessions.has(printer.id),
-      ...(adapter.offlineCapabilities?.verticalMarginMm === undefined
+      ...(adapter.offlineCapabilities === undefined
         ? {}
-        : { verticalMarginMm: adapter.offlineCapabilities.verticalMarginMm }),
+        : { offlineCapabilities: adapter.offlineCapabilities }),
+      ...(printerSettings.has(printer.id)
+        ? { settings: printerSettings.get(printer.id)! }
+        : {}),
       onFailure: (error) =>
         context.log.warn("Printer status could not be refreshed", {
           printerId: printer.id,
@@ -291,9 +297,17 @@ function discoveredSummary(printer: PrinterDescriptor) {
     transport: printer.transport,
     state: "connecting" as const,
     statusMessage: "Paired",
-    ...(adapter.offlineCapabilities?.verticalMarginMm === undefined
+    ...(adapter.offlineCapabilities ?? {}),
+    ...(adapter.offlineCapabilities?.darkness === undefined
       ? {}
-      : { verticalMarginMm: adapter.offlineCapabilities.verticalMarginMm }),
+      : {
+          darkness: {
+            ...adapter.offlineCapabilities.darkness,
+            value:
+              printerSettings.get(printer.id)?.darkness ??
+              adapter.offlineCapabilities.darkness.defaultValue,
+          },
+        }),
   };
 }
 
@@ -325,6 +339,7 @@ function registerIpc(): void {
         configuredPrintersPath(),
         configuredPrinterIds,
         activePrinterId,
+        Object.fromEntries(printerSettings),
       );
     },
   );
@@ -370,6 +385,7 @@ function registerIpc(): void {
         configuredPrintersPath(),
         nextPrinterIds,
         activePrinterId,
+        Object.fromEntries(printerSettings),
       );
       configuredPrinterIds.add(printerId);
       return summaries;
@@ -388,6 +404,8 @@ function registerIpc(): void {
 
       const nextPrinterIds = new Set(configuredPrinterIds);
       nextPrinterIds.delete(printerId);
+      const nextPrinterSettings = new Map(printerSettings);
+      nextPrinterSettings.delete(printerId);
       if (activePrinterId === printerId) {
         activePrinterId = [...nextPrinterIds].find((id) =>
           id.startsWith("makeid:"),
@@ -397,11 +415,59 @@ function registerIpc(): void {
         configuredPrintersPath(),
         nextPrinterIds,
         activePrinterId,
+        Object.fromEntries(nextPrinterSettings),
       );
+      printerSettings.delete(printerId);
       configuredPrinterIds = nextPrinterIds;
       await discardPrinterSession(printerId);
 
       const descriptors = await allDescriptors(false);
+      return Promise.all(
+        descriptors
+          .filter((item) => configuredPrinterIds.has(item.id))
+          .map(summarize),
+      );
+    },
+  );
+
+  ipcMain.handle(
+    "labelmaker:update-printer-settings",
+    async (_event, printerId: unknown, value: unknown) => {
+      if (typeof printerId !== "string" || !configuredPrinterIds.has(printerId))
+        throw new TypeError("Printer settings need a configured printer");
+      const descriptors = await allDescriptors(false);
+      const descriptor = descriptors.find((item) => item.id === printerId);
+      if (!descriptor) throw new Error("Configured printer was not found");
+      const adapter = registry.get(descriptor.adapterId);
+      const darknessCapability = adapter.offlineCapabilities?.darkness;
+      if (
+        typeof value !== "object" ||
+        value === null ||
+        Array.isArray(value) ||
+        Object.keys(value).some((key) => key !== "darkness")
+      ) {
+        throw new TypeError("Printer settings are invalid");
+      }
+      const darkness = (value as Record<string, unknown>).darkness;
+      if (
+        darknessCapability === undefined ||
+        typeof darkness !== "number" ||
+        !Number.isInteger(darkness) ||
+        darkness < darknessCapability.minimum ||
+        darkness > darknessCapability.maximum
+      ) {
+        throw new RangeError("Printer darkness is outside its supported range");
+      }
+      const nextPrinterSettings = new Map(printerSettings).set(printerId, {
+        darkness,
+      });
+      await writeConfiguredPrinterIds(
+        configuredPrintersPath(),
+        configuredPrinterIds,
+        activePrinterId,
+        Object.fromEntries(nextPrinterSettings),
+      );
+      printerSettings.set(printerId, { darkness });
       return Promise.all(
         descriptors
           .filter((item) => configuredPrinterIds.has(item.id))
@@ -500,6 +566,8 @@ function registerIpc(): void {
         descriptor,
         session,
         (plate, target) => renderPlateForPrinter(plate, target, rasterizeSvg),
+        undefined,
+        printerSettings.get(descriptor.id),
       );
     } catch (error) {
       printerSessions.delete(descriptor.id);
@@ -534,6 +602,14 @@ async function restoreConfiguredPrinters(): Promise<void> {
       includeMockPrinters,
     );
     activePrinterId = await readActivePrinterId(configuredPrintersPath());
+    printerSettings.clear();
+    for (const [printerId, settings] of Object.entries(
+      await readPrinterSettings(configuredPrintersPath()),
+    )) {
+      if (configuredPrinterIds.has(printerId)) {
+        printerSettings.set(printerId, settings);
+      }
+    }
     if (activePrinterId && !configuredPrinterIds.has(activePrinterId)) {
       activePrinterId = undefined;
     }
@@ -543,6 +619,7 @@ async function restoreConfiguredPrinters(): Promise<void> {
     });
     configuredPrinterIds = initialConfiguredPrinterIds([], includeMockPrinters);
     activePrinterId = undefined;
+    printerSettings.clear();
   }
 }
 

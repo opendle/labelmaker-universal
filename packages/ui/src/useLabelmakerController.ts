@@ -20,7 +20,7 @@ import {
   trimPlate,
   toggleFlagPlate,
 } from "./editor-operations.js";
-import type { LabelmakerHost } from "./host.js";
+import type { LabelmakerHost, PrinterSettings } from "./host.js";
 
 export function useLabelmakerController(host: LabelmakerHost) {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
@@ -97,6 +97,37 @@ export function useLabelmakerController(host: LabelmakerHost) {
       });
     },
     [host],
+  );
+
+  const updatePrinterSettings = useCallback(
+    async (printerId: string, settings: PrinterSettings) => {
+      if (!host.updatePrinterSettings) return false;
+      try {
+        const printers = await host.updatePrinterSettings(printerId, settings);
+        dispatch({
+          type: "set-printers",
+          printers,
+          ...(state.activePrinterId
+            ? { preferredId: state.activePrinterId }
+            : {}),
+        });
+        dispatch({
+          type: "set-toast",
+          toast: { tone: "success", message: "Printer settings saved" },
+        });
+        return true;
+      } catch {
+        dispatch({
+          type: "set-toast",
+          toast: {
+            tone: "error",
+            message: "Printer settings could not be saved. Try again.",
+          },
+        });
+        return false;
+      }
+    },
+    [host, state.activePrinterId],
   );
 
   useEffect(() => {
@@ -527,6 +558,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
     addPrinter,
     removePrinter,
     selectPrinter,
+    updatePrinterSettings,
     print,
     addPlate,
     addText,

@@ -42,7 +42,8 @@ const MAKEID_E1_MAX_COPIES = 9;
 const capabilities: PrinterCapabilities = {
   dpi: 203,
   rasterWidthPixels: MAKEID_PRINT_HEAD_PIXELS,
-  verticalMarginMm: 2,
+  printableWidthMm: 12,
+  darkness: { minimum: 0, maximum: 31, step: 1, defaultValue: 20 },
   colorModes: ["monochrome"],
   media: [
     {
@@ -121,7 +122,12 @@ interface MakeIdConnectionData {
  * package does not open a Bluetooth connection on its own.
  */
 export class MakeIdE1Adapter implements PrinterAdapter {
-  readonly offlineCapabilities = { verticalMarginMm: 2 } as const;
+  readonly offlineCapabilities = {
+    dpi: 203,
+    rasterWidthPixels: MAKEID_PRINT_HEAD_PIXELS,
+    printableWidthMm: 12,
+    darkness: { minimum: 0, maximum: 31, step: 1, defaultValue: 20 },
+  } as const;
   readonly manifest = {
     id: MAKEID_ADAPTER_ID,
     displayName: "MakeID E1",
@@ -300,7 +306,7 @@ class MakeIdE1Session implements PrinterSession {
   ): Promise<void> {
     this.#assertOpen(signal);
     validateJob(job, this.printer);
-    const darkness = readDarkness(job.options);
+    const darkness = readDarkness(job);
 
     try {
       const initial = await this.#query(signal);
@@ -540,8 +546,8 @@ function validateRasterPage(page: RasterPage): void {
   }
 }
 
-function readDarkness(options: PrintJob["options"]): number {
-  const value = options?.["makeid.darkness"] ?? 20;
+function readDarkness(job: PrintJob): number {
+  const value = job.darkness ?? job.options?.["makeid.darkness"] ?? 20;
   if (
     !Number.isInteger(value) ||
     typeof value !== "number" ||

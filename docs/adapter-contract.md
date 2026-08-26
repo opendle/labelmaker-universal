@@ -30,12 +30,19 @@ The authoritative TypeScript contract is in `packages/printing/src/index.ts`.
 
 ## Capability-driven UI
 
-The UI must derive available media, dimensions, non-printable margins, density
-controls, color modes, and copy limits from `PrinterCapabilities`. A missing
-capability stays hidden or disabled. An adapter can expose static offline
-capabilities when the UI must show physical limits without opening a printer
-session. Manufacturer-specific settings can use namespaced advanced options
-after the common controls are insufficient.
+The UI must derive available media, dimensions, printable head width, density
+controls, color modes, and copy limits from `PrinterCapabilities`. It calculates
+symmetric non-printable label areas from the label dimension across the print
+head and the physical printable head width. A missing capability stays hidden
+or disabled. An adapter can expose static offline capabilities when the UI must
+show physical limits without opening a printer session. Manufacturer-specific
+settings can use namespaced advanced options after the common controls are
+insufficient.
+
+Common numeric settings report a minimum, maximum, step, and default value.
+Printer settings are outside the workspace document and belong to one configured
+printer. The desktop shell validates and stores them before it adds them to a
+print job.
 
 ## Discovery and identity
 

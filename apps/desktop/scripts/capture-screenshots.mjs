@@ -73,6 +73,20 @@ await capture(1440, 960, "labelmaker-primary-1440x960.png");
 await capture(
   1440,
   960,
+  "labelmaker-printer-settings-1440x960.png",
+  async (page) => {
+    await page
+      .getByRole("button", { name: "Selected printer: Studio Labeler" })
+      .click();
+    await page
+      .getByRole("button", { name: "Settings for Studio Labeler" })
+      .click();
+    await page.getByRole("dialog", { name: "Printer settings" }).waitFor();
+  },
+);
+await capture(
+  1440,
+  960,
   "labelmaker-text-editing-1440x960.png",
   async (page) => {
     const displayed = await page.evaluate(() => {
@@ -187,9 +201,17 @@ await capture(1440, 960, "labelmaker-trim-1440x960.png", async (page) => {
       originX - metrics.actualBoundingBoxLeft - labelBounds.left;
     const rightError =
       originX + metrics.actualBoundingBoxRight - labelBounds.right;
-    if (Math.abs(leftError) > 0.05 || Math.abs(rightError) > 0.05) {
+    const plateWidth = Number.parseFloat(
+      document.querySelector('[aria-label="Plate width"]')?.value ?? "NaN",
+    );
+    if (
+      !Number.isInteger(plateWidth) ||
+      leftError < -0.05 ||
+      rightError > 0.05 ||
+      Math.abs(leftError + rightError) > 0.05
+    ) {
       throw new Error(
-        `Trim does not match printed ink: ${leftError}, ${rightError}`,
+        `Trim rounding is invalid: ${plateWidth}, ${leftError}, ${rightError}`,
       );
     }
   });

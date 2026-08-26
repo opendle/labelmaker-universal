@@ -10,6 +10,7 @@ import {
   readActivePrinterId,
   readConfiguredPrinterIds,
   readConfiguredPrinterIdsWithLegacy,
+  readPrinterSettings,
   writeConfiguredPrinterIds,
 } from "../src/main/printer-configuration.js";
 
@@ -105,6 +106,24 @@ describe("desktop printer configuration", () => {
     expect(await readActivePrinterId(filePath)).toBe(second);
     expect(JSON.parse(await readFile(filePath, "utf8"))).toMatchObject({
       activePrinterId: second,
+    });
+  });
+
+  it("stores settings for each configured printer", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const filePath = join(directory, "configured-printers.json");
+    const first = "makeid:macos-bt-first";
+    const second = "makeid:macos-bt-second";
+
+    await writeConfiguredPrinterIds(filePath, [first, second], first, {
+      [first]: { darkness: 24 },
+      [second]: { darkness: 18 },
+      "makeid:not-configured": { darkness: 31 },
+    });
+
+    expect(await readPrinterSettings(filePath)).toEqual({
+      [first]: { darkness: 24 },
+      [second]: { darkness: 18 },
     });
   });
 

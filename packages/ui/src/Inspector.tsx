@@ -278,11 +278,15 @@ export function PlateToolbarSettings({
             min={1}
             onChange={(event) =>
               onChange(
-                updatePlateEditorWidth(plate, Number(event.target.value)),
+                updatePlateEditorWidth(
+                  plate,
+                  Math.max(1, Math.round(Number(event.target.value))),
+                ),
               )
             }
+            step={1}
             type="number"
-            value={Math.round(plateEditorWidthMm(plate) * 10) / 10}
+            value={plateEditorWidthMm(plate)}
           />
           <b>mm</b>
           <button

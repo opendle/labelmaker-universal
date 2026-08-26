@@ -19,11 +19,22 @@ describe("desktop plate rasterization", () => {
       ),
     };
 
-    const svg = buildPlateSvg(changed, 320, 96, 2);
+    const svg = buildPlateSvg(changed, 320, 96, 12);
 
     expect(svg).toContain("A &lt; B &amp; C");
     expect(svg).toContain('font-family="A &quot;Font&quot;"');
     expect(svg).toContain('viewBox="0 2 40 12"');
+  });
+
+  it("uses the full height of a label that is narrower than the print head", () => {
+    const plate = createBlankLabelDocument(() => "id").plates[0];
+    if (!plate) throw new Error("Expected a plate");
+    const narrow = { ...plate, size: { ...plate.size, heightMm: 10 } };
+
+    const svg = buildPlateSvg(narrow, 320, 96, 12);
+
+    expect(svg).toContain('viewBox="0 -1 40 12"');
+    expect(svg).toContain('height="10" fill="white"');
   });
 
   it("renders line breaks and italic text as separate SVG lines", () => {
@@ -64,7 +75,7 @@ describe("desktop plate rasterization", () => {
 
     const page = await renderPlateForPrinter(
       plate,
-      { dpi: 25.4, rasterWidthPixels: 8 },
+      { dpi: 25.4, rasterWidthPixels: 8, printableWidthMm: 8 },
       rasterize,
     );
 

@@ -46,7 +46,10 @@ and the plate strip remain reachable.
 - Scale the canvas and its elements in one update when the user changes zoom.
 - Align every 5 mm background grid line to the center of its ruler tick.
 - Show capability-reported top and bottom non-printable areas on the canvas and
-  in previews. Do not scale those areas into the printed raster.
+  in previews. Calculate each area from the current label height and the
+  printer's physical printable width. A label that fits inside the printable
+  width has no non-printable label area. Do not scale a narrow label to the full
+  print-head width.
 - Resize text elements from corner handles and rotate them from a separate
   rotation handle. Elements can extend outside the plate bounds.
 - Apply a typeface, font size, light/regular/semi-bold/bold weight, italic
@@ -59,8 +62,15 @@ and the plate strip remain reachable.
   types can move on the plate.
 - Set left and right plate margins, with zero as the default.
 - Trim the plate width to the rendered text ink bounds plus the selected
-  margins. Do not add hidden padding. The text element frame must not add blank
-  trim space.
+  margins. Round the result up to a whole millimeter and divide only the
+  rounding remainder equally between the left and right sides. The text element
+  frame must not add blank trim space.
+- Keep the plate width field in whole millimeters.
+- Open printer settings from each configured printer. Show fixed capabilities,
+  including resolution and printable width. Show the calculated top and bottom
+  margins for the current label. Let the user change only capabilities that the
+  printer reports as adjustable, such as darkness, and store those settings for
+  that printer.
 - Add a flag or cable-wrap plate from the special-label actions.
 - Keep the two printed sides of a flag identical. Editing either visible side
   updates the other side immediately, or expose only one editable source side.

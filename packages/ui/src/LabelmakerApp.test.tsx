@@ -34,7 +34,16 @@ function createHost(overrides: Partial<LabelmakerHost> = {}): LabelmakerHost {
         state: "ready",
         statusMessage: "Ready",
         batteryPercent: 82,
-        verticalMarginMm: 2,
+        dpi: 203,
+        rasterWidthPixels: 96,
+        printableWidthMm: 12,
+        darkness: {
+          minimum: 0,
+          maximum: 31,
+          step: 1,
+          defaultValue: 20,
+          value: 20,
+        },
       },
     ]),
     discoverPrinters: vi.fn().mockResolvedValue([
@@ -79,6 +88,7 @@ function createHost(overrides: Partial<LabelmakerHost> = {}): LabelmakerHost {
     print: vi
       .fn()
       .mockResolvedValue({ message: "1 label sent to Studio Labeler" }),
+    updatePrinterSettings: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
 }
@@ -134,6 +144,58 @@ describe("LabelmakerApp", () => {
     expect(miniText.style.height).toBe(
       canvasElement.style.getPropertyValue("--element-height"),
     );
+  });
+
+  it("removes non-printable margins when the label fits the print head", async () => {
+    render(<LabelmakerApp host={createHost()} />);
+    const height = screen.getByLabelText("Plate height");
+    fireEvent.change(height, { target: { value: "10" } });
+
+    expect(screen.getByText(/Printable area 62 ×\s*10 mm/)).toBeInTheDocument();
+    const zones = screen
+      .getByRole("region", { name: "Resistors label canvas" })
+      .querySelectorAll<HTMLElement>(".nonprintable-zone");
+    expect(zones[0]).toHaveStyle({ height: "0%" });
+  });
+
+  it("uses the selected printer printable width", async () => {
+    const narrowHead = {
+      id: "makeid:narrow",
+      adapterId: "makeid",
+      name: "Narrow head",
+      model: "MakeID E1",
+      transport: "bluetooth-classic" as const,
+      state: "ready" as const,
+      statusMessage: "Ready",
+      dpi: 203,
+      rasterWidthPixels: 96,
+      printableWidthMm: 12,
+    };
+    const fullHead = {
+      ...narrowHead,
+      id: "makeid:full",
+      name: "Full head",
+      printableWidthMm: 16,
+    };
+    const user = userEvent.setup();
+    render(
+      <LabelmakerApp
+        host={createHost({
+          listPrinters: vi.fn().mockResolvedValue([narrowHead, fullHead]),
+          getActivePrinterId: vi.fn().mockResolvedValue(narrowHead.id),
+        })}
+      />,
+    );
+    expect(
+      await screen.findByText(/Printable area 62 ×\s*12 mm/),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Selected printer: Narrow head" }),
+    );
+    await user.click(screen.getByRole("menuitemradio", { name: /Full head/ }));
+
+    expect(screen.getByText(/Printable area 62 ×\s*16 mm/)).toBeInTheDocument();
   });
 
   it("scales the label and its text by the same zoom ratio", async () => {
@@ -230,7 +292,9 @@ describe("LabelmakerApp", () => {
       transport: "bluetooth-classic" as const,
       state: "ready" as const,
       statusMessage: "Ready",
-      verticalMarginMm: 2,
+      dpi: 203,
+      rasterWidthPixels: 96,
+      printableWidthMm: 12,
     };
     const second = { ...first, id: "makeid:second", name: "Second printer" };
     const setActivePrinterId = vi.fn().mockResolvedValue(undefined);
@@ -265,6 +329,57 @@ describe("LabelmakerApp", () => {
       screen.getByRole("button", { name: "Remove First printer" }),
     );
     await waitFor(() => expect(removePrinter).toHaveBeenCalledWith(first.id));
+  });
+
+  it("edits settings for one printer and shows margins for the current label", async () => {
+    const updatePrinterSettings = vi
+      .fn()
+      .mockImplementation(
+        async (_printerId: string, settings: { darkness?: number }) => [
+          {
+            id: "mock-studio",
+            adapterId: "mock",
+            name: "Studio Labeler",
+            model: "MakeID E1 · Mock adapter",
+            transport: "mock" as const,
+            state: "ready" as const,
+            statusMessage: "Ready",
+            dpi: 203,
+            rasterWidthPixels: 96,
+            printableWidthMm: 12,
+            darkness: {
+              minimum: 0,
+              maximum: 31,
+              step: 1,
+              defaultValue: 20,
+              value: settings.darkness ?? 20,
+            },
+          },
+        ],
+      );
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost({ updatePrinterSettings })} />);
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Selected printer: Studio Labeler",
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Settings for Studio Labeler" }),
+    );
+
+    expect(screen.getByRole("dialog")).toHaveTextContent("203 dpi");
+    expect(screen.getByRole("dialog")).toHaveTextContent("2 mm each");
+    const darkness = screen.getByLabelText("Print darkness");
+    fireEvent.change(darkness, { target: { value: "24" } });
+    await user.click(screen.getByRole("button", { name: "Save settings" }));
+
+    await waitFor(() =>
+      expect(updatePrinterSettings).toHaveBeenCalledWith("mock-studio", {
+        darkness: 24,
+      }),
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("edits text and saves through the host interface", async () => {
@@ -494,11 +609,20 @@ describe("LabelmakerApp", () => {
       screen.getByRole("button", { name: "Trim plate to content" }),
     );
 
-    expect(screen.getByLabelText("Plate width")).toHaveValue(35.8);
+    expect(screen.getByLabelText("Plate width")).toHaveValue(36);
     await user.click(
       screen.getByRole("button", { name: "Text element: RESISTORS" }),
     );
-    expect(screen.getByLabelText("X position")).toHaveValue(-9.6);
+    expect(screen.getByLabelText("X position")).toHaveValue(-9.5);
+  });
+
+  it("keeps manual label widths in whole millimeters", () => {
+    render(<LabelmakerApp host={createHost()} />);
+    const width = screen.getByLabelText("Plate width");
+
+    fireEvent.change(width, { target: { value: "41.6" } });
+
+    expect(width).toHaveValue(42);
   });
 
   it("toggles the current label into a flag without replacing its content", async () => {

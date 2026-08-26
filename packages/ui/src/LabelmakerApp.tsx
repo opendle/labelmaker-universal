@@ -1,13 +1,18 @@
 import { Check, CircleAlert, Info } from "lucide-react";
 import { useCallback } from "react";
 
-import { AddPrinterDialog, PreviewDialog } from "./AppDialogs.js";
+import {
+  AddPrinterDialog,
+  PreviewDialog,
+  PrinterSettingsDialog,
+} from "./AppDialogs.js";
 import { AppHeader } from "./AppHeader.js";
 import { replaceElement, replacePlate } from "./app-state.js";
 import { EditorCanvas } from "./EditorCanvas.js";
 import { trimPlate, updateElementAndFlagPeer } from "./editor-operations.js";
 import type { LabelmakerHost } from "./host.js";
 import { Inspector } from "./Inspector.js";
+import { nonPrintableMarginMm } from "./label-layout.js";
 import { PlateStrip } from "./PlateStrip.js";
 import { useLabelmakerController } from "./useLabelmakerController.js";
 
@@ -23,9 +28,19 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
     () => dispatch({ type: "close-preview" }),
     [dispatch],
   );
+  const closePrinterSettings = useCallback(
+    () => dispatch({ type: "close-printer-settings" }),
+    [dispatch],
+  );
 
   if (!activePlate) return null;
-  const verticalMarginMm = controller.activePrinter?.verticalMarginMm ?? 0;
+  const verticalMarginMm = nonPrintableMarginMm(
+    activePlate.size.heightMm,
+    controller.activePrinter?.printableWidthMm,
+  );
+  const settingsPrinter = state.printers.find(
+    (printer) => printer.id === state.printerSettingsId,
+  );
   const saveState = state.dirty
     ? "Edited"
     : state.savedAt
@@ -45,6 +60,9 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
           onAddPrinter={() => void controller.startDiscovery()}
           onNew={() => void controller.newWorkspace()}
           onOpen={() => void controller.openWorkspace()}
+          onOpenPrinterSettings={(printerId) =>
+            dispatch({ type: "open-printer-settings", printerId })
+          }
           onPreview={() => dispatch({ type: "open-preview" })}
           onPrint={(all) => void controller.print(all)}
           onPrintMenuChange={(open) =>
@@ -91,6 +109,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             }
             onZoom={(zoom) => dispatch({ type: "set-zoom", zoom })}
             plate={activePlate}
+            printerDpi={controller.activePrinter?.dpi}
             selectedElementId={state.selectedElementId}
             verticalMarginMm={verticalMarginMm}
             zoom={state.zoom}
@@ -126,7 +145,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
           onSelectPlate={(plateId, elementId) =>
             dispatch({ type: "select-plate", plateId, elementId })
           }
-          verticalMarginMm={verticalMarginMm}
+          printableWidthMm={controller.activePrinter?.printableWidthMm}
           workspace={state.workspace}
         />
       </div>
@@ -147,7 +166,15 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
         }}
         open={state.previewOpen}
         plate={activePlate}
+        printerDpi={controller.activePrinter?.dpi}
         verticalMarginMm={verticalMarginMm}
+      />
+      <PrinterSettingsDialog
+        labelHeightMm={activePlate.size.heightMm}
+        onClose={closePrinterSettings}
+        onSave={controller.updatePrinterSettings}
+        open={state.printerSettingsId !== null}
+        printer={settingsPrinter}
       />
       {state.toast && (
         <output aria-live="polite" className={`toast ${state.toast.tone}`}>

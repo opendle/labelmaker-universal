@@ -2,6 +2,7 @@ import type { LabelPlate } from "@labelmaker/domain";
 import type {
   PrinterCapabilities,
   PrinterDescriptor,
+  PrinterSettings,
   PrinterSession,
   RasterPage,
 } from "@labelmaker/printing";
@@ -11,7 +12,7 @@ import type { ValidatedPrintRequest } from "./print-request.js";
 export interface PrintRasterTarget {
   readonly dpi: number;
   readonly rasterWidthPixels: number;
-  readonly verticalMarginMm?: number;
+  readonly printableWidthMm: number;
 }
 
 export type DesktopPlateRenderer = (
@@ -37,6 +38,7 @@ export async function printToSession(
   session: PrinterSession,
   renderPlate: DesktopPlateRenderer,
   createJobId: () => string = () => `print-job-${Date.now()}`,
+  settings: PrinterSettings = {},
 ): Promise<{ readonly message: string }> {
   if (
     request.printerId !== descriptor.id ||
@@ -53,9 +55,7 @@ export async function printToSession(
       await renderPlate(plate, {
         dpi: capabilities.dpi,
         rasterWidthPixels: capabilities.rasterWidthPixels,
-        ...(capabilities.verticalMarginMm === undefined
-          ? {}
-          : { verticalMarginMm: capabilities.verticalMarginMm }),
+        printableWidthMm: capabilities.printableWidthMm,
       }),
     );
   }
@@ -70,6 +70,7 @@ export async function printToSession(
     pages,
     copies: 1,
     ...(mediaId === undefined ? {} : { mediaId }),
+    ...(settings.darkness === undefined ? {} : { darkness: settings.darkness }),
   });
   const count = request.plateIds.length;
   return {

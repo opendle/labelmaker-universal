@@ -53,7 +53,8 @@ describe("MakeIdE1Adapter", () => {
     expect(result).toMatchObject({
       dpi: 203,
       rasterWidthPixels: 96,
-      verticalMarginMm: 2,
+      printableWidthMm: 12,
+      darkness: { minimum: 0, maximum: 31, step: 1, defaultValue: 20 },
       maxCopies: 9,
       supportsCut: false,
       supportsStatus: true,
@@ -80,7 +81,7 @@ describe("MakeIdE1Adapter", () => {
         pages: [page(200)],
         copies: 2,
         mediaId: "makeid-e1-12mm-continuous",
-        options: { "makeid.darkness": 18 },
+        darkness: 18,
       },
       onProgress,
     );

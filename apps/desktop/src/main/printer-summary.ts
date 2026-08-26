@@ -1,9 +1,19 @@
 import type {
+  NumericSettingCapability,
   PrinterCapabilities,
   PrinterDescriptor,
+  PrinterSettings,
   PrinterSession,
   PrinterStatus,
 } from "@labelmaker/printing";
+
+type OfflineCapabilities = NonNullable<
+  import("@labelmaker/printing").PrinterAdapter["offlineCapabilities"]
+>;
+
+export interface DesktopNumericSetting extends NumericSettingCapability {
+  readonly value: number;
+}
 
 export interface DesktopPrinterSummary {
   readonly id: string;
@@ -15,7 +25,8 @@ export interface DesktopPrinterSummary {
   readonly statusMessage: string;
   readonly dpi?: number;
   readonly rasterWidthPixels?: number;
-  readonly verticalMarginMm?: number;
+  readonly printableWidthMm?: number;
+  readonly darkness?: DesktopNumericSetting;
   readonly batteryPercent?: number;
 }
 
@@ -24,13 +35,35 @@ interface PrinterSummaryOptions {
   readonly retryDelayMs?: number;
   readonly probe?: boolean;
   readonly onFailure?: (error: unknown) => void;
-  readonly verticalMarginMm?: number;
+  readonly offlineCapabilities?: OfflineCapabilities;
+  readonly settings?: PrinterSettings;
+}
+
+function capabilitySummary(
+  capabilities: OfflineCapabilities | PrinterCapabilities | undefined,
+  settings: PrinterSettings | undefined,
+) {
+  if (!capabilities) return {};
+  return {
+    dpi: capabilities.dpi,
+    rasterWidthPixels: capabilities.rasterWidthPixels,
+    printableWidthMm: capabilities.printableWidthMm,
+    ...(capabilities.darkness === undefined
+      ? {}
+      : {
+          darkness: {
+            ...capabilities.darkness,
+            value: settings?.darkness ?? capabilities.darkness.defaultValue,
+          },
+        }),
+  };
 }
 
 function availableSummary(
   printer: PrinterDescriptor,
   model: string,
-  verticalMarginMm?: number,
+  capabilities?: OfflineCapabilities,
+  settings?: PrinterSettings,
 ): DesktopPrinterSummary {
   return {
     id: printer.id,
@@ -40,7 +73,7 @@ function availableSummary(
     transport: printer.transport,
     state: "connecting",
     statusMessage: "Available",
-    ...(verticalMarginMm === undefined ? {} : { verticalMarginMm }),
+    ...capabilitySummary(capabilities, settings),
   };
 }
 
@@ -63,7 +96,12 @@ export async function summarizePrinter(
     throw new RangeError("Printer summary retry options are invalid");
   }
   if (options.probe === false)
-    return availableSummary(printer, model, options.verticalMarginMm);
+    return availableSummary(
+      printer,
+      model,
+      options.offlineCapabilities,
+      options.settings,
+    );
 
   let lastError: unknown;
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -79,11 +117,7 @@ export async function summarizePrinter(
         transport: printer.transport,
         state: status.state,
         statusMessage: status.message ?? status.state,
-        dpi: capabilities.dpi,
-        rasterWidthPixels: capabilities.rasterWidthPixels,
-        ...(capabilities.verticalMarginMm === undefined
-          ? {}
-          : { verticalMarginMm: capabilities.verticalMarginMm }),
+        ...capabilitySummary(capabilities, options.settings),
         ...(status.batteryPercent === undefined
           ? {}
           : { batteryPercent: status.batteryPercent }),
@@ -98,5 +132,10 @@ export async function summarizePrinter(
   }
 
   options.onFailure?.(lastError);
-  return availableSummary(printer, model, options.verticalMarginMm);
+  return availableSummary(
+    printer,
+    model,
+    options.offlineCapabilities,
+    options.settings,
+  );
 }

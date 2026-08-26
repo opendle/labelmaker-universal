@@ -28,6 +28,7 @@ export interface AppState {
   readonly discovering: boolean;
   readonly discovered: readonly PrinterSummary[];
   readonly previewOpen: boolean;
+  readonly printerSettingsId: string | null;
   readonly printMenuOpen: boolean;
   readonly toast: Toast | null;
   readonly zoom: number;
@@ -69,6 +70,8 @@ export type AppAction =
   | { readonly type: "discovery-failed" }
   | { readonly type: "open-preview" }
   | { readonly type: "close-preview" }
+  | { readonly type: "open-printer-settings"; readonly printerId: string }
+  | { readonly type: "close-printer-settings" }
   | { readonly type: "set-print-menu"; readonly open: boolean }
   | { readonly type: "set-toast"; readonly toast: Toast | null }
   | { readonly type: "set-zoom"; readonly zoom: number };
@@ -88,6 +91,7 @@ export const initialAppState: AppState = {
   discovering: false,
   discovered: [],
   previewOpen: false,
+  printerSettingsId: null,
   printMenuOpen: false,
   toast: null,
   zoom: 100,
@@ -204,6 +208,14 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, previewOpen: true, printMenuOpen: false };
     case "close-preview":
       return { ...state, previewOpen: false };
+    case "open-printer-settings":
+      return {
+        ...state,
+        printerSettingsId: action.printerId,
+        printMenuOpen: false,
+      };
+    case "close-printer-settings":
+      return { ...state, printerSettingsId: null };
     case "set-print-menu":
       return { ...state, printMenuOpen: action.open };
     case "set-toast":

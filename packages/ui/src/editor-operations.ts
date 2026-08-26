@@ -352,12 +352,15 @@ export function trimPlate(
     }
     const leftMm = plate.margins.leftMm;
     const rightMm = plate.margins.rightMm;
-    const offsetX = leftMm - minX;
+    const measuredWidthMm = maxX - minX + leftMm + rightMm;
+    const widthMm = Math.ceil(Math.max(1, measuredWidthMm));
+    const roundingPaddingMm = (widthMm - measuredWidthMm) / 2;
+    const offsetX = leftMm + roundingPaddingMm - minX;
     return {
       ...plate,
       size: {
         ...plate.size,
-        widthMm: Math.max(1, maxX - minX + leftMm + rightMm),
+        widthMm,
       },
       elements: plate.elements.map((element) => ({
         ...element,

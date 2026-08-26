@@ -2,19 +2,20 @@ import type { LabelDocument } from "@labelmaker/domain";
 import { Plus } from "lucide-react";
 
 import { LabelArtwork } from "./LabelArtwork.js";
+import { nonPrintableMarginMm } from "./label-layout.js";
 
 export function PlateStrip({
   workspace,
   activePlateId,
   onSelectPlate,
   onAddPlate,
-  verticalMarginMm,
+  printableWidthMm,
 }: {
   readonly workspace: LabelDocument;
   readonly activePlateId: string;
   readonly onSelectPlate: (plateId: string, elementId: string | null) => void;
   readonly onAddPlate: () => void;
-  readonly verticalMarginMm: number;
+  readonly printableWidthMm: number | undefined;
 }) {
   return (
     <footer className="plate-strip">
@@ -35,7 +36,10 @@ export function PlateStrip({
               <LabelArtwork
                 className="mini-label"
                 plate={plate}
-                verticalMarginMm={verticalMarginMm}
+                verticalMarginMm={nonPrintableMarginMm(
+                  plate.size.heightMm,
+                  printableWidthMm,
+                )}
               />
               <span className="thumb-name">{plate.name}</span>
             </button>

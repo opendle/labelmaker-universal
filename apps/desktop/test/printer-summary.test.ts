@@ -19,14 +19,30 @@ describe("desktop printer summaries", () => {
       "MakeID E1",
       getSession,
       async () => undefined,
-      { probe: false, verticalMarginMm: 2 },
+      {
+        probe: false,
+        offlineCapabilities: {
+          dpi: 203,
+          rasterWidthPixels: 96,
+          printableWidthMm: 12,
+          darkness: {
+            minimum: 0,
+            maximum: 31,
+            step: 1,
+            defaultValue: 20,
+          },
+        },
+        settings: { darkness: 24 },
+      },
     );
 
     expect(summary).toMatchObject({
       id: printer.id,
       state: "connecting",
       statusMessage: "Available",
-      verticalMarginMm: 2,
+      dpi: 203,
+      printableWidthMm: 12,
+      darkness: { value: 24 },
     });
     expect(getSession).not.toHaveBeenCalled();
   });
@@ -82,7 +98,7 @@ function fakeSession(): PrinterSession {
     capabilities: async () => ({
       dpi: 203,
       rasterWidthPixels: 96,
-      verticalMarginMm: 2,
+      printableWidthMm: 12,
       colorModes: ["monochrome"],
       media: [],
       maxCopies: 1,

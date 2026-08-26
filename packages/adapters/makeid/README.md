@@ -58,7 +58,10 @@ and macOS version before you change protocol constants.
 
 ## Current E1 model
 
-- 203 DPI and a 96-pixel print head.
+- 203 DPI and a 96-pixel, 12 mm printable head width. A 16 mm label has 2 mm
+  non-printable areas at the top and bottom. A label of 12 mm or less has no
+  non-printable label area and is centered in the 96-pixel raster.
+- Adjustable darkness from 0 through 31, with 20 as the default.
 - 9, 12, and 16 mm continuous tape entries.
 - One-bit, most-significant-bit-first canonical input. Each input row is sent as
   one head line. The 16 mm hardware test confirmed the bit order and black-bit

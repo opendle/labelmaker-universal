@@ -210,7 +210,7 @@ textarea:focus-visible {
 .header-printer-option {
   width: 100%;
   min-height: 50px;
-  padding: 6px 34px 6px 6px;
+  padding: 6px 64px 6px 6px;
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) 16px;
   gap: 7px;
@@ -226,9 +226,13 @@ textarea:focus-visible {
 }
 .header-printer-row > .icon-button {
   position: absolute;
-  right: 5px;
+  right: 34px;
   width: 25px;
   height: 25px;
+  color: #6f6a61;
+}
+.header-printer-row > .icon-button:last-child {
+  right: 5px;
   color: #9a5f52;
 }
 .printer-menu-empty {
@@ -1540,6 +1544,92 @@ textarea.inline-text-editor:focus-visible {
 }
 .discovery-skeleton.short {
   width: 78%;
+}
+.printer-settings-content {
+  padding: 16px;
+}
+.printer-settings-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 11px;
+  border-radius: 8px;
+  background: #f0efea;
+}
+.printer-settings-heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.printer-settings-heading strong,
+.darkness-setting strong {
+  font-size: 11px;
+}
+.printer-settings-heading span,
+.darkness-setting small,
+.printer-setting-unavailable {
+  color: var(--muted);
+  font-size: 9.5px;
+}
+.printer-capabilities {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin: 12px 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--line);
+}
+.printer-capabilities > div {
+  min-height: 51px;
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: #fbfaf7;
+}
+.printer-capabilities dt {
+  color: var(--muted);
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.printer-capabilities dd {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 650;
+}
+.darkness-setting {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.darkness-setting > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.darkness-setting output {
+  min-width: 27px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  background: var(--soft-accent);
+  color: var(--accent-dark);
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+.darkness-setting input {
+  width: 100%;
+  accent-color: var(--accent);
+}
+.printer-setting-unavailable {
+  margin: 12px 0 0;
 }
 .dialog-footer {
   min-height: 58px;

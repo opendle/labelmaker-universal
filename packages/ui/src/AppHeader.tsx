@@ -8,6 +8,7 @@ import {
   Printer,
   Redo2,
   Save,
+  Settings,
   Trash2,
   Undo2,
 } from "lucide-react";
@@ -36,6 +37,7 @@ export function AppHeader({
   onSelectPrinter,
   onAddPrinter,
   onRemovePrinter,
+  onOpenPrinterSettings,
   onUndo,
   onRedo,
   onPreview,
@@ -58,6 +60,7 @@ export function AppHeader({
   readonly onSelectPrinter: (printerId: string) => void;
   readonly onAddPrinter: () => void;
   readonly onRemovePrinter?: (printerId: string) => void;
+  readonly onOpenPrinterSettings: (printerId: string) => void;
   readonly onUndo: () => void;
   readonly onRedo: () => void;
   readonly onPreview: () => void;
@@ -221,6 +224,15 @@ export function AppHeader({
                     </span>
                     {printer.id === activePrinterId && <Check size={16} />}
                   </button>
+                  <IconButton
+                    label={`Settings for ${printer.name}`}
+                    onClick={() => {
+                      onOpenPrinterSettings(printer.id);
+                      setPrinterMenuOpen(false);
+                    }}
+                  >
+                    <Settings size={14} />
+                  </IconButton>
                   {onRemovePrinter && (
                     <IconButton
                       label={`Remove ${printer.name}`}

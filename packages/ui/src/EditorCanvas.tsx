@@ -154,6 +154,7 @@ export function EditorCanvas({
   onTrim,
   onZoom,
   verticalMarginMm,
+  printerDpi,
 }: {
   readonly plate: LabelPlate;
   readonly selectedElementId: string | null;
@@ -167,6 +168,7 @@ export function EditorCanvas({
   readonly onTrim: () => void;
   readonly onZoom: (zoom: number) => void;
   readonly verticalMarginMm: number;
+  readonly printerDpi: number | undefined;
 }) {
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   useCommitInlineEdit(editingElementId, setEditingElementId);
@@ -293,7 +295,10 @@ export function EditorCanvas({
           </section>
         </div>
         <div className="canvas-meta">
-          203 dpi · Printable area {displayMillimeters(plate.size.widthMm)} ×{" "}
+          {printerDpi === undefined
+            ? "Printer dpi not reported"
+            : `${printerDpi} dpi`}{" "}
+          · Printable area {displayMillimeters(plate.size.widthMm)} ×{" "}
           {displayMillimeters(
             printableHeightMm(plate.size.heightMm, verticalMarginMm),
           )}{" "}

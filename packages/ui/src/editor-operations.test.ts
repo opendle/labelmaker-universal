@@ -93,9 +93,30 @@ describe("trimPlate", () => {
         margins: { leftMm: 0, rightMm: 0 },
       })),
     };
-    expect(
-      trimPlate(zeroMargins, "plate", measure).plates[0]!.size.widthMm,
-    ).toBe(13);
+    const plate = trimPlate(zeroMargins, "plate", measure).plates[0]!;
+    expect(plate.size.widthMm).toBe(13);
+  });
+
+  it("rounds up to a whole millimeter and centers the rounding padding", () => {
+    const fractionalMeasure: TextInkMeasurer = () => ({
+      advanceMm: 10,
+      leftMm: 0,
+      rightMm: 10.7,
+      heightMm: 4,
+    });
+    const zeroMargins = {
+      ...document,
+      plates: document.plates.map((plate) => ({
+        ...plate,
+        margins: { leftMm: 0, rightMm: 0 },
+        elements: plate.elements.filter((element) => element.kind === "text"),
+      })),
+    };
+
+    const plate = trimPlate(zeroMargins, "plate", fractionalMeasure).plates[0]!;
+    const text = plate.elements[0]!;
+    expect(plate.size.widthMm).toBe(11);
+    expect(text.xMm).toBeCloseTo(-34.85);
   });
 });
 

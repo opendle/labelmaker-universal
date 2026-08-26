@@ -31,11 +31,19 @@ export interface MediaSize {
   readonly continuous: boolean;
 }
 
+export interface NumericSettingCapability {
+  readonly minimum: number;
+  readonly maximum: number;
+  readonly step: number;
+  readonly defaultValue: number;
+}
+
 export interface PrinterCapabilities {
   readonly dpi: number;
   readonly rasterWidthPixels: number;
-  /** Symmetric physical tape area that the print head cannot reach. */
-  readonly verticalMarginMm?: number;
+  /** Physical cross-feed width that the print head can reach. */
+  readonly printableWidthMm: number;
+  readonly darkness?: NumericSettingCapability;
   readonly colorModes: readonly ["monochrome"];
   readonly media: readonly MediaSize[];
   readonly maxCopies: number;
@@ -70,7 +78,12 @@ export interface PrintJob {
   readonly pages: readonly RasterPage[];
   readonly copies: number;
   readonly mediaId?: string;
+  readonly darkness?: number;
   readonly options?: Readonly<Record<string, unknown>>;
+}
+
+export interface PrinterSettings {
+  readonly darkness?: number;
 }
 
 export interface PrintProgress {
@@ -109,7 +122,11 @@ export interface AdapterContext {
 
 export interface PrinterAdapter {
   readonly manifest: AdapterManifest;
-  readonly offlineCapabilities?: Pick<PrinterCapabilities, "verticalMarginMm">;
+  readonly offlineCapabilities?: Pick<
+    PrinterCapabilities,
+    "dpi" | "rasterWidthPixels" | "printableWidthMm"
+  > &
+    Partial<Pick<PrinterCapabilities, "darkness">>;
   discover(
     options: DiscoveryOptions,
     context: AdapterContext,

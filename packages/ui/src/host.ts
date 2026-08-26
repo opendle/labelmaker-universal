@@ -9,8 +9,21 @@ export interface PrinterSummary {
   readonly transport: PrinterTransport;
   readonly state: PrinterState;
   readonly statusMessage: string;
-  readonly verticalMarginMm?: number;
+  readonly dpi?: number;
+  readonly rasterWidthPixels?: number;
+  readonly printableWidthMm?: number;
+  readonly darkness?: {
+    readonly minimum: number;
+    readonly maximum: number;
+    readonly step: number;
+    readonly defaultValue: number;
+    readonly value: number;
+  };
   readonly batteryPercent?: number;
+}
+
+export interface PrinterSettings {
+  readonly darkness?: number;
 }
 
 export interface PrintRequest {
@@ -55,6 +68,10 @@ export interface LabelmakerHost {
   removePrinter?(printerId: string): Promise<readonly PrinterSummary[]>;
   getActivePrinterId?(): Promise<string | null>;
   setActivePrinterId?(printerId: string): Promise<void>;
+  updatePrinterSettings?(
+    printerId: string,
+    settings: PrinterSettings,
+  ): Promise<readonly PrinterSummary[]>;
   newWorkspace(
     hasUnsavedChanges: boolean,
     document: LabelDocument,

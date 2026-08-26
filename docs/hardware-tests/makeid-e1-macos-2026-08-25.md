@@ -37,6 +37,8 @@ The test report does not contain the Bluetooth device address.
 - Raster command: `0x1B`.
 - RFCOMM channel: `1`.
 - Print head: 96 pixels, 12 bytes per line.
+- Printable head width: 12 mm. A 16 mm label leaves 2 mm at each edge; a label
+  of 12 mm or less uses its full height without label margins.
 - Input black bit: `1`.
 - Bit order in one head line: most-significant bit first.
 - Feed-line order: reverse the editor horizontal pixel order before transfer.

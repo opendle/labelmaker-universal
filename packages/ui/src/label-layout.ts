@@ -27,6 +27,14 @@ export function printableHeightMm(
   return Math.max(0, plateHeightMm - verticalMarginMm * 2);
 }
 
+export function nonPrintableMarginMm(
+  plateHeightMm: number,
+  printableWidthMm: number | undefined,
+): number {
+  if (printableWidthMm === undefined) return 0;
+  return Math.max(0, (plateHeightMm - printableWidthMm) / 2);
+}
+
 export function displayMillimeters(value: number): number {
   return Math.round(value * 10) / 10;
 }

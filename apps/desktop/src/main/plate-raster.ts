@@ -10,7 +10,7 @@ import {
 export interface PlateRasterTarget {
   readonly dpi: number;
   readonly rasterWidthPixels: number;
-  readonly verticalMarginMm?: number;
+  readonly printableWidthMm: number;
 }
 
 export type SvgRasterizer = (
@@ -37,7 +37,7 @@ export async function renderPlateForPrinter(
       plate,
       feedLengthPixels,
       target.rasterWidthPixels,
-      target.verticalMarginMm,
+      target.printableWidthMm,
     ),
     feedLengthPixels,
     target.rasterWidthPixels,
@@ -71,15 +71,14 @@ export function buildPlateSvg(
   plate: LabelPlate,
   widthPixels: number,
   heightPixels: number,
-  verticalMarginMm = 0,
+  printableWidthMm = plate.size.heightMm,
 ): string {
-  const marginMm = Math.max(
-    0,
-    Math.min(verticalMarginMm, (plate.size.heightMm - 0.1) / 2),
-  );
-  const printableHeightMm = plate.size.heightMm - marginMm * 2;
+  if (!Number.isFinite(printableWidthMm) || printableWidthMm <= 0) {
+    throw new RangeError("Printer printable width must be greater than zero");
+  }
+  const viewBoxY = (plate.size.heightMm - printableWidthMm) / 2;
   const body = plate.elements.map(renderElement).join("");
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPixels}" height="${heightPixels}" viewBox="0 ${number(marginMm)} ${number(plate.size.widthMm)} ${number(printableHeightMm)}"><rect x="0" y="${number(marginMm)}" width="${number(plate.size.widthMm)}" height="${number(printableHeightMm)}" fill="white"/>${body}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPixels}" height="${heightPixels}" viewBox="0 ${number(viewBoxY)} ${number(plate.size.widthMm)} ${number(printableWidthMm)}"><rect x="0" y="0" width="${number(plate.size.widthMm)}" height="${number(plate.size.heightMm)}" fill="white"/>${body}</svg>`;
 }
 
 function renderElement(element: LabelElement): string {
