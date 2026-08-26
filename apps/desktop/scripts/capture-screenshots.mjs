@@ -73,6 +73,85 @@ await capture(1440, 960, "labelmaker-primary-1440x960.png");
 await capture(
   1440,
   960,
+  "labelmaker-text-editing-1440x960.png",
+  async (page) => {
+    const displayed = await page.evaluate(() => {
+      const frame = document.querySelector(".canvas-element");
+      const text = frame?.querySelector(".inline-text-editor");
+      if (!(frame instanceof HTMLElement) || !(text instanceof HTMLElement)) {
+        throw new Error("Text geometry is missing");
+      }
+      const frameBounds = frame.getBoundingClientRect();
+      const textBounds = text.getBoundingClientRect();
+      const style = getComputedStyle(text);
+      return {
+        frame: {
+          left: frameBounds.left,
+          top: frameBounds.top,
+          width: frameBounds.width,
+          height: frameBounds.height,
+        },
+        text: {
+          top: textBounds.top,
+          height: textBounds.height,
+        },
+        font: {
+          family: style.fontFamily,
+          size: style.fontSize,
+          weight: style.fontWeight,
+          style: style.fontStyle,
+          lineHeight: style.lineHeight,
+        },
+      };
+    });
+    await page.getByRole("button", { name: "Text element: RESISTORS" }).click();
+    await page
+      .getByRole("textbox", { name: "Edit text on label" })
+      .evaluate((editor, before) => {
+        if (!(editor instanceof HTMLTextAreaElement)) {
+          throw new Error("Text editor is missing");
+        }
+        const frame = editor.closest(".canvas-element");
+        if (!(frame instanceof HTMLElement)) {
+          throw new Error("Text frame is missing");
+        }
+        const frameBounds = frame.getBoundingClientRect();
+        const editorBounds = editor.getBoundingClientRect();
+        const style = getComputedStyle(editor);
+        for (const key of ["left", "top", "width", "height"]) {
+          if (Math.abs(frameBounds[key] - before.frame[key]) > 0.1) {
+            throw new Error(`Text frame moved during editing: ${key}`);
+          }
+        }
+        if (
+          Math.abs(editorBounds.top - before.text.top) > 0.1 ||
+          Math.abs(editorBounds.height - before.text.height) > 0.1
+        ) {
+          throw new Error(
+            `Text moved during editing: ${JSON.stringify({ before: before.text, editing: { top: editorBounds.top, height: editorBounds.height } })}`,
+          );
+        }
+        const font = {
+          family: style.fontFamily,
+          size: style.fontSize,
+          weight: style.fontWeight,
+          style: style.fontStyle,
+          lineHeight: style.lineHeight,
+        };
+        if (JSON.stringify(font) !== JSON.stringify(before.font)) {
+          throw new Error(
+            `Text style changed during editing: ${JSON.stringify({ before: before.font, editing: font })}`,
+          );
+        }
+        if (style.outlineStyle !== "none" && style.outlineWidth !== "0px") {
+          throw new Error(`Text editor has an outline: ${style.outline}`);
+        }
+      }, displayed);
+  },
+);
+await capture(
+  1440,
+  960,
   "labelmaker-plate-settings-1440x960.png",
   async (page) => {
     await page.getByLabel("Plate width").focus();

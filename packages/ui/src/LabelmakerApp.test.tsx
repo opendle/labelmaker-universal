@@ -295,6 +295,7 @@ describe("LabelmakerApp", () => {
       screen.getByRole("button", { name: "Text element: RESISTORS" }),
     );
     const editor = screen.getByRole("textbox", { name: "Edit text on label" });
+    expect(editor.style.getPropertyValue("--editor-line-count")).toBe("1");
     const elementFrame = editor.closest<HTMLElement>(".canvas-element")!;
     const originalStyle = {
       family: elementFrame.style.getPropertyValue("--element-font-family"),
@@ -304,6 +305,7 @@ describe("LabelmakerApp", () => {
       rotation: elementFrame.style.getPropertyValue("--element-rotation"),
     };
     fireEvent.change(editor, { target: { value: "LINE 1\nLINE 2" } });
+    expect(editor.style.getPropertyValue("--editor-line-count")).toBe("2");
     fireEvent.pointerDown(document.body);
     expect(
       screen.queryByRole("textbox", { name: "Edit text on label" }),

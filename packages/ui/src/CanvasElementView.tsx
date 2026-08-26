@@ -96,6 +96,8 @@ export function CanvasElementView({
                 : "center",
         }
       : {};
+  const editorLineCount =
+    element.kind === "text" ? element.text.split(/\r\n?|\n/).length : 1;
   return (
     <div
       className={`canvas-element ${element.kind === "image" ? "canvas-image" : "canvas-text"} ${selected ? "selected" : ""} ${editing ? "editing" : ""}`}
@@ -111,13 +113,16 @@ export function CanvasElementView({
             onChange={(event) =>
               onTextInput(element, event.currentTarget.value)
             }
-            style={{
-              fontFamily: element.fontFamily,
-              fontSize: `${pointsToMillimeters(element.fontSizePt) * canvasScale}px`,
-              fontStyle: element.fontStyle ?? "normal",
-              fontWeight: element.fontWeight,
-              textAlign: element.align,
-            }}
+            style={
+              {
+                "--editor-line-count": editorLineCount,
+                fontFamily: element.fontFamily,
+                fontSize: `${pointsToMillimeters(element.fontSizePt) * canvasScale}px`,
+                fontStyle: element.fontStyle ?? "normal",
+                fontWeight: element.fontWeight,
+                textAlign: element.align,
+              } as ElementStyle
+            }
             value={element.text}
           />
         </span>

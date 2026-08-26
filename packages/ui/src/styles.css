@@ -789,11 +789,20 @@ textarea:focus-visible {
   white-space: pre-wrap;
 }
 .canvas-text-control {
-  padding: 0 3px;
+  padding: 0;
 }
 .canvas-text.editing {
   cursor: text;
   user-select: text;
+}
+textarea.inline-text-editor {
+  width: 100%;
+  height: calc(var(--editor-line-count) * 1em);
+  min-height: 1em;
+  overflow: hidden;
+}
+textarea.inline-text-editor:focus-visible {
+  outline: 0;
 }
 .inline-text-editor {
   display: block;
