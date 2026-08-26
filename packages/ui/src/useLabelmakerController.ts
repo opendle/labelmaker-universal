@@ -28,6 +28,10 @@ import {
   toggleFlagPlate,
 } from "./editor-operations.js";
 import type { LabelmakerHost, PrinterSettings } from "./host.js";
+import {
+  printerFailureMessage,
+  remotePrinterFailureMessage,
+} from "./printer-failure-message.js";
 
 export function useLabelmakerController(host: LabelmakerHost) {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
@@ -311,12 +315,15 @@ export function useLabelmakerController(host: LabelmakerHost) {
           toast: { tone: "success", message: "Printer added" },
         });
         return true;
-      } catch {
+      } catch (error) {
         dispatch({
           type: "set-toast",
           toast: {
             tone: "error",
-            message: "The printer could not be added. Try again.",
+            message: remotePrinterFailureMessage(
+              error,
+              "The printer could not be added. Try again.",
+            ),
           },
         });
         return false;
@@ -602,19 +609,10 @@ const PRINTABLE_IMAGE_TYPES = new Set([
 ]);
 
 function printFailureMessage(error: unknown): string {
-  if (!(error instanceof Error)) {
-    return "The label could not be printed. Check the printer and try again.";
-  }
-  const message = error.message
-    .replace(
-      /^Error invoking remote method '[^']+':\s*(?:[A-Za-z][A-Za-z0-9]*Error:\s*)?/i,
-      "",
-    )
-    .trim();
-  if (!message || message.length > 240) {
-    return "The label could not be printed. Check the printer and try again.";
-  }
-  return message;
+  return printerFailureMessage(
+    error,
+    "The label could not be printed. Check the printer and try again.",
+  );
 }
 
 export type LabelmakerController = ReturnType<typeof useLabelmakerController>;

@@ -74,7 +74,7 @@ describe("MakeIdE1Adapter", () => {
       code: "makeid.transport",
       retryable: true,
       message:
-        "Could not connect to the MakeID E1. Make sure it is on and not connected to another device.",
+        "Could not connect to the MakeID E1. Turn it off and on. If macOS still shows it as connected, forget it in Bluetooth Settings, then add it again in Labelmaker.",
     });
   });
 

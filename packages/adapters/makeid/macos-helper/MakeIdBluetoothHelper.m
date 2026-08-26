@@ -44,6 +44,11 @@ static void Fail(NSString *message, int code) {
 @property(nonatomic) IOReturn error;
 @end
 
+@interface MakeIdSDPDelegate : NSObject <IOBluetoothDeviceAsyncCallbacks>
+@property(nonatomic) BOOL finished;
+@property(nonatomic) IOReturn status;
+@end
+
 @implementation MakeIdPairDelegate
 - (void)devicePairingUserConfirmationRequest:(id)sender
                                 numericValue:(BluetoothNumericValue)numericValue {
@@ -56,6 +61,22 @@ static void Fail(NSString *message, int code) {
 
 - (void)devicePairingFinished:(id)sender error:(IOReturn)error {
   self.error = error;
+  self.finished = YES;
+}
+@end
+
+
+@implementation MakeIdSDPDelegate
+- (instancetype)init {
+  self = [super init];
+  if (self) {
+    _status = kIOReturnError;
+  }
+  return self;
+}
+
+- (void)sdpQueryComplete:(IOBluetoothDevice *)device status:(IOReturn)status {
+  self.status = status;
   self.finished = YES;
 }
 @end
@@ -185,17 +206,127 @@ static IOBluetoothDevice *ResolveDevice(NSString *deviceId) {
   return nil;
 }
 
+static void AddSerialPortChannels(NSMutableOrderedSet<NSNumber *> *channels,
+                                  NSArray *services) {
+  for (IOBluetoothSDPServiceRecord *service in services) {
+    if (![service
+            matchesUUID16:kBluetoothSDPUUID16ServiceClassSerialPort]) {
+      continue;
+    }
+    BluetoothRFCOMMChannelID channelID = 0;
+    if ([service getRFCOMMChannelID:&channelID] == kIOReturnSuccess &&
+        channelID >= 1 && channelID <= 30) {
+      [channels addObject:@(channelID)];
+    }
+  }
+}
+
+static void PumpRunLoop(NSTimeInterval seconds) {
+  NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:seconds];
+  while ([deadline timeIntervalSinceNow] > 0) {
+    [[NSRunLoop currentRunLoop]
+        runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+  }
+}
+
+static NSArray<NSNumber *> *DiscoverRFCOMMChannels(IOBluetoothDevice *device) {
+  NSMutableOrderedSet<NSNumber *> *channels = [NSMutableOrderedSet orderedSet];
+  NSArray *cachedServices = device.services ?: @[];
+  AddSerialPortChannels(channels, cachedServices);
+  if (channels.count > 0) return channels.array;
+
+  MakeIdSDPDelegate *delegate = [MakeIdSDPDelegate new];
+  IOBluetoothSDPUUID *serialPortUUID =
+      [IOBluetoothSDPUUID
+          uuid16:kBluetoothSDPUUID16ServiceClassSerialPort];
+  IOReturn startStatus = [device performSDPQuery:delegate
+                                           uuids:@[ serialPortUUID ]];
+  if (startStatus != kIOReturnSuccess) return @[];
+
+  NSDate *deadline = [NSDate dateWithTimeIntervalSinceNow:5.0];
+  while (!delegate.finished && [deadline timeIntervalSinceNow] > 0) {
+    [[NSRunLoop currentRunLoop]
+        runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+  }
+  if (!delegate.finished) {
+    // A timed-out SDP query can keep the Bluetooth serial service busy. Close
+    // its base connection and let bluetoothd settle before the RFCOMM fallback.
+    [device closeConnection];
+    PumpRunLoop(1.5);
+    return @[];
+  }
+  if (delegate.status != kIOReturnSuccess) return @[];
+
+  NSArray *services = device.services ?: @[];
+  AddSerialPortChannels(channels, services);
+  return channels.array;
+}
+
+static NSString *IOReturnName(IOReturn status) {
+  if (status == kIOReturnSuccess) return @"kIOReturnSuccess";
+  if (status == kIOReturnError) return @"kIOReturnError";
+  if (status == kIOReturnBusy) return @"kIOReturnBusy";
+  if (status == kIOReturnExclusiveAccess) return @"kIOReturnExclusiveAccess";
+  if (status == kIOReturnNotReady) return @"kIOReturnNotReady";
+  if (status == kIOReturnNotResponding) return @"kIOReturnNotResponding";
+  if (status == kIOReturnTimeout) return @"kIOReturnTimeout";
+  return @"IOReturn";
+}
+
+static void SettleFailedChannel(IOBluetoothRFCOMMChannel *channel) {
+  if (channel != nil) {
+    [channel setDelegate:nil];
+    [channel closeChannel];
+  }
+  PumpRunLoop(1.5);
+}
+
 static void Connect(NSString *deviceId) {
   IOBluetoothDevice *device = ResolveDevice(deviceId);
   PairDevice(device);
 
-  MakeIdRFCOMMBridge *bridge = [MakeIdRFCOMMBridge new];
-  // The E1 uses channel 1. Its SDP server can fail to answer on macOS. The
-  // public HelixScreen E1 integration uses the same channel as its fallback.
-  const BluetoothRFCOMMChannelID channelID = 1;
+  NSMutableOrderedSet<NSNumber *> *candidateChannels =
+      [NSMutableOrderedSet orderedSetWithArray:DiscoverRFCOMMChannels(device)];
+  [candidateChannels addObject:@1];
+
+  MakeIdRFCOMMBridge *bridge = nil;
   IOBluetoothRFCOMMChannel *channel = nil;
-  IOReturn status = [device openRFCOMMChannelSync:&channel withChannelID:channelID delegate:bridge];
-  if (status != kIOReturnSuccess || channel == nil) Fail([NSString stringWithFormat:@"Could not open the printer serial channel (%d)", status], 9);
+  IOReturn lastStatus = kIOReturnNotFound;
+  BluetoothRFCOMMChannelID lastChannelID = 1;
+  for (NSNumber *candidate in candidateChannels) {
+    BluetoothRFCOMMChannelID channelID = candidate.unsignedCharValue;
+    MakeIdRFCOMMBridge *attemptBridge = [MakeIdRFCOMMBridge new];
+    IOBluetoothRFCOMMChannel *attemptChannel = nil;
+    IOReturn status = [device openRFCOMMChannelSync:&attemptChannel
+                                      withChannelID:channelID
+                                           delegate:attemptBridge];
+    if (attemptChannel != nil && !attemptChannel.isOpen) {
+      // IOBluetooth can return kIOReturnError before the channel finishes its
+      // asynchronous open. Keep the object and delegate alive while callbacks
+      // run. Accept the channel if it opens during this bounded grace period.
+      NSDate *lateOpenDeadline = [NSDate dateWithTimeIntervalSinceNow:2.5];
+      while (!attemptChannel.isOpen &&
+             [lateOpenDeadline timeIntervalSinceNow] > 0) {
+        [[NSRunLoop currentRunLoop]
+            runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+      }
+    }
+    if (attemptChannel != nil && attemptChannel.isOpen) {
+      bridge = attemptBridge;
+      channel = attemptChannel;
+      break;
+    }
+    lastStatus = status;
+    lastChannelID = channelID;
+    SettleFailedChannel(attemptChannel);
+  }
+
+  if (channel == nil) {
+    Fail([NSString stringWithFormat:
+              @"Could not open RFCOMM channel %u (%@, 0x%08x)",
+              lastChannelID, IOReturnName(lastStatus), (uint32_t)lastStatus],
+         9);
+  }
   bridge.channel = channel;
 
   [[NSFileHandle fileHandleWithStandardError] writeData:[@"READY\n" dataUsingEncoding:NSUTF8StringEncoding]];

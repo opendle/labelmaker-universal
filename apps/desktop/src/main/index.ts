@@ -38,6 +38,7 @@ import {
   findConfiguredPrintTarget,
   printToSession,
 } from "./desktop-print.js";
+import { openPrinterForAddition } from "./printer-addition.js";
 import { installAppIcon } from "./app-icon.js";
 import { renderPlateForPrinter } from "./plate-raster.js";
 import { validatePrintRequest } from "./print-request.js";
@@ -59,6 +60,7 @@ import {
   PrinterSessionManager,
 } from "./printer-session.js";
 import {
+  PrinterDiscoveryCache,
   shouldProbePrinterStatus,
   summarizePrinter,
 } from "./printer-summary.js";
@@ -81,6 +83,7 @@ const printerSessions = new PrinterSessionManager((printer) =>
   registry.get(printer.adapterId).connect(printer, context),
 );
 const activePrinterJobs = new Set<string>();
+const discoveredPrinters = new PrinterDiscoveryCache();
 const workspacePaths = new Map<number, string>();
 let quitPrinterClosePromise: Promise<void> | undefined;
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
@@ -253,6 +256,7 @@ async function allDescriptors(
 
 async function summarize(printer: PrinterDescriptor) {
   const adapter = registry.get(printer.adapterId);
+  const hasActiveJob = activePrinterJobs.has(printer.id);
   return summarizePrinter(
     printer,
     printerModel(adapter, printer),
@@ -260,14 +264,17 @@ async function summarize(printer: PrinterDescriptor) {
     discardPrinterSession,
     {
       attempts: 1,
-      // Listing a paired MakeID printer must not open and retain its exclusive
-      // RFCOMM channel. A real session is opened when the user prints. If a
-      // print already created a session, this refresh can reuse it.
+      // A routine list must not open and retain MakeID's exclusive RFCOMM
+      // channel. A configured or printing session can provide live status.
       probe: shouldProbePrinterStatus(
         printer.adapterId,
         printerSessions.has(printer.id),
-        activePrinterJobs.has(printer.id),
+        hasActiveJob,
       ),
+      unprobedState: hasActiveJob ? "busy" : "disconnected",
+      unprobedStatusMessage: hasActiveJob
+        ? "Printing"
+        : "Connects when you print",
       ...(adapter.offlineCapabilities === undefined
         ? {}
         : { offlineCapabilities: adapter.offlineCapabilities }),
@@ -371,6 +378,7 @@ function registerIpc(): void {
   ipcMain.handle("labelmaker:discover-printers", async () => {
     await new Promise((resolve) => setTimeout(resolve, 450));
     const descriptors = await allDescriptors(true);
+    discoveredPrinters.replace(descriptors);
     return Promise.all(
       descriptors
         .filter((item) => !configuredPrinterIds.has(item.id))
@@ -387,10 +395,16 @@ function registerIpc(): void {
     async (_event, printerId: unknown) => {
       if (typeof printerId !== "string")
         throw new TypeError("Printer ID must be a string");
-      const descriptors = await allDescriptors(true);
-      const descriptor = descriptors.find((item) => item.id === printerId);
-      if (!descriptor) throw new Error("Printer was not found");
-      const verifiedSession = await readyPrinterSession(descriptor);
+      // Opening the session completes Bluetooth pairing. Protocol readiness is
+      // checked immediately before every print, where a transient status reply
+      // can be retried without making the printer impossible to configure.
+      const { descriptor, session: connectedSession } =
+        await openPrinterForAddition(
+          printerId,
+          discoveredPrinters,
+          () => allDescriptors(true),
+          printerSession,
+        );
       const nextPrinterIds = new Set(configuredPrinterIds).add(printerId);
       try {
         await writeConfiguredPrinterIds(
@@ -400,15 +414,16 @@ function registerIpc(): void {
           Object.fromEntries(printerSettings),
         );
       } catch (error) {
-        await printerSessions.discard(printerId, verifiedSession);
+        await printerSessions.discard(printerId, connectedSession);
         throw error;
       }
       configuredPrinterIds.add(printerId);
-      return Promise.all(
-        configuredPrinterDescriptors(descriptors, nextPrinterIds).map(
-          summarize,
-        ),
+      discoveredPrinters.delete(printerId);
+      const descriptors = configuredPrinterDescriptors(
+        [descriptor, ...(await allDescriptors(false))],
+        nextPrinterIds,
       );
+      return Promise.all(descriptors.map(summarize));
     },
   );
 

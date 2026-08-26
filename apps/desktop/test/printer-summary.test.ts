@@ -2,6 +2,7 @@ import type { PrinterDescriptor, PrinterSession } from "@labelmaker/printing";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  PrinterDiscoveryCache,
   shouldProbePrinterStatus,
   summarizePrinter,
 } from "../src/main/printer-summary.js";
@@ -15,6 +16,18 @@ const printer: PrinterDescriptor = {
 };
 
 describe("desktop printer summaries", () => {
+  it("keeps the exact descriptor from the last explicit search", () => {
+    const cache = new PrinterDiscoveryCache();
+    const replacement = { ...printer, displayName: "Replacement" };
+
+    cache.replace([printer]);
+    expect(cache.get(printer.id)).toBe(printer);
+    cache.replace([replacement]);
+    expect(cache.get(printer.id)).toBe(replacement);
+    cache.delete(printer.id);
+    expect(cache.get(printer.id)).toBeUndefined();
+  });
+
   it("does not probe a cached session while its print job is active", () => {
     expect(shouldProbePrinterStatus("makeid", true, true)).toBe(false);
     expect(shouldProbePrinterStatus("makeid", true, false)).toBe(true);
@@ -48,11 +61,29 @@ describe("desktop printer summaries", () => {
     expect(summary).toMatchObject({
       id: printer.id,
       state: "disconnected",
-      statusMessage: "Saved; not checked",
+      statusMessage: "Connects when you print",
       dpi: 203,
       printableWidthMm: 12,
       darkness: { value: 24 },
     });
+    expect(getSession).not.toHaveBeenCalled();
+  });
+
+  it("reports an active job without sending a concurrent status query", async () => {
+    const getSession = vi.fn(async () => fakeSession());
+    const summary = await summarizePrinter(
+      printer,
+      "MakeID E1",
+      getSession,
+      async () => undefined,
+      {
+        probe: false,
+        unprobedState: "busy",
+        unprobedStatusMessage: "Printing",
+      },
+    );
+
+    expect(summary).toMatchObject({ state: "busy", statusMessage: "Printing" });
     expect(getSession).not.toHaveBeenCalled();
   });
 

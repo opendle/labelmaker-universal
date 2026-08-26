@@ -28,6 +28,7 @@ describe("MacOsMakeIdTransportProvider", () => {
       if (mode === "discover") {
         process.stdout.write(JSON.stringify([{ id: "01:23:45:67:89:AB", name: "YichipFPGA-1308" }]));
       } else {
+        if (mode !== "connect") process.exit(8);
         process.stderr.write("READY\\n");
         process.stdin.once("data", () => {
           const frame = Buffer.from(${JSON.stringify([...response])});
@@ -74,6 +75,7 @@ describe("MacOsMakeIdTransportProvider", () => {
       if (process.argv[1] === "discover") {
         process.stdout.write('[{"id":"01:23:45:67:89:AB","name":"YichipFPGA-1308"}]');
       } else {
+        if (process.argv[1] !== "connect") process.exit(8);
         process.stderr.write("READY\\n");
         process.stdin.once("data", () => {
           const valid = Buffer.from(${JSON.stringify([...response])});
@@ -108,13 +110,33 @@ describe("MacOsMakeIdTransportProvider", () => {
   it("connects a saved opaque printer ID without prior discovery", async () => {
     const savedId = "macos-bt-0123456789abcdef01234567";
     const helper = `
-      if (process.argv[1] !== "connect" || process.argv[2] !== ${JSON.stringify(savedId)}) process.exit(8);
+      if (process.argv[2] !== ${JSON.stringify(savedId)}) process.exit(8);
+      if (process.argv[1] !== "connect") process.exit(8);
       process.stderr.write("READY\\n");
       process.stdin.resume();
     `;
     const provider = new MacOsMakeIdTransportProvider({
       helperPath: process.execPath,
       helperArguments: ["-e", helper],
+    });
+
+    const transport = await provider.connect(savedId);
+    await transport.close();
+  });
+
+  it("waits for the native late-open grace period before READY", async () => {
+    const savedId = "macos-bt-0123456789abcdef01234567";
+    const helper = `
+      if (process.argv[1] === "connect") {
+        process.stderr.write("The initial RFCOMM open returned kIOReturnError\\n");
+        setTimeout(() => process.stderr.write("READY\\n"), 25);
+        process.stdin.resume();
+      } else process.exit(8);
+    `;
+    const provider = new MacOsMakeIdTransportProvider({
+      helperPath: process.execPath,
+      helperArguments: ["-e", helper],
+      connectTimeoutMs: 500,
     });
 
     const transport = await provider.connect(savedId);
@@ -175,6 +197,7 @@ describe("MacOsMakeIdTransportProvider", () => {
       if (mode === "discover") {
         process.stdout.write('[{"id":"01:23:45:67:89:AB","name":"YichipFPGA-1308"}]');
       } else {
+        if (mode !== "connect") process.exit(8);
         let attempt = 0;
         try { attempt = Number(fs.readFileSync(${JSON.stringify(counterPath)}, "utf8")); } catch {}
         attempt += 1;
@@ -198,6 +221,33 @@ describe("MacOsMakeIdTransportProvider", () => {
       if (!device) throw new Error("Expected a discovery result");
       const transport = await provider.connect(device.id);
       await transport.close();
+      await expect(readFile(counterPath, "utf8")).resolves.toBe("2");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("stops after two complete RFCOMM connection failures", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "makeid-transport-test-"));
+    const counterPath = join(directory, "attempts");
+    const helper = `
+      const fs = require("node:fs");
+      if (process.argv[1] !== "connect") process.exit(8);
+      let attempt = 0;
+      try { attempt = Number(fs.readFileSync(${JSON.stringify(counterPath)}, "utf8")); } catch {}
+      fs.writeFileSync(${JSON.stringify(counterPath)}, String(attempt + 1));
+      process.stderr.write("RFCOMM open failed\\n");
+      process.exit(9);
+    `;
+    const provider = new MacOsMakeIdTransportProvider({
+      helperPath: process.execPath,
+      helperArguments: ["-e", helper],
+    });
+
+    try {
+      await expect(
+        provider.connect("macos-bt-0123456789abcdef01234567"),
+      ).rejects.toThrow("RFCOMM open failed");
       await expect(readFile(counterPath, "utf8")).resolves.toBe("2");
     } finally {
       await rm(directory, { recursive: true, force: true });

@@ -202,7 +202,7 @@ export class MakeIdE1Adapter implements PrinterAdapter {
       ) {
         throw new MakeIdAdapterError(
           normalized.code,
-          "Could not connect to the MakeID E1. Make sure it is on and not connected to another device.",
+          "Could not connect to the MakeID E1. Turn it off and on. If macOS still shows it as connected, forget it in Bluetooth Settings, then add it again in Labelmaker.",
           true,
           { cause: normalized },
         );

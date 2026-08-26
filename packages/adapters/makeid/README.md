@@ -17,7 +17,8 @@ provider uses that port to:
 - discover paired Bluetooth Classic devices;
 - optionally run a native Bluetooth inquiry for nearby unpaired devices;
 - confirm the MakeID E1 pairing request through Apple's IOBluetooth API;
-- open the E1 RFCOMM channel 1;
+- read the E1 Serial Port Profile RFCOMM channel from cached or live SDP data;
+- use RFCOMM channel 1 when the E1 SDP server does not reply;
 - open a byte-stream connection;
 - implement bounded reads, complete writes, and close.
 
@@ -29,6 +30,22 @@ the dirty session. A new operation then uses a new connection.
 The macOS provider resolves a saved opaque printer ID inside the native helper.
 It does not need a nearby-device inquiry after an application restart. All
 RFCOMM open attempts have one 30-second deadline.
+
+The tested E1 advertises `SPP slave` with Serial Port Profile UUID `0x1101` on
+RFCOMM channel 1. A fresh SDP query can start but not complete. The helper first
+uses cached service records, then uses a bounded fresh query, and then uses
+channel 1 as the known E1 fallback. The same native helper process selects the
+channel and opens it. If the live query times out, the helper closes its base
+connection and waits for Bluetooth service teardown before it uses the
+fallback.
+
+macOS can return `kIOReturnError` (`0xe00002bc`) from
+`openRFCOMMChannelSync` with a non-null channel which opens after the call
+returns. The helper keeps that channel and its delegate alive and waits on the
+main run loop for a bounded grace period. It accepts the channel only if
+`isOpen` becomes true. After a failed open, it clears the delegate, closes the
+channel, and waits for the Bluetooth service to settle. The provider then does
+one bounded retry.
 
 The adapter filters discovery to `YichipFPGA-*` and explicit `MakeID E1` names.
 It does not claim other MakeID models. `RecordingMakeIdTransport` supports unit
@@ -110,7 +127,7 @@ Current reverse-engineering assumptions are:
 | Chunk size             | 170 head lines                           | Test short and multi-frame labels                   |
 | Response fields        | flags at byte 4, state at byte 35        | Capture ready, busy, paused, and error states       |
 | Final control state    | `0x03`                                   | Determine whether it means finish, reset, or cancel |
-| RFCOMM channel         | `1`                                      | Confirm against a successful macOS connection       |
+| RFCOMM channel         | SDP result, then E1 fallback `1`         | Confirm against a successful macOS connection       |
 
 ## Hardware test plan
 

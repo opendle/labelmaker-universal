@@ -37,6 +37,26 @@ interface PrinterSummaryOptions {
   readonly onFailure?: (error: unknown) => void;
   readonly offlineCapabilities?: OfflineCapabilities;
   readonly settings?: PrinterSettings;
+  readonly unprobedState?: PrinterStatus["state"];
+  readonly unprobedStatusMessage?: string;
+}
+
+/** Keep the exact descriptors from the last explicit nearby-printer search. */
+export class PrinterDiscoveryCache {
+  readonly #printers = new Map<string, PrinterDescriptor>();
+
+  replace(printers: readonly PrinterDescriptor[]): void {
+    this.#printers.clear();
+    for (const printer of printers) this.#printers.set(printer.id, printer);
+  }
+
+  get(printerId: string): PrinterDescriptor | undefined {
+    return this.#printers.get(printerId);
+  }
+
+  delete(printerId: string): void {
+    this.#printers.delete(printerId);
+  }
 }
 
 export function shouldProbePrinterStatus(
@@ -71,6 +91,7 @@ function capabilitySummary(
 function offlineSummary(
   printer: PrinterDescriptor,
   model: string,
+  state: PrinterStatus["state"],
   statusMessage: string,
   capabilities?: OfflineCapabilities,
   settings?: PrinterSettings,
@@ -81,7 +102,7 @@ function offlineSummary(
     name: printer.displayName,
     model,
     transport: printer.transport,
-    state: "disconnected",
+    state,
     statusMessage,
     ...capabilitySummary(capabilities, settings),
   };
@@ -112,7 +133,8 @@ export async function summarizePrinter(
     return offlineSummary(
       printer,
       model,
-      "Saved; not checked",
+      options.unprobedState ?? "disconnected",
+      options.unprobedStatusMessage ?? "Connects when you print",
       options.offlineCapabilities,
       options.settings,
     );
@@ -150,6 +172,7 @@ export async function summarizePrinter(
   return offlineSummary(
     printer,
     model,
+    "disconnected",
     "Not reachable",
     options.offlineCapabilities,
     options.settings,
