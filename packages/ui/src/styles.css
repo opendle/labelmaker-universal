@@ -550,6 +550,9 @@ textarea:focus-visible {
   align-items: center;
   flex: 0 0 auto;
 }
+.toolbar-separator + .tool-button + .tool-button {
+  margin-left: 4px;
+}
 .tool-button {
   height: 29px;
   padding: 0 9px;
