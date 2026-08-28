@@ -58,6 +58,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
     dispatch,
   } = controller;
   const workspaceRef = useRef(state.workspace);
+  const shellRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     workspaceRef.current = state.workspace;
   }, [state.workspace]);
@@ -65,6 +66,9 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
     if (host.platform !== "ipados") return;
     const viewport = globalThis.visualViewport;
     if (!viewport) return;
+    const shellElement = shellRef.current;
+    let unobscuredViewportHeight = viewport.height;
+    let viewportWidth = globalThis.innerWidth;
     const updateViewport = () => {
       globalThis.document.documentElement.style.setProperty(
         "--visual-viewport-height",
@@ -74,19 +78,43 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
         "--visual-viewport-offset-top",
         `${viewport.offsetTop}px`,
       );
+      const activeElement = globalThis.document.activeElement;
+      const editableHasFocus =
+        activeElement instanceof HTMLInputElement ||
+        activeElement instanceof HTMLTextAreaElement;
+      const windowWidthChanged =
+        Math.abs(globalThis.innerWidth - viewportWidth) > 1;
+      if (
+        !editableHasFocus ||
+        windowWidthChanged ||
+        viewport.height > unobscuredViewportHeight
+      ) {
+        unobscuredViewportHeight = viewport.height;
+        viewportWidth = globalThis.innerWidth;
+      }
+      const softwareKeyboardOpen =
+        editableHasFocus && unobscuredViewportHeight - viewport.height > 80;
+      if (softwareKeyboardOpen) {
+        shellElement?.setAttribute("data-software-keyboard", "open");
+      } else {
+        shellElement?.removeAttribute("data-software-keyboard");
+      }
     };
     updateViewport();
     viewport.addEventListener("resize", updateViewport);
     viewport.addEventListener("scroll", updateViewport, { passive: true });
+    globalThis.addEventListener("resize", updateViewport);
     return () => {
       viewport.removeEventListener("resize", updateViewport);
       viewport.removeEventListener("scroll", updateViewport);
+      globalThis.removeEventListener("resize", updateViewport);
       globalThis.document.documentElement.style.removeProperty(
         "--visual-viewport-height",
       );
       globalThis.document.documentElement.style.removeProperty(
         "--visual-viewport-offset-top",
       );
+      shellElement?.removeAttribute("data-software-keyboard");
     };
   }, [host.platform]);
   const closeAddPrinter = useCallback(
@@ -121,7 +149,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
         : "Not saved";
 
   return (
-    <div className={`app-shell platform-${host.platform}`}>
+    <div ref={shellRef} className={`app-shell platform-${host.platform}`}>
       <div className="application-content">
         <AppHeader
           activePrinterId={state.activePrinterId}
@@ -199,9 +227,6 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
           />
           <Inspector
             hasMultipleElements={editableElementCount(activePlate) > 1}
-            onClearSelection={() =>
-              dispatch({ type: "select-element", elementId: null })
-            }
             onDeleteSelection={controller.deleteSelected}
             onUpdateImage={(image) =>
               controller.editWorkspace(
@@ -252,6 +277,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
       </div>
       <AddPrinterDialog
         discovered={state.discovered}
+        discoveryFailed={state.discoveryFailed}
         discovering={state.discovering}
         onAdd={controller.addPrinter}
         onClose={closeAddPrinter}

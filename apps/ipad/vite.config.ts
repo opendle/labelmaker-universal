@@ -12,9 +12,6 @@ export default defineConfig({
       "@labelmaker/adapter-makeid": fileURLToPath(
         new URL("../../packages/adapters/makeid/src/index.ts", import.meta.url),
       ),
-      "@labelmaker/adapter-mock": fileURLToPath(
-        new URL("../../packages/adapters/mock/src/index.ts", import.meta.url),
-      ),
       "@labelmaker/domain": fileURLToPath(
         new URL("../../packages/domain/src/index.ts", import.meta.url),
       ),
@@ -37,5 +34,12 @@ export default defineConfig({
       new URL("./Labelmaker/Resources/WebApp", import.meta.url),
     ),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        assetFileNames: "assets/[name][extname]",
+        chunkFileNames: "assets/[name].js",
+        entryFileNames: "assets/[name].js",
+      },
+    },
   },
 });

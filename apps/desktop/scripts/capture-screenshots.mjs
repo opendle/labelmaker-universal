@@ -131,7 +131,75 @@ async function capture(width, height, name, setup) {
   }
 }
 
-await capture(1440, 960, "labelmaker-primary-1440x960.png");
+await capture(1440, 960, "labelmaker-primary-1440x960.png", async (page) => {
+  const headerHeights = await page.evaluate(() => {
+    const selectors = [
+      ".printer-trigger",
+      ".title-actions > .button.secondary",
+      ".print-control > .button:first-child",
+      ".print-control > .button.split",
+    ];
+    return selectors.map((selector) => {
+      const element = document.querySelector(selector);
+      if (!(element instanceof HTMLElement)) {
+        throw new Error(`Header control is missing: ${selector}`);
+      }
+      return element.getBoundingClientRect().height;
+    });
+  });
+  if (headerHeights.some((height) => height !== headerHeights[0])) {
+    throw new Error(
+      `Header controls have different heights: ${headerHeights.join(", ")}`,
+    );
+  }
+
+  const plateNameWidth = await page
+    .getByLabel("Plate name")
+    .evaluate((input) => input.getBoundingClientRect().width);
+  if (plateNameWidth < 160) {
+    throw new Error(`Plate name input is too narrow: ${plateNameWidth}`);
+  }
+
+  const before = await page.locator(".label-canvas").boundingBox();
+  await page
+    .locator(".canvas-clear-selection")
+    .evaluate((button) => button.click());
+  await page.waitForFunction(() =>
+    document.querySelector(".inspector")?.classList.contains("is-hidden"),
+  );
+  const hiddenInspectorDisplay = await page
+    .locator(".inspector")
+    .evaluate((inspector) => getComputedStyle(inspector).display);
+  if (hiddenInspectorDisplay !== "none") {
+    throw new Error(
+      `Hidden inspector still uses layout space: ${hiddenInspectorDisplay}`,
+    );
+  }
+  const workSurface = await page.locator(".work-surface").boundingBox();
+  const desktopBody = await page.locator(".desktop-body").boundingBox();
+  if (
+    !workSurface ||
+    !desktopBody ||
+    Math.abs(workSurface.width - desktopBody.width) > 0.05
+  ) {
+    throw new Error(
+      `Work surface does not use the full editor width: ${JSON.stringify({ workSurface, desktopBody })}`,
+    );
+  }
+  const after = await page.locator(".label-canvas").boundingBox();
+  if (
+    !before ||
+    !after ||
+    ["x", "y", "width", "height"].some(
+      (key) => Math.abs(before[key] - after[key]) > 0.05,
+    )
+  ) {
+    throw new Error(
+      `Canvas moved with the inspector: ${JSON.stringify({ before, after })}`,
+    );
+  }
+  await page.locator(".canvas-element-control").first().click();
+});
 await capture(1440, 960, "labelmaker-dark-1440x960.png", async (page) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await page.evaluate(() => {
@@ -141,10 +209,14 @@ await capture(1440, 960, "labelmaker-dark-1440x960.png", async (page) => {
     const shell = document.querySelector(".app-shell");
     const label = document.querySelector(".label-canvas");
     const thumbnail = document.querySelector(".mini-label");
+    const labelText = document.querySelector(
+      ".canvas-text .canvas-element-control",
+    );
     if (
       !(shell instanceof HTMLElement) ||
       !(label instanceof HTMLElement) ||
-      !(thumbnail instanceof HTMLElement)
+      !(thumbnail instanceof HTMLElement) ||
+      !(labelText instanceof HTMLElement)
     ) {
       throw new Error("Dark theme targets are missing");
     }
@@ -155,6 +227,14 @@ await capture(1440, 960, "labelmaker-dark-1440x960.png", async (page) => {
       if (getComputedStyle(paper).backgroundColor !== "rgb(255, 254, 250)") {
         throw new Error("Label paper did not stay white in the dark theme");
       }
+    }
+    if (
+      labelText.textContent?.trim() !== "RESISTORS" ||
+      getComputedStyle(labelText).color !== "rgb(36, 34, 30)"
+    ) {
+      throw new Error(
+        `Label text lost print colors in the dark theme: ${labelText.textContent} / ${getComputedStyle(labelText).color}`,
+      );
     }
   });
 });
@@ -332,7 +412,9 @@ await capture(1440, 960, "labelmaker-trim-grow-1440x960.png", async (page) => {
     const input = document.querySelector('[aria-label="Plate width"]');
     return input instanceof HTMLInputElement && Number(input.value) > 62;
   });
-  await page.getByRole("button", { name: "Clear selection" }).click();
+  await page
+    .locator(".canvas-clear-selection")
+    .evaluate((button) => button.click());
 });
 await capture(1440, 960, "labelmaker-image-1440x960.png", async (page) => {
   await page.getByLabel("Choose image").setInputFiles({

@@ -46,6 +46,5 @@ The generated Vite bundle is ignored by Git. Do not commit
   to the background.
 - HTML file input uses the iPad system picker for PNG, JPEG, GIF, WebP, and BMP
   image import.
-- The mock printer remains available without Bluetooth hardware.
 - MakeID discovery and GATT input/output use CoreBluetooth. Raster creation and
   MakeID packet encoding remain in the shared TypeScript packages.

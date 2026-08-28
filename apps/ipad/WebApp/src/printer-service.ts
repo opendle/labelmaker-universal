@@ -1,8 +1,4 @@
 import { MakeIdE1Adapter } from "@labelmaker/adapter-makeid";
-import {
-  MockPrinterAdapter,
-  mockPrinterFixtures,
-} from "@labelmaker/adapter-mock";
 import { validateLabelDocument } from "@labelmaker/documents";
 import type { LabelPlate } from "@labelmaker/domain";
 import {
@@ -26,9 +22,7 @@ import {
 } from "./printer-settings.js";
 
 const CONFIGURATION_KEY = "labelmaker.ipados.printers.v1";
-const MOCK_PRINTER_ID = "mock-studio";
 const registry = new PrinterAdapterRegistry();
-registry.register(new MockPrinterAdapter());
 registry.register(new MakeIdE1Adapter(new IpadMakeIdTransportProvider()));
 
 const context: AdapterContext = {
@@ -54,7 +48,7 @@ export class IpadPrinterService {
   async listPrinters(): Promise<readonly PrinterSummary[]> {
     return Promise.all(
       this.configuredDescriptors().map((descriptor) =>
-        this.summarize(descriptor, descriptor.adapterId === "mock"),
+        this.summarize(descriptor),
       ),
     );
   }
@@ -70,6 +64,12 @@ export class IpadPrinterService {
           ),
         ),
     );
+    if (results.every((result) => result.status === "rejected")) {
+      const failure = results.find((result) => result.status === "rejected");
+      throw failure?.reason instanceof Error
+        ? failure.reason
+        : new Error("Printer discovery failed.");
+    }
     const descriptors = results.flatMap((result) =>
       result.status === "fulfilled" ? result.value : [],
     );
@@ -77,9 +77,7 @@ export class IpadPrinterService {
     for (const descriptor of descriptors)
       this.#discovered.set(descriptor.id, descriptor);
     return Promise.all(
-      descriptors.map((descriptor) =>
-        this.summarize(descriptor, descriptor.adapterId === "mock"),
-      ),
+      descriptors.map((descriptor) => this.summarize(descriptor)),
     );
   }
 
@@ -105,7 +103,9 @@ export class IpadPrinterService {
   }
 
   async removePrinter(printerId: string): Promise<readonly PrinterSummary[]> {
-    if (printerId === MOCK_PRINTER_ID) return this.listPrinters();
+    if (!this.#configuration.printerIds.includes(printerId)) {
+      throw new Error("Printer is not configured.");
+    }
     await this.discardSession(printerId);
     const printerIds = this.#configuration.printerIds.filter(
       (id) => id !== printerId,
@@ -115,7 +115,7 @@ export class IpadPrinterService {
       printerIds,
       activePrinterId:
         this.#configuration.activePrinterId === printerId
-          ? (printerIds[0] ?? MOCK_PRINTER_ID)
+          ? (printerIds[0] ?? null)
           : this.#configuration.activePrinterId,
       settings,
     };
@@ -230,10 +230,6 @@ export class IpadPrinterService {
     return this.#configuration.printerIds.flatMap((printerId) => {
       const discovered = this.#discovered.get(printerId);
       if (discovered) return [discovered];
-      const mock = mockPrinterFixtures.find(
-        (printer) => printer.id === printerId,
-      );
-      if (mock) return [mock];
       if (!printerId.startsWith("makeid:ipad-ble-")) return [];
       const deviceId = printerId.slice("makeid:".length);
       return [
@@ -250,7 +246,6 @@ export class IpadPrinterService {
 
   private async summarize(
     descriptor: PrinterDescriptor,
-    probe: boolean,
   ): Promise<PrinterSummary> {
     const adapter = registry.get(descriptor.adapterId);
     const settings = this.#configuration.settings[descriptor.id] ?? {};
@@ -259,36 +254,13 @@ export class IpadPrinterService {
       adapterId: descriptor.adapterId,
       deviceName: descriptor.displayName,
       name: settings.displayName ?? descriptor.displayName,
-      model: descriptor.adapterId === "makeid" ? "E1" : "Virtual",
+      model: "E1",
       transport: descriptor.transport,
     };
-    if (probe) {
-      try {
-        const session = await this.session(descriptor);
-        const [status, capabilities] = await Promise.all([
-          session.status(),
-          session.capabilities(),
-        ]);
-        return {
-          ...base,
-          state: status.state,
-          statusMessage: status.message ?? status.state,
-          ...(status.batteryPercent === undefined
-            ? {}
-            : { batteryPercent: status.batteryPercent }),
-          ...capabilityFields(capabilities, settings),
-        };
-      } catch {
-        await this.discardSession(descriptor.id);
-      }
-    }
     return {
       ...base,
       state: "disconnected",
-      statusMessage:
-        descriptor.adapterId === "makeid"
-          ? "Connects on print"
-          : "Not reachable",
+      statusMessage: "Connects on print",
       ...capabilityFields(adapter.offlineCapabilities, settings),
     };
   }
@@ -386,8 +358,8 @@ async function rasterizeSvg(
 
 function loadConfiguration(): StoredConfiguration {
   const fallback: StoredConfiguration = {
-    printerIds: [MOCK_PRINTER_ID],
-    activePrinterId: MOCK_PRINTER_ID,
+    printerIds: [],
+    activePrinterId: null,
     settings: {},
   };
   try {
@@ -395,22 +367,19 @@ function loadConfiguration(): StoredConfiguration {
       localStorage.getItem(CONFIGURATION_KEY) ?? "null",
     );
     if (!isRecord(value) || !Array.isArray(value.printerIds)) return fallback;
-    const printerIds = [
-      MOCK_PRINTER_ID,
-      ...value.printerIds.filter(
-        (item): item is string =>
-          typeof item === "string" &&
-          item.startsWith("makeid:ipad-ble-") &&
-          item.length <= 300,
-      ),
-    ];
+    const printerIds = value.printerIds.filter(
+      (item): item is string =>
+        typeof item === "string" &&
+        item.startsWith("makeid:ipad-ble-") &&
+        item.length <= 300,
+    );
     return {
       printerIds: [...new Set(printerIds)],
       activePrinterId:
         typeof value.activePrinterId === "string" &&
         printerIds.includes(value.activePrinterId)
           ? value.activePrinterId
-          : MOCK_PRINTER_ID,
+          : null,
       settings: readStoredPrinterSettings(value.settings, printerIds),
     };
   } catch {

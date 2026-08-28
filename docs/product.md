@@ -38,7 +38,8 @@ must hide printer protocol details behind adapters.
 
 ## First-release scope
 
-- Printer list, selection, mock discovery, and add-printer flow.
+- Printer list, selection, physical printer discovery, and add-printer flow.
+- Start with no configured printer. Keep mock printers in test fixtures only.
 - Restore the last selected printer on the next launch.
 - Restore the complete last editor session on launch, including unsaved work.
   Invalid recovery data must not stop the application from starting.

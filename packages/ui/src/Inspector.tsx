@@ -17,7 +17,6 @@ import {
   RotateCcw,
   SendToBack,
   Trash2,
-  X,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -235,9 +234,11 @@ function TextInspector({
         <span>TYPEFACE</span>
         <select
           aria-label="Typeface"
+          className="typeface-select"
           onChange={(event) =>
             onChange({ ...element, fontFamily: event.target.value })
           }
+          style={{ fontFamily: element.fontFamily }}
           value={element.fontFamily}
         >
           {TYPEFACES.map((typeface) => (
@@ -602,7 +603,6 @@ export function Inspector({
   selectedImage,
   selectedShape,
   hasMultipleElements,
-  onClearSelection,
   onDeleteSelection,
   onUpdateText,
   onUpdateImage,
@@ -613,7 +613,6 @@ export function Inspector({
   readonly selectedImage: ImageElement | undefined;
   readonly selectedShape: ShapeElement | undefined;
   readonly hasMultipleElements: boolean;
-  readonly onClearSelection: () => void;
   readonly onDeleteSelection: () => void;
   readonly onUpdateText: (element: TextElement) => void;
   readonly onUpdateImage: (element: ImageElement) => void;
@@ -622,7 +621,10 @@ export function Inspector({
 }) {
   const selectedElement = selectedText ?? selectedImage ?? selectedShape;
   return (
-    <aside className="inspector">
+    <aside
+      aria-hidden={selectedElement ? undefined : true}
+      className={`inspector${selectedElement ? "" : " is-hidden"}`}
+    >
       {selectedElement && (
         <div className="inspector-header">
           <span>
@@ -634,9 +636,6 @@ export function Inspector({
               onClick={onDeleteSelection}
             >
               <Trash2 size={15} />
-            </IconButton>
-            <IconButton label="Clear selection" onClick={onClearSelection}>
-              <X size={15} />
             </IconButton>
           </div>
         </div>
@@ -662,9 +661,7 @@ export function Inspector({
           onChange={onUpdateShape}
           onMoveLayer={onMoveLayer}
         />
-      ) : (
-        <div className="empty-inspector">Select an element to change it.</div>
-      )}
+      ) : null}
     </aside>
   );
 }

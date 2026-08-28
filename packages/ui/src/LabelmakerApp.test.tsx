@@ -26,6 +26,7 @@ vi.mock("./browser-raster.js", () => ({
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function createHost(overrides: Partial<LabelmakerHost> = {}): LabelmakerHost {
@@ -101,6 +102,12 @@ function createHost(overrides: Partial<LabelmakerHost> = {}): LabelmakerHost {
     updatePrinterSettings: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
+}
+
+function expectLabelCount(count: number): void {
+  expect(
+    screen.getAllByRole("button", { name: /^Select label / }),
+  ).toHaveLength(count);
 }
 
 async function openAddPrinterDialog(user: ReturnType<typeof userEvent.setup>) {
@@ -196,11 +203,11 @@ describe("LabelmakerApp", () => {
     render(<LabelmakerApp host={createHost()} />);
 
     expect(await screen.findByText("Studio Labeler")).toBeInTheDocument();
-    expect(screen.getByText("3 labels")).toBeInTheDocument();
+    expectLabelCount(3);
 
     await user.click(screen.getByRole("button", { name: "Add label" }));
 
-    expect(screen.getByText("4 labels")).toBeInTheDocument();
+    expectLabelCount(4);
     expect(screen.getByLabelText("Plate name")).toHaveValue("Plate 4");
     expect(screen.getByText("Plate 4")).toBeInTheDocument();
     expect(screen.getByText("Edited")).toBeInTheDocument();
@@ -244,7 +251,7 @@ describe("LabelmakerApp", () => {
     await user.click(
       screen.getByRole("button", { name: "Delete label Resistors" }),
     );
-    expect(screen.getByText("2 labels")).toBeInTheDocument();
+    expectLabelCount(2);
     expect(
       screen.queryByRole("button", { name: "Select label 1: Resistors" }),
     ).not.toBeInTheDocument();
@@ -254,7 +261,7 @@ describe("LabelmakerApp", () => {
     await user.click(
       screen.getByRole("button", { name: "Delete label Capacitors" }),
     );
-    expect(screen.getByText("1 label")).toBeInTheDocument();
+    expectLabelCount(1);
     expect(
       screen.getByRole("button", { name: "Delete label Connectors" }),
     ).toBeDisabled();
@@ -507,6 +514,107 @@ describe("LabelmakerApp", () => {
       screen.getByRole("button", { name: "Remove First printer" }),
     );
     await waitFor(() => expect(removePrinter).toHaveBeenCalledWith(first.id));
+  });
+
+  it("does not report success when a host keeps the removed printer", async () => {
+    const printer = {
+      id: "makeid:first",
+      adapterId: "makeid",
+      name: "First printer",
+      model: "MakeID E1",
+      transport: "bluetooth-classic" as const,
+      state: "ready" as const,
+      statusMessage: "Ready",
+    };
+    const user = userEvent.setup();
+    render(
+      <LabelmakerApp
+        host={createHost({
+          listPrinters: vi.fn().mockResolvedValue([printer]),
+          removePrinter: vi.fn().mockResolvedValue([printer]),
+        })}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Selected printer: First printer",
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Remove First printer" }),
+    );
+
+    expect(
+      await screen.findByText("The printer could not be removed."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Printer removed")).not.toBeInTheDocument();
+  });
+
+  it("does not restore a removed printer from an older refresh", async () => {
+    const printer = {
+      id: "makeid:first",
+      adapterId: "makeid",
+      name: "First printer",
+      model: "MakeID E1",
+      transport: "bluetooth-classic" as const,
+      state: "ready" as const,
+      statusMessage: "Ready",
+    };
+    let finishStaleRefresh!: (printers: readonly [typeof printer]) => void;
+    let runInterval!: () => void;
+    const listPrinters = vi
+      .fn()
+      .mockResolvedValueOnce([printer])
+      .mockImplementationOnce(
+        () =>
+          new Promise<readonly [typeof printer]>((resolve) => {
+            finishStaleRefresh = resolve;
+          }),
+      );
+    const nativeSetInterval = globalThis.setInterval;
+    vi.spyOn(globalThis, "setInterval").mockImplementation(
+      (handler, timeout, ...arguments_) => {
+        if (timeout === 5000) {
+          runInterval = handler as () => void;
+          return 1;
+        }
+        return nativeSetInterval(handler, timeout, ...arguments_);
+      },
+    );
+    const user = userEvent.setup();
+    render(
+      <LabelmakerApp
+        host={createHost({
+          listPrinters,
+          removePrinter: vi.fn().mockResolvedValue([]),
+        })}
+      />,
+    );
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Selected printer: First printer",
+      }),
+    );
+    runInterval();
+    await waitFor(() => expect(listPrinters).toHaveBeenCalledTimes(2));
+    await user.click(
+      screen.getByRole("button", { name: "Remove First printer" }),
+    );
+    expect(await screen.findByText("Printer removed")).toBeInTheDocument();
+
+    finishStaleRefresh([printer]);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Add printer" }),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByRole("button", {
+        name: "Selected printer: First printer",
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("edits print-head geometry independently from the current label", async () => {
@@ -1077,7 +1185,7 @@ describe("LabelmakerApp", () => {
     expect(flag).toHaveAttribute("aria-pressed", "true");
     expect(flag).toHaveClass("active");
 
-    expect(screen.getByText("3 labels")).toBeInTheDocument();
+    expectLabelCount(3);
     expect(screen.getByLabelText("Plate name")).toHaveValue("Flag Resistors");
     expect(screen.getByLabelText("Plate width")).toHaveValue(62);
     expect(
@@ -1217,11 +1325,11 @@ describe("LabelmakerApp", () => {
     render(<LabelmakerApp host={createHost()} />);
 
     await user.click(screen.getByRole("button", { name: "Add label" }));
-    expect(screen.getByText("4 labels")).toBeInTheDocument();
+    expectLabelCount(4);
     fireEvent.keyDown(window, { key: "z", ctrlKey: true });
-    expect(screen.getByText("3 labels")).toBeInTheDocument();
+    expectLabelCount(3);
     fireEvent.keyDown(window, { key: "z", ctrlKey: true, shiftKey: true });
-    expect(screen.getByText("4 labels")).toBeInTheDocument();
+    expectLabelCount(4);
     await user.click(
       screen.getByRole("button", { name: "Select label 4: Plate 4" }),
     );
@@ -1259,6 +1367,62 @@ describe("LabelmakerApp", () => {
     expect(
       screen.queryByRole("button", { name: "Text element: RESISTORS" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("hides an empty inspector without changing the editor structure", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<LabelmakerApp host={createHost()} />);
+    const inspector = container.querySelector<HTMLElement>(".inspector")!;
+
+    expect(inspector).not.toHaveClass("is-hidden");
+    await user.click(
+      screen.getByRole("button", { name: "Clear element selection" }),
+    );
+    expect(inspector).toHaveClass("is-hidden");
+    expect(inspector).toHaveAttribute("aria-hidden", "true");
+    expect(
+      screen.queryByText("Select an element to change it."),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Delete selected element" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Text element: RESISTORS" }),
+    );
+    expect(inspector).not.toHaveClass("is-hidden");
+    expect(
+      screen.getByRole("button", { name: "Delete selected element" }),
+    ).toBeInTheDocument();
+  });
+
+  it("detects the software keyboard from viewport size, not field focus", async () => {
+    const viewport = new EventTarget() as EventTarget & {
+      height: number;
+      offsetTop: number;
+    };
+    viewport.height = 820;
+    viewport.offsetTop = 0;
+    vi.stubGlobal("innerHeight", 820);
+    vi.stubGlobal("visualViewport", viewport);
+    const user = userEvent.setup();
+    const { container } = render(
+      <LabelmakerApp host={createHost({ platform: "ipados" })} />,
+    );
+    const shell = container.querySelector<HTMLElement>(".app-shell")!;
+
+    await user.click(screen.getByLabelText("Plate name"));
+    expect(shell).not.toHaveAttribute("data-software-keyboard");
+    expect(
+      screen.getByRole("contentinfo", { name: "Labels" }),
+    ).toBeInTheDocument();
+
+    viewport.height = 500;
+    vi.stubGlobal("innerHeight", 500);
+    viewport.dispatchEvent(new Event("resize"));
+    await waitFor(() =>
+      expect(shell).toHaveAttribute("data-software-keyboard", "open"),
+    );
   });
 
   it("edits selected text from a touch tap", () => {
@@ -1325,7 +1489,9 @@ describe("LabelmakerApp", () => {
     const element = screen.getByRole("button", {
       name: "Text element: RESISTORS",
     });
-    await user.click(screen.getByRole("button", { name: "Clear selection" }));
+    await user.click(
+      screen.getByRole("button", { name: "Clear element selection" }),
+    );
     await user.click(element);
     expect(screen.getByLabelText("X position")).toHaveValue(4);
     await user.keyboard("{ArrowRight}");
@@ -1447,7 +1613,9 @@ describe("LabelmakerApp", () => {
       ),
     ).toBeGreaterThan(90);
 
-    await user.click(screen.getByRole("button", { name: "Clear selection" }));
+    await user.click(
+      screen.getByRole("button", { name: "Clear element selection" }),
+    );
     let element = screen.getByRole("button", {
       name: "Text element: RESISTORS",
     });
@@ -1521,7 +1689,11 @@ describe("LabelmakerApp", () => {
       await screen.findByText("Printer search failed. Try again."),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Search again" })).toBeEnabled();
-    expect(screen.getByText("0 printers found")).toBeInTheDocument();
+    expect(screen.getByText("Printer search failed")).toBeInTheDocument();
+    expect(
+      screen.getByText("Check Bluetooth access, then search again."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/^Bluetooth is on/)).not.toBeInTheDocument();
   });
 
   it("reports canceled and failed workspace operations", async () => {

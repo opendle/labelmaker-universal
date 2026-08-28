@@ -15,7 +15,9 @@ and excessive decoration.
 - **Editor toolbar:** element actions on the left and always-visible plate name,
   width, height, margins, and trim controls on the right. It spans the center
   and inspector columns.
-- **Right inspector:** selected-element properties only. Plate settings do not
+- **Right inspector:** selected-element properties only. Remove it from the
+  layout when no element is selected. Overlay it on the canvas when shown so
+  that the canvas keeps its full size and does not move. Plate settings do not
   need a separate inspector mode or button.
 - **Bottom plate strip:** a compact row of ordered plate thumbnails, delete
   actions, and one large `+` plate. Use one physical scale for all thumbnails
@@ -39,7 +41,8 @@ appearances so that they show the physical label and printed result accurately.
   state, active label, selected element, zoom, last save time, and saved `.lbl`
   file association. Store recovery state outside the `.lbl` file. If recovery
   data is missing or invalid, start with the default workspace.
-- Open an add-printer dialog with mock discovery results.
+- Open an add-printer dialog with physical discovery results. Do not show mock
+  or virtual printers in the user interface.
 - While a printer is added, show progress and disable conflicting dialog
   actions. Close the dialog after success and keep it open after failure.
 - Do not show controls that have no action.
@@ -144,8 +147,8 @@ host sets the platform to `ipados`. This value adds an iPad style layer. It does
 not add a separate editor.
 
 - Respect the safe area on each edge of the screen.
-- Use a right inspector in landscape. Put the inspector below the canvas when
-  the available width is 850 CSS pixels or less.
+- Use a right inspector in landscape. At 850 CSS pixels or less, overlay the
+  inspector on the lower edge instead of moving or resizing the canvas.
 - Keep each main touch target at least 44 CSS pixels wide and high.
 - Keep resize and rotation marks small. Give each mark an invisible 44 CSS
   pixel touch area.
@@ -156,10 +159,11 @@ not add a separate editor.
 - Show a Delete action when an element is selected. Do not require a hardware
   keyboard to delete an element.
 - Keep all keyboard shortcuts when the iPad has a hardware keyboard.
-- Use the visual viewport height when the on-screen keyboard is open. Hide the
-  plate strip while a text or number field has focus. In a narrow layout, also
-  hide the header and inspector during direct text edit so that the label stays
-  visible.
+- Use the visual viewport height to detect the on-screen keyboard. Hide the
+  plate strip only while that keyboard reduces the available viewport. Focus
+  from a physical keyboard must not hide the strip. In a narrow layout, also
+  hide the header and inspector during direct text edit with the on-screen
+  keyboard so that the label stays visible.
 - Support portrait, landscape, Split View, and Stage Manager sizes. Controls
   that do not fit in the editor toolbar can scroll in the horizontal direction.
 

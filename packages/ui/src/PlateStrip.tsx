@@ -27,14 +27,7 @@ export function PlateStrip({
   readonly marginBottomMm: number | undefined;
 }) {
   return (
-    <footer className="plate-strip">
-      <div className="strip-heading">
-        <span>LABELS</span>
-        <small>
-          {workspace.plates.length}{" "}
-          {workspace.plates.length === 1 ? "label" : "labels"}
-        </small>
-      </div>
+    <footer aria-label="Labels" className="plate-strip">
       <div className="plate-thumbnails">
         {workspace.plates.map((plate, index) => {
           return (

@@ -1,4 +1,4 @@
-import { Bluetooth, Check, Printer, X } from "lucide-react";
+import { Bluetooth, Check, CircleAlert, Printer, X } from "lucide-react";
 import { useState } from "react";
 
 import { IconButton } from "./controls.js";
@@ -8,6 +8,7 @@ import { Modal } from "./Modal.js";
 export function AddPrinterDialog({
   open,
   discovering,
+  discoveryFailed,
   discovered,
   onClose,
   onSearch,
@@ -15,6 +16,7 @@ export function AddPrinterDialog({
 }: {
   readonly open: boolean;
   readonly discovering: boolean;
+  readonly discoveryFailed: boolean;
   readonly discovered: readonly PrinterSummary[];
   readonly onClose: () => void;
   readonly onSearch: () => void;
@@ -58,12 +60,32 @@ export function AddPrinterDialog({
           <strong>
             {discovering
               ? "Looking for printers…"
-              : `${discovered.length} ${discovered.length === 1 ? "printer" : "printers"} found`}
+              : discoveryFailed
+                ? "Printer search failed"
+                : `${discovered.length} ${discovered.length === 1 ? "printer" : "printers"} found`}
           </strong>
-          <span>Bluetooth is on. Keep your printer nearby.</span>
+          <span>
+            {discoveryFailed
+              ? "Check Bluetooth access, then search again."
+              : "Bluetooth is on. Keep your printer nearby."}
+          </span>
         </div>
-        <span className={discovering ? "spinner" : "discovery-check"}>
-          {discovering ? "" : <Check size={16} />}
+        <span
+          className={
+            discovering
+              ? "spinner"
+              : discoveryFailed
+                ? "discovery-error"
+                : "discovery-check"
+          }
+        >
+          {discovering ? (
+            ""
+          ) : discoveryFailed ? (
+            <CircleAlert size={16} />
+          ) : (
+            <Check size={16} />
+          )}
         </span>
       </div>
       <div className="discovery-list">

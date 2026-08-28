@@ -43,6 +43,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
   const [isPrinting, setIsPrinting] = useState(false);
   const printInProgress = useRef(false);
+  const printerMutationGeneration = useRef(0);
   const activePlate = useMemo(
     () =>
       state.workspace.plates.find((plate) => plate.id === state.activePlateId),
@@ -123,10 +124,11 @@ export function useLabelmakerController(host: LabelmakerHost) {
     const refresh = (showError: boolean, preferredId?: string | null) => {
       if (refreshPending) return;
       refreshPending = true;
+      const generation = printerMutationGeneration.current;
       void host
         .listPrinters()
         .then((printers) => {
-          if (active)
+          if (active && generation === printerMutationGeneration.current)
             dispatch({
               type: "set-printers",
               printers,
@@ -181,6 +183,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
   const updatePrinterSettings = useCallback(
     async (printerId: string, settings: PrinterSettings) => {
       if (!host.updatePrinterSettings) return false;
+      printerMutationGeneration.current += 1;
       try {
         const printers = await host.updatePrinterSettings(printerId, settings);
         dispatch({
@@ -366,6 +369,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
 
   const addPrinter = useCallback(
     async (printerId: string): Promise<boolean> => {
+      printerMutationGeneration.current += 1;
       try {
         const printers = await host.addPrinter(printerId);
         dispatch({ type: "set-printers", printers, preferredId: printerId });
@@ -404,8 +408,12 @@ export function useLabelmakerController(host: LabelmakerHost) {
         });
         return;
       }
+      printerMutationGeneration.current += 1;
       try {
         const printers = await host.removePrinter(printerId);
+        if (printers.some((printer) => printer.id === printerId)) {
+          throw new Error("The printer is still configured.");
+        }
         const preferredId =
           state.activePrinterId === printerId
             ? printers[0]?.id

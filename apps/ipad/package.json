@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@labelmaker/adapter-makeid": "0.0.0",
-    "@labelmaker/adapter-mock": "0.0.0",
     "@labelmaker/documents": "0.0.0",
     "@labelmaker/domain": "0.0.0",
     "@labelmaker/printing": "0.0.0",

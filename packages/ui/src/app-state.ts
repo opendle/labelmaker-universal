@@ -26,6 +26,7 @@ export interface AppState {
   readonly workspaceFileName: string | null;
   readonly addPrinterOpen: boolean;
   readonly discovering: boolean;
+  readonly discoveryFailed: boolean;
   readonly discovered: readonly PrinterSummary[];
   readonly previewOpen: boolean;
   readonly printerSettingsId: string | null;
@@ -101,6 +102,7 @@ export const initialAppState: AppState = {
   workspaceFileName: null,
   addPrinterOpen: false,
   discovering: false,
+  discoveryFailed: false,
   discovered: [],
   previewOpen: false,
   printerSettingsId: null,
@@ -205,18 +207,34 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "open-add-printer":
       return { ...state, addPrinterOpen: true };
     case "close-add-printer":
-      return { ...state, addPrinterOpen: false, discovering: false };
+      return {
+        ...state,
+        addPrinterOpen: false,
+        discovering: false,
+        discoveryFailed: false,
+      };
     case "discovery-started":
       return {
         ...state,
         addPrinterOpen: true,
         discovering: true,
+        discoveryFailed: false,
         discovered: [],
       };
     case "discovery-finished":
-      return { ...state, discovering: false, discovered: action.printers };
+      return {
+        ...state,
+        discovering: false,
+        discoveryFailed: false,
+        discovered: action.printers,
+      };
     case "discovery-failed":
-      return { ...state, discovering: false, discovered: [] };
+      return {
+        ...state,
+        discovering: false,
+        discoveryFailed: true,
+        discovered: [],
+      };
     case "open-preview":
       return { ...state, previewOpen: true, printMenuOpen: false };
     case "close-preview":

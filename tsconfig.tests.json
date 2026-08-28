@@ -4,6 +4,7 @@
     "composite": false,
     "declaration": false,
     "declarationMap": false,
+    "jsx": "react-jsx",
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "noEmit": true,
@@ -11,6 +12,7 @@
   },
   "include": [
     "packages/**/*.test.ts",
+    "packages/**/*.d.ts",
     "apps/**/*.test.ts",
     "apps/**/*.test.tsx"
   ],
