@@ -7,7 +7,13 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type CSSProperties,
+} from "react";
 
 import { CanvasElementView } from "./CanvasElementView.js";
 import { CanvasGrid, CanvasRulers } from "./CanvasGuides.js";
@@ -21,6 +27,8 @@ import {
   type PrintableMargins,
 } from "./label-layout.js";
 import { useCanvasInteractions } from "./useCanvasInteractions.js";
+
+type WorkSurfaceStyle = CSSProperties & Record<`--${string}`, string | number>;
 
 function CanvasZoomControl({
   zoom,
@@ -218,6 +226,7 @@ export function EditorCanvas({
     onChangeElement,
     onSelectElement,
     plate,
+    printableMargins,
     selectedElementId,
   });
 
@@ -241,6 +250,13 @@ export function EditorCanvas({
       />
       <div
         className="work-surface"
+        style={
+          {
+            "--dot-grid-size": `${canvasScale}px`,
+            "--dot-grid-x": `calc(50% - ${(plate.size.widthMm * canvasScale) / 2}px + ${pan.x}px)`,
+            "--dot-grid-y": `calc(50% - ${(plate.size.heightMm * canvasScale) / 2}px + ${pan.y}px)`,
+          } as WorkSurfaceStyle
+        }
         onPointerDown={(event) => {
           const target = event.target as HTMLElement;
           if (

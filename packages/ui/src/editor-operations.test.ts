@@ -146,7 +146,22 @@ describe("toggleFlagPlate", () => {
     const peer = moved.elements.find(
       (element) => element.id === "text--flag-peer",
     );
-    expect(peer?.xMm).toBe(94);
+    const movedSource = moved.elements.find(
+      (element) => element.id === "text",
+    )!;
+    expect(peer?.xMm).toBe(70);
+    expect((peer?.xMm ?? 0) - 82).toBe(
+      80 - (movedSource.xMm + movedSource.widthMm),
+    );
     expect(toggleFlagPlate(moved).elements[0]?.xMm).toBe(12);
+
+    const movedFromPeer = updateElementAndFlagPeer(moved, {
+      ...peer!,
+      xMm: 74,
+    });
+    expect(
+      movedFromPeer.elements.find((element) => element.id === "text")?.xMm,
+    ).toBe(8);
+    expect(toggleFlagPlate(movedFromPeer).elements[0]?.xMm).toBe(8);
   });
 });

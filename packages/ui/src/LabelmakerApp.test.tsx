@@ -389,6 +389,21 @@ describe("LabelmakerApp", () => {
 
     expect(horizontalGridLine?.style.top).toBe(verticalRulerMark?.style.top);
     expect(verticalGridLine?.style.left).toBe(horizontalRulerMark?.style.left);
+
+    const workSurface = stage.closest<HTMLElement>(".work-surface")!;
+    expect(workSurface.style.getPropertyValue("--dot-grid-size")).toBe("9px");
+    expect(workSurface.style.getPropertyValue("--dot-grid-x")).toBe(
+      "calc(50% - 279px + 0px)",
+    );
+    const fadingLine = Array.from(
+      stage.querySelectorAll<HTMLElement>(".canvas-grid .vertical"),
+    ).find((line) => line.style.left === "-45px");
+    expect(fadingLine?.style.opacity).toBe("0.5");
+    expect(
+      stage
+        .querySelector<HTMLElement>(".canvas-grid")
+        ?.style.getPropertyValue("--grid-fade-distance"),
+    ).toBe("90px");
   });
 
   it("puts Preview beside Print and offers twelve typefaces", async () => {
@@ -699,6 +714,45 @@ describe("LabelmakerApp", () => {
     );
   });
 
+  it("uses automatic or fixed line height and both text alignments", async () => {
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+
+    const automatic = screen.getByRole("checkbox", {
+      name: "Use automatic line height",
+    });
+    const lineHeight = screen.getByLabelText("Line height");
+    expect(automatic).toBeChecked();
+    expect(lineHeight).toBeDisabled();
+    expect(lineHeight).toHaveValue(18);
+
+    await user.click(automatic);
+    expect(lineHeight).toBeEnabled();
+    await user.clear(lineHeight);
+    await user.type(lineHeight, "24");
+    await user.click(screen.getByRole("button", { name: "Align right" }));
+    await user.click(screen.getByRole("button", { name: "Align top" }));
+
+    const frame = screen
+      .getByRole("button", { name: "Text element: RESISTORS" })
+      .closest<HTMLElement>(".canvas-element")!;
+    expect(
+      Number.parseFloat(frame.style.getPropertyValue("--element-line-height")),
+    ).toBeCloseTo(76.2, 5);
+    expect(frame.style.getPropertyValue("--element-align-items")).toBe(
+      "flex-start",
+    );
+    expect(frame.style.textAlign).toBe("right");
+
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+    const previewText = screen
+      .getByRole("dialog", { name: "Print preview" })
+      .querySelector<HTMLElement>(".label-artwork-text")!;
+    expect(previewText.style.textAlign).toBe("right");
+    expect(previewText.style.alignItems).toBe("flex-start");
+    expect(Number(previewText.style.lineHeight)).toBeCloseTo(4 / 3, 5);
+  });
+
   it("passes the dirty document to the new-workspace prompt", async () => {
     const newWorkspace = vi.fn().mockResolvedValue({ status: "canceled" });
     const user = userEvent.setup();
@@ -881,6 +935,17 @@ describe("LabelmakerApp", () => {
     );
     expect(screen.getByLabelText("X position")).toHaveValue(-9.5);
   });
+
+  it.each(["Plate width", "Plate height", "Left margin", "Right margin"])(
+    "trims the plate when Enter is pressed in %s",
+    (fieldName) => {
+      render(<LabelmakerApp host={createHost()} />);
+
+      fireEvent.keyDown(screen.getByLabelText(fieldName), { key: "Enter" });
+
+      expect(screen.getByLabelText("Plate width")).toHaveValue(31);
+    },
+  );
 
   it("keeps manual label widths in whole millimeters", () => {
     render(<LabelmakerApp host={createHost()} />);
@@ -1114,6 +1179,44 @@ describe("LabelmakerApp", () => {
     fireEvent(window, pointerEvent("pointerup", 31, 10));
     expect(screen.getByLabelText("X position")).toHaveValue(7.1);
     expect(screen.getByLabelText("Y position")).toHaveValue(4.1);
+  });
+
+  it("snaps a dragged element to printable left and top limits", async () => {
+    render(<LabelmakerApp host={createHost()} />);
+    await screen.findByText("Studio Labeler");
+    const element = screen.getByRole("button", {
+      name: "Text element: RESISTORS",
+    });
+    vi.spyOn(
+      screen.getByRole("region", { name: "Resistors label canvas" }),
+      "getBoundingClientRect",
+    ).mockReturnValue({
+      bottom: 180,
+      height: 180,
+      left: 0,
+      right: 620,
+      top: 0,
+      width: 620,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    const pointerEvent = (type: string, clientX: number, clientY: number) => {
+      const event = new Event(type, { bubbles: true });
+      Object.defineProperties(event, {
+        clientX: { value: clientX },
+        clientY: { value: clientY },
+        pointerId: { value: 1 },
+      });
+      return event;
+    };
+
+    fireEvent(element, pointerEvent("pointerdown", 0, 0));
+    fireEvent(window, pointerEvent("pointermove", -36, -9));
+    fireEvent(window, pointerEvent("pointerup", -36, -9));
+
+    expect(screen.getByLabelText("X position")).toHaveValue(0);
+    expect(screen.getByLabelText("Y position")).toHaveValue(2);
   });
 
   it("resizes text with handles and allows keyboard overflow", async () => {

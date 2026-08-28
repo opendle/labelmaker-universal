@@ -118,9 +118,16 @@ function renderElement(element: LabelElement): string {
             : element.xMm + element.widthMm / 2;
       const fontSizeMm = (element.fontSizePt * 25.4) / 72;
       const lines = element.text.split(/\r\n?|\n/);
-      const lineHeightMm = fontSizeMm * 1.2;
-      const centerY = element.yMm + element.heightMm / 2;
-      const firstLineY = centerY - ((lines.length - 1) * lineHeightMm) / 2;
+      const lineHeightMm =
+        ((element.lineHeightPt ?? element.fontSizePt) * 25.4) / 72;
+      const textHeightMm = lines.length * lineHeightMm;
+      const blockTopMm =
+        (element.verticalAlign ?? "middle") === "top"
+          ? element.yMm
+          : element.verticalAlign === "bottom"
+            ? element.yMm + element.heightMm - textHeightMm
+            : element.yMm + (element.heightMm - textHeightMm) / 2;
+      const firstLineY = blockTopMm + lineHeightMm / 2;
       const tspans = lines
         .map(
           (line, index) =>

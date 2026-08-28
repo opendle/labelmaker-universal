@@ -33,7 +33,11 @@ export interface TextElement extends LabelElementBase {
   readonly fontWeight: number;
   /** Omitted by older schema-version 1 files; an omitted value means normal. */
   readonly fontStyle?: "normal" | "italic";
+  /** Omitted for automatic line height equal to the font size. */
+  readonly lineHeightPt?: number;
   readonly align: "left" | "center" | "right";
+  /** Omitted by older schema-version 1 files; an omitted value means middle. */
+  readonly verticalAlign?: "top" | "middle" | "bottom";
 }
 
 export interface ImageElement extends LabelElementBase {

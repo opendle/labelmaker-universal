@@ -3,7 +3,7 @@ import { useCallback } from "react";
 
 import { AddPrinterDialog } from "./AppDialogs.js";
 import { AppHeader } from "./AppHeader.js";
-import { replaceElement, replacePlate } from "./app-state.js";
+import { replacePlate } from "./app-state.js";
 import { EditorCanvas } from "./EditorCanvas.js";
 import { trimPlate, updateElementAndFlagPeer } from "./editor-operations.js";
 import type { LabelmakerHost } from "./host.js";
@@ -120,11 +120,8 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             }
             onUpdateImage={(image) =>
               controller.editWorkspace(
-                replaceElement(
-                  state.workspace,
-                  activePlate.id,
-                  image.id,
-                  () => image,
+                replacePlate(state.workspace, activePlate.id, (plate) =>
+                  updateElementAndFlagPeer(plate, image),
                 ),
               )
             }

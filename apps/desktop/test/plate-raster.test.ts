@@ -66,6 +66,31 @@ describe("desktop plate rasterization", () => {
     );
   });
 
+  it("uses fixed line height and vertical alignment in printed text", () => {
+    const plate = createBlankLabelDocument(() => "id").plates[0];
+    if (!plate) throw new Error("Expected a plate");
+    const changed = {
+      ...plate,
+      elements: plate.elements.map((element) =>
+        element.kind === "text"
+          ? {
+              ...element,
+              align: "right" as const,
+              lineHeightPt: 10,
+              text: "FIRST\nSECOND",
+              verticalAlign: "top" as const,
+            }
+          : element,
+      ),
+    };
+
+    const svg = buildPlateSvg(changed, 320, 96);
+
+    expect(svg).toContain('<text text-anchor="end"');
+    expect(svg).toContain('<tspan x="36" y="5.763888888888889">FIRST');
+    expect(svg).toContain('<tspan x="36" y="9.291666666666668">SECOND');
+  });
+
   it("mirrors only the printed artwork when print mirroring is on", () => {
     const plate = createBlankLabelDocument(() => "id").plates[0];
     if (!plate) throw new Error("Expected a plate");

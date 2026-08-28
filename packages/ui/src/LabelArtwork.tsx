@@ -62,9 +62,19 @@ export function LabelArtwork({
                 ),
                 fontStyle: element.fontStyle ?? "normal",
                 fontWeight: element.fontWeight,
+                alignItems:
+                  (element.verticalAlign ?? "middle") === "top"
+                    ? "flex-start"
+                    : element.verticalAlign === "bottom"
+                      ? "flex-end"
+                      : "center",
+                lineHeight:
+                  (element.lineHeightPt ?? element.fontSizePt) /
+                  element.fontSizePt,
+                textAlign: element.align,
               }}
             >
-              {element.text}
+              <span className="label-artwork-text-content">{element.text}</span>
             </span>
           );
         }

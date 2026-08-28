@@ -135,6 +135,16 @@ function textElement(
   ) {
     fail(`${path}.fontStyle must be normal or italic`);
   }
+  const verticalAlign = value.verticalAlign;
+  if (
+    verticalAlign !== undefined &&
+    verticalAlign !== "top" &&
+    verticalAlign !== "middle" &&
+    verticalAlign !== "bottom"
+  ) {
+    fail(`${path}.verticalAlign must be top, middle, or bottom`);
+  }
+  const lineHeightPt = value.lineHeightPt;
   return {
     ...baseElement(value, path),
     kind: "text",
@@ -148,7 +158,18 @@ function textElement(
     fontSizePt: numberValue(value.fontSizePt, `${path}.fontSizePt`, 0.1, 1_000),
     fontWeight: integerValue(value.fontWeight, `${path}.fontWeight`, 1, 1_000),
     ...(fontStyle === undefined ? {} : { fontStyle }),
+    ...(lineHeightPt === undefined
+      ? {}
+      : {
+          lineHeightPt: numberValue(
+            lineHeightPt,
+            `${path}.lineHeightPt`,
+            0.1,
+            1_000,
+          ),
+        }),
     align,
+    ...(verticalAlign === undefined ? {} : { verticalAlign }),
   };
 }
 

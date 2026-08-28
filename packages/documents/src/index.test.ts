@@ -47,6 +47,35 @@ describe("workspace documents", () => {
     );
   });
 
+  it("preserves optional line height and vertical alignment", () => {
+    const changed = structuredClone(document) as unknown as {
+      plates: Array<{ elements: Array<Record<string, unknown>> }>;
+    };
+    changed.plates[0]!.elements[0]!.lineHeightPt = 18.5;
+    changed.plates[0]!.elements[0]!.verticalAlign = "bottom";
+
+    expect(
+      parseLabelDocument(serializeLabelDocument(changed as never)).plates[0]!
+        .elements[0],
+    ).toMatchObject({ lineHeightPt: 18.5, verticalAlign: "bottom" });
+  });
+
+  it("rejects invalid line height and vertical alignment values", () => {
+    const changed = structuredClone(document) as unknown as {
+      plates: Array<{ elements: Array<Record<string, unknown>> }>;
+    };
+    changed.plates[0]!.elements[0]!.lineHeightPt = 0;
+    expect(() => validateLabelDocument(changed)).toThrow(
+      "lineHeightPt must be between 0.1 and 1000",
+    );
+
+    changed.plates[0]!.elements[0]!.lineHeightPt = 12;
+    changed.plates[0]!.elements[0]!.verticalAlign = "baseline";
+    expect(() => validateLabelDocument(changed)).toThrow(
+      "verticalAlign must be top, middle, or bottom",
+    );
+  });
+
   it("preserves the optional print mirror setting", () => {
     const mirrored = {
       ...document,

@@ -52,8 +52,8 @@ appearances so that they show the physical label and printed result accurately.
 - Preserve text line breaks on the canvas and in printed output.
 - Scale text in the canvas, print preview, and plate strip from the same
   physical point size.
-- Use the same element frame, alignment, line-height, and font rules in the
-  canvas, print preview, and plate strip.
+- Use the same element frame, horizontal and vertical alignment, line-height,
+  and font rules in the canvas, print preview, plate strip, and printed raster.
 - Scale the canvas and its elements in one update when the user changes zoom.
 - Align every 5 mm background grid line to the center of its ruler tick.
 - Show capability-reported top and bottom non-printable areas on the canvas and
@@ -63,8 +63,12 @@ appearances so that they show the physical label and printed result accurately.
   print-head width.
 - Resize text elements from corner handles and rotate them from a separate
   rotation handle. Elements can extend outside the plate bounds.
+- Snap moved text and image frames to the left, horizontal center, right, top,
+  vertical middle, and bottom of the printable area. Snap a resized text frame
+  to the printable-area limits.
 - Apply a typeface, font size, light/regular/semi-bold/bold weight, italic
-  style, and alignment to selected text.
+  style, automatic or fixed line height, and horizontal and vertical alignment
+  to selected text.
 - Offer twelve useful system typefaces and use Avenir Next, with a Segoe UI
   fallback, for new text.
 - Change plate width and height.
@@ -79,6 +83,10 @@ appearances so that they show the physical label and printed result accurately.
   rounding remainder equally between the left and right sides. The text element
   frame must not add blank trim space.
 - Keep the plate width field in whole millimeters.
+- Run trim-to-content when the user presses Enter in the plate width, height,
+  left margin, or right margin field.
+- Align the work-surface dots to the label grid at 1 mm intervals. Fade the
+  5 mm grid in all directions over 10 mm outside the label.
 - Open printer settings from each configured printer. Keep the current label
   out of this dialog. Show resolution and raster width as fixed capabilities.
   Let the user set a display-only printer name and restore the device name.

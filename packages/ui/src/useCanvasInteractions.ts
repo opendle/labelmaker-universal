@@ -6,6 +6,9 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
+import { snapMovedElement, snapResizedFrame } from "./canvas-snapping.js";
+import type { PrintableMargins } from "./label-layout.js";
+
 type ResizeCorner = "nw" | "ne" | "sw" | "se";
 
 export function useCanvasInteractions({
@@ -14,12 +17,14 @@ export function useCanvasInteractions({
   editingElementId,
   onSelectElement,
   onChangeElement,
+  printableMargins,
 }: {
   readonly plate: LabelPlate;
   readonly selectedElementId: string | null;
   readonly editingElementId: string | null;
   readonly onSelectElement: (id: string | null) => void;
   readonly onChangeElement: (element: LabelElement) => void;
+  readonly printableMargins: PrintableMargins;
 }) {
   const editOnClickRef = useRef<string | null>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -45,19 +50,32 @@ export function useCanvasInteractions({
     const startY = event.clientY;
     const bounds = canvasBounds(event.currentTarget);
     if (!bounds) return;
+    const thresholds = {
+      xMm: (6 / bounds.width) * plate.size.widthMm,
+      yMm: (6 / bounds.height) * plate.size.heightMm,
+    };
     const onMove = (moveEvent: PointerEvent) => {
       if (moveEvent.clientX !== startX || moveEvent.clientY !== startY) {
         editOnClickRef.current = null;
       }
-      onChangeElement({
-        ...element,
-        xMm:
-          element.xMm +
-          ((moveEvent.clientX - startX) / bounds.width) * plate.size.widthMm,
-        yMm:
-          element.yMm +
-          ((moveEvent.clientY - startY) / bounds.height) * plate.size.heightMm,
-      });
+      onChangeElement(
+        snapMovedElement(
+          {
+            ...element,
+            xMm:
+              element.xMm +
+              ((moveEvent.clientX - startX) / bounds.width) *
+                plate.size.widthMm,
+            yMm:
+              element.yMm +
+              ((moveEvent.clientY - startY) / bounds.height) *
+                plate.size.heightMm,
+          },
+          plate.size,
+          printableMargins,
+          thresholds,
+        ),
+      );
     };
     const onUp = () => {
       globalThis.removeEventListener("pointermove", onMove);
@@ -78,6 +96,10 @@ export function useCanvasInteractions({
     const startY = event.clientY;
     const bounds = canvasBounds(event.currentTarget);
     if (!bounds) return;
+    const thresholds = {
+      xMm: (6 / bounds.width) * plate.size.widthMm,
+      yMm: (6 / bounds.height) * plate.size.heightMm,
+    };
     const onMove = (moveEvent: PointerEvent) => {
       const dx =
         ((moveEvent.clientX - startX) / bounds.width) * plate.size.widthMm;
@@ -87,13 +109,21 @@ export function useCanvasInteractions({
       const top = corner.includes("n");
       const widthMm = Math.max(0.5, element.widthMm + (left ? -dx : dx));
       const heightMm = Math.max(0.5, element.heightMm + (top ? -dy : dy));
-      onChangeElement({
-        ...element,
-        xMm: left ? element.xMm + element.widthMm - widthMm : element.xMm,
-        yMm: top ? element.yMm + element.heightMm - heightMm : element.yMm,
-        widthMm,
-        heightMm,
-      });
+      onChangeElement(
+        snapResizedFrame(
+          {
+            ...element,
+            xMm: left ? element.xMm + element.widthMm - widthMm : element.xMm,
+            yMm: top ? element.yMm + element.heightMm - heightMm : element.yMm,
+            widthMm,
+            heightMm,
+          },
+          plate.size,
+          printableMargins,
+          thresholds,
+          { left, top },
+        ),
+      );
     };
     const onUp = () => {
       globalThis.removeEventListener("pointermove", onMove);

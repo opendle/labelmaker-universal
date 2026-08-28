@@ -86,14 +86,22 @@ export function CanvasElementView({
       ? {
           "--element-font-family": element.fontFamily,
           "--element-font-size": `${pointsToMillimeters(element.fontSizePt) * canvasScale}px`,
+          "--element-line-height": `${pointsToMillimeters(element.lineHeightPt ?? element.fontSizePt) * canvasScale}px`,
           "--element-font-style": element.fontStyle ?? "normal",
           "--element-font-weight": element.fontWeight,
+          "--element-align-items":
+            (element.verticalAlign ?? "middle") === "top"
+              ? "flex-start"
+              : element.verticalAlign === "bottom"
+                ? "flex-end"
+                : "center",
           "--element-justify":
             element.align === "left"
               ? "flex-start"
               : element.align === "right"
                 ? "flex-end"
                 : "center",
+          textAlign: element.align,
         }
       : {};
   const editorLineCount =
@@ -120,6 +128,7 @@ export function CanvasElementView({
                 fontSize: `${pointsToMillimeters(element.fontSizePt) * canvasScale}px`,
                 fontStyle: element.fontStyle ?? "normal",
                 fontWeight: element.fontWeight,
+                lineHeight: `${pointsToMillimeters(element.lineHeightPt ?? element.fontSizePt) * canvasScale}px`,
                 textAlign: element.align,
               } as ElementStyle
             }

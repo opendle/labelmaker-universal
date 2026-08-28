@@ -95,12 +95,16 @@ export function plateEditorWidthMm(plate: LabelPlate): number {
     : plate.size.widthMm;
 }
 
-function shiftedElement(
+function mirroredFlagElement(
   element: LabelElement,
   id: string,
-  offsetX: number,
+  outputWidthMm: number,
 ): LabelElement {
-  return { ...element, id, xMm: element.xMm + offsetX };
+  return {
+    ...element,
+    id,
+    xMm: outputWidthMm - element.xMm - element.widthMm,
+  };
 }
 
 function flagGuide(plate: LabelPlate, halfWidthMm: number): LabelElement {
@@ -123,11 +127,15 @@ function buildFlagElements(
   sourceElements: readonly LabelElement[],
   halfWidthMm: number,
 ): readonly LabelElement[] {
-  const offsetX = halfWidthMm + FLAG_GAP_MM;
+  const outputWidthMm = halfWidthMm * 2 + FLAG_GAP_MM;
   return [
     ...sourceElements,
     ...sourceElements.map((element) =>
-      shiftedElement(element, `${element.id}${FLAG_PEER_SUFFIX}`, offsetX),
+      mirroredFlagElement(
+        element,
+        `${element.id}${FLAG_PEER_SUFFIX}`,
+        outputWidthMm,
+      ),
     ),
     flagGuide(plate, halfWidthMm),
   ];
@@ -192,20 +200,18 @@ export function updateElementAndFlagPeer(
     };
   }
   const halfWidthMm = plateEditorWidthMm(plate);
-  const offsetX = halfWidthMm + FLAG_GAP_MM;
+  const outputWidthMm = halfWidthMm * 2 + FLAG_GAP_MM;
   const updatedIsPeer = isFlagPeer(updated);
   const sourceId = updatedIsPeer
     ? updated.id.slice(0, -FLAG_PEER_SUFFIX.length)
     : updated.id;
-  const source = shiftedElement(
-    updated,
-    sourceId,
-    updatedIsPeer ? -offsetX : 0,
-  );
-  const peer = shiftedElement(
+  const source = updatedIsPeer
+    ? mirroredFlagElement(updated, sourceId, outputWidthMm)
+    : { ...updated, id: sourceId };
+  const peer = mirroredFlagElement(
     source,
     `${sourceId}${FLAG_PEER_SUFFIX}`,
-    offsetX,
+    outputWidthMm,
   );
   return {
     ...plate,
@@ -269,13 +275,15 @@ function textInkBounds(
 ): HorizontalBounds {
   const lines = element.text.split("\n");
   const measured = lines.map((line) => measure(element, line));
-  const lineHeightMm = (element.fontSizePt * 25.4) / 72;
-  const inkHeightMm = Math.max(
-    lineHeightMm,
-    lineHeightMm * (lines.length - 1) +
-      Math.max(...measured.map((line) => line.heightMm)),
-  );
-  const inkTop = element.yMm + (element.heightMm - inkHeightMm) / 2;
+  const lineHeightMm =
+    ((element.lineHeightPt ?? element.fontSizePt) * 25.4) / 72;
+  const blockHeightMm = lines.length * lineHeightMm;
+  const blockTopMm =
+    (element.verticalAlign ?? "middle") === "top"
+      ? element.yMm
+      : element.verticalAlign === "bottom"
+        ? element.yMm + element.heightMm - blockHeightMm
+        : element.yMm + (element.heightMm - blockHeightMm) / 2;
   const centerX = element.xMm + element.widthMm / 2;
   const centerY = element.yMm + element.heightMm / 2;
   const radians = (element.rotationDeg * Math.PI) / 180;
@@ -292,7 +300,8 @@ function textInkBounds(
           : element.xMm + (element.widthMm - line.advanceMm) / 2;
     const inkLeft = layoutStart - line.leftMm;
     const inkRight = layoutStart + line.rightMm;
-    const top = inkTop + index * lineHeightMm;
+    const top =
+      blockTopMm + index * lineHeightMm + (lineHeightMm - line.heightMm) / 2;
     const corners = [
       [inkLeft, top],
       [inkRight, top],

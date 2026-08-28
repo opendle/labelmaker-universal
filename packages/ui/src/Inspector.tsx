@@ -1,13 +1,17 @@
 import type { ImageElement, LabelPlate, TextElement } from "@labelmaker/domain";
 import {
   AlignCenter,
+  AlignEndVertical,
   AlignLeft,
   AlignRight,
+  AlignStartVertical,
+  AlignVerticalJustifyCenter,
   Crop,
   Italic,
   RotateCcw,
   X,
 } from "lucide-react";
+import { useState } from "react";
 
 import { IconButton } from "./controls.js";
 import {
@@ -24,6 +28,7 @@ function NumberField({
   min,
   icon,
   onChange,
+  step,
 }: {
   readonly label: string;
   readonly shortLabel: string;
@@ -32,6 +37,7 @@ function NumberField({
   readonly min?: number;
   readonly icon?: boolean;
   readonly onChange: (value: number) => void;
+  readonly step?: number;
 }) {
   return (
     <label className="field">
@@ -42,12 +48,78 @@ function NumberField({
           aria-label={label}
           min={min}
           onChange={(event) => onChange(Number(event.target.value))}
+          step={step}
           type="number"
           value={Math.round(value * 10) / 10}
         />
         <b>{unit}</b>
       </div>
     </label>
+  );
+}
+
+function LineHeightField({
+  element,
+  onChange,
+}: {
+  readonly element: TextElement;
+  readonly onChange: (element: TextElement) => void;
+}) {
+  const enabled = element.lineHeightPt !== undefined;
+  const [emptyDraft, setEmptyDraft] = useState(false);
+  return (
+    <div className="field line-height-field">
+      <span className="field-heading">
+        LINE HEIGHT
+        <label className="auto-setting">
+          <input
+            aria-label="Use automatic line height"
+            checked={!enabled}
+            onChange={(event) => {
+              setEmptyDraft(false);
+              if (event.target.checked) {
+                const { lineHeightPt: _lineHeightPt, ...automatic } = element;
+                onChange(automatic);
+              } else {
+                onChange({ ...element, lineHeightPt: element.fontSizePt });
+              }
+            }}
+            type="checkbox"
+          />
+          AUTO
+        </label>
+      </span>
+      <div className="unit-input">
+        <input
+          aria-label="Line height"
+          disabled={!enabled}
+          min={0.1}
+          onBlur={() => setEmptyDraft(false)}
+          onChange={(event) => {
+            if (event.target.value.trim() === "") {
+              setEmptyDraft(true);
+              return;
+            }
+            const lineHeightPt = Number(event.target.value);
+            if (!Number.isFinite(lineHeightPt)) return;
+            setEmptyDraft(false);
+            onChange({
+              ...element,
+              lineHeightPt: Math.max(0.1, lineHeightPt),
+            });
+          }}
+          step={0.1}
+          type="number"
+          value={
+            emptyDraft
+              ? ""
+              : Math.round((element.lineHeightPt ?? element.fontSizePt) * 10) /
+                10
+          }
+        />
+        <b>pt</b>
+      </div>
+    </div>
   );
 }
 
@@ -84,68 +156,102 @@ function TextInspector({
           value={element.fontSizePt}
           onChange={(fontSizePt) => onChange({ ...element, fontSizePt })}
         />
-        <div className="field">
-          <span>WEIGHT</span>
-          <div className="text-style-buttons" aria-label="Weight and style">
-            <span className="weight-group">
-              {[300, 400, 600, 700].map((fontWeight) => (
-                <button
-                  aria-label={
-                    fontWeight === 300
-                      ? "Light"
-                      : fontWeight === 400
-                        ? "Regular"
-                        : fontWeight === 600
-                          ? "Semi bold"
-                          : "Bold"
-                  }
-                  className={`weight-button weight-${fontWeight} ${element.fontWeight === fontWeight ? "active" : ""}`}
-                  key={fontWeight}
-                  onClick={() => onChange({ ...element, fontWeight })}
-                  style={{ fontWeight }}
-                  type="button"
-                >
-                  B
-                </button>
-              ))}
-            </span>
-            <button
-              aria-label="Italic"
-              aria-pressed={element.fontStyle === "italic"}
-              className={`italic-button ${element.fontStyle === "italic" ? "active" : ""}`}
-              onClick={() =>
-                onChange({
-                  ...element,
-                  fontStyle:
-                    element.fontStyle === "italic" ? "normal" : "italic",
-                })
-              }
-              type="button"
-            >
-              <Italic size={14} />
-            </button>
-          </div>
-        </div>
+        <LineHeightField element={element} onChange={onChange} />
       </div>
-      <div className="property-label">ALIGNMENT</div>
-      <div className="segmented">
-        {(["left", "center", "right"] as const).map((align) => (
+      <div className="field">
+        <span>WEIGHT &amp; STYLE</span>
+        <div className="text-style-buttons" aria-label="Weight and style">
+          <span className="weight-group">
+            {[300, 400, 600, 700].map((fontWeight) => (
+              <button
+                aria-label={
+                  fontWeight === 300
+                    ? "Light"
+                    : fontWeight === 400
+                      ? "Regular"
+                      : fontWeight === 600
+                        ? "Semi bold"
+                        : "Bold"
+                }
+                className={`weight-button weight-${fontWeight} ${element.fontWeight === fontWeight ? "active" : ""}`}
+                key={fontWeight}
+                onClick={() => onChange({ ...element, fontWeight })}
+                style={{ fontWeight }}
+                type="button"
+              >
+                B
+              </button>
+            ))}
+          </span>
           <button
-            aria-label={`Align ${align}`}
-            className={element.align === align ? "active" : ""}
-            key={align}
-            onClick={() => onChange({ ...element, align })}
+            aria-label="Italic"
+            aria-pressed={element.fontStyle === "italic"}
+            className={`italic-button ${element.fontStyle === "italic" ? "active" : ""}`}
+            onClick={() =>
+              onChange({
+                ...element,
+                fontStyle: element.fontStyle === "italic" ? "normal" : "italic",
+              })
+            }
             type="button"
           >
-            {align === "left" ? (
-              <AlignLeft size={16} />
-            ) : align === "center" ? (
-              <AlignCenter size={16} />
-            ) : (
-              <AlignRight size={16} />
-            )}
+            <Italic size={14} />
           </button>
-        ))}
+        </div>
+      </div>
+      <div className="alignment-row">
+        <div className="alignment-group">
+          <div className="property-label">HORIZONTAL</div>
+          <div className="segmented">
+            {(["left", "center", "right"] as const).map((align) => (
+              <button
+                aria-label={`Align ${align}`}
+                aria-pressed={element.align === align}
+                className={element.align === align ? "active" : ""}
+                key={align}
+                onClick={() => onChange({ ...element, align })}
+                type="button"
+              >
+                {align === "left" ? (
+                  <AlignLeft size={16} />
+                ) : align === "center" ? (
+                  <AlignCenter size={16} />
+                ) : (
+                  <AlignRight size={16} />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="alignment-group">
+          <div className="property-label">VERTICAL</div>
+          <div className="segmented">
+            {(["top", "middle", "bottom"] as const).map((verticalAlign) => (
+              <button
+                aria-label={`Align ${verticalAlign}`}
+                aria-pressed={
+                  (element.verticalAlign ?? "middle") === verticalAlign
+                }
+                className={
+                  (element.verticalAlign ?? "middle") === verticalAlign
+                    ? "active"
+                    : ""
+                }
+                key={verticalAlign}
+                onClick={() => onChange({ ...element, verticalAlign })}
+                type="button"
+              >
+                {verticalAlign === "top" ? (
+                  <AlignStartVertical size={16} />
+                ) : verticalAlign === "middle" ? (
+                  <AlignVerticalJustifyCenter size={16} />
+                ) : (
+                  <AlignEndVertical size={16} />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
       <div className="property-label">POSITION</div>
       <div className="field-row position-row">
@@ -161,15 +267,15 @@ function TextInspector({
           value={element.yMm}
           onChange={(yMm) => onChange({ ...element, yMm })}
         />
-        <NumberField
-          icon
-          label="Rotation"
-          shortLabel="ROTATION"
-          unit="°"
-          value={element.rotationDeg}
-          onChange={(rotationDeg) => onChange({ ...element, rotationDeg })}
-        />
       </div>
+      <NumberField
+        icon
+        label="Rotation"
+        shortLabel="ROTATION"
+        unit="°"
+        value={element.rotationDeg}
+        onChange={(rotationDeg) => onChange({ ...element, rotationDeg })}
+      />
     </div>
   );
 }
@@ -284,6 +390,11 @@ export function PlateToolbarSettings({
                 ),
               )
             }
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              onTrim();
+            }}
             step={1}
             type="number"
             value={plateEditorWidthMm(plate)}
@@ -330,6 +441,11 @@ export function PlateToolbarSettings({
                     },
                   });
                 }
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter") return;
+                event.preventDefault();
+                onTrim();
               }}
               type="number"
               value={Math.round((value as number) * 10) / 10}

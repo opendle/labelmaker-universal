@@ -624,8 +624,13 @@ textarea:focus-visible {
   justify-content: center;
   overflow: hidden;
   background-color: #e6e5df;
-  background-image: radial-gradient(#cac8c0 0.65px, transparent 0.65px);
-  background-size: 12px 12px;
+  background-image: radial-gradient(
+    circle at center,
+    #cac8c0 0.65px,
+    transparent 0.65px
+  );
+  background-position: var(--dot-grid-x) var(--dot-grid-y);
+  background-size: var(--dot-grid-size) var(--dot-grid-size);
   cursor: grab;
   touch-action: none;
 }
@@ -648,14 +653,28 @@ textarea:focus-visible {
   background: #8f8b82;
 }
 .canvas-grid .vertical {
-  top: -120px;
-  bottom: -120px;
+  top: calc(-1 * var(--grid-fade-distance));
+  bottom: calc(-1 * var(--grid-fade-distance));
   width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    #8f8b82 var(--grid-fade-distance),
+    #8f8b82 calc(100% - var(--grid-fade-distance)),
+    transparent
+  );
 }
 .canvas-grid .horizontal {
-  right: -120px;
-  left: -120px;
+  right: calc(-1 * var(--grid-fade-distance));
+  left: calc(-1 * var(--grid-fade-distance));
   height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    #8f8b82 var(--grid-fade-distance),
+    #8f8b82 calc(100% - var(--grid-fade-distance)),
+    transparent
+  );
 }
 .ruler-top {
   position: absolute;
@@ -802,7 +821,7 @@ textarea:focus-visible {
   height: 100%;
   padding: 0;
   display: flex;
-  align-items: center;
+  align-items: var(--element-align-items, center);
   justify-content: var(--element-justify, center);
   border: 0;
   background: transparent;
@@ -821,7 +840,7 @@ textarea:focus-visible {
   background: rgba(255, 246, 240, 0.18);
 }
 .canvas-text {
-  line-height: 1;
+  line-height: var(--element-line-height, 1em);
   white-space: pre-wrap;
 }
 .canvas-text-control {
@@ -833,8 +852,8 @@ textarea:focus-visible {
 }
 textarea.inline-text-editor {
   width: 100%;
-  height: calc(var(--editor-line-count) * 1em);
-  min-height: 1em;
+  height: calc(var(--editor-line-count) * var(--element-line-height, 1em));
+  min-height: var(--element-line-height, 1em);
   overflow: hidden;
 }
 textarea.inline-text-editor:focus-visible {
@@ -842,6 +861,7 @@ textarea.inline-text-editor:focus-visible {
 }
 .inline-text-editor {
   display: block;
+  width: 100%;
   max-width: 100%;
   min-height: 1em;
   padding: 0;
@@ -1039,7 +1059,42 @@ textarea.inline-text-editor:focus-visible {
   gap: 9px;
 }
 .position-row {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.alignment-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.alignment-group {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.field-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.auto-setting {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #88847b;
+  font-size: 7px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.auto-setting input {
+  width: 11px;
+  height: 11px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.line-height-field .unit-input:has(input:disabled) {
+  opacity: 0.55;
 }
 .text-style-buttons {
   height: 30px;
@@ -1440,6 +1495,10 @@ textarea.inline-text-editor:focus-visible {
   line-height: 1;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+.label-artwork-text-content {
+  display: block;
+  width: 100%;
 }
 .label-artwork-text.align-left {
   justify-content: flex-start;
@@ -2087,11 +2146,35 @@ textarea.inline-text-editor:focus-visible {
   .work-surface,
   .preview-surface {
     background-color: #191a1c;
-    background-image: radial-gradient(#3d3f43 0.65px, transparent 0.65px);
+    background-image: radial-gradient(
+      circle at center,
+      #3d3f43 0.65px,
+      transparent 0.65px
+    );
   }
 
   .canvas-grid span {
     background: #666970;
+  }
+
+  .canvas-grid .vertical {
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      #666970 var(--grid-fade-distance),
+      #666970 calc(100% - var(--grid-fade-distance)),
+      transparent
+    );
+  }
+
+  .canvas-grid .horizontal {
+    background: linear-gradient(
+      to right,
+      transparent,
+      #666970 var(--grid-fade-distance),
+      #666970 calc(100% - var(--grid-fade-distance)),
+      transparent
+    );
   }
 
   .ruler-top,

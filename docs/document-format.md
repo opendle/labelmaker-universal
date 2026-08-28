@@ -50,7 +50,9 @@ plates:
         fontSizePt: 12
         fontWeight: 600
         fontStyle: normal
+        lineHeightPt: 14
         align: center
+        verticalAlign: middle
 ```
 
 The gzip stream is the complete `.lbl` file. After decompression, it contains
@@ -70,3 +72,11 @@ result. An omitted value means `false`.
 
 `fontStyle` can be `normal` or `italic`. It is optional in schema version 1 for
 compatibility with older workspace files. An omitted value means `normal`.
+
+`lineHeightPt` is optional in schema version 1. It sets a fixed text line
+height in points. An omitted value uses the font size as the automatic line
+height.
+
+`verticalAlign` can be `top`, `middle`, or `bottom`. It is optional in schema
+version 1 for compatibility with older workspace files. An omitted value means
+`middle`.
