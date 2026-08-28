@@ -1,4 +1,4 @@
-# Desktop UI specification
+# Desktop and iPad UI specification
 
 ## Character
 
@@ -137,11 +137,40 @@ set of traffic-light controls in the application header.
 Cmd+Q must quit on the first command. Save recovery state before exit. Close
 printer sessions as best effort, but do not let a transport hold the app open.
 
+## iPad layout and touch input
+
+Use the same React editor and document behavior on desktop and iPad. The iPad
+host sets the platform to `ipados`. This value adds an iPad style layer. It does
+not add a separate editor.
+
+- Respect the safe area on each edge of the screen.
+- Use a right inspector in landscape. Put the inspector below the canvas when
+  the available width is 850 CSS pixels or less.
+- Keep each main touch target at least 44 CSS pixels wide and high.
+- Keep resize and rotation marks small. Give each mark an invisible 44 CSS
+  pixel touch area.
+- Let one finger move an element. Use two fingers to move the canvas and to
+  change the zoom.
+- A first tap selects an element. A second tap on selected text starts text
+  edit. Keep double-click and keyboard edit behavior for desktop input.
+- Show a Delete action when an element is selected. Do not require a hardware
+  keyboard to delete an element.
+- Keep all keyboard shortcuts when the iPad has a hardware keyboard.
+- Use the visual viewport height when the on-screen keyboard is open. Hide the
+  plate strip while a text or number field has focus. In a narrow layout, also
+  hide the header and inspector during direct text edit so that the label stays
+  visible.
+- Support portrait, landscape, Split View, and Stage Manager sizes. Controls
+  that do not fit in the editor toolbar can scroll in the horizontal direction.
+
 ## Visual test sizes
 
 - Primary desktop: 1440 × 960.
 - Compact desktop: 1100 × 760.
-- No mobile layout is required.
+- Primary iPad landscape: 1180 × 820 CSS pixels.
+- Compact iPad portrait: 768 × 1024 CSS pixels.
+- iPad Split View: 744 × 1024 CSS pixels.
+- A phone layout is not required.
 
 ## Accessibility
 

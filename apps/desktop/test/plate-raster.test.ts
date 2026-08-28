@@ -1,10 +1,6 @@
 import { createBlankLabelDocument } from "@labelmaker/documents";
+import { buildPlateSvg, renderPlateForPrinter } from "@labelmaker/rendering";
 import { describe, expect, it, vi } from "vitest";
-
-import {
-  buildPlateSvg,
-  renderPlateForPrinter,
-} from "../src/main/plate-raster.js";
 
 describe("desktop plate rasterization", () => {
   it("renders document text as escaped SVG", () => {

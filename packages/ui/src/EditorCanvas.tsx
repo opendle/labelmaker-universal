@@ -31,6 +31,7 @@ import {
   type PrintableMargins,
 } from "./label-layout.js";
 import { useCanvasInteractions } from "./useCanvasInteractions.js";
+import type { HostPlatform } from "./host.js";
 
 type WorkSurfaceStyle = CSSProperties & Record<`--${string}`, string | number>;
 
@@ -289,6 +290,7 @@ export function EditorCanvas({
   onZoom,
   printableMargins,
   printerDpi,
+  platform,
 }: {
   readonly plate: LabelPlate;
   readonly selectedElementId: string | null;
@@ -304,6 +306,7 @@ export function EditorCanvas({
   readonly onZoom: (zoom: number) => void;
   readonly printableMargins: PrintableMargins;
   readonly printerDpi: number | undefined;
+  readonly platform: HostPlatform;
 }) {
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   useCommitInlineEdit(editingElementId, setEditingElementId);
@@ -324,6 +327,7 @@ export function EditorCanvas({
     startPan,
     startResize,
     startRotate,
+    trackTouchPointer,
   } = useCanvasInteractions({
     editingElementId,
     onChangeElement,
@@ -331,6 +335,9 @@ export function EditorCanvas({
     plate,
     printableMargins,
     selectedElementId,
+    touchNavigation: platform === "ipados",
+    zoom,
+    onZoom,
   });
 
   useEffect(() => {
@@ -362,6 +369,7 @@ export function EditorCanvas({
           } as WorkSurfaceStyle
         }
         onPointerDown={(event) => {
+          const touchGestureStarted = trackTouchPointer(event);
           const target = event.target as HTMLElement;
           if (
             !target.closest(".canvas-element, .zoom-control, button") ||
@@ -369,7 +377,7 @@ export function EditorCanvas({
           ) {
             setEditingElementId(null);
             onSelectElement(null);
-            startPan(event);
+            if (!touchGestureStarted) startPan(event);
           }
         }}
         onWheel={(event) => {

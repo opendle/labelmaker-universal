@@ -10,7 +10,7 @@ import {
   rgbaToMonochrome,
   type MonochromeBitmap,
   type RgbaImage,
-} from "@labelmaker/rendering";
+} from "./bitmap.js";
 
 export interface PlateRasterTarget {
   readonly dpi: number;
@@ -146,7 +146,35 @@ function monochromeBmpDataUrl(bitmap: MonochromeBitmap): string {
       bytes[offset + 2] = value;
     }
   }
-  return `data:image/bmp;base64,${Buffer.from(bytes).toString("base64")}`;
+  return `data:image/bmp;base64,${encodeBase64(bytes)}`;
+}
+
+const BASE64_ALPHABET =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+function encodeBase64(bytes: Uint8Array): string {
+  const chunks: string[] = [];
+  const chunkSize = 12_288;
+  for (let chunkStart = 0; chunkStart < bytes.length; chunkStart += chunkSize) {
+    const chunkEnd = Math.min(bytes.length, chunkStart + chunkSize);
+    let encoded = "";
+    for (let index = chunkStart; index < chunkEnd; index += 3) {
+      const first = bytes[index] ?? 0;
+      const hasSecond = index + 1 < bytes.length;
+      const hasThird = index + 2 < bytes.length;
+      const second = bytes[index + 1] ?? 0;
+      const third = bytes[index + 2] ?? 0;
+      encoded +=
+        (BASE64_ALPHABET[first >> 2] ?? "") +
+        (BASE64_ALPHABET[((first & 0x03) << 4) | (second >> 4)] ?? "") +
+        (hasSecond
+          ? (BASE64_ALPHABET[((second & 0x0f) << 2) | (third >> 6)] ?? "")
+          : "=") +
+        (hasThird ? (BASE64_ALPHABET[third & 0x3f] ?? "") : "=");
+    }
+    chunks.push(encoded);
+  }
+  return chunks.join("");
 }
 
 export function buildPlateSvg(

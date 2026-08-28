@@ -1048,6 +1048,11 @@ textarea.inline-text-editor:focus-visible {
   font-size: 12px;
   font-weight: 650;
 }
+.inspector-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
 .empty-inspector {
   padding: 18px 15px;
   color: var(--muted);
@@ -2069,6 +2074,323 @@ textarea.inline-text-editor:focus-visible {
   }
   .toast {
     bottom: 116px;
+  }
+}
+
+/* iPadOS uses the same editor structure with touch-sized platform adjustments. */
+.platform-ipados {
+  width: 100%;
+  height: var(--visual-viewport-height, 100%);
+  min-width: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  transform: translateY(var(--visual-viewport-offset-top, 0));
+}
+
+.platform-ipados .application-content {
+  grid-template-rows:
+    calc(72px + env(safe-area-inset-top)) minmax(0, 1fr)
+    calc(112px + env(safe-area-inset-bottom));
+}
+
+.platform-ipados .titlebar {
+  -webkit-app-region: none;
+  min-width: 0;
+  padding: env(safe-area-inset-top) max(10px, env(safe-area-inset-right)) 0
+    max(10px, env(safe-area-inset-left));
+}
+
+.platform-ipados .window-drag-spacer,
+.platform-ipados .window-drag-spacer.macos {
+  flex-basis: 0;
+}
+
+.platform-ipados .header-action {
+  width: 48px;
+  height: 56px;
+  font-size: 10px;
+}
+
+.platform-ipados .title-actions {
+  gap: 4px;
+}
+
+.platform-ipados .icon-button,
+.platform-ipados .header-printer-row > .icon-button,
+.platform-ipados .zoom-control .icon-button {
+  width: 44px;
+  height: 44px;
+}
+
+.platform-ipados .printer-trigger,
+.platform-ipados .button,
+.platform-ipados .button.small,
+.platform-ipados .printer-menu-add,
+.platform-ipados .popup-menu button {
+  min-height: 44px;
+}
+
+.platform-ipados .printer-trigger {
+  width: 150px;
+}
+
+.platform-ipados .popup-menu,
+.platform-ipados .printer-menu {
+  top: 49px;
+}
+
+.platform-ipados .header-printer-option {
+  min-height: 56px;
+}
+
+.platform-ipados .desktop-body {
+  grid-template-columns: minmax(0, 1fr) 288px;
+  grid-template-rows: 58px minmax(0, 1fr);
+}
+
+.platform-ipados .editor-toolbar {
+  gap: 10px;
+  overflow-x: auto;
+  padding: 0 10px;
+  scrollbar-width: none;
+}
+
+.platform-ipados .editor-toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+.platform-ipados .editor-tools,
+.platform-ipados .plate-toolbar-settings {
+  flex: 0 0 auto;
+}
+
+.platform-ipados .tool-button,
+.platform-ipados .shape-menu button {
+  min-height: 44px;
+  padding-right: 12px;
+  padding-left: 12px;
+  font-size: 12px;
+}
+
+.platform-ipados .shape-menu {
+  top: 48px;
+  width: 160px;
+}
+
+.platform-ipados .toolbar-field > input,
+.platform-ipados .toolbar-unit-input,
+.platform-ipados .inline-trim-button,
+.platform-ipados .field input,
+.platform-ipados .field select,
+.platform-ipados .unit-input,
+.platform-ipados .trim-button,
+.platform-ipados .layer-buttons button,
+.platform-ipados .segmented,
+.platform-ipados .text-style-buttons,
+.platform-ipados .weight-group,
+.platform-ipados .text-style-buttons .italic-button {
+  min-height: 44px;
+}
+
+.platform-ipados input,
+.platform-ipados select,
+.platform-ipados textarea {
+  font-size: 16px;
+}
+
+.platform-ipados .property-stack {
+  padding: 14px;
+  gap: 14px;
+  overscroll-behavior: contain;
+}
+
+.platform-ipados .inspector-header {
+  min-height: 54px;
+}
+
+.platform-ipados .work-surface {
+  cursor: default;
+}
+
+.platform-ipados .canvas-element-control {
+  cursor: default;
+}
+
+.platform-ipados .handle {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.platform-ipados .handle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--accent);
+  border-radius: 2px;
+  background: white;
+}
+
+.platform-ipados .handle.nw {
+  top: -22px;
+  left: -22px;
+}
+
+.platform-ipados .handle.ne {
+  top: -22px;
+  right: -22px;
+}
+
+.platform-ipados .handle.sw {
+  bottom: -22px;
+  left: -22px;
+}
+
+.platform-ipados .handle.se {
+  right: -22px;
+  bottom: -22px;
+}
+
+.platform-ipados .handle.rotate {
+  top: -50px;
+  left: calc(50% - 22px);
+  width: 44px;
+  height: 44px;
+}
+
+.platform-ipados .handle.rotate::after {
+  border-radius: 50%;
+}
+
+.platform-ipados .rotation-stem {
+  top: -29px;
+  height: 29px;
+}
+
+.platform-ipados .zoom-control {
+  height: 48px;
+  padding: 1px 3px;
+}
+
+.platform-ipados .zoom-control span {
+  min-width: 44px;
+  font-size: 11px;
+}
+
+.platform-ipados .plate-strip {
+  grid-template-columns: 74px minmax(0, 1fr);
+  padding-right: max(12px, env(safe-area-inset-right));
+  padding-bottom: max(7px, env(safe-area-inset-bottom));
+  padding-left: max(12px, env(safe-area-inset-left));
+}
+
+.platform-ipados .plate-delete {
+  top: 0;
+  right: 0;
+  width: 44px;
+  height: 44px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.platform-ipados .add-plate {
+  flex-basis: 88px;
+  min-width: 88px;
+}
+
+.platform-ipados .dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(var(--visual-viewport-height, 100vh) - 32px);
+}
+
+.platform-ipados .dialog-footer .button,
+.platform-ipados .text-button {
+  min-height: 44px;
+}
+
+.platform-ipados .application-content:has(input:focus, textarea:focus) {
+  grid-template-rows: calc(72px + env(safe-area-inset-top)) minmax(0, 1fr) 0;
+}
+
+.platform-ipados
+  .application-content:has(input:focus, textarea:focus)
+  .plate-strip {
+  display: none;
+}
+
+@media (max-width: 850px) {
+  .platform-ipados .titlebar {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .platform-ipados .document-identity {
+    display: none;
+  }
+
+  .platform-ipados .title-actions {
+    justify-self: end;
+  }
+
+  .platform-ipados .printer-trigger {
+    width: 132px;
+  }
+
+  .platform-ipados .desktop-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 58px minmax(0, 1fr) minmax(180px, 32vh);
+  }
+
+  .platform-ipados .editor-toolbar {
+    grid-column: 1;
+  }
+
+  .platform-ipados .work-surface {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .platform-ipados .inspector {
+    grid-column: 1;
+    grid-row: 3;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .platform-ipados .property-stack {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .platform-ipados .canvas-meta {
+    display: none;
+  }
+
+  .platform-ipados
+    .application-content:has(.inline-text-editor:focus)
+    .titlebar,
+  .platform-ipados
+    .application-content:has(.inline-text-editor:focus)
+    .plate-strip,
+  .platform-ipados
+    .application-content:has(.inline-text-editor:focus)
+    .inspector {
+    display: none;
+  }
+
+  .platform-ipados .application-content:has(.inline-text-editor:focus) {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .platform-ipados
+    .application-content:has(.inline-text-editor:focus)
+    .desktop-body {
+    grid-template-rows: 58px minmax(0, 1fr);
   }
 }
 

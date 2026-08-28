@@ -1,11 +1,16 @@
 # Rendering
 
-`@labelmaker/rendering` converts platform-neutral RGBA pixels into the canonical
-one-bit raster pages that printer adapters receive.
+`@labelmaker/rendering` builds plate SVG and converts platform-neutral RGBA
+pixels into the canonical one-bit raster pages that printer adapters receive.
 
 The package has no React, Electron, canvas, filesystem, or native dependency. A
 browser renderer can draw a plate on a canvas, get its `ImageData`, and pass its
 `width`, `height`, and `data` to `renderPlateRgba`.
+
+Desktop and iPad shells call `renderPlateForPrinter` with the same label and
+printer target. Each shell supplies only an SVG-to-RGBA function for its
+platform. Image black-level conversion, print-head layout, mirroring, raster
+packing, and feed-line order stay shared.
 
 ## Canonical raster format
 

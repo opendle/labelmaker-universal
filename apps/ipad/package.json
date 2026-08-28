@@ -1,0 +1,22 @@
+{
+  "name": "@labelmaker/ipad",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "npm run build:web",
+    "build:web": "vite build",
+    "typecheck": "tsc --project tsconfig.web.json --pretty false"
+  },
+  "dependencies": {
+    "@labelmaker/adapter-makeid": "0.0.0",
+    "@labelmaker/adapter-mock": "0.0.0",
+    "@labelmaker/documents": "0.0.0",
+    "@labelmaker/domain": "0.0.0",
+    "@labelmaker/printing": "0.0.0",
+    "@labelmaker/rendering": "0.0.0",
+    "@labelmaker/ui": "0.0.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  }
+}

@@ -14,10 +14,8 @@ import {
 import { fileURLToPath } from "node:url";
 
 import { MockPrinterAdapter } from "@labelmaker/adapter-mock";
-import {
-  MacOsMakeIdTransportProvider,
-  MakeIdE1Adapter,
-} from "@labelmaker/adapter-makeid";
+import { MakeIdE1Adapter } from "@labelmaker/adapter-makeid";
+import { MacOsMakeIdTransportProvider } from "@labelmaker/adapter-makeid/macos";
 import {
   createBlankLabelDocument,
   LABELMAKER_FILE_EXTENSION,
@@ -33,6 +31,7 @@ import type {
   PrinterSession,
 } from "@labelmaker/printing";
 import { PrinterAdapterRegistry } from "@labelmaker/printing";
+import { renderPlateForPrinter } from "@labelmaker/rendering";
 
 import {
   configuredPrinterDescriptors,
@@ -41,7 +40,6 @@ import {
 } from "./desktop-print.js";
 import { openPrinterForAddition } from "./printer-addition.js";
 import { installAppIcon } from "./app-icon.js";
-import { renderPlateForPrinter } from "./plate-raster.js";
 import { createProcessLogger } from "./process-logger.js";
 import { prepareToQuit } from "./quit-coordinator.js";
 import { validatePrintRequest } from "./print-request.js";

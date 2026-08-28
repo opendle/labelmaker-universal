@@ -16,6 +16,7 @@ import {
   Italic,
   RotateCcw,
   SendToBack,
+  Trash2,
   X,
 } from "lucide-react";
 import { useState } from "react";
@@ -602,6 +603,7 @@ export function Inspector({
   selectedShape,
   hasMultipleElements,
   onClearSelection,
+  onDeleteSelection,
   onUpdateText,
   onUpdateImage,
   onUpdateShape,
@@ -612,6 +614,7 @@ export function Inspector({
   readonly selectedShape: ShapeElement | undefined;
   readonly hasMultipleElements: boolean;
   readonly onClearSelection: () => void;
+  readonly onDeleteSelection: () => void;
   readonly onUpdateText: (element: TextElement) => void;
   readonly onUpdateImage: (element: ImageElement) => void;
   readonly onUpdateShape: (element: ShapeElement) => void;
@@ -625,9 +628,17 @@ export function Inspector({
           <span>
             {selectedText ? "Text" : selectedImage ? "Image" : "Shape"}
           </span>
-          <IconButton label="Clear selection" onClick={onClearSelection}>
-            <X size={15} />
-          </IconButton>
+          <div className="inspector-header-actions">
+            <IconButton
+              label="Delete selected element"
+              onClick={onDeleteSelection}
+            >
+              <Trash2 size={15} />
+            </IconButton>
+            <IconButton label="Clear selection" onClick={onClearSelection}>
+              <X size={15} />
+            </IconButton>
+          </div>
         </div>
       )}
       {selectedText ? (

@@ -9,7 +9,7 @@ documents -> domain <- rendering <- printing <- concrete adapters
                 +---- application ports ---- shared UI
                                       ^
                                       |
-                             desktop or server shell
+                        desktop, iPad, or server shell
 ```
 
 Dependencies point toward stable contracts. The UI knows application ports,
@@ -51,7 +51,7 @@ that adapter. Native helpers are allowed behind this boundary.
 
 ### UI
 
-`@labelmaker/ui` owns the React desktop interface, editor state, and view
+`@labelmaker/ui` owns the shared React interface, editor state, and view
 components. It talks to an injected `LabelmakerHost` interface. It does not call
 Electron IPC, filesystem APIs, or adapters directly.
 
@@ -60,9 +60,20 @@ Electron IPC, filesystem APIs, or adapters directly.
 `apps/desktop` creates the Electron window, provides a safe preload API, stores
 documents, registers local adapters, and assembles the UI.
 
+`apps/ipad` embeds the same local React application in a restricted `WKWebView`.
+Its Swift host provides iPad document pickers, recovery storage, and native
+CoreBluetooth transport operations through a narrow request and reply bridge.
+The TypeScript MakeID adapter still owns printer protocol behavior.
+
 `apps/server` can later expose the same application operations over an
 authenticated API. A remote server still needs a local bridge near a Bluetooth
 or USB printer.
+
+### Shared rendering
+
+`@labelmaker/rendering` owns plate SVG construction and transport-neutral raster
+conversion. A shell injects only the platform rasterizer that converts SVG into
+RGBA pixels. This keeps desktop and iPad print output on the same tested path.
 
 ## Composition
 

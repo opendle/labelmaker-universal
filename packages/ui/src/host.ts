@@ -41,7 +41,7 @@ export interface PrintRequest {
   readonly plateIds: readonly string[];
 }
 
-export type HostPlatform = "macos" | "windows" | "linux";
+export type HostPlatform = "macos" | "windows" | "linux" | "ipados";
 
 export interface WorkspaceRecoveryState {
   readonly document: LabelDocument;

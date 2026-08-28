@@ -1244,6 +1244,81 @@ describe("LabelmakerApp", () => {
     ).toBeInTheDocument();
   });
 
+  it("adds the iPad style layer and a touch-accessible delete action", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <LabelmakerApp host={createHost({ platform: "ipados" })} />,
+    );
+
+    expect(container.querySelector(".app-shell")).toHaveClass(
+      "platform-ipados",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Delete selected element" }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Text element: RESISTORS" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("edits selected text from a touch tap", () => {
+    render(<LabelmakerApp host={createHost({ platform: "ipados" })} />);
+    const element = screen.getByRole("button", {
+      name: "Text element: RESISTORS",
+    });
+    const touchEvent = (type: string) => {
+      const event = new Event(type, { bubbles: true });
+      Object.defineProperties(event, {
+        button: { value: 0 },
+        clientX: { value: 10 },
+        clientY: { value: 10 },
+        pointerId: { value: 1 },
+        pointerType: { value: "touch" },
+      });
+      return event;
+    };
+
+    fireEvent(element, touchEvent("pointerdown"));
+    fireEvent(window, touchEvent("pointerup"));
+    fireEvent.click(element);
+
+    expect(
+      screen.getByRole("textbox", { name: "Edit text on label" }),
+    ).toHaveFocus();
+  });
+
+  it("uses two iPad touches to pan and zoom the canvas", () => {
+    render(<LabelmakerApp host={createHost({ platform: "ipados" })} />);
+    const canvas = screen.getByRole("region", {
+      name: "Resistors label canvas",
+    });
+    const workSurface = canvas.closest<HTMLElement>(".work-surface")!;
+    const stage = canvas.closest<HTMLElement>(".canvas-stage")!;
+    const touchEvent = (
+      type: string,
+      pointerId: number,
+      clientX: number,
+      clientY: number,
+    ) => {
+      const event = new Event(type, { bubbles: true });
+      Object.defineProperties(event, {
+        button: { value: 0 },
+        clientX: { value: clientX },
+        clientY: { value: clientY },
+        pointerId: { value: pointerId },
+        pointerType: { value: "touch" },
+      });
+      return event;
+    };
+
+    fireEvent(workSurface, touchEvent("pointerdown", 1, 0, 0));
+    fireEvent(workSurface, touchEvent("pointerdown", 2, 100, 0));
+    fireEvent(window, touchEvent("pointermove", 2, 150, 0));
+
+    expect(screen.getByText("150%")).toBeInTheDocument();
+    expect(stage).toHaveStyle({ transform: "translate(25px, 0px)" });
+  });
+
   it("moves a selected canvas element with the keyboard", async () => {
     const user = userEvent.setup();
     render(<LabelmakerApp host={createHost()} />);

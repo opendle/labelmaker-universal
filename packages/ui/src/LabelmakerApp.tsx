@@ -61,6 +61,34 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   useEffect(() => {
     workspaceRef.current = state.workspace;
   }, [state.workspace]);
+  useEffect(() => {
+    if (host.platform !== "ipados") return;
+    const viewport = globalThis.visualViewport;
+    if (!viewport) return;
+    const updateViewport = () => {
+      globalThis.document.documentElement.style.setProperty(
+        "--visual-viewport-height",
+        `${viewport.height}px`,
+      );
+      globalThis.document.documentElement.style.setProperty(
+        "--visual-viewport-offset-top",
+        `${viewport.offsetTop}px`,
+      );
+    };
+    updateViewport();
+    viewport.addEventListener("resize", updateViewport);
+    viewport.addEventListener("scroll", updateViewport, { passive: true });
+    return () => {
+      viewport.removeEventListener("resize", updateViewport);
+      viewport.removeEventListener("scroll", updateViewport);
+      globalThis.document.documentElement.style.removeProperty(
+        "--visual-viewport-height",
+      );
+      globalThis.document.documentElement.style.removeProperty(
+        "--visual-viewport-offset-top",
+      );
+    };
+  }, [host.platform]);
   const closeAddPrinter = useCallback(
     () => dispatch({ type: "close-add-printer" }),
     [dispatch],
@@ -93,7 +121,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
         : "Not saved";
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell platform-${host.platform}`}>
       <div className="application-content">
         <AppHeader
           activePrinterId={state.activePrinterId}
@@ -162,6 +190,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
               )
             }
             onZoom={(zoom) => dispatch({ type: "set-zoom", zoom })}
+            platform={host.platform}
             plate={activePlate}
             printerDpi={controller.activePrinter?.dpi}
             selectedElementId={state.selectedElementId}
@@ -173,6 +202,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             onClearSelection={() =>
               dispatch({ type: "select-element", elementId: null })
             }
+            onDeleteSelection={controller.deleteSelected}
             onUpdateImage={(image) =>
               controller.editWorkspace(
                 replacePlate(state.workspace, activePlate.id, (plate) =>

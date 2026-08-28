@@ -44,6 +44,14 @@
 - Crash-safe document recovery and recent files.
 - Adapter diagnostics and user-safe error reporting.
 
+## Milestone 4A — iPad application
+
+- Shared React editor in a native iPadOS shell.
+- Touch controls that do not require a physical keyboard.
+- iPad Files open and save flows with workspace recovery.
+- Native CoreBluetooth transport for the shared MakeID E1 adapter.
+- Signed development build on a physical iPad.
+
 ## Milestone 5 — optional server mode
 
 - Authenticated job API and queue.

@@ -28,7 +28,6 @@ import {
 } from "./transport.js";
 
 export * from "./protocol.js";
-export * from "./macos-transport.js";
 export * from "./transport.js";
 
 export const MAKEID_ADAPTER_ID = "makeid";
@@ -176,7 +175,7 @@ export class MakeIdE1Adapter implements PrinterAdapter {
         id: `${MAKEID_ADAPTER_ID}:${device.id}`,
         adapterId: MAKEID_ADAPTER_ID,
         displayName: device.name ?? "MakeID E1",
-        transport: device.id.toLowerCase().startsWith("macos-ble-")
+        transport: /^(?:macos|ipad)-ble-/i.test(device.id)
           ? "bluetooth-low-energy"
           : "bluetooth-classic",
         connection,

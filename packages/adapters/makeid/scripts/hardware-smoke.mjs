@@ -1,7 +1,5 @@
-import {
-  MacOsMakeIdTransportProvider,
-  MakeIdE1Adapter,
-} from "../dist/index.js";
+import { MakeIdE1Adapter } from "../dist/index.js";
+import { MacOsMakeIdTransportProvider } from "../dist/macos-transport.js";
 import { createInterface } from "node:readline/promises";
 
 const shouldPrint = process.argv.includes("--print");

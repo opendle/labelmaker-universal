@@ -27,6 +27,10 @@ describe("MakeIdE1Adapter", () => {
           id: "macos-ble-01234567-89ab-cdef-0123-456789abcdef",
           name: "E124H00894",
         },
+        {
+          id: "ipad-ble-fedcba98-7654-3210-fedc-ba9876543210",
+          name: "MakeID E1-iPad",
+        },
         { id: "e1-b", name: "MakeID E1" },
         { id: "e1-c", name: "YichipFPGA-42A1" },
         { id: "l1", name: "MakeID L1" },
@@ -40,6 +44,7 @@ describe("MakeIdE1Adapter", () => {
 
     expect(printers.map((printer) => printer.displayName)).toEqual([
       "E124H00894",
+      "MakeID E1-iPad",
       "MakeID E1",
       "YichipFPGA-42A1",
     ]);
@@ -49,6 +54,7 @@ describe("MakeIdE1Adapter", () => {
       advertisedName: "E124H00894",
     });
     expect(printers[0]?.transport).toBe("bluetooth-low-energy");
+    expect(printers[1]?.transport).toBe("bluetooth-low-energy");
     expect(adapter.manifest.transports).toEqual([
       "bluetooth-low-energy",
       "bluetooth-classic",

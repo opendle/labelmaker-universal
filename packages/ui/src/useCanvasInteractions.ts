@@ -6,6 +6,7 @@ import type {
   TextElement,
 } from "@labelmaker/domain";
 import {
+  useEffect,
   useRef,
   useState,
   type KeyboardEvent,
@@ -25,6 +26,9 @@ export function useCanvasInteractions({
   onSelectElement,
   onChangeElement,
   printableMargins,
+  touchNavigation = false,
+  zoom,
+  onZoom,
 }: {
   readonly plate: LabelPlate;
   readonly selectedElementId: string | null;
@@ -32,9 +36,111 @@ export function useCanvasInteractions({
   readonly onSelectElement: (id: string | null) => void;
   readonly onChangeElement: (element: LabelElement) => void;
   readonly printableMargins: PrintableMargins;
+  readonly touchNavigation?: boolean;
+  readonly zoom: number;
+  readonly onZoom: (zoom: number) => void;
 }) {
   const editOnClickRef = useRef<string | null>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const touchPointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const gestureRef = useRef<{
+    readonly pointerIds: readonly [number, number];
+    readonly distance: number;
+    readonly center: { readonly x: number; readonly y: number };
+    readonly pan: { readonly x: number; readonly y: number };
+    readonly zoom: number;
+  } | null>(null);
+  const onZoomRef = useRef(onZoom);
+  const zoomRef = useRef(zoom);
+  onZoomRef.current = onZoom;
+  zoomRef.current = zoom;
+
+  useEffect(() => {
+    if (!touchNavigation) return;
+    const touchPointers = touchPointersRef.current;
+    const onPointerMove = (event: PointerEvent) => {
+      if (!touchPointers.has(event.pointerId)) return;
+      touchPointers.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+      });
+      const gesture = gestureRef.current;
+      if (!gesture) return;
+      const first = touchPointers.get(gesture.pointerIds[0]);
+      const second = touchPointers.get(gesture.pointerIds[1]);
+      if (!first || !second) return;
+      const center = {
+        x: (first.x + second.x) / 2,
+        y: (first.y + second.y) / 2,
+      };
+      const distance = Math.hypot(second.x - first.x, second.y - first.y);
+      setPan({
+        x: gesture.pan.x + center.x - gesture.center.x,
+        y: gesture.pan.y + center.y - gesture.center.y,
+      });
+      if (gesture.distance > 0) {
+        const nextZoom = Math.round(
+          Math.max(
+            60,
+            Math.min(300, gesture.zoom * (distance / gesture.distance)),
+          ),
+        );
+        if (nextZoom !== zoomRef.current) {
+          zoomRef.current = nextZoom;
+          onZoomRef.current(nextZoom);
+        }
+      }
+    };
+    const onPointerEnd = (event: PointerEvent) => {
+      touchPointers.delete(event.pointerId);
+      if (
+        gestureRef.current?.pointerIds.includes(event.pointerId) ||
+        touchPointers.size < 2
+      ) {
+        gestureRef.current = null;
+      }
+    };
+    globalThis.addEventListener("pointermove", onPointerMove);
+    globalThis.addEventListener("pointerup", onPointerEnd);
+    globalThis.addEventListener("pointercancel", onPointerEnd);
+    return () => {
+      globalThis.removeEventListener("pointermove", onPointerMove);
+      globalThis.removeEventListener("pointerup", onPointerEnd);
+      globalThis.removeEventListener("pointercancel", onPointerEnd);
+      touchPointers.clear();
+    };
+  }, [touchNavigation]);
+
+  const trackTouchPointer = (event: ReactPointerEvent<HTMLElement>) => {
+    if (!touchNavigation || event.pointerType !== "touch") return false;
+    touchPointersRef.current.set(event.pointerId, {
+      x: event.clientX,
+      y: event.clientY,
+    });
+    if (touchPointersRef.current.size < 2) return false;
+    const entries = Array.from(touchPointersRef.current.entries()).slice(0, 2);
+    const first = entries[0];
+    const second = entries[1];
+    if (!first || !second) return false;
+    const [firstId, firstPoint] = first;
+    const [secondId, secondPoint] = second;
+    gestureRef.current = {
+      pointerIds: [firstId, secondId],
+      distance: Math.hypot(
+        secondPoint.x - firstPoint.x,
+        secondPoint.y - firstPoint.y,
+      ),
+      center: {
+        x: (firstPoint.x + secondPoint.x) / 2,
+        y: (firstPoint.y + secondPoint.y) / 2,
+      },
+      pan,
+      zoom: zoomRef.current,
+    };
+    editOnClickRef.current = null;
+    event.preventDefault();
+    return true;
+  };
   const canvasBounds = (elementNode: HTMLElement) =>
     elementNode.closest<HTMLElement>(".label-canvas")?.getBoundingClientRect();
 
@@ -62,6 +168,7 @@ export function useCanvasInteractions({
       yMm: (6 / bounds.height) * plate.size.heightMm,
     };
     const onMove = (moveEvent: PointerEvent) => {
+      if (touchPointersRef.current.size > 1) return;
       if (moveEvent.clientX !== startX || moveEvent.clientY !== startY) {
         editOnClickRef.current = null;
       }
@@ -87,9 +194,11 @@ export function useCanvasInteractions({
     const onUp = () => {
       globalThis.removeEventListener("pointermove", onMove);
       globalThis.removeEventListener("pointerup", onUp);
+      globalThis.removeEventListener("pointercancel", onUp);
     };
     globalThis.addEventListener("pointermove", onMove);
     globalThis.addEventListener("pointerup", onUp);
+    globalThis.addEventListener("pointercancel", onUp);
   };
 
   const startResize = (
@@ -108,6 +217,7 @@ export function useCanvasInteractions({
       yMm: (6 / bounds.height) * plate.size.heightMm,
     };
     const onMove = (moveEvent: PointerEvent) => {
+      if (touchPointersRef.current.size > 1) return;
       const dx =
         ((moveEvent.clientX - startX) / bounds.width) * plate.size.widthMm;
       const dy =
@@ -135,9 +245,11 @@ export function useCanvasInteractions({
     const onUp = () => {
       globalThis.removeEventListener("pointermove", onMove);
       globalThis.removeEventListener("pointerup", onUp);
+      globalThis.removeEventListener("pointercancel", onUp);
     };
     globalThis.addEventListener("pointermove", onMove);
     globalThis.addEventListener("pointerup", onUp);
+    globalThis.addEventListener("pointercancel", onUp);
   };
 
   const startRotate = (
@@ -151,6 +263,7 @@ export function useCanvasInteractions({
     const centerX = bounds.left + bounds.width / 2;
     const centerY = bounds.top + bounds.height / 2;
     const onMove = (moveEvent: PointerEvent) => {
+      if (touchPointersRef.current.size > 1) return;
       const rotationDeg = Math.round(
         (Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX) *
           180) /
@@ -162,9 +275,11 @@ export function useCanvasInteractions({
     const onUp = () => {
       globalThis.removeEventListener("pointermove", onMove);
       globalThis.removeEventListener("pointerup", onUp);
+      globalThis.removeEventListener("pointercancel", onUp);
     };
     globalThis.addEventListener("pointermove", onMove);
     globalThis.addEventListener("pointerup", onUp);
+    globalThis.addEventListener("pointercancel", onUp);
   };
 
   const moveWithKeyboard = (
@@ -190,6 +305,7 @@ export function useCanvasInteractions({
   };
 
   const startPan = (event: ReactPointerEvent<HTMLElement>) => {
+    if (touchNavigation && event.pointerType === "touch") return;
     if (event.button !== 0) return;
     const startX = event.clientX;
     const startY = event.clientY;
@@ -203,9 +319,11 @@ export function useCanvasInteractions({
     const onUp = () => {
       globalThis.removeEventListener("pointermove", onMove);
       globalThis.removeEventListener("pointerup", onUp);
+      globalThis.removeEventListener("pointercancel", onUp);
     };
     globalThis.addEventListener("pointermove", onMove);
     globalThis.addEventListener("pointerup", onUp);
+    globalThis.addEventListener("pointercancel", onUp);
   };
 
   return {
@@ -216,5 +334,6 @@ export function useCanvasInteractions({
     startPan,
     startResize,
     startRotate,
+    trackTouchPointer,
   };
 }

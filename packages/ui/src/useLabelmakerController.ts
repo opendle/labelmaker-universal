@@ -697,6 +697,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
     addImage,
     addShape,
     addSpecial,
+    deleteSelected,
     updatePlate,
     updateElement,
     editWorkspace,
