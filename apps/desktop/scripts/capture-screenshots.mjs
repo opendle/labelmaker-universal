@@ -153,11 +153,11 @@ await capture(1440, 960, "labelmaker-primary-1440x960.png", async (page) => {
     );
   }
 
-  const plateNameWidth = await page
-    .getByLabel("Plate name")
+  const labelNameWidth = await page
+    .getByLabel("Label name")
     .evaluate((input) => input.getBoundingClientRect().width);
-  if (plateNameWidth < 160) {
-    throw new Error(`Plate name input is too narrow: ${plateNameWidth}`);
+  if (labelNameWidth < 160) {
+    throw new Error(`Label name input is too narrow: ${labelNameWidth}`);
   }
 
   const before = await page.locator(".label-canvas").boundingBox();

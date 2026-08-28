@@ -156,7 +156,7 @@ describe("LabelmakerApp", () => {
     render(<LabelmakerApp host={host} />);
 
     expect(await screen.findByText("Recovered workspace")).toBeInTheDocument();
-    expect(screen.getByLabelText("Plate name")).toHaveValue(activePlate.name);
+    expect(screen.getByLabelText("Label name")).toHaveValue(activePlate.name);
     expect(screen.getByText("130%")).toBeInTheDocument();
     expect(screen.getByText("Edited")).toBeInTheDocument();
     expect(
@@ -208,7 +208,7 @@ describe("LabelmakerApp", () => {
     await user.click(screen.getByRole("button", { name: "Add label" }));
 
     expectLabelCount(4);
-    expect(screen.getByLabelText("Plate name")).toHaveValue("Plate 4");
+    expect(screen.getByLabelText("Label name")).toHaveValue("Plate 4");
     expect(screen.getByText("Plate 4")).toBeInTheDocument();
     expect(screen.getByText("Edited")).toBeInTheDocument();
   });
@@ -255,7 +255,7 @@ describe("LabelmakerApp", () => {
     expect(
       screen.queryByRole("button", { name: "Select label 1: Resistors" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Plate name")).toHaveValue("Capacitors");
+    expect(screen.getByLabelText("Label name")).toHaveValue("Capacitors");
     expect(screen.getByText("Edited")).toBeInTheDocument();
 
     await user.click(
@@ -1186,7 +1186,7 @@ describe("LabelmakerApp", () => {
     expect(flag).toHaveClass("active");
 
     expectLabelCount(3);
-    expect(screen.getByLabelText("Plate name")).toHaveValue("Flag Resistors");
+    expect(screen.getByLabelText("Label name")).toHaveValue("Flag Resistors");
     expect(screen.getByLabelText("Plate width")).toHaveValue(62);
     expect(
       screen.getByRole("region", { name: "Flag Resistors label canvas" }),
@@ -1209,7 +1209,7 @@ describe("LabelmakerApp", () => {
     await user.click(screen.getByRole("button", { name: "Flag" }));
     expect(flag).toHaveAttribute("aria-pressed", "false");
     expect(flag).not.toHaveClass("active");
-    expect(screen.getByLabelText("Plate name")).toHaveValue("Resistors");
+    expect(screen.getByLabelText("Label name")).toHaveValue("Resistors");
     expect(screen.getByLabelText("Plate width")).toHaveValue(62);
     expect(
       screen.getAllByRole("button", { name: "Text element: SIGNAL" }),
@@ -1411,7 +1411,7 @@ describe("LabelmakerApp", () => {
     );
     const shell = container.querySelector<HTMLElement>(".app-shell")!;
 
-    await user.click(screen.getByLabelText("Plate name"));
+    await user.click(screen.getByLabelText("Label name"));
     expect(shell).not.toHaveAttribute("data-software-keyboard");
     expect(
       screen.getByRole("contentinfo", { name: "Labels" }),
