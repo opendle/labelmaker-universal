@@ -5,7 +5,11 @@
     "outDir": "dist",
     "rootDir": "src"
   },
-  "references": [{ "path": "../domain" }, { "path": "../printing" }],
+  "references": [
+    { "path": "../domain" },
+    { "path": "../printing" },
+    { "path": "../rendering" }
+  ],
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

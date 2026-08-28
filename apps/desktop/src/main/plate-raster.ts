@@ -1,9 +1,14 @@
-import type { LabelElement, LabelPlate } from "@labelmaker/domain";
+import type {
+  ImageElement,
+  LabelElement,
+  LabelPlate,
+} from "@labelmaker/domain";
 import type { RasterPage } from "@labelmaker/printing";
 import {
   millimetersToPixels,
   packMonochromeRows,
   rgbaToMonochrome,
+  type MonochromeBitmap,
   type RgbaImage,
 } from "@labelmaker/rendering";
 
@@ -34,9 +39,10 @@ export async function renderPlateForPrinter(
     throw new RangeError("Printer raster width must be a positive integer");
   }
   const feedLengthPixels = millimetersToPixels(plate.size.widthMm, target.dpi);
+  const preparedPlate = await preparePlateImages(plate, target.dpi, rasterize);
   const source = await rasterize(
     buildPlateSvg(
-      plate,
+      preparedPlate,
       feedLengthPixels,
       target.rasterWidthPixels,
       target.printableWidthMm,
@@ -69,6 +75,77 @@ export async function renderPlateForPrinter(
     heightPixels: feedLengthPixels,
     pixels,
   });
+}
+
+async function preparePlateImages(
+  plate: LabelPlate,
+  dpi: number,
+  rasterize: SvgRasterizer,
+): Promise<LabelPlate> {
+  const elements: LabelElement[] = [];
+  for (const element of plate.elements) {
+    if (element.kind !== "image") {
+      elements.push(element);
+      continue;
+    }
+    validateImageSource(element.source);
+    const width = Math.max(1, millimetersToPixels(element.widthMm, dpi));
+    const height = Math.max(1, millimetersToPixels(element.heightMm, dpi));
+    const source = await rasterize(
+      buildImageFrameSvg(element, width, height),
+      width,
+      height,
+    );
+    if (source.widthPixels !== width || source.heightPixels !== height) {
+      throw new RangeError(
+        "The image rasterizer returned the wrong dimensions",
+      );
+    }
+    const bitmap = rgbaToMonochrome(source, {
+      mode: "floyd-steinberg",
+      threshold: element.threshold,
+    });
+    elements.push({ ...element, source: monochromeBmpDataUrl(bitmap) });
+  }
+  return { ...plate, elements };
+}
+
+function buildImageFrameSvg(
+  element: ImageElement,
+  widthPixels: number,
+  heightPixels: number,
+): string {
+  const aspect = imageAspectRatio(element.fit);
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPixels}" height="${heightPixels}" viewBox="0 0 ${widthPixels} ${heightPixels}"><rect width="${widthPixels}" height="${heightPixels}" fill="white"/><image x="0" y="0" width="${widthPixels}" height="${heightPixels}" href="${attribute(element.source)}" preserveAspectRatio="${aspect}"/></svg>`;
+}
+
+function monochromeBmpDataUrl(bitmap: MonochromeBitmap): string {
+  const rowBytes = Math.ceil((bitmap.widthPixels * 3) / 4) * 4;
+  const pixelBytes = rowBytes * bitmap.heightPixels;
+  const bytes = new Uint8Array(54 + pixelBytes);
+  const view = new DataView(bytes.buffer);
+  bytes[0] = 0x42;
+  bytes[1] = 0x4d;
+  view.setUint32(2, bytes.length, true);
+  view.setUint32(10, 54, true);
+  view.setUint32(14, 40, true);
+  view.setInt32(18, bitmap.widthPixels, true);
+  view.setInt32(22, bitmap.heightPixels, true);
+  view.setUint16(26, 1, true);
+  view.setUint16(28, 24, true);
+  view.setUint32(34, pixelBytes, true);
+  for (let y = 0; y < bitmap.heightPixels; y += 1) {
+    const sourceY = bitmap.heightPixels - y - 1;
+    for (let x = 0; x < bitmap.widthPixels; x += 1) {
+      const black = bitmap.pixels[sourceY * bitmap.widthPixels + x] === 1;
+      const value = black ? 0 : 255;
+      const offset = 54 + y * rowBytes + x * 3;
+      bytes[offset] = value;
+      bytes[offset + 1] = value;
+      bytes[offset + 2] = value;
+    }
+  }
+  return `data:image/bmp;base64,${Buffer.from(bytes).toString("base64")}`;
 }
 
 export function buildPlateSvg(
@@ -137,17 +214,8 @@ function renderElement(element: LabelElement): string {
       return `<text text-anchor="${anchor}" dominant-baseline="middle" font-family="${attribute(element.fontFamily)}" font-size="${number(fontSizeMm)}" font-weight="${element.fontWeight}" font-style="${element.fontStyle ?? "normal"}" fill="black"${transform}>${tspans}</text>`;
     }
     case "image": {
-      if (
-        !/^data:image\/(?:png|jpe?g|gif|webp|bmp);base64,/i.test(element.source)
-      ) {
-        throw new TypeError("Only embedded raster images can be printed");
-      }
-      const aspect =
-        element.fit === "stretch"
-          ? "none"
-          : element.fit === "cover"
-            ? "xMidYMid slice"
-            : "xMidYMid meet";
+      validateImageSource(element.source);
+      const aspect = imageAspectRatio(element.fit);
       return `<image x="${number(element.xMm)}" y="${number(element.yMm)}" width="${number(element.widthMm)}" height="${number(element.heightMm)}" href="${attribute(element.source)}" preserveAspectRatio="${aspect}"${transform}/>`;
     }
     case "rectangle": {
@@ -158,6 +226,20 @@ function renderElement(element: LabelElement): string {
     case "barcode":
       throw new TypeError(`${element.kind} elements are not printable yet`);
   }
+}
+
+function validateImageSource(source: string): void {
+  if (!/^data:image\/(?:png|jpe?g|gif|webp|bmp);base64,/i.test(source)) {
+    throw new TypeError("Only embedded raster images can be printed");
+  }
+}
+
+function imageAspectRatio(fit: ImageElement["fit"]): string {
+  return fit === "stretch"
+    ? "none"
+    : fit === "cover"
+      ? "xMidYMid slice"
+      : "xMidYMid meet";
 }
 
 function rotation(element: LabelElement): string {

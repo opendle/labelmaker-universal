@@ -1,4 +1,9 @@
-import type { LabelElement, LabelPlate, TextElement } from "@labelmaker/domain";
+import type {
+  ImageElement,
+  LabelElement,
+  LabelPlate,
+  TextElement,
+} from "@labelmaker/domain";
 import {
   useRef,
   useState,
@@ -10,6 +15,7 @@ import { snapMovedElement, snapResizedFrame } from "./canvas-snapping.js";
 import type { PrintableMargins } from "./label-layout.js";
 
 type ResizeCorner = "nw" | "ne" | "sw" | "se";
+type FramedElement = TextElement | ImageElement;
 
 export function useCanvasInteractions({
   plate,
@@ -87,7 +93,7 @@ export function useCanvasInteractions({
 
   const startResize = (
     event: ReactPointerEvent<HTMLButtonElement>,
-    element: TextElement,
+    element: FramedElement,
     corner: ResizeCorner,
   ) => {
     event.preventDefault();
@@ -135,7 +141,7 @@ export function useCanvasInteractions({
 
   const startRotate = (
     event: ReactPointerEvent<HTMLButtonElement>,
-    element: TextElement,
+    element: FramedElement,
   ) => {
     event.preventDefault();
     event.stopPropagation();

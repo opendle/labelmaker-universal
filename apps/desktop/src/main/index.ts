@@ -803,12 +803,16 @@ async function rasterizeSvg(
     if (bitmap.length !== widthPixels * heightPixels * 4) {
       throw new Error("The label bitmap has an invalid size");
     }
+    const rgba = Uint8Array.from(bitmap);
+    for (let offset = 0; offset < rgba.length; offset += 4) {
+      const blue = rgba[offset] ?? 0;
+      rgba[offset] = rgba[offset + 2] ?? 0;
+      rgba[offset + 2] = blue;
+    }
     return {
       widthPixels,
       heightPixels,
-      // The SVG uses a white background and black artwork. Channel order does
-      // not change those colors at this boundary.
-      data: Uint8Array.from(bitmap),
+      data: rgba,
     };
   } finally {
     surface.destroy();

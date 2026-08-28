@@ -29,9 +29,11 @@ export function IconButton({
 }
 
 export function SelectionHandles({
+  elementLabel,
   onResizeStart,
   onRotateStart,
 }: {
+  readonly elementLabel: "text" | "image";
   readonly onResizeStart: (
     corner: "nw" | "ne" | "sw" | "se",
     event: PointerEvent<HTMLButtonElement>,
@@ -42,14 +44,14 @@ export function SelectionHandles({
     <>
       <span aria-hidden="true" className="rotation-stem" />
       <button
-        aria-label="Rotate text block"
+        aria-label={`Rotate ${elementLabel} block`}
         className="handle rotate"
         onPointerDown={onRotateStart}
         type="button"
       />
       {(["nw", "ne", "sw", "se"] as const).map((corner) => (
         <button
-          aria-label={`Resize text block ${corner}`}
+          aria-label={`Resize ${elementLabel} block ${corner}`}
           className={`handle ${corner}`}
           key={corner}
           onPointerDown={(event) => onResizeStart(corner, event)}

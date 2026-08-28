@@ -68,6 +68,15 @@ describe("canvas snapping", () => {
     ).toMatchObject({ xMm: 14, yMm: 5.5 });
   });
 
+  it("snaps moved frames to the absolute top and bottom limits", () => {
+    expect(
+      snapMovedElement({ ...image, yMm: 0.4 }, size, margins, thresholds),
+    ).toMatchObject({ yMm: 0 });
+    expect(
+      snapMovedElement({ ...image, yMm: 11.6 }, size, margins, thresholds),
+    ).toMatchObject({ yMm: 12 });
+  });
+
   it("does not snap a frame outside the attraction threshold", () => {
     expect(
       snapMovedElement({ ...text, xMm: 1, yMm: 3 }, size, margins, thresholds),
@@ -94,5 +103,26 @@ describe("canvas snapping", () => {
         { left: false, top: false },
       ),
     ).toMatchObject({ widthMm: 36, heightMm: 10 });
+  });
+
+  it("snaps resized sides to the absolute top and bottom limits", () => {
+    expect(
+      snapResizedFrame(
+        { ...image, yMm: 0.4, heightMm: 8 },
+        size,
+        margins,
+        thresholds,
+        { left: false, top: true },
+      ),
+    ).toMatchObject({ yMm: 0, heightMm: 8.4 });
+    expect(
+      snapResizedFrame(
+        { ...image, yMm: 3, heightMm: 12.6 },
+        size,
+        margins,
+        thresholds,
+        { left: false, top: false },
+      ),
+    ).toMatchObject({ heightMm: 13 });
   });
 });

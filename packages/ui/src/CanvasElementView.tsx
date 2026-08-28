@@ -1,4 +1,9 @@
-import type { LabelElement, LabelPlate, TextElement } from "@labelmaker/domain";
+import type {
+  ImageElement,
+  LabelElement,
+  LabelPlate,
+  TextElement,
+} from "@labelmaker/domain";
 import type {
   CSSProperties,
   KeyboardEvent,
@@ -7,8 +12,10 @@ import type {
 
 import { SelectionHandles } from "./controls.js";
 import { pointsToMillimeters } from "./label-layout.js";
+import { MonochromeImage } from "./MonochromeImage.js";
 
 type ResizeCorner = "nw" | "ne" | "sw" | "se";
+type FramedElement = TextElement | ImageElement;
 type ElementStyle = CSSProperties & Record<`--${string}`, string | number>;
 
 export function CanvasElementView({
@@ -47,12 +54,12 @@ export function CanvasElementView({
   ) => void;
   readonly onResizeStart: (
     event: ReactPointerEvent<HTMLButtonElement>,
-    element: TextElement,
+    element: FramedElement,
     corner: ResizeCorner,
   ) => void;
   readonly onRotateStart: (
     event: ReactPointerEvent<HTMLButtonElement>,
-    element: TextElement,
+    element: FramedElement,
   ) => void;
 }) {
   const frameStyle: ElementStyle = {
@@ -147,25 +154,23 @@ export function CanvasElementView({
           type="button"
         >
           {element.kind === "image" ? (
-            <img
-              alt=""
-              className={`fit-${element.fit}`}
-              draggable={false}
-              src={element.source}
-            />
+            <MonochromeImage element={element} />
           ) : element.kind === "text" ? (
             <span className="inline-text-editor">{element.text}</span>
           ) : null}
         </button>
       )}
-      {selected && element.kind === "text" && !editing && (
-        <SelectionHandles
-          onResizeStart={(corner, event) =>
-            onResizeStart(event, element, corner)
-          }
-          onRotateStart={(event) => onRotateStart(event, element)}
-        />
-      )}
+      {selected &&
+        (element.kind === "text" || element.kind === "image") &&
+        !editing && (
+          <SelectionHandles
+            elementLabel={element.kind}
+            onResizeStart={(corner, event) =>
+              onResizeStart(event, element, corner)
+            }
+            onRotateStart={(event) => onRotateStart(event, element)}
+          />
+        )}
     </div>
   );
 }

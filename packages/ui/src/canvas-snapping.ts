@@ -42,9 +42,11 @@ export function snapMovedElement(
     yMm: nearest(
       element.yMm,
       [
+        0,
         printableTop,
         (printableTop + printableBottom - element.heightMm) / 2,
         printableBottom - element.heightMm,
+        size.heightMm - element.heightMm,
       ],
       thresholds.yMm,
     ),
@@ -65,14 +67,14 @@ export function snapResizedFrame<T extends ElementFrame>(
   const printableBottom = size.heightMm - margins.bottomMm;
   const xMm = edges.left ? nearest(frame.xMm, [0], thresholds.xMm) : frame.xMm;
   const yMm = edges.top
-    ? nearest(frame.yMm, [printableTop], thresholds.yMm)
+    ? nearest(frame.yMm, [0, printableTop], thresholds.yMm)
     : frame.yMm;
   const right = edges.left
     ? originalRight
     : nearest(originalRight, [size.widthMm], thresholds.xMm);
   const bottom = edges.top
     ? originalBottom
-    : nearest(originalBottom, [printableBottom], thresholds.yMm);
+    : nearest(originalBottom, [printableBottom, size.heightMm], thresholds.yMm);
   return {
     ...frame,
     xMm: right - xMm < minimumSizeMm ? right - minimumSizeMm : xMm,

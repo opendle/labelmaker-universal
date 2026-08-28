@@ -1,11 +1,11 @@
 import type { ImageElement, LabelPlate, TextElement } from "@labelmaker/domain";
 import {
   AlignCenter,
-  AlignEndVertical,
   AlignLeft,
   AlignRight,
-  AlignStartVertical,
+  AlignVerticalJustifyEnd,
   AlignVerticalJustifyCenter,
+  AlignVerticalJustifyStart,
   Crop,
   Italic,
   RotateCcw,
@@ -19,6 +19,7 @@ import {
   updatePlateEditorWidth,
 } from "./editor-operations.js";
 import { TYPEFACES } from "./typefaces.js";
+import { MonochromeImage } from "./MonochromeImage.js";
 
 function NumberField({
   label,
@@ -29,6 +30,7 @@ function NumberField({
   icon,
   onChange,
   step,
+  integer = false,
 }: {
   readonly label: string;
   readonly shortLabel: string;
@@ -38,6 +40,7 @@ function NumberField({
   readonly icon?: boolean;
   readonly onChange: (value: number) => void;
   readonly step?: number;
+  readonly integer?: boolean;
 }) {
   return (
     <label className="field">
@@ -47,10 +50,14 @@ function NumberField({
         <input
           aria-label={label}
           min={min}
-          onChange={(event) => onChange(Number(event.target.value))}
+          onChange={(event) => {
+            const next = Number(event.target.value);
+            if (!Number.isFinite(next)) return;
+            onChange(integer ? Math.round(next) : next);
+          }}
           step={step}
           type="number"
-          value={Math.round(value * 10) / 10}
+          value={integer ? Math.round(value) : Math.round(value * 10) / 10}
         />
         <b>{unit}</b>
       </div>
@@ -148,13 +155,18 @@ function TextInspector({
           ))}
         </select>
       </label>
-      <div className="field-row">
+      <div className="type-metrics-row">
         <NumberField
+          integer
           label="Font size"
+          min={1}
           shortLabel="SIZE"
+          step={1}
           unit="pt"
           value={element.fontSizePt}
-          onChange={(fontSizePt) => onChange({ ...element, fontSizePt })}
+          onChange={(fontSizePt) =>
+            onChange({ ...element, fontSizePt: Math.max(1, fontSizePt) })
+          }
         />
         <LineHeightField element={element} onChange={onChange} />
       </div>
@@ -242,18 +254,37 @@ function TextInspector({
                 type="button"
               >
                 {verticalAlign === "top" ? (
-                  <AlignStartVertical size={16} />
+                  <AlignVerticalJustifyStart size={16} />
                 ) : verticalAlign === "middle" ? (
                   <AlignVerticalJustifyCenter size={16} />
                 ) : (
-                  <AlignEndVertical size={16} />
+                  <AlignVerticalJustifyEnd size={16} />
                 )}
               </button>
             ))}
           </div>
         </div>
       </div>
-      <div className="property-label">POSITION</div>
+      <div className="field-row">
+        <NumberField
+          label="Text frame width"
+          min={0.5}
+          shortLabel="WIDTH"
+          value={element.widthMm}
+          onChange={(widthMm) =>
+            onChange({ ...element, widthMm: Math.max(0.5, widthMm) })
+          }
+        />
+        <NumberField
+          label="Text frame height"
+          min={0.5}
+          shortLabel="HEIGHT"
+          value={element.heightMm}
+          onChange={(heightMm) =>
+            onChange({ ...element, heightMm: Math.max(0.5, heightMm) })
+          }
+        />
+      </div>
       <div className="field-row position-row">
         <NumberField
           label="X position"
@@ -290,7 +321,7 @@ function ImageInspector({
   return (
     <div className="property-stack">
       <div className="image-inspector-preview">
-        <img alt="Selected" src={element.source} />
+        <MonochromeImage element={element} label="Selected image" />
       </div>
       <label className="field full">
         <span>FIT</span>
@@ -309,22 +340,21 @@ function ImageInspector({
           <option value="stretch">Stretch</option>
         </select>
       </label>
-      <div className="property-label">POSITION</div>
-      <div className="field-row">
-        <NumberField
-          label="Image X position"
-          shortLabel="X"
-          value={element.xMm}
-          onChange={(xMm) => onChange({ ...element, xMm })}
+      <label className="field threshold-field">
+        <span>
+          THRESHOLD <b>{element.threshold}</b>
+        </span>
+        <input
+          aria-label="Image threshold"
+          max={255}
+          min={0}
+          onChange={(event) =>
+            onChange({ ...element, threshold: Number(event.target.value) })
+          }
+          type="range"
+          value={element.threshold}
         />
-        <NumberField
-          label="Image Y position"
-          shortLabel="Y"
-          value={element.yMm}
-          onChange={(yMm) => onChange({ ...element, yMm })}
-        />
-      </div>
-      <div className="property-label">SIZE</div>
+      </label>
       <div className="field-row">
         <NumberField
           label="Image width"
@@ -343,6 +373,20 @@ function ImageInspector({
           onChange={(heightMm) =>
             onChange({ ...element, heightMm: Math.max(1, heightMm) })
           }
+        />
+      </div>
+      <div className="field-row position-row">
+        <NumberField
+          label="Image X position"
+          shortLabel="X"
+          value={element.xMm}
+          onChange={(xMm) => onChange({ ...element, xMm })}
+        />
+        <NumberField
+          label="Image Y position"
+          shortLabel="Y"
+          value={element.yMm}
+          onChange={(yMm) => onChange({ ...element, yMm })}
         />
       </div>
       <NumberField

@@ -61,27 +61,36 @@ appearances so that they show the physical label and printed result accurately.
   printer's physical printable width. A label that fits inside the printable
   width has no non-printable label area. Do not scale a narrow label to the full
   print-head width.
-- Resize text elements from corner handles and rotate them from a separate
-  rotation handle. Elements can extend outside the plate bounds.
-- Snap moved text and image frames to the left, horizontal center, right, top,
-  vertical middle, and bottom of the printable area. Snap a resized text frame
-  to the printable-area limits.
+- Resize text and image elements from corner handles and rotate them from a
+  separate rotation handle. Elements can extend outside the plate bounds.
+- Snap moved text and image frames to the absolute label limits and to the
+  left, horizontal center, right, top, vertical middle, and bottom of the
+  printable area. Snap resized text and image frames to the absolute and
+  printable-area limits.
 - Apply a typeface, font size, light/regular/semi-bold/bold weight, italic
   style, automatic or fixed line height, and horizontal and vertical alignment
   to selected text.
+- Keep font size in whole points. Put its compact input on the same aligned row
+  as the wider line-height input.
 - Offer twelve useful system typefaces and use Avenir Next, with a Segoe UI
   fallback, for new text.
 - Change plate width and height.
 - Add a text element.
 - Add an image element. Text and image are separate actions, and both element
-  types can move on the plate.
+  types can move and resize on the plate.
 - Accept only PNG, JPEG, GIF, WebP, and BMP images that the print renderer can
   use.
+- Convert imported images to monochrome with Floyd-Steinberg dithering. Show a
+  threshold control in the image inspector and use it in previews and print.
+- Show width and height above X and Y for text and image frames. Do not show
+  separate Position or Size section titles.
 - Set left and right plate margins, with zero as the default.
-- Trim the plate width to the rendered text ink bounds plus the selected
-  margins. Round the result up to a whole millimeter and divide only the
-  rounding remainder equally between the left and right sides. The text element
-  frame must not add blank trim space.
+- Trim the plate width to the first and last black pixels of the final
+  monochrome raster plus the selected margins. Apply elements in document
+  order, so a white image can hide earlier content. A fully white image and an
+  element frame must not add blank trim space. Round the result up to a whole
+  millimeter and divide only the rounding remainder equally between the left
+  and right sides.
 - Keep the plate width field in whole millimeters.
 - Run trim-to-content when the user presses Enter in the plate width, height,
   left margin, or right margin field.

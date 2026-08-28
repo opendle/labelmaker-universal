@@ -16,6 +16,13 @@ import type { LabelmakerHost } from "./host.js";
 import { LabelmakerApp } from "./LabelmakerApp.js";
 import { sampleDocument } from "./sample.js";
 
+vi.mock("./browser-raster.js", () => ({
+  renderPlateBlackBounds: vi.fn().mockResolvedValue({
+    minX: 15.5,
+    maxX: 46.5,
+  }),
+}));
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
@@ -722,9 +729,13 @@ describe("LabelmakerApp", () => {
       name: "Use automatic line height",
     });
     const lineHeight = screen.getByLabelText("Line height");
+    const fontSize = screen.getByLabelText("Font size");
     expect(automatic).toBeChecked();
     expect(lineHeight).toBeDisabled();
     expect(lineHeight).toHaveValue(18);
+    expect(fontSize).toHaveAttribute("step", "1");
+    fireEvent.change(fontSize, { target: { value: "18.6" } });
+    expect(fontSize).toHaveValue(19);
 
     await user.click(automatic);
     expect(lineHeight).toBeEnabled();
@@ -750,7 +761,7 @@ describe("LabelmakerApp", () => {
       .querySelector<HTMLElement>(".label-artwork-text")!;
     expect(previewText.style.textAlign).toBe("right");
     expect(previewText.style.alignItems).toBe("flex-start");
-    expect(Number(previewText.style.lineHeight)).toBeCloseTo(4 / 3, 5);
+    expect(Number(previewText.style.lineHeight)).toBeCloseTo(24 / 19, 5);
   });
 
   it("passes the dirty document to the new-workspace prompt", async () => {
@@ -891,6 +902,19 @@ describe("LabelmakerApp", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Image X position")).toBeInTheDocument();
     expect(screen.getByLabelText("Image Y position")).toBeInTheDocument();
+    expect(screen.getByLabelText("Image threshold")).toHaveValue("128");
+    expect(
+      screen.getByRole("button", { name: "Resize image block se" }),
+    ).toBeInTheDocument();
+    const width = screen.getByLabelText("Image width");
+    const x = screen.getByLabelText("Image X position");
+    expect(
+      width.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Image threshold"), {
+      target: { value: "180" },
+    });
+    expect(screen.getByLabelText("Image threshold")).toHaveValue("180");
     expect(screen.getByText("Edited")).toBeInTheDocument();
   });
 
@@ -929,7 +953,9 @@ describe("LabelmakerApp", () => {
       screen.getByRole("button", { name: "Trim plate to content" }),
     );
 
-    expect(screen.getByLabelText("Plate width")).toHaveValue(36);
+    await waitFor(() =>
+      expect(screen.getByLabelText("Plate width")).toHaveValue(36),
+    );
     await user.click(
       screen.getByRole("button", { name: "Text element: RESISTORS" }),
     );
@@ -938,12 +964,14 @@ describe("LabelmakerApp", () => {
 
   it.each(["Plate width", "Plate height", "Left margin", "Right margin"])(
     "trims the plate when Enter is pressed in %s",
-    (fieldName) => {
+    async (fieldName) => {
       render(<LabelmakerApp host={createHost()} />);
 
       fireEvent.keyDown(screen.getByLabelText(fieldName), { key: "Enter" });
 
-      expect(screen.getByLabelText("Plate width")).toHaveValue(31);
+      await waitFor(() =>
+        expect(screen.getByLabelText("Plate width")).toHaveValue(31),
+      );
     },
   );
 

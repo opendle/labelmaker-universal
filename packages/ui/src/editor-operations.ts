@@ -7,6 +7,10 @@ import type {
 } from "@labelmaker/domain";
 
 import { replacePlate } from "./app-state.js";
+import {
+  renderPlateBlackBounds,
+  type BlackPixelBounds,
+} from "./browser-raster.js";
 import { DEFAULT_TYPEFACE } from "./typefaces.js";
 
 export const clamp = (value: number, min: number, max: number) =>
@@ -223,148 +227,23 @@ export function updateElementAndFlagPeer(
   };
 }
 
-interface HorizontalBounds {
-  readonly minX: number;
-  readonly maxX: number;
-}
+export type PlateBlackBoundsProvider = (
+  plate: LabelPlate,
+) => Promise<BlackPixelBounds | null>;
 
-export interface TextInkMetrics {
-  readonly advanceMm: number;
-  readonly leftMm: number;
-  readonly rightMm: number;
-  readonly heightMm: number;
-}
-
-export type TextInkMeasurer = (
-  element: TextElement,
-  line: string,
-) => TextInkMetrics;
-
-const measureTextLine: TextInkMeasurer = (element, line) => {
-  const fontSizePx = (element.fontSizePt * 96) / 72;
-  const canvas =
-    typeof globalThis.CanvasRenderingContext2D === "undefined"
-      ? undefined
-      : globalThis.document?.createElement("canvas");
-  const context = canvas?.getContext("2d");
-  if (context) {
-    context.font = `${element.fontStyle ?? "normal"} ${element.fontWeight} ${fontSizePx}px ${element.fontFamily}`;
-    const metrics = context.measureText(line || " ");
-    return {
-      advanceMm: (metrics.width * 25.4) / 96,
-      leftMm: (metrics.actualBoundingBoxLeft * 25.4) / 96,
-      rightMm: ((metrics.actualBoundingBoxRight || metrics.width) * 25.4) / 96,
-      heightMm:
-        ((metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent ||
-          fontSizePx) *
-          25.4) /
-        96,
-    };
-  }
-  return {
-    advanceMm: Math.max(0.2, line.length * element.fontSizePt * 0.19),
-    leftMm: 0,
-    rightMm: Math.max(0.2, line.length * element.fontSizePt * 0.19),
-    heightMm: (element.fontSizePt * 25.4) / 72,
-  };
-};
-
-function textInkBounds(
-  element: TextElement,
-  measure: TextInkMeasurer,
-): HorizontalBounds {
-  const lines = element.text.split("\n");
-  const measured = lines.map((line) => measure(element, line));
-  const lineHeightMm =
-    ((element.lineHeightPt ?? element.fontSizePt) * 25.4) / 72;
-  const blockHeightMm = lines.length * lineHeightMm;
-  const blockTopMm =
-    (element.verticalAlign ?? "middle") === "top"
-      ? element.yMm
-      : element.verticalAlign === "bottom"
-        ? element.yMm + element.heightMm - blockHeightMm
-        : element.yMm + (element.heightMm - blockHeightMm) / 2;
-  const centerX = element.xMm + element.widthMm / 2;
-  const centerY = element.yMm + element.heightMm / 2;
-  const radians = (element.rotationDeg * Math.PI) / 180;
-  const cos = Math.cos(radians);
-  const sin = Math.sin(radians);
-  const rotatedX: number[] = [];
-
-  measured.forEach((line, index) => {
-    const layoutStart =
-      element.align === "left"
-        ? element.xMm
-        : element.align === "right"
-          ? element.xMm + element.widthMm - line.advanceMm
-          : element.xMm + (element.widthMm - line.advanceMm) / 2;
-    const inkLeft = layoutStart - line.leftMm;
-    const inkRight = layoutStart + line.rightMm;
-    const top =
-      blockTopMm + index * lineHeightMm + (lineHeightMm - line.heightMm) / 2;
-    const corners = [
-      [inkLeft, top],
-      [inkRight, top],
-      [inkLeft, top + line.heightMm],
-      [inkRight, top + line.heightMm],
-    ];
-    corners.forEach(([x = 0, y = 0]) => {
-      rotatedX.push(centerX + (x - centerX) * cos - (y - centerY) * sin);
-    });
-  });
-  return { minX: Math.min(...rotatedX), maxX: Math.max(...rotatedX) };
-}
-
-function elementInkBounds(
-  element: LabelElement,
-  measure: TextInkMeasurer,
-): HorizontalBounds | null {
-  if (element.kind === "text") {
-    if (!element.text.trim()) return null;
-    return textInkBounds(element, measure);
-  }
-  return null;
-}
-
-export function trimPlate(
+function trimPlateToBlackBounds(
   workspace: LabelDocument,
   plateId: string,
-  measure: TextInkMeasurer = measureTextLine,
+  bounds: BlackPixelBounds | null,
 ): LabelDocument {
   return replacePlate(workspace, plateId, (plate) => {
-    if (isFlagPlate(plate)) {
-      const normalPlate = toggleFlagPlate(plate);
-      const normalWorkspace = replacePlate(
-        workspace,
-        plateId,
-        () => normalPlate,
-      );
-      const trimmedNormal = trimPlate(
-        normalWorkspace,
-        plateId,
-        measure,
-      ).plates.find((item) => item.id === plateId);
-      return trimmedNormal ? toggleFlagPlate(trimmedNormal) : plate;
-    }
-    if (plate.elements.length === 0) return plate;
-    const bounds: HorizontalBounds[] = [];
-    for (const element of plate.elements) {
-      const bound = elementInkBounds(element, measure);
-      if (bound) bounds.push(bound);
-    }
-    if (bounds.length === 0) return plate;
-    let minX = Number.POSITIVE_INFINITY;
-    let maxX = Number.NEGATIVE_INFINITY;
-    for (const bound of bounds) {
-      minX = Math.min(minX, bound.minX);
-      maxX = Math.max(maxX, bound.maxX);
-    }
+    if (!bounds) return plate;
     const leftMm = plate.margins.leftMm;
     const rightMm = plate.margins.rightMm;
-    const measuredWidthMm = maxX - minX + leftMm + rightMm;
+    const measuredWidthMm = bounds.maxX - bounds.minX + leftMm + rightMm;
     const widthMm = Math.ceil(Math.max(1, measuredWidthMm));
     const roundingPaddingMm = (widthMm - measuredWidthMm) / 2;
-    const offsetX = leftMm + roundingPaddingMm - minX;
+    const offsetX = leftMm + roundingPaddingMm - bounds.minX;
     return {
       ...plate,
       size: {
@@ -377,4 +256,23 @@ export function trimPlate(
       })),
     };
   });
+}
+
+export async function trimPlate(
+  workspace: LabelDocument,
+  plateId: string,
+  findBounds: PlateBlackBoundsProvider = renderPlateBlackBounds,
+): Promise<LabelDocument> {
+  const plate = workspace.plates.find((item) => item.id === plateId);
+  if (!plate) return workspace;
+  const flag = isFlagPlate(plate);
+  const sourcePlate = flag ? toggleFlagPlate(plate) : plate;
+  const bounds = await findBounds(sourcePlate);
+  const sourceWorkspace = flag
+    ? replacePlate(workspace, plateId, () => sourcePlate)
+    : workspace;
+  const trimmed = trimPlateToBlackBounds(sourceWorkspace, plateId, bounds);
+  return flag
+    ? replacePlate(trimmed, plateId, (item) => toggleFlagPlate(item))
+    : trimmed;
 }

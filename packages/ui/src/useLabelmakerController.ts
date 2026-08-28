@@ -24,7 +24,6 @@ import {
   createImage,
   createPlate,
   createText,
-  trimPlate,
   toggleFlagPlate,
 } from "./editor-operations.js";
 import type { LabelmakerHost, PrinterSettings } from "./host.js";

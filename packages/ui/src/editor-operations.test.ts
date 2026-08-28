@@ -7,15 +7,7 @@ import {
   trimPlate,
   updateElementAndFlagPeer,
   updatePlateEditorWidth,
-  type TextInkMeasurer,
 } from "./editor-operations.js";
-
-const measure: TextInkMeasurer = (_element, line) => ({
-  advanceMm: line === "I" ? 2 : 10,
-  leftMm: line === "I" ? 0 : 2,
-  rightMm: line === "I" ? 2 : 11,
-  heightMm: 4,
-});
 
 const document: LabelDocument = {
   schemaVersion: 1,
@@ -62,8 +54,11 @@ const document: LabelDocument = {
 };
 
 describe("trimPlate", () => {
-  it("uses multiline glyph ink and bearings instead of the text frame", () => {
-    const trimmed = trimPlate(document, "plate", measure);
+  it("uses the first and last black raster pixels instead of element frames", async () => {
+    const trimmed = await trimPlate(document, "plate", async () => ({
+      minX: 43,
+      maxX: 56,
+    }));
     const plate = trimmed.plates[0]!;
     const text = plate.elements[0]!;
 
@@ -71,7 +66,7 @@ describe("trimPlate", () => {
     expect(text.xMm).toBe(-31);
   });
 
-  it("does not use non-text element frames as trim bounds", () => {
+  it("does not use a white image frame as trim bounds", async () => {
     const withoutImage: LabelDocument = {
       ...document,
       plates: document.plates.map((plate) => ({
@@ -80,12 +75,16 @@ describe("trimPlate", () => {
       })),
     };
 
-    expect(trimPlate(document, "plate", measure).plates[0]!.size.widthMm).toBe(
-      trimPlate(withoutImage, "plate", measure).plates[0]!.size.widthMm,
+    const blackPixels = async () => ({ minX: 43, maxX: 56 });
+    expect(
+      (await trimPlate(document, "plate", blackPixels)).plates[0]!.size.widthMm,
+    ).toBe(
+      (await trimPlate(withoutImage, "plate", blackPixels)).plates[0]!.size
+        .widthMm,
     );
   });
 
-  it("adds no hidden padding when both trim margins are zero", () => {
+  it("adds no hidden padding when both trim margins are zero", async () => {
     const zeroMargins = {
       ...document,
       plates: document.plates.map((plate) => ({
@@ -93,17 +92,16 @@ describe("trimPlate", () => {
         margins: { leftMm: 0, rightMm: 0 },
       })),
     };
-    const plate = trimPlate(zeroMargins, "plate", measure).plates[0]!;
+    const plate = (
+      await trimPlate(zeroMargins, "plate", async () => ({
+        minX: 43,
+        maxX: 56,
+      }))
+    ).plates[0]!;
     expect(plate.size.widthMm).toBe(13);
   });
 
-  it("rounds up to a whole millimeter and centers the rounding padding", () => {
-    const fractionalMeasure: TextInkMeasurer = () => ({
-      advanceMm: 10,
-      leftMm: 0,
-      rightMm: 10.7,
-      heightMm: 4,
-    });
+  it("rounds up to a whole millimeter and centers the rounding padding", async () => {
     const zeroMargins = {
       ...document,
       plates: document.plates.map((plate) => ({
@@ -113,7 +111,12 @@ describe("trimPlate", () => {
       })),
     };
 
-    const plate = trimPlate(zeroMargins, "plate", fractionalMeasure).plates[0]!;
+    const plate = (
+      await trimPlate(zeroMargins, "plate", async () => ({
+        minX: 45,
+        maxX: 55.7,
+      }))
+    ).plates[0]!;
     const text = plate.elements[0]!;
     expect(plate.size.widthMm).toBe(11);
     expect(text.xMm).toBeCloseTo(-34.85);

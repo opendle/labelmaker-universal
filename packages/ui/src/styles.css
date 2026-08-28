@@ -880,7 +880,7 @@ textarea.inline-text-editor:focus-visible {
 .canvas-image {
   overflow: visible;
 }
-.canvas-image img {
+.canvas-image canvas {
   width: 100%;
   height: 100%;
   padding: 2px;
@@ -1058,6 +1058,12 @@ textarea.inline-text-editor:focus-visible {
   grid-template-columns: 1fr 1fr;
   gap: 9px;
 }
+.type-metrics-row {
+  display: grid;
+  grid-template-columns: 68px minmax(0, 1fr);
+  gap: 9px;
+  align-items: end;
+}
 .position-row {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1077,6 +1083,11 @@ textarea.inline-text-editor:focus-visible {
   align-items: center;
   justify-content: space-between;
   gap: 4px;
+  white-space: nowrap;
+}
+.line-height-field .field-heading {
+  font-size: 8px;
+  letter-spacing: 0.06em;
 }
 .auto-setting {
   display: inline-flex;
@@ -1095,6 +1106,22 @@ textarea.inline-text-editor:focus-visible {
 }
 .line-height-field .unit-input:has(input:disabled) {
   opacity: 0.55;
+}
+.threshold-field > span {
+  display: flex;
+  justify-content: space-between;
+}
+.threshold-field > span b {
+  color: #68645c;
+  font-family: "DM Mono", monospace;
+  font-size: 8px;
+  font-weight: 500;
+}
+.threshold-field input[type="range"] {
+  height: 20px;
+  padding: 0;
+  border: 0;
+  accent-color: var(--accent);
 }
 .text-style-buttons {
   height: 30px;
@@ -1281,10 +1308,9 @@ textarea.inline-text-editor:focus-visible {
     -5px 0;
   background-size: 10px 10px;
 }
-.image-inspector-preview img {
+.image-inspector-preview canvas {
   max-width: 100%;
   max-height: 100%;
-  object-fit: contain;
 }
 .unit-input {
   height: 30px;

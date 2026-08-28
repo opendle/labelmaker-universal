@@ -1,5 +1,6 @@
+import type { LabelDocument } from "@labelmaker/domain";
 import { Check, CircleAlert, Info } from "lucide-react";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import { AddPrinterDialog } from "./AppDialogs.js";
 import { AppHeader } from "./AppHeader.js";
@@ -14,10 +15,41 @@ import { PreviewDialog } from "./PreviewDialog.js";
 import { PrinterSettingsDialog } from "./PrinterSettingsDialog.js";
 import { useLabelmakerController } from "./useLabelmakerController.js";
 
+async function trimLatestWorkspace(
+  plateId: string,
+  getWorkspace: () => LabelDocument,
+  applyWorkspace: (workspace: LabelDocument) => void,
+): Promise<void> {
+  const trimSnapshot = async () => {
+    const source = getWorkspace();
+    return { source, workspace: await trimPlate(source, plateId) };
+  };
+  const first = await trimSnapshot();
+  if (getWorkspace() === first.source) {
+    applyWorkspace(first.workspace);
+    return;
+  }
+  const second = await trimSnapshot();
+  if (getWorkspace() === second.source) {
+    applyWorkspace(second.workspace);
+    return;
+  }
+  const third = await trimSnapshot();
+  if (getWorkspace() === third.source) {
+    applyWorkspace(third.workspace);
+    return;
+  }
+  throw new Error("The label changed while trim was running.");
+}
+
 export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   const controller = useLabelmakerController(host);
   const { state, activePlate, selectedText, selectedImage, dispatch } =
     controller;
+  const workspaceRef = useRef(state.workspace);
+  useEffect(() => {
+    workspaceRef.current = state.workspace;
+  }, [state.workspace]);
   const closeAddPrinter = useCallback(
     () => dispatch({ type: "close-add-printer" }),
     [dispatch],
@@ -97,11 +129,21 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             onSelectElement={(elementId) =>
               dispatch({ type: "select-element", elementId })
             }
-            onTrim={() =>
-              controller.editWorkspace(
-                trimPlate(state.workspace, activePlate.id),
-              )
-            }
+            onTrim={() => {
+              void trimLatestWorkspace(
+                activePlate.id,
+                () => workspaceRef.current,
+                controller.editWorkspace,
+              ).catch(() =>
+                dispatch({
+                  type: "set-toast",
+                  toast: {
+                    tone: "error",
+                    message: "The label could not be trimmed.",
+                  },
+                }),
+              );
+            }}
             onUpdatePlate={(plate) =>
               controller.editWorkspace(
                 replacePlate(state.workspace, activePlate.id, () => plate),

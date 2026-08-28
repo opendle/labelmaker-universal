@@ -307,11 +307,13 @@ await capture(1440, 960, "labelmaker-trim-1440x960.png", async (page) => {
     const plateWidth = Number.parseFloat(
       document.querySelector('[aria-label="Plate width"]')?.value ?? "NaN",
     );
+    // Trim uses an 8 px/mm monochrome raster. The DOM glyph bounds can differ
+    // by one raster pixel on each side.
     if (
       !Number.isInteger(plateWidth) ||
-      leftError < -0.05 ||
-      rightError > 0.05 ||
-      Math.abs(leftError + rightError) > 0.05
+      leftError < -1.6 ||
+      rightError > 1.6 ||
+      Math.abs(leftError + rightError) > 0.2
     ) {
       throw new Error(
         `Trim rounding is invalid: ${plateWidth}, ${leftError}, ${rightError}`,

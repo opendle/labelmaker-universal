@@ -133,4 +133,59 @@ describe("desktop plate rasterization", () => {
     expect(page.data[page.data.length - 2]).toBe(0x01);
     expect(page.data[0]).toBe(0);
   });
+
+  it("dithers each image with its threshold before it covers earlier artwork", async () => {
+    const base = createBlankLabelDocument(() => "id").plates[0];
+    if (!base) throw new Error("Expected a plate");
+    const image = {
+      id: "image",
+      kind: "image" as const,
+      xMm: 1,
+      yMm: 1,
+      widthMm: 1,
+      heightMm: 1,
+      rotationDeg: 0,
+      source: "data:image/png;base64,AA==",
+      fit: "stretch" as const,
+      threshold: 50,
+    };
+    const plate = { ...base, elements: [...base.elements, image] };
+    const finalSvgs: string[] = [];
+    const rasterize = vi.fn((svg: string, width: number, height: number) => {
+      const data = new Uint8Array(width * height * 4).fill(255);
+      if (svg.includes('viewBox="0 0 1 1"')) {
+        data[0] = 100;
+        data[1] = 100;
+        data[2] = 100;
+      } else {
+        finalSvgs.push(svg);
+      }
+      return { widthPixels: width, heightPixels: height, data };
+    });
+
+    await renderPlateForPrinter(
+      plate,
+      { dpi: 25.4, rasterWidthPixels: 8, printableWidthMm: 8 },
+      rasterize,
+    );
+    await renderPlateForPrinter(
+      {
+        ...plate,
+        elements: plate.elements.map((element) =>
+          element.kind === "image" ? { ...element, threshold: 150 } : element,
+        ),
+      },
+      { dpi: 25.4, rasterWidthPixels: 8, printableWidthMm: 8 },
+      rasterize,
+    );
+
+    const embeddedPixel = (svg: string) => {
+      const encoded = svg.match(/data:image\/bmp;base64,([^&"]+)/)?.[1];
+      if (!encoded) throw new Error("Expected an embedded BMP image");
+      return Buffer.from(encoded, "base64")[54];
+    };
+    expect(embeddedPixel(finalSvgs[0] ?? "")).toBe(255);
+    expect(embeddedPixel(finalSvgs[1] ?? "")).toBe(0);
+    expect(finalSvgs[0]).toMatch(/<text[\s\S]*<image/);
+  });
 });

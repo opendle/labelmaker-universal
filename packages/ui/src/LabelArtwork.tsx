@@ -6,6 +6,7 @@ import {
   printableMarginPercent,
   type PrintableMargins,
 } from "./label-layout.js";
+import { MonochromeImage } from "./MonochromeImage.js";
 
 type ArtworkStyle = CSSProperties & Record<`--${string}`, string | number>;
 
@@ -80,11 +81,10 @@ export function LabelArtwork({
         }
         if (element.kind === "image") {
           return (
-            <img
-              alt=""
-              className={`label-artwork-element label-artwork-image fit-${element.fit}`}
+            <MonochromeImage
+              className="label-artwork-element label-artwork-image"
+              element={element}
               key={element.id}
-              src={element.source}
               style={frame}
             />
           );
