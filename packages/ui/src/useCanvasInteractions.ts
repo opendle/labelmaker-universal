@@ -43,6 +43,7 @@ export function useCanvasInteractions({
   const editOnClickRef = useRef<string | null>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const touchPointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const cancelPanRef = useRef<(() => void) | null>(null);
   const gestureRef = useRef<{
     readonly pointerIds: readonly [number, number];
     readonly distance: number;
@@ -54,6 +55,13 @@ export function useCanvasInteractions({
   const zoomRef = useRef(zoom);
   onZoomRef.current = onZoom;
   zoomRef.current = zoom;
+
+  useEffect(
+    () => () => {
+      cancelPanRef.current?.();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!touchNavigation) return;
@@ -122,6 +130,7 @@ export function useCanvasInteractions({
     const first = entries[0];
     const second = entries[1];
     if (!first || !second) return false;
+    cancelPanRef.current?.();
     const [firstId, firstPoint] = first;
     const [secondId, secondPoint] = second;
     gestureRef.current = {
@@ -305,22 +314,33 @@ export function useCanvasInteractions({
   };
 
   const startPan = (event: ReactPointerEvent<HTMLElement>) => {
-    if (touchNavigation && event.pointerType === "touch") return;
     if (event.button !== 0) return;
+    cancelPanRef.current?.();
+    const pointerId = event.pointerId;
+    const touchPan = touchNavigation && event.pointerType === "touch";
     const startX = event.clientX;
     const startY = event.clientY;
     const initial = pan;
     event.preventDefault();
-    const onMove = (moveEvent: PointerEvent) =>
+    const onMove = (moveEvent: PointerEvent) => {
+      if (moveEvent.pointerId !== pointerId) return;
+      if (touchPan && touchPointersRef.current.size > 1) return;
       setPan({
         x: initial.x + moveEvent.clientX - startX,
         y: initial.y + moveEvent.clientY - startY,
       });
-    const onUp = () => {
+    };
+    const cleanup = () => {
       globalThis.removeEventListener("pointermove", onMove);
       globalThis.removeEventListener("pointerup", onUp);
       globalThis.removeEventListener("pointercancel", onUp);
+      if (cancelPanRef.current === cleanup) cancelPanRef.current = null;
     };
+    const onUp = (endEvent: PointerEvent) => {
+      if (endEvent.pointerId !== pointerId) return;
+      cleanup();
+    };
+    cancelPanRef.current = cleanup;
     globalThis.addEventListener("pointermove", onMove);
     globalThis.addEventListener("pointerup", onUp);
     globalThis.addEventListener("pointercancel", onUp);

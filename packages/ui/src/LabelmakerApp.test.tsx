@@ -1451,6 +1451,34 @@ describe("LabelmakerApp", () => {
     ).toHaveFocus();
   });
 
+  it("pans the iPad canvas with one touch on the label background", () => {
+    render(<LabelmakerApp host={createHost({ platform: "ipados" })} />);
+    const canvas = screen.getByRole("region", {
+      name: "Resistors label canvas",
+    });
+    const stage = canvas.closest<HTMLElement>(".canvas-stage")!;
+    const background = screen.getByRole("button", {
+      name: "Clear element selection",
+    });
+    const touchEvent = (type: string, clientX: number, clientY: number) => {
+      const event = new Event(type, { bubbles: true });
+      Object.defineProperties(event, {
+        button: { value: 0 },
+        clientX: { value: clientX },
+        clientY: { value: clientY },
+        pointerId: { value: 1 },
+        pointerType: { value: "touch" },
+      });
+      return event;
+    };
+
+    fireEvent(background, touchEvent("pointerdown", 20, 30));
+    fireEvent(window, touchEvent("pointermove", 65, 55));
+    fireEvent(window, touchEvent("pointerup", 65, 55));
+
+    expect(stage).toHaveStyle({ transform: "translate(45px, 25px)" });
+  });
+
   it("uses two iPad touches to pan and zoom the canvas", () => {
     render(<LabelmakerApp host={createHost({ platform: "ipados" })} />);
     const canvas = screen.getByRole("region", {
@@ -1476,11 +1504,14 @@ describe("LabelmakerApp", () => {
     };
 
     fireEvent(workSurface, touchEvent("pointerdown", 1, 0, 0));
-    fireEvent(workSurface, touchEvent("pointerdown", 2, 100, 0));
-    fireEvent(window, touchEvent("pointermove", 2, 150, 0));
+    fireEvent(window, touchEvent("pointermove", 1, 20, 0));
+    expect(stage).toHaveStyle({ transform: "translate(20px, 0px)" });
+
+    fireEvent(workSurface, touchEvent("pointerdown", 2, 120, 0));
+    fireEvent(window, touchEvent("pointermove", 2, 170, 0));
 
     expect(screen.getByText("150%")).toBeInTheDocument();
-    expect(stage).toHaveStyle({ transform: "translate(25px, 0px)" });
+    expect(stage).toHaveStyle({ transform: "translate(45px, 0px)" });
   });
 
   it("moves a selected canvas element with the keyboard", async () => {

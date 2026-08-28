@@ -152,8 +152,9 @@ not add a separate editor.
 - Keep each main touch target at least 44 CSS pixels wide and high.
 - Keep resize and rotation marks small. Give each mark an invisible 44 CSS
   pixel touch area.
-- Let one finger move an element. Use two fingers to move the canvas and to
-  change the zoom.
+- Drag one finger on any empty part of the work surface to move the canvas. A
+  drag that starts on an element moves that element. Use two fingers on the
+  work surface to move the canvas and to change the zoom.
 - A first tap selects an element. A second tap on selected text starts text
   edit. Keep double-click and keyboard edit behavior for desktop input.
 - Show a Delete action when an element is selected. Do not require a hardware
