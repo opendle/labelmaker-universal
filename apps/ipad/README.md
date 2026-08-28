@@ -18,7 +18,7 @@ transport. The shared TypeScript adapter owns the printer protocol.
 2. Open `apps/ipad/Labelmaker.xcodeproj` in Xcode.
 3. Select the `Labelmaker` scheme and the connected iPad.
 4. In Signing & Capabilities, select your development team. Keep automatic
-   signing and the `com.5en1.labelmaker` development bundle identifier.
+   signing and the `com.opendle.labelmaker` development bundle identifier.
 5. Press Run.
 
 The Xcode target runs the iPad web build before each native build. You can also

@@ -17,7 +17,7 @@
       <string>Owner</string>
       <key>LSItemContentTypes</key>
       <array>
-        <string>com.5en1.labelmaker.workspace</string>
+        <string>com.opendle.labelmaker.workspace</string>
       </array>
     </dict>
   </array>
@@ -64,7 +64,7 @@
       <key>UTTypeDescription</key>
       <string>Labelmaker workspace</string>
       <key>UTTypeIdentifier</key>
-      <string>com.5en1.labelmaker.workspace</string>
+      <string>com.opendle.labelmaker.workspace</string>
       <key>UTTypeTagSpecification</key>
       <dict>
         <key>public.filename-extension</key>
