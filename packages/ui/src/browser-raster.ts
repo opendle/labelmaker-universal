@@ -1,5 +1,9 @@
 import type { LabelElement, LabelPlate, TextElement } from "@labelmaker/domain";
-import { rgbaToMonochrome } from "@labelmaker/rendering";
+import {
+  rgbaToMonochrome,
+  shapeLineStrokeWidthMm,
+  shapeRenderGeometry,
+} from "@labelmaker/rendering";
 
 import { renderMonochromeImageFrame } from "./image-raster.js";
 import { pointsToMillimeters } from "./label-layout.js";
@@ -90,13 +94,12 @@ function plateRenderExtent(
       }
       continue;
     }
-    const stroke = element.kind === "rectangle" ? element.strokeWidthMm / 2 : 0;
     const bounds = rotatedHorizontalBounds(
       element,
-      element.xMm - stroke,
-      element.xMm + element.widthMm + stroke,
-      element.yMm - stroke,
-      element.yMm + element.heightMm + stroke,
+      element.xMm,
+      element.xMm + element.widthMm,
+      element.yMm,
+      element.yMm + element.heightMm,
     );
     minX = Math.min(minX, bounds[0]);
     maxX = Math.max(maxX, bounds[1]);
@@ -207,28 +210,37 @@ export async function renderPlateBlackBounds(
       const frameHeight = element.heightMm * PIXELS_PER_MILLIMETER;
       context.fillStyle = "black";
       context.strokeStyle = "black";
-      context.lineWidth = element.strokeWidthMm * PIXELS_PER_MILLIMETER;
       if (element.shapeType === "line") {
+        context.lineWidth =
+          shapeLineStrokeWidthMm(element) * PIXELS_PER_MILLIMETER;
         context.beginPath();
         context.moveTo(x, y + frameHeight / 2);
         context.lineTo(x + frameWidth, y + frameHeight / 2);
         context.stroke();
-      } else if (element.shapeType === "circle") {
-        context.beginPath();
-        context.ellipse(
-          x + frameWidth / 2,
-          y + frameHeight / 2,
-          frameWidth / 2,
-          frameHeight / 2,
-          0,
-          0,
-          Math.PI * 2,
-        );
-        if (element.filled) context.fill();
-        else context.stroke();
-      } else if (element.filled)
-        context.fillRect(x, y, frameWidth, frameHeight);
-      else context.strokeRect(x, y, frameWidth, frameHeight);
+      } else {
+        const geometry = shapeRenderGeometry(element);
+        const shapeX = x + geometry.insetMm * PIXELS_PER_MILLIMETER;
+        const shapeY = y + geometry.insetMm * PIXELS_PER_MILLIMETER;
+        const shapeWidth = geometry.widthMm * PIXELS_PER_MILLIMETER;
+        const shapeHeight = geometry.heightMm * PIXELS_PER_MILLIMETER;
+        context.lineWidth = geometry.strokeWidthMm * PIXELS_PER_MILLIMETER;
+        if (element.shapeType === "circle") {
+          context.beginPath();
+          context.ellipse(
+            x + frameWidth / 2,
+            y + frameHeight / 2,
+            shapeWidth / 2,
+            shapeHeight / 2,
+            0,
+            0,
+            Math.PI * 2,
+          );
+          if (geometry.filled) context.fill();
+          else context.stroke();
+        } else if (geometry.filled)
+          context.fillRect(shapeX, shapeY, shapeWidth, shapeHeight);
+        else context.strokeRect(shapeX, shapeY, shapeWidth, shapeHeight);
+      }
     }
     context.restore();
   }

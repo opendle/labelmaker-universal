@@ -1,4 +1,8 @@
 import type { ShapeElement } from "@labelmaker/domain";
+import {
+  shapeLineStrokeWidthMm,
+  shapeRenderGeometry,
+} from "@labelmaker/rendering";
 import type { CSSProperties } from "react";
 
 export function ShapeArtwork({
@@ -11,7 +15,9 @@ export function ShapeArtwork({
   readonly style?: CSSProperties;
 }) {
   const shapeType = element.shapeType ?? "rectangle";
-  const stroke = Math.max(0, element.strokeWidthMm);
+  const geometry = shapeRenderGeometry(element);
+  const fill = geometry.filled ? "currentColor" : "none";
+  const stroke = geometry.filled ? "none" : "currentColor";
   return (
     <svg
       aria-hidden="true"
@@ -23,7 +29,8 @@ export function ShapeArtwork({
       {shapeType === "line" ? (
         <line
           stroke="currentColor"
-          strokeWidth={stroke}
+          strokeLinecap="butt"
+          strokeWidth={shapeLineStrokeWidthMm(element)}
           x1={0}
           x2={element.widthMm}
           y1={element.heightMm / 2}
@@ -33,26 +40,22 @@ export function ShapeArtwork({
         <ellipse
           cx={element.widthMm / 2}
           cy={element.heightMm / 2}
-          fill={element.filled ? "currentColor" : "none"}
-          rx={element.widthMm / 2}
-          ry={element.heightMm / 2}
-          stroke="currentColor"
-          strokeWidth={stroke}
+          fill={fill}
+          rx={geometry.widthMm / 2}
+          ry={geometry.heightMm / 2}
+          stroke={stroke}
+          strokeWidth={geometry.strokeWidthMm}
         />
       ) : (
         <rect
-          fill={element.filled ? "currentColor" : "none"}
-          height={element.heightMm}
-          rx={Math.min(
-            element.cornerRadiusMm,
-            element.widthMm / 2,
-            element.heightMm / 2,
-          )}
-          stroke="currentColor"
-          strokeWidth={stroke}
-          width={element.widthMm}
-          x={0}
-          y={0}
+          fill={fill}
+          height={geometry.heightMm}
+          rx={geometry.cornerRadiusMm}
+          stroke={stroke}
+          strokeWidth={geometry.strokeWidthMm}
+          width={geometry.widthMm}
+          x={geometry.insetMm}
+          y={geometry.insetMm}
         />
       )}
     </svg>

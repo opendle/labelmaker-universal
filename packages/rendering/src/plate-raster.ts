@@ -11,6 +11,10 @@ import {
   type MonochromeBitmap,
   type RgbaImage,
 } from "./bitmap.js";
+import {
+  shapeLineStrokeWidthMm,
+  shapeRenderGeometry,
+} from "./shape-geometry.js";
 
 export interface PlateRasterTarget {
   readonly dpi: number;
@@ -248,15 +252,19 @@ function renderElement(element: LabelElement): string {
       return `<image x="${number(element.xMm)}" y="${number(element.yMm)}" width="${number(element.widthMm)}" height="${number(element.heightMm)}" href="${attribute(element.source)}" preserveAspectRatio="${aspect}"${transform}/>`;
     }
     case "rectangle": {
-      const fill = element.filled ? "black" : "none";
       if (element.shapeType === "line") {
         const y = element.yMm + element.heightMm / 2;
-        return `<line x1="${number(element.xMm)}" y1="${number(y)}" x2="${number(element.xMm + element.widthMm)}" y2="${number(y)}" stroke="black" stroke-width="${number(element.strokeWidthMm)}"${transform}/>`;
+        return `<line x1="${number(element.xMm)}" y1="${number(y)}" x2="${number(element.xMm + element.widthMm)}" y2="${number(y)}" stroke="black" stroke-linecap="butt" stroke-width="${number(shapeLineStrokeWidthMm(element))}"${transform}/>`;
       }
+      const geometry = shapeRenderGeometry(element);
+      const x = element.xMm + geometry.insetMm;
+      const y = element.yMm + geometry.insetMm;
+      const fill = geometry.filled ? "black" : "none";
+      const stroke = geometry.filled ? "none" : "black";
       if (element.shapeType === "circle") {
-        return `<ellipse cx="${number(element.xMm + element.widthMm / 2)}" cy="${number(element.yMm + element.heightMm / 2)}" rx="${number(element.widthMm / 2)}" ry="${number(element.heightMm / 2)}" fill="${fill}" stroke="black" stroke-width="${number(element.strokeWidthMm)}"${transform}/>`;
+        return `<ellipse cx="${number(element.xMm + element.widthMm / 2)}" cy="${number(element.yMm + element.heightMm / 2)}" rx="${number(geometry.widthMm / 2)}" ry="${number(geometry.heightMm / 2)}" fill="${fill}" stroke="${stroke}" stroke-width="${number(geometry.strokeWidthMm)}"${transform}/>`;
       }
-      return `<rect x="${number(element.xMm)}" y="${number(element.yMm)}" width="${number(element.widthMm)}" height="${number(element.heightMm)}" rx="${number(element.cornerRadiusMm)}" fill="${fill}" stroke="black" stroke-width="${number(element.strokeWidthMm)}"${transform}/>`;
+      return `<rect x="${number(x)}" y="${number(y)}" width="${number(geometry.widthMm)}" height="${number(geometry.heightMm)}" rx="${number(geometry.cornerRadiusMm)}" fill="${fill}" stroke="${stroke}" stroke-width="${number(geometry.strokeWidthMm)}"${transform}/>`;
     }
     case "qr":
     case "barcode":

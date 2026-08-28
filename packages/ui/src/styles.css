@@ -947,7 +947,7 @@ textarea.inline-text-editor:focus-visible {
   pointer-events: none;
 }
 .canvas-shape-element {
-  color: #8f8a80;
+  color: #000;
 }
 .shape-artwork {
   width: 100%;
@@ -1614,7 +1614,7 @@ textarea.inline-text-editor:focus-visible {
   object-fit: contain;
 }
 .label-artwork-shape {
-  color: #222;
+  color: #000;
   overflow: visible;
 }
 .artwork-nonprintable {

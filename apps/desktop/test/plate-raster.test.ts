@@ -124,8 +124,38 @@ describe("desktop plate rasterization", () => {
     const svg = buildPlateSvg(changed, 320, 96);
 
     expect(svg).toContain('<line x1="2" y1="6" x2="10" y2="6"');
-    expect(svg).toContain('<rect x="2" y="3" width="8" height="6"');
-    expect(svg).toContain('<ellipse cx="6" cy="6" rx="4" ry="3"');
+    expect(svg).toContain('<rect x="2.25" y="3.25" width="7.5" height="5.5"');
+    expect(svg).toContain('<ellipse cx="6" cy="6" rx="3.75" ry="2.75"');
+    expect(svg).not.toContain('color="#');
+  });
+
+  it("fills shapes in black without drawing outside their frames", () => {
+    const plate = createBlankLabelDocument(() => "id").plates[0];
+    if (!plate) throw new Error("Expected a plate");
+    const changed = {
+      ...plate,
+      elements: [
+        {
+          id: "filled-circle",
+          kind: "rectangle" as const,
+          shapeType: "circle" as const,
+          xMm: 2,
+          yMm: 3,
+          widthMm: 8,
+          heightMm: 6,
+          rotationDeg: 0,
+          strokeWidthMm: 0.5,
+          filled: true,
+          cornerRadiusMm: 0,
+        },
+      ],
+    };
+
+    const svg = buildPlateSvg(changed, 320, 96);
+
+    expect(svg).toContain(
+      '<ellipse cx="6" cy="6" rx="4" ry="3" fill="black" stroke="none" stroke-width="0"',
+    );
   });
 
   it("transposes pixels and reverses the E1 feed-line order", async () => {
