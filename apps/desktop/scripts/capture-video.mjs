@@ -102,10 +102,10 @@ try {
   const fontSize = page.getByLabel("Font size");
   await fontSize.click();
   await fontSize.press("ControlOrMeta+A");
-  await fontSize.pressSequentially("22", { delay: 120 });
+  await fontSize.pressSequentially("18", { delay: 120 });
   await fontSize.press("Enter");
   await pause(page);
-  await page.getByRole("button", { name: "Bold" }).click();
+  await page.getByRole("button", { name: "Bold", exact: true }).click();
   await pause(page, 800);
 
   const plateWidth = page.getByLabel("Plate width");
