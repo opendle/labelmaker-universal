@@ -342,10 +342,10 @@ function ImageInspector({
       </label>
       <label className="field threshold-field">
         <span>
-          THRESHOLD <b>{element.threshold}</b>
+          BLACK LEVEL <b>{element.threshold}</b>
         </span>
         <input
-          aria-label="Image threshold"
+          aria-label="Image black level"
           max={255}
           min={0}
           onChange={(event) =>

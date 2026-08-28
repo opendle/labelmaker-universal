@@ -58,7 +58,11 @@ export async function renderMonochromeImageFrame(
   const rgba = context.getImageData(0, 0, width, height);
   const monochrome = rgbaToMonochrome(
     { widthPixels: width, heightPixels: height, data: rgba.data },
-    { mode: "floyd-steinberg", threshold: element.threshold },
+    {
+      blackLevel: element.threshold,
+      mode: "floyd-steinberg",
+      threshold: 128,
+    },
   );
   const output = context.createImageData(width, height);
   monochrome.pixels.forEach((pixel, index) => {

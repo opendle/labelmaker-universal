@@ -134,7 +134,7 @@ describe("desktop plate rasterization", () => {
     expect(page.data[0]).toBe(0);
   });
 
-  it("dithers each image with its threshold before it covers earlier artwork", async () => {
+  it("applies each image black level before it covers earlier artwork", async () => {
     const base = createBlankLabelDocument(() => "id").plates[0];
     if (!base) throw new Error("Expected a plate");
     const image = {

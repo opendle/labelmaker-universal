@@ -51,6 +51,8 @@ export interface MonochromeOptions {
   readonly mode?: MonochromeMode;
   /** A composited luminance below this value becomes black. */
   readonly threshold?: number;
+  /** Midtone level from 0 through 255. 128 is neutral; higher is darker. */
+  readonly blackLevel?: number;
 }
 
 function assertFiniteNumber(value: number, name: string): void {
@@ -184,6 +186,14 @@ function resolveThreshold(value: number | undefined): number {
   return threshold;
 }
 
+function resolveBlackLevel(value: number | undefined): number {
+  const blackLevel = value ?? 128;
+  if (!Number.isInteger(blackLevel) || blackLevel < 0 || blackLevel > 255) {
+    throw new RangeError("blackLevel must be an integer from 0 through 255.");
+  }
+  return blackLevel;
+}
+
 function resolveMode(mode: MonochromeMode | undefined): MonochromeMode {
   if (mode === undefined || mode === "threshold") {
     return "threshold";
@@ -204,16 +214,27 @@ function compositedLuminance(
   return (luminance * alpha + 255 * (255 - alpha)) / 255;
 }
 
-function rgbaLuminances(image: RgbaImage): Float64Array {
+function applyBlackLevel(luminance: number, blackLevel: number): number {
+  if (luminance <= 0 || luminance >= 255 || blackLevel === 128) {
+    return luminance;
+  }
+  const gamma = 2 ** ((blackLevel - 128) / 64);
+  return 255 * (luminance / 255) ** gamma;
+}
+
+function rgbaLuminances(image: RgbaImage, blackLevel: number): Float64Array {
   const count = image.widthPixels * image.heightPixels;
   const luminances = new Float64Array(count);
   for (let pixelIndex = 0; pixelIndex < count; pixelIndex += 1) {
     const rgbaIndex = pixelIndex * 4;
-    luminances[pixelIndex] = compositedLuminance(
-      image.data[rgbaIndex] ?? 0,
-      image.data[rgbaIndex + 1] ?? 0,
-      image.data[rgbaIndex + 2] ?? 0,
-      image.data[rgbaIndex + 3] ?? 0,
+    luminances[pixelIndex] = applyBlackLevel(
+      compositedLuminance(
+        image.data[rgbaIndex] ?? 0,
+        image.data[rgbaIndex + 1] ?? 0,
+        image.data[rgbaIndex + 2] ?? 0,
+        image.data[rgbaIndex + 3] ?? 0,
+      ),
+      blackLevel,
     );
   }
   return luminances;
@@ -277,8 +298,9 @@ export function rgbaToMonochrome(
 ): MonochromeBitmap {
   validateRgbaImage(image);
   const threshold = resolveThreshold(options.threshold);
+  const blackLevel = resolveBlackLevel(options.blackLevel);
   const mode = resolveMode(options.mode);
-  const luminances = rgbaLuminances(image);
+  const luminances = rgbaLuminances(image, blackLevel);
   const pixels =
     mode === "threshold"
       ? thresholdLuminances(luminances, threshold)

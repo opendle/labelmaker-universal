@@ -36,11 +36,13 @@ const page = renderPlateRgba(
     heightPixels: canvas.height,
     data: context.getImageData(0, 0, canvas.width, canvas.height).data,
   },
-  { mode: "floyd-steinberg", threshold: 128 },
+  { blackLevel: 160, mode: "floyd-steinberg", threshold: 128 },
 );
 ```
 
 `createPlateRasterPlan` uses nearest-pixel rounding. The renderer composites
-transparent RGBA pixels on white before thresholding or dithering.
+transparent RGBA pixels on white before it applies the optional black-level
+midtone curve and then thresholds or dithers the pixels. A black level of 128
+is neutral. Higher values make midtones darker while pure white stays white.
 Raster validation also limits total pixels before temporary luminance buffers
 are allocated.

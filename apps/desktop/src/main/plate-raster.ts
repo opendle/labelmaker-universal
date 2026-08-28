@@ -102,8 +102,9 @@ async function preparePlateImages(
       );
     }
     const bitmap = rgbaToMonochrome(source, {
+      blackLevel: element.threshold,
       mode: "floyd-steinberg",
-      threshold: element.threshold,
+      threshold: 128,
     });
     elements.push({ ...element, source: monochromeBmpDataUrl(bitmap) });
   }

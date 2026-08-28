@@ -81,7 +81,9 @@ appearances so that they show the physical label and printed result accurately.
 - Accept only PNG, JPEG, GIF, WebP, and BMP images that the print renderer can
   use.
 - Convert imported images to monochrome with Floyd-Steinberg dithering. Show a
-  threshold control in the image inspector and use it in previews and print.
+  black-level control in the image inspector. Apply it to image midtones before
+  dithering, and use the result in previews, trim, and print. A value of 128 is
+  neutral, a higher value is darker, and pure white stays white.
 - Show width and height above X and Y for text and image frames. Do not show
   separate Position or Size section titles.
 - Set left and right plate margins, with zero as the default.

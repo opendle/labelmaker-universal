@@ -170,6 +170,43 @@ describe("RGBA conversion", () => {
     ]).toEqual([1, 0]);
   });
 
+  it("uses black level to adjust midtones before dithering", () => {
+    const widthPixels = 16;
+    const heightPixels = 16;
+    const data = Uint8Array.from(
+      Array.from({ length: widthPixels * heightPixels }, () =>
+        rgbaPixel(128, 128, 128),
+      ).flat(),
+    );
+    const blackPixels = (blackLevel: number) =>
+      [
+        ...rgbaToMonochrome(
+          { widthPixels, heightPixels, data },
+          { blackLevel, mode: "floyd-steinberg", threshold: 128 },
+        ).pixels,
+      ].reduce((sum, pixel) => sum + pixel, 0);
+
+    expect(blackPixels(32)).toBeLessThan(blackPixels(128));
+    expect(blackPixels(128)).toBeLessThan(blackPixels(224));
+  });
+
+  it("keeps pure black, pure white, and transparency stable at all black levels", () => {
+    const data = Uint8Array.from([
+      ...rgbaPixel(0, 0, 0),
+      ...rgbaPixel(255, 255, 255),
+      ...rgbaPixel(0, 0, 0, 0),
+    ]);
+
+    for (const blackLevel of [0, 128, 255]) {
+      expect([
+        ...rgbaToMonochrome(
+          { widthPixels: 3, heightPixels: 1, data },
+          { blackLevel, mode: "floyd-steinberg", threshold: 128 },
+        ).pixels,
+      ]).toEqual([1, 0, 0]);
+    }
+  });
+
   it("validates RGBA input and the requested plate plan", () => {
     expect(() =>
       rgbaToMonochrome({
@@ -178,6 +215,16 @@ describe("RGBA conversion", () => {
         data: Uint8Array.from([0, 0, 0, 255]),
       }),
     ).toThrow(/length must be 8/);
+    expect(() =>
+      rgbaToMonochrome(
+        {
+          widthPixels: 1,
+          heightPixels: 1,
+          data: Uint8Array.from(rgbaPixel(128, 128, 128)),
+        },
+        { blackLevel: 256 },
+      ),
+    ).toThrow(/blackLevel/);
 
     const plan = createPlateRasterPlan({
       widthMm: 25.4,
