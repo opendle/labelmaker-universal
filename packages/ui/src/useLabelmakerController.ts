@@ -2,6 +2,7 @@ import type {
   ImageElement,
   LabelElement,
   LabelPlate,
+  ShapeElement,
   TextElement,
 } from "@labelmaker/domain";
 import {
@@ -20,10 +21,16 @@ import {
   replacePlate,
 } from "./app-state.js";
 import {
+  appendElementAndFlagPeer,
   clamp,
   createImage,
   createPlate,
+  createShape,
   createText,
+  deleteElementAndFlagPeer,
+  isFlagPlate,
+  MAX_ZOOM,
+  MIN_ZOOM,
   toggleFlagPlate,
 } from "./editor-operations.js";
 import type { LabelmakerHost, PrinterSettings } from "./host.js";
@@ -48,6 +55,8 @@ export function useLabelmakerController(host: LabelmakerHost) {
     selectedElement?.kind === "text" ? selectedElement : undefined;
   const selectedImage =
     selectedElement?.kind === "image" ? selectedElement : undefined;
+  const selectedShape =
+    selectedElement?.kind === "rectangle" ? selectedElement : undefined;
   const activePrinter = state.printers.find(
     (printer) => printer.id === state.activePrinterId,
   );
@@ -520,11 +529,13 @@ export function useLabelmakerController(host: LabelmakerHost) {
   );
   const addText = useCallback(() => {
     if (!activePlate) return;
-    const element = createText(activePlate);
-    updatePlate(activePlate.id, (plate) => ({
-      ...plate,
-      elements: [...plate.elements, element],
-    }));
+    const sourcePlate = isFlagPlate(activePlate)
+      ? toggleFlagPlate(activePlate)
+      : activePlate;
+    const element = createText(sourcePlate);
+    updatePlate(activePlate.id, (plate) =>
+      appendElementAndFlagPeer(plate, element),
+    );
     dispatch({ type: "select-element", elementId: element.id });
   }, [activePlate, updatePlate]);
   const addSpecial = useCallback(
@@ -535,6 +546,21 @@ export function useLabelmakerController(host: LabelmakerHost) {
       );
     },
     [activePlate, editWorkspace, state.workspace],
+  );
+
+  const addShape = useCallback(
+    (shapeType: NonNullable<ShapeElement["shapeType"]>) => {
+      if (!activePlate) return;
+      const sourcePlate = isFlagPlate(activePlate)
+        ? toggleFlagPlate(activePlate)
+        : activePlate;
+      const element = createShape(sourcePlate, shapeType);
+      updatePlate(activePlate.id, (plate) =>
+        appendElementAndFlagPeer(plate, element),
+      );
+      dispatch({ type: "select-element", elementId: element.id });
+    },
+    [activePlate, updatePlate],
   );
 
   const addImage = useCallback(
@@ -567,12 +593,14 @@ export function useLabelmakerController(host: LabelmakerHost) {
             (plate) => plate.id === plateId,
           );
           if (!currentPlate) return;
-          const element = createImage(currentPlate, reader.result);
+          const sourcePlate = isFlagPlate(currentPlate)
+            ? toggleFlagPlate(currentPlate)
+            : currentPlate;
+          const element = createImage(sourcePlate, reader.result);
           editWorkspace(
-            replacePlate(state.workspace, plateId, (plate) => ({
-              ...plate,
-              elements: [...plate.elements, element],
-            })),
+            replacePlate(state.workspace, plateId, (plate) =>
+              appendElementAndFlagPeer(plate, element),
+            ),
           );
           dispatch({ type: "select-element", elementId: element.id });
         },
@@ -594,12 +622,9 @@ export function useLabelmakerController(host: LabelmakerHost) {
 
   const deleteSelected = useCallback(() => {
     if (!activePlate || !selectedElement) return;
-    updatePlate(activePlate.id, (plate) => ({
-      ...plate,
-      elements: plate.elements.filter(
-        (element) => element.id !== selectedElement.id,
-      ),
-    }));
+    updatePlate(activePlate.id, (plate) =>
+      deleteElementAndFlagPeer(plate, selectedElement.id),
+    );
     dispatch({ type: "select-element", elementId: null });
   }, [activePlate, selectedElement, updatePlate]);
 
@@ -625,13 +650,13 @@ export function useLabelmakerController(host: LabelmakerHost) {
         event.preventDefault();
         dispatch({
           type: "set-zoom",
-          zoom: clamp(shortcutRef.current.zoom + 10, 60, 140),
+          zoom: clamp(shortcutRef.current.zoom + 10, MIN_ZOOM, MAX_ZOOM),
         });
       } else if (command && event.key === "-") {
         event.preventDefault();
         dispatch({
           type: "set-zoom",
-          zoom: clamp(shortcutRef.current.zoom - 10, 60, 140),
+          zoom: clamp(shortcutRef.current.zoom - 10, MIN_ZOOM, MAX_ZOOM),
         });
       } else if (command && event.key === "0") {
         event.preventDefault();
@@ -653,6 +678,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
     activePlate,
     selectedText,
     selectedImage,
+    selectedShape,
     activePrinter,
     canPrint,
     dispatch,
@@ -669,6 +695,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
     deletePlate,
     addText,
     addImage,
+    addShape,
     addSpecial,
     updatePlate,
     updateElement,
@@ -692,4 +719,4 @@ function printFailureMessage(error: unknown): string {
 }
 
 export type LabelmakerController = ReturnType<typeof useLabelmakerController>;
-export type { ImageElement, TextElement };
+export type { ImageElement, ShapeElement, TextElement };

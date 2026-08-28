@@ -321,6 +321,19 @@ await capture(1440, 960, "labelmaker-trim-1440x960.png", async (page) => {
     }
   });
 });
+await capture(1440, 960, "labelmaker-trim-grow-1440x960.png", async (page) => {
+  await page.getByLabel("Text frame width").fill("120");
+  await page.getByRole("button", { name: "Text element: RESISTORS" }).click();
+  await page
+    .getByRole("textbox", { name: "Edit text on label" })
+    .fill("RESISTORS RESISTORS RESISTORS");
+  await page.getByRole("button", { name: "Trim plate to content" }).click();
+  await page.waitForFunction(() => {
+    const input = document.querySelector('[aria-label="Plate width"]');
+    return input instanceof HTMLInputElement && Number(input.value) > 62;
+  });
+  await page.getByRole("button", { name: "Clear selection" }).click();
+});
 await capture(1440, 960, "labelmaker-image-1440x960.png", async (page) => {
   await page.getByLabel("Choose image").setInputFiles({
     name: "storage-bin.png",
@@ -332,6 +345,48 @@ await capture(1440, 960, "labelmaker-image-1440x960.png", async (page) => {
   });
   await page.getByRole("button", { name: "Image element" }).waitFor();
 });
+await capture(
+  1440,
+  960,
+  "labelmaker-image-trim-grow-1440x960.png",
+  async (page) => {
+    await page.keyboard.press("Delete");
+    await page.getByLabel("Choose image").setInputFiles({
+      name: "storage-bin.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    });
+    await page.getByLabel("Image fit").selectOption("stretch");
+    await page.getByLabel("Image width").fill("80");
+    await page.getByRole("button", { name: "Trim plate to content" }).click();
+    await page.waitForFunction(() => {
+      const input = document.querySelector('[aria-label="Plate width"]');
+      return input instanceof HTMLInputElement && Number(input.value) > 62;
+    });
+  },
+);
+await capture(1440, 960, "labelmaker-shape-menu-1440x960.png", async (page) => {
+  await page.getByRole("button", { name: "Shapes" }).click();
+  await page.getByRole("menu", { name: "Add shape" }).waitFor();
+});
+await capture(1440, 960, "labelmaker-shape-1440x960.png", async (page) => {
+  await page.getByRole("button", { name: "Shapes" }).click();
+  await page.getByRole("menuitem", { name: "Rectangle" }).click();
+  await page.getByRole("button", { name: "rectangle shape element" }).waitFor();
+});
+await capture(
+  1440,
+  960,
+  "labelmaker-shape-menu-dark-1440x960.png",
+  async (page) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.getByRole("button", { name: "Shapes" }).click();
+    await page.getByRole("menu", { name: "Add shape" }).waitFor();
+  },
+);
 await capture(
   1440,
   960,

@@ -1,4 +1,9 @@
-import type { ImageElement, LabelPlate, TextElement } from "@labelmaker/domain";
+import type {
+  ImageElement,
+  LabelPlate,
+  ShapeElement,
+  TextElement,
+} from "@labelmaker/domain";
 import {
   AlignCenter,
   AlignLeft,
@@ -6,9 +11,11 @@ import {
   AlignVerticalJustifyEnd,
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyStart,
+  BringToFront,
   Crop,
   Italic,
   RotateCcw,
+  SendToBack,
   X,
 } from "lucide-react";
 import { useState } from "react";
@@ -130,12 +137,96 @@ function LineHeightField({
   );
 }
 
+type FramedElement = TextElement | ImageElement | ShapeElement;
+
+function FrameControls<T extends FramedElement>({
+  element,
+  elementName,
+  positionName = elementName,
+  minSize,
+  hasMultipleElements,
+  onChange,
+  onMoveLayer,
+}: {
+  readonly element: T;
+  readonly elementName: string;
+  readonly positionName?: string;
+  readonly minSize: number;
+  readonly hasMultipleElements: boolean;
+  readonly onChange: (element: T) => void;
+  readonly onMoveLayer: (direction: "back" | "front") => void;
+}) {
+  return (
+    <>
+      <div className="field-row">
+        <NumberField
+          label={`${elementName} width`}
+          min={minSize}
+          shortLabel="WIDTH"
+          value={element.widthMm}
+          onChange={(widthMm) =>
+            onChange({ ...element, widthMm: Math.max(minSize, widthMm) })
+          }
+        />
+        <NumberField
+          label={`${elementName} height`}
+          min={minSize}
+          shortLabel="HEIGHT"
+          value={element.heightMm}
+          onChange={(heightMm) =>
+            onChange({ ...element, heightMm: Math.max(minSize, heightMm) })
+          }
+        />
+      </div>
+      <div className="field-row position-row">
+        <NumberField
+          label={`${positionName ? `${positionName} ` : ""}X position`}
+          shortLabel="X"
+          value={element.xMm}
+          onChange={(xMm) => onChange({ ...element, xMm })}
+        />
+        <NumberField
+          label={`${positionName ? `${positionName} ` : ""}Y position`}
+          shortLabel="Y"
+          value={element.yMm}
+          onChange={(yMm) => onChange({ ...element, yMm })}
+        />
+      </div>
+      <NumberField
+        icon
+        label={`${elementName} rotation`}
+        shortLabel="ROTATION"
+        unit="°"
+        value={element.rotationDeg}
+        onChange={(rotationDeg) => onChange({ ...element, rotationDeg })}
+      />
+      {hasMultipleElements && (
+        <div className="field layer-field">
+          <span>LAYER</span>
+          <div className="layer-buttons">
+            <button onClick={() => onMoveLayer("back")} type="button">
+              <SendToBack size={14} /> Send to back
+            </button>
+            <button onClick={() => onMoveLayer("front")} type="button">
+              <BringToFront size={14} /> Bring to front
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function TextInspector({
   element,
+  hasMultipleElements,
   onChange,
+  onMoveLayer,
 }: {
   readonly element: TextElement;
+  readonly hasMultipleElements: boolean;
   readonly onChange: (element: TextElement) => void;
+  readonly onMoveLayer: (direction: "back" | "front") => void;
 }) {
   return (
     <div className="property-stack">
@@ -265,47 +356,14 @@ function TextInspector({
           </div>
         </div>
       </div>
-      <div className="field-row">
-        <NumberField
-          label="Text frame width"
-          min={0.5}
-          shortLabel="WIDTH"
-          value={element.widthMm}
-          onChange={(widthMm) =>
-            onChange({ ...element, widthMm: Math.max(0.5, widthMm) })
-          }
-        />
-        <NumberField
-          label="Text frame height"
-          min={0.5}
-          shortLabel="HEIGHT"
-          value={element.heightMm}
-          onChange={(heightMm) =>
-            onChange({ ...element, heightMm: Math.max(0.5, heightMm) })
-          }
-        />
-      </div>
-      <div className="field-row position-row">
-        <NumberField
-          label="X position"
-          shortLabel="X"
-          value={element.xMm}
-          onChange={(xMm) => onChange({ ...element, xMm })}
-        />
-        <NumberField
-          label="Y position"
-          shortLabel="Y"
-          value={element.yMm}
-          onChange={(yMm) => onChange({ ...element, yMm })}
-        />
-      </div>
-      <NumberField
-        icon
-        label="Rotation"
-        shortLabel="ROTATION"
-        unit="°"
-        value={element.rotationDeg}
-        onChange={(rotationDeg) => onChange({ ...element, rotationDeg })}
+      <FrameControls
+        element={element}
+        elementName="Text frame"
+        hasMultipleElements={hasMultipleElements}
+        minSize={0.5}
+        onChange={onChange}
+        onMoveLayer={onMoveLayer}
+        positionName=""
       />
     </div>
   );
@@ -313,10 +371,14 @@ function TextInspector({
 
 function ImageInspector({
   element,
+  hasMultipleElements,
   onChange,
+  onMoveLayer,
 }: {
   readonly element: ImageElement;
+  readonly hasMultipleElements: boolean;
   readonly onChange: (element: ImageElement) => void;
+  readonly onMoveLayer: (direction: "back" | "front") => void;
 }) {
   return (
     <div className="property-stack">
@@ -355,47 +417,79 @@ function ImageInspector({
           value={element.threshold}
         />
       </label>
-      <div className="field-row">
-        <NumberField
-          label="Image width"
-          min={1}
-          shortLabel="WIDTH"
-          value={element.widthMm}
-          onChange={(widthMm) =>
-            onChange({ ...element, widthMm: Math.max(1, widthMm) })
+      <FrameControls
+        element={element}
+        elementName="Image"
+        hasMultipleElements={hasMultipleElements}
+        minSize={1}
+        onChange={onChange}
+        onMoveLayer={onMoveLayer}
+      />
+    </div>
+  );
+}
+
+function ShapeInspector({
+  element,
+  hasMultipleElements,
+  onChange,
+  onMoveLayer,
+}: {
+  readonly element: ShapeElement;
+  readonly hasMultipleElements: boolean;
+  readonly onChange: (element: ShapeElement) => void;
+  readonly onMoveLayer: (direction: "back" | "front") => void;
+}) {
+  return (
+    <div className="property-stack">
+      <label className="field full">
+        <span>SHAPE</span>
+        <select
+          aria-label="Shape type"
+          onChange={(event) =>
+            onChange({
+              ...element,
+              shapeType: event.target.value as NonNullable<
+                ShapeElement["shapeType"]
+              >,
+            })
           }
-        />
-        <NumberField
-          label="Image height"
-          min={1}
-          shortLabel="HEIGHT"
-          value={element.heightMm}
-          onChange={(heightMm) =>
-            onChange({ ...element, heightMm: Math.max(1, heightMm) })
-          }
-        />
-      </div>
-      <div className="field-row position-row">
-        <NumberField
-          label="Image X position"
-          shortLabel="X"
-          value={element.xMm}
-          onChange={(xMm) => onChange({ ...element, xMm })}
-        />
-        <NumberField
-          label="Image Y position"
-          shortLabel="Y"
-          value={element.yMm}
-          onChange={(yMm) => onChange({ ...element, yMm })}
-        />
-      </div>
+          value={element.shapeType ?? "rectangle"}
+        >
+          <option value="line">Line</option>
+          <option value="rectangle">Rectangle</option>
+          <option value="circle">Circle</option>
+        </select>
+      </label>
       <NumberField
-        icon
-        label="Image rotation"
-        shortLabel="ROTATION"
-        unit="°"
-        value={element.rotationDeg}
-        onChange={(rotationDeg) => onChange({ ...element, rotationDeg })}
+        label="Shape stroke width"
+        min={0.1}
+        shortLabel="STROKE"
+        value={element.strokeWidthMm}
+        onChange={(strokeWidthMm) =>
+          onChange({ ...element, strokeWidthMm: Math.max(0.1, strokeWidthMm) })
+        }
+      />
+      {(element.shapeType ?? "rectangle") !== "line" && (
+        <label className="shape-fill-toggle">
+          <input
+            aria-label="Fill shape"
+            checked={element.filled}
+            onChange={(event) =>
+              onChange({ ...element, filled: event.target.checked })
+            }
+            type="checkbox"
+          />
+          Filled
+        </label>
+      )}
+      <FrameControls
+        element={element}
+        elementName="Shape"
+        hasMultipleElements={hasMultipleElements}
+        minSize={0.5}
+        onChange={onChange}
+        onMoveLayer={onMoveLayer}
       />
     </div>
   );
@@ -448,7 +542,7 @@ export function PlateToolbarSettings({
             aria-label="Trim plate to content"
             className="inline-trim-button"
             onClick={onTrim}
-            title="Trim width to printed content and margins"
+            title="Adjust width to printed content and margins"
             type="button"
           >
             <Crop size={14} />
@@ -505,34 +599,58 @@ export function PlateToolbarSettings({
 export function Inspector({
   selectedText,
   selectedImage,
+  selectedShape,
+  hasMultipleElements,
   onClearSelection,
   onUpdateText,
   onUpdateImage,
+  onUpdateShape,
+  onMoveLayer,
 }: {
   readonly selectedText: TextElement | undefined;
   readonly selectedImage: ImageElement | undefined;
+  readonly selectedShape: ShapeElement | undefined;
+  readonly hasMultipleElements: boolean;
   readonly onClearSelection: () => void;
   readonly onUpdateText: (element: TextElement) => void;
   readonly onUpdateImage: (element: ImageElement) => void;
+  readonly onUpdateShape: (element: ShapeElement) => void;
+  readonly onMoveLayer: (direction: "back" | "front") => void;
 }) {
+  const selectedElement = selectedText ?? selectedImage ?? selectedShape;
   return (
     <aside className="inspector">
-      {(selectedText || selectedImage) && (
+      {selectedElement && (
         <div className="inspector-header">
           <span>
-            {selectedText ? "Text" : selectedImage ? "Image" : "Plate"}
+            {selectedText ? "Text" : selectedImage ? "Image" : "Shape"}
           </span>
-          {(selectedText || selectedImage) && (
-            <IconButton label="Clear selection" onClick={onClearSelection}>
-              <X size={15} />
-            </IconButton>
-          )}
+          <IconButton label="Clear selection" onClick={onClearSelection}>
+            <X size={15} />
+          </IconButton>
         </div>
       )}
       {selectedText ? (
-        <TextInspector element={selectedText} onChange={onUpdateText} />
+        <TextInspector
+          element={selectedText}
+          hasMultipleElements={hasMultipleElements}
+          onChange={onUpdateText}
+          onMoveLayer={onMoveLayer}
+        />
       ) : selectedImage ? (
-        <ImageInspector element={selectedImage} onChange={onUpdateImage} />
+        <ImageInspector
+          element={selectedImage}
+          hasMultipleElements={hasMultipleElements}
+          onChange={onUpdateImage}
+          onMoveLayer={onMoveLayer}
+        />
+      ) : selectedShape ? (
+        <ShapeInspector
+          element={selectedShape}
+          hasMultipleElements={hasMultipleElements}
+          onChange={onUpdateShape}
+          onMoveLayer={onMoveLayer}
+        />
       ) : (
         <div className="empty-inspector">Select an element to change it.</div>
       )}

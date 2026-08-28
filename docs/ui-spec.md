@@ -55,6 +55,7 @@ appearances so that they show the physical label and printed result accurately.
 - Use the same element frame, horizontal and vertical alignment, line-height,
   and font rules in the canvas, print preview, plate strip, and printed raster.
 - Scale the canvas and its elements in one update when the user changes zoom.
+- Allow canvas zoom from 60% through 300%.
 - Align every 5 mm background grid line to the center of its ruler tick.
 - Show capability-reported top and bottom non-printable areas on the canvas and
   in previews. Calculate each area from the current label height and the
@@ -63,6 +64,7 @@ appearances so that they show the physical label and printed result accurately.
   print-head width.
 - Resize text and image elements from corner handles and rotate them from a
   separate rotation handle. Elements can extend outside the plate bounds.
+- Show a rotation cursor on the rotation handle.
 - Snap moved text and image frames to the absolute label limits and to the
   left, horizontal center, right, top, vertical middle, and bottom of the
   printable area. Snap resized text and image frames to the absolute and
@@ -78,6 +80,11 @@ appearances so that they show the physical label and printed result accurately.
 - Add a text element.
 - Add an image element. Text and image are separate actions, and both element
   types can move and resize on the plate.
+- Add line, rectangle, and circle shapes from a menu next to Add image. Let the
+  user select, move, resize, and rotate each shape. A resized circle can become
+  an ellipse.
+- When a label contains more than one user element, show Send to back and Bring
+  to front below Rotation in the selected-element inspector.
 - Accept only PNG, JPEG, GIF, WebP, and BMP images that the print renderer can
   use.
 - Convert imported images to monochrome with Floyd-Steinberg dithering. Show a
@@ -87,8 +94,9 @@ appearances so that they show the physical label and printed result accurately.
 - Show width and height above X and Y for text and image frames. Do not show
   separate Position or Size section titles.
 - Set left and right plate margins, with zero as the default.
-- Trim the plate width to the first and last black pixels of the final
-  monochrome raster plus the selected margins. Apply elements in document
+- Adjust the plate width, larger or smaller, to the first and last black
+  pixels of the final monochrome raster plus the selected margins. Apply
+  elements in document
   order, so a white image can hide earlier content. A fully white image and an
   element frame must not add blank trim space. Round the result up to a whole
   millimeter and divide only the rounding remainder equally between the left

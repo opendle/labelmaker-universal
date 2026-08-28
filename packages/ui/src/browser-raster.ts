@@ -1,4 +1,4 @@
-import type { LabelPlate, TextElement } from "@labelmaker/domain";
+import type { LabelElement, LabelPlate, TextElement } from "@labelmaker/domain";
 import { rgbaToMonochrome } from "@labelmaker/rendering";
 
 import { renderMonochromeImageFrame } from "./image-raster.js";
@@ -10,6 +10,102 @@ export interface BlackPixelBounds {
 }
 
 const PIXELS_PER_MILLIMETER = 8;
+
+function textFont(element: TextElement): string {
+  return `${element.fontStyle ?? "normal"} ${element.fontWeight} ${pointsToMillimeters(element.fontSizePt) * PIXELS_PER_MILLIMETER}px ${element.fontFamily}`;
+}
+
+function rotatedHorizontalBounds(
+  element: LabelElement,
+  left: number,
+  right: number,
+  top: number,
+  bottom: number,
+): readonly [number, number] {
+  if (element.rotationDeg === 0) return [left, right];
+  const centerX = element.xMm + element.widthMm / 2;
+  const centerY = element.yMm + element.heightMm / 2;
+  const radians = (element.rotationDeg * Math.PI) / 180;
+  const cosine = Math.cos(radians);
+  const sine = Math.sin(radians);
+  const xValues = [
+    [left, top],
+    [right, top],
+    [right, bottom],
+    [left, bottom],
+  ].map(
+    ([x = 0, y = 0]) => centerX + (x - centerX) * cosine - (y - centerY) * sine,
+  );
+  return [Math.min(...xValues), Math.max(...xValues)];
+}
+
+function plateRenderExtent(
+  plate: LabelPlate,
+  context: CanvasRenderingContext2D,
+): readonly [number, number] {
+  let minX = 0;
+  let maxX = plate.size.widthMm;
+  for (const element of plate.elements) {
+    if (element.kind === "text") {
+      context.font = textFont(element);
+      const lines = element.text.split(/\r\n?|\n/);
+      const lineHeightMm = pointsToMillimeters(
+        element.lineHeightPt ?? element.fontSizePt,
+      );
+      const topMm = textBlockTop(element, lines.length);
+      const anchorX =
+        element.align === "left"
+          ? element.xMm
+          : element.align === "right"
+            ? element.xMm + element.widthMm
+            : element.xMm + element.widthMm / 2;
+      for (const [index, line] of lines.entries()) {
+        context.textAlign = element.align;
+        const metrics = context.measureText(line);
+        const fallbackLeft =
+          element.align === "left"
+            ? 0
+            : element.align === "right"
+              ? metrics.width
+              : metrics.width / 2;
+        const fallbackRight = metrics.width - fallbackLeft;
+        const left =
+          anchorX -
+          (metrics.actualBoundingBoxLeft || fallbackLeft) /
+            PIXELS_PER_MILLIMETER;
+        const right =
+          anchorX +
+          (metrics.actualBoundingBoxRight || fallbackRight) /
+            PIXELS_PER_MILLIMETER;
+        const centerY = topMm + (index + 0.5) * lineHeightMm;
+        const bounds = rotatedHorizontalBounds(
+          element,
+          left,
+          right,
+          centerY - lineHeightMm / 2,
+          centerY + lineHeightMm / 2,
+        );
+        minX = Math.min(minX, bounds[0]);
+        maxX = Math.max(maxX, bounds[1]);
+      }
+      continue;
+    }
+    const stroke = element.kind === "rectangle" ? element.strokeWidthMm / 2 : 0;
+    const bounds = rotatedHorizontalBounds(
+      element,
+      element.xMm - stroke,
+      element.xMm + element.widthMm + stroke,
+      element.yMm - stroke,
+      element.yMm + element.heightMm + stroke,
+    );
+    minX = Math.min(minX, bounds[0]);
+    maxX = Math.max(maxX, bounds[1]);
+  }
+  return [
+    Math.floor(minX * PIXELS_PER_MILLIMETER) / PIXELS_PER_MILLIMETER,
+    Math.ceil(maxX * PIXELS_PER_MILLIMETER) / PIXELS_PER_MILLIMETER,
+  ];
+}
 
 function textBlockTop(element: TextElement, lineCount: number): number {
   const lineHeightMm = pointsToMillimeters(
@@ -26,21 +122,27 @@ function textBlockTop(element: TextElement, lineCount: number): number {
 export async function renderPlateBlackBounds(
   plate: LabelPlate,
 ): Promise<BlackPixelBounds | null> {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1;
+  canvas.height = 1;
+  const measurementContext = canvas.getContext("2d");
+  if (!measurementContext) throw new Error("The trim canvas is not available.");
+  const [renderMinX, renderMaxX] = plateRenderExtent(plate, measurementContext);
   const width = Math.max(
     1,
-    Math.round(plate.size.widthMm * PIXELS_PER_MILLIMETER),
+    Math.round((renderMaxX - renderMinX) * PIXELS_PER_MILLIMETER),
   );
   const height = Math.max(
     1,
     Math.round(plate.size.heightMm * PIXELS_PER_MILLIMETER),
   );
-  const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d", { willReadFrequently: true });
   if (!context) throw new Error("The trim canvas is not available.");
   context.fillStyle = "white";
   context.fillRect(0, 0, width, height);
+  context.translate(-renderMinX * PIXELS_PER_MILLIMETER, 0);
 
   const imageFrames = new Map<string, HTMLCanvasElement>();
   await Promise.all(
@@ -87,7 +189,7 @@ export async function renderPlateBlackBounds(
             ? element.xMm + element.widthMm
             : element.xMm + element.widthMm / 2;
       context.fillStyle = "black";
-      context.font = `${element.fontStyle ?? "normal"} ${element.fontWeight} ${pointsToMillimeters(element.fontSizePt) * PIXELS_PER_MILLIMETER}px ${element.fontFamily}`;
+      context.font = textFont(element);
       context.textAlign = element.align;
       context.textBaseline = "middle";
       const topMm = textBlockTop(element, lines.length);
@@ -106,7 +208,26 @@ export async function renderPlateBlackBounds(
       context.fillStyle = "black";
       context.strokeStyle = "black";
       context.lineWidth = element.strokeWidthMm * PIXELS_PER_MILLIMETER;
-      if (element.filled) context.fillRect(x, y, frameWidth, frameHeight);
+      if (element.shapeType === "line") {
+        context.beginPath();
+        context.moveTo(x, y + frameHeight / 2);
+        context.lineTo(x + frameWidth, y + frameHeight / 2);
+        context.stroke();
+      } else if (element.shapeType === "circle") {
+        context.beginPath();
+        context.ellipse(
+          x + frameWidth / 2,
+          y + frameHeight / 2,
+          frameWidth / 2,
+          frameHeight / 2,
+          0,
+          0,
+          Math.PI * 2,
+        );
+        if (element.filled) context.fill();
+        else context.stroke();
+      } else if (element.filled)
+        context.fillRect(x, y, frameWidth, frameHeight);
       else context.strokeRect(x, y, frameWidth, frameHeight);
     }
     context.restore();
@@ -128,7 +249,7 @@ export async function renderPlateBlackBounds(
   return maxPixel < 0
     ? null
     : {
-        minX: minPixel / PIXELS_PER_MILLIMETER,
-        maxX: (maxPixel + 1) / PIXELS_PER_MILLIMETER,
+        minX: renderMinX + minPixel / PIXELS_PER_MILLIMETER,
+        maxX: renderMinX + (maxPixel + 1) / PIXELS_PER_MILLIMETER,
       };
 }

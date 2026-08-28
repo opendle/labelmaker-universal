@@ -72,9 +72,9 @@ export function validateWorkspaceRecoveryInput(
     typeof value.zoom !== "number" ||
     !Number.isFinite(value.zoom) ||
     value.zoom < 60 ||
-    value.zoom > 140
+    value.zoom > 300
   ) {
-    throw new RangeError("Recovery zoom must be between 60 and 140");
+    throw new RangeError("Recovery zoom must be between 60 and 300");
   }
   if (!validSavedAt(value.savedAt))
     throw new TypeError("Recovery save time is invalid");

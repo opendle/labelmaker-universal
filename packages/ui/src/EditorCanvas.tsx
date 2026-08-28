@@ -1,8 +1,12 @@
 import type { LabelElement, LabelPlate } from "@labelmaker/domain";
 import {
+  ChevronDown,
+  Circle,
   Flag,
   FlipHorizontal2,
   Image as ImageIcon,
+  Minus,
+  Square,
   Type,
   ZoomIn,
   ZoomOut,
@@ -18,7 +22,7 @@ import {
 import { CanvasElementView } from "./CanvasElementView.js";
 import { CanvasGrid, CanvasRulers } from "./CanvasGuides.js";
 import { IconButton } from "./controls.js";
-import { clamp, isFlagPlate } from "./editor-operations.js";
+import { clamp, isFlagPlate, MAX_ZOOM, MIN_ZOOM } from "./editor-operations.js";
 import { PlateToolbarSettings } from "./Inspector.js";
 import {
   displayMillimeters,
@@ -41,14 +45,14 @@ function CanvasZoomControl({
     <div className="zoom-control">
       <IconButton
         label="Zoom out"
-        onClick={() => onZoom(clamp(zoom - 10, 60, 140))}
+        onClick={() => onZoom(clamp(zoom - 10, MIN_ZOOM, MAX_ZOOM))}
       >
         <ZoomOut size={15} />
       </IconButton>
       <span>{zoom}%</span>
       <IconButton
         label="Zoom in"
-        onClick={() => onZoom(clamp(zoom + 10, 60, 140))}
+        onClick={() => onZoom(clamp(zoom + 10, MIN_ZOOM, MAX_ZOOM))}
       >
         <ZoomIn size={15} />
       </IconButton>
@@ -60,6 +64,7 @@ function CanvasToolbar({
   plate,
   onAddText,
   onAddImage,
+  onAddShape,
   onAddSpecial,
   onUpdatePlate,
   onTrim,
@@ -67,11 +72,61 @@ function CanvasToolbar({
   readonly plate: LabelPlate;
   readonly onAddText: () => void;
   readonly onAddImage: (file: File) => void;
+  readonly onAddShape: (shape: "line" | "rectangle" | "circle") => void;
   readonly onAddSpecial: (kind: "flag") => void;
   readonly onUpdatePlate: (plate: LabelPlate) => void;
   readonly onTrim: () => void;
 }) {
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const shapeControlRef = useRef<HTMLDivElement>(null);
+  const shapeMenuRef = useRef<HTMLDivElement>(null);
+  const shapeTriggerRef = useRef<HTMLButtonElement>(null);
+  const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
+  useEffect(() => {
+    const onDocumentPointerDown = (event: PointerEvent) => {
+      if (!shapeControlRef.current?.contains(event.target as Node)) {
+        setShapeMenuOpen(false);
+      }
+    };
+    globalThis.document.addEventListener("pointerdown", onDocumentPointerDown);
+    return () =>
+      globalThis.document.removeEventListener(
+        "pointerdown",
+        onDocumentPointerDown,
+      );
+  }, []);
+  const shapeOptions = [
+    ["line", "Line", Minus],
+    ["rectangle", "Rectangle", Square],
+    ["circle", "Circle", Circle],
+  ] as const;
+  const onShapeMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = Array.from(
+      event.currentTarget.querySelectorAll<HTMLButtonElement>(
+        '[role="menuitem"]',
+      ),
+    );
+    const index = items.indexOf(
+      globalThis.document.activeElement as HTMLButtonElement,
+    );
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setShapeMenuOpen(false);
+      shapeTriggerRef.current?.focus();
+    } else if (event.key === "ArrowDown") {
+      event.preventDefault();
+      items[(index + 1) % items.length]?.focus();
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      items[(index - 1 + items.length) % items.length]?.focus();
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      items[0]?.focus();
+    } else if (event.key === "End") {
+      event.preventDefault();
+      items.at(-1)?.focus();
+    }
+  };
   return (
     <div className="editor-toolbar">
       <div className="editor-tools">
@@ -97,6 +152,52 @@ function CanvasToolbar({
           }}
           type="file"
         />
+        <div className="shape-control" ref={shapeControlRef}>
+          <button
+            aria-expanded={shapeMenuOpen}
+            aria-haspopup="menu"
+            className="tool-button"
+            onClick={() => {
+              const nextOpen = !shapeMenuOpen;
+              setShapeMenuOpen(nextOpen);
+              if (nextOpen) {
+                globalThis.requestAnimationFrame(() =>
+                  shapeMenuRef.current
+                    ?.querySelector<HTMLButtonElement>('[role="menuitem"]')
+                    ?.focus(),
+                );
+              }
+            }}
+            ref={shapeTriggerRef}
+            type="button"
+          >
+            <Square size={16} /> Shapes <ChevronDown size={13} />
+          </button>
+          {shapeMenuOpen && (
+            <div
+              aria-label="Add shape"
+              className="shape-menu"
+              onKeyDown={onShapeMenuKeyDown}
+              ref={shapeMenuRef}
+              role="menu"
+              tabIndex={-1}
+            >
+              {shapeOptions.map(([shape, label, Icon]) => (
+                <button
+                  key={shape}
+                  onClick={() => {
+                    onAddShape(shape);
+                    setShapeMenuOpen(false);
+                  }}
+                  role="menuitem"
+                  type="button"
+                >
+                  <Icon size={15} /> {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <span className="toolbar-separator" />
         <button
           aria-pressed={isFlagPlate(plate)}
@@ -179,6 +280,7 @@ export function EditorCanvas({
   zoom,
   onAddText,
   onAddImage,
+  onAddShape,
   onAddSpecial,
   onSelectElement,
   onChangeElement,
@@ -193,6 +295,7 @@ export function EditorCanvas({
   readonly zoom: number;
   readonly onAddText: () => void;
   readonly onAddImage: (file: File) => void;
+  readonly onAddShape: (shape: "line" | "rectangle" | "circle") => void;
   readonly onAddSpecial: (kind: "flag") => void;
   readonly onSelectElement: (id: string | null) => void;
   readonly onChangeElement: (element: LabelElement) => void;
@@ -242,6 +345,7 @@ export function EditorCanvas({
     <main className="editor-area">
       <CanvasToolbar
         onAddImage={onAddImage}
+        onAddShape={onAddShape}
         onAddSpecial={onAddSpecial}
         onAddText={onAddText}
         onTrim={onTrim}
@@ -270,7 +374,9 @@ export function EditorCanvas({
         }}
         onWheel={(event) => {
           event.preventDefault();
-          onZoom(clamp(zoom + (event.deltaY < 0 ? 10 : -10), 60, 140));
+          onZoom(
+            clamp(zoom + (event.deltaY < 0 ? 10 : -10), MIN_ZOOM, MAX_ZOOM),
+          );
         }}
       >
         <div

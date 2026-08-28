@@ -80,3 +80,8 @@ height.
 `verticalAlign` can be `top`, `middle`, or `bottom`. It is optional in schema
 version 1 for compatibility with older workspace files. An omitted value means
 `middle`.
+
+Rectangle-kind elements can include an optional `shapeType` value of `line`,
+`rectangle`, or `circle`. An omitted value means `rectangle` for compatibility
+with older workspace files. Circle frames can have different width and height;
+the renderer prints them as ellipses.

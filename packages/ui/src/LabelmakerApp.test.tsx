@@ -375,6 +375,18 @@ describe("LabelmakerApp", () => {
     ).toBeCloseTo(1.1, 5);
   });
 
+  it("allows zoom through 300 percent and stops there", async () => {
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+    const zoomIn = screen.getByRole("button", { name: "Zoom in" });
+
+    for (let index = 0; index < 22; index += 1) await user.click(zoomIn);
+
+    expect(screen.getByText("300%")).toBeInTheDocument();
+    await user.click(zoomIn);
+    expect(screen.getByText("300%")).toBeInTheDocument();
+  });
+
   it("uses the ruler coordinates for every five millimeter grid line", () => {
     render(<LabelmakerApp host={createHost()} />);
     const canvas = screen.getByRole("region", {
@@ -916,6 +928,77 @@ describe("LabelmakerApp", () => {
     });
     expect(screen.getByLabelText("Image black level")).toHaveValue("180");
     expect(screen.getByText("Edited")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["Line", "line shape element"],
+    ["Rectangle", "rectangle shape element"],
+    ["Circle", "circle shape element"],
+  ])("adds and selects a resizable %s shape", async (menuItem, label) => {
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+
+    await user.click(screen.getByRole("button", { name: "Shapes" }));
+    await user.click(screen.getByRole("menuitem", { name: menuItem }));
+
+    expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
+    expect(screen.getByLabelText("Shape width")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Resize shape block se" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Send to back" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Bring to front" }),
+    ).toBeInTheDocument();
+  });
+
+  it("supports keyboard navigation in the shape menu", async () => {
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+    const trigger = screen.getByRole("button", { name: "Shapes" });
+
+    await user.click(trigger);
+    const line = screen.getByRole("menuitem", { name: "Line" });
+    const rectangle = screen.getByRole("menuitem", { name: "Rectangle" });
+    await waitFor(() => expect(line).toHaveFocus());
+    await user.keyboard("{ArrowDown}");
+    expect(rectangle).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(
+      screen.queryByRole("menu", { name: "Add shape" }),
+    ).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("changes the selected element layer order", async () => {
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+    await user.click(screen.getByRole("button", { name: "Shapes" }));
+    await user.click(screen.getByRole("menuitem", { name: "Rectangle" }));
+    const canvas = screen.getByRole("region", {
+      name: "Resistors label canvas",
+    });
+    const order = () =>
+      Array.from(
+        canvas.querySelectorAll<HTMLButtonElement>(".canvas-element-control"),
+      ).map((item) => item.getAttribute("aria-label"));
+    expect(order()).toEqual([
+      "Text element: RESISTORS",
+      "rectangle shape element",
+    ]);
+
+    await user.click(screen.getByRole("button", { name: "Send to back" }));
+    expect(order()).toEqual([
+      "rectangle shape element",
+      "Text element: RESISTORS",
+    ]);
+    await user.click(screen.getByRole("button", { name: "Bring to front" }));
+    expect(order()).toEqual([
+      "Text element: RESISTORS",
+      "rectangle shape element",
+    ]);
   });
 
   it("rejects an image format which the print renderer cannot use", async () => {

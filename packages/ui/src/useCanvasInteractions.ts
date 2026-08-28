@@ -2,6 +2,7 @@ import type {
   ImageElement,
   LabelElement,
   LabelPlate,
+  ShapeElement,
   TextElement,
 } from "@labelmaker/domain";
 import {
@@ -15,7 +16,7 @@ import { snapMovedElement, snapResizedFrame } from "./canvas-snapping.js";
 import type { PrintableMargins } from "./label-layout.js";
 
 type ResizeCorner = "nw" | "ne" | "sw" | "se";
-type FramedElement = TextElement | ImageElement;
+type FramedElement = TextElement | ImageElement | ShapeElement;
 
 export function useCanvasInteractions({
   plate,

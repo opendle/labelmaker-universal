@@ -87,6 +87,61 @@ describe("workspace documents", () => {
     );
   });
 
+  it("preserves shape types and treats an omitted type as a rectangle", () => {
+    const changed = structuredClone(document) as unknown as {
+      plates: Array<{ elements: Array<Record<string, unknown>> }>;
+    };
+    const base = changed.plates[0]!.elements[0]!;
+    changed.plates[0]!.elements.push({
+      id: "shape",
+      kind: "rectangle",
+      shapeType: "circle",
+      xMm: 1,
+      yMm: 1,
+      widthMm: 5,
+      heightMm: 5,
+      rotationDeg: 0,
+      strokeWidthMm: 0.4,
+      filled: false,
+      cornerRadiusMm: 0,
+    });
+    changed.plates[0]!.elements.push({
+      ...base,
+      id: "old-rectangle",
+      kind: "rectangle",
+      strokeWidthMm: 0.4,
+      filled: false,
+      cornerRadiusMm: 0,
+    });
+
+    const elements = validateLabelDocument(changed).plates[0]!.elements;
+    expect(elements[1]).toMatchObject({ shapeType: "circle" });
+    expect(elements[2]).not.toHaveProperty("shapeType");
+  });
+
+  it("rejects an invalid shape type", () => {
+    const changed = structuredClone(document) as unknown as {
+      plates: Array<{ elements: Array<Record<string, unknown>> }>;
+    };
+    changed.plates[0]!.elements.push({
+      id: "shape",
+      kind: "rectangle",
+      shapeType: "triangle",
+      xMm: 1,
+      yMm: 1,
+      widthMm: 5,
+      heightMm: 5,
+      rotationDeg: 0,
+      strokeWidthMm: 0.4,
+      filled: false,
+      cornerRadiusMm: 0,
+    });
+
+    expect(() => validateLabelDocument(changed)).toThrow(
+      "shapeType must be line, rectangle, or circle",
+    );
+  });
+
   it("rejects an invalid print mirror setting", () => {
     const invalid = structuredClone(document) as unknown as {
       plates: Array<{ mirrorPrint: unknown }>;

@@ -3,6 +3,7 @@ import type {
   LabelDocument,
   LabelElement,
   LabelPlate,
+  ShapeElement,
   TextElement,
 } from "@labelmaker/domain";
 
@@ -15,6 +16,9 @@ import { DEFAULT_TYPEFACE } from "./typefaces.js";
 
 export const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
+
+export const MIN_ZOOM = 60;
+export const MAX_ZOOM = 300;
 
 const makeId = (prefix: string) =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
@@ -81,6 +85,40 @@ export function createImage(plate: LabelPlate, source: string): ImageElement {
   };
 }
 
+export function createShape(
+  plate: LabelPlate,
+  shapeType: NonNullable<ShapeElement["shapeType"]>,
+): ShapeElement {
+  const circleDiameterMm = Math.max(
+    0.5,
+    Math.min(10, plate.size.widthMm * 0.6, plate.size.heightMm * 0.6),
+  );
+  const widthMm =
+    shapeType === "circle"
+      ? circleDiameterMm
+      : Math.max(0.5, Math.min(18, plate.size.widthMm * 0.6));
+  const heightMm =
+    shapeType === "circle"
+      ? circleDiameterMm
+      : Math.max(
+          0.5,
+          Math.min(shapeType === "line" ? 2 : 8, plate.size.heightMm * 0.6),
+        );
+  return {
+    id: makeId("element"),
+    kind: "rectangle",
+    shapeType,
+    xMm: Math.max(0, (plate.size.widthMm - widthMm) / 2),
+    yMm: Math.max(0, (plate.size.heightMm - heightMm) / 2),
+    widthMm,
+    heightMm,
+    rotationDeg: 0,
+    strokeWidthMm: 0.4,
+    filled: false,
+    cornerRadiusMm: 0,
+  };
+}
+
 const FLAG_GAP_MM = 2;
 const FLAG_PEER_SUFFIX = "--flag-peer";
 
@@ -88,6 +126,25 @@ const flagGuideId = (plate: LabelPlate) => `flag-guide-${plate.id}`;
 
 const isFlagPeer = (element: LabelElement) =>
   element.id.endsWith(FLAG_PEER_SUFFIX);
+
+export function isFlagGuideElement(
+  plate: LabelPlate,
+  element: LabelElement,
+): boolean {
+  return element.id === flagGuideId(plate);
+}
+
+function flagSourceElements(plate: LabelPlate): readonly LabelElement[] {
+  return plate.elements.filter(
+    (element) => !isFlagPeer(element) && !isFlagGuideElement(plate, element),
+  );
+}
+
+export function editableElementCount(plate: LabelPlate): number {
+  return isFlagPlate(plate)
+    ? flagSourceElements(plate).length
+    : plate.elements.length;
+}
 
 export function isFlagPlate(plate: LabelPlate): boolean {
   return plate.elements.some((element) => element.id === flagGuideId(plate));
@@ -145,6 +202,72 @@ function buildFlagElements(
   ];
 }
 
+export function appendElementAndFlagPeer(
+  plate: LabelPlate,
+  element: LabelElement,
+): LabelPlate {
+  if (!isFlagPlate(plate)) {
+    return { ...plate, elements: [...plate.elements, element] };
+  }
+  const sourceElements = [...flagSourceElements(plate), element];
+  return {
+    ...plate,
+    elements: buildFlagElements(
+      plate,
+      sourceElements,
+      plateEditorWidthMm(plate),
+    ),
+  };
+}
+
+export function deleteElementAndFlagPeer(
+  plate: LabelPlate,
+  elementId: string,
+): LabelPlate {
+  if (!isFlagPlate(plate)) {
+    return {
+      ...plate,
+      elements: plate.elements.filter((element) => element.id !== elementId),
+    };
+  }
+  const sourceId = elementId.endsWith(FLAG_PEER_SUFFIX)
+    ? elementId.slice(0, -FLAG_PEER_SUFFIX.length)
+    : elementId;
+  return {
+    ...plate,
+    elements: buildFlagElements(
+      plate,
+      flagSourceElements(plate).filter((element) => element.id !== sourceId),
+      plateEditorWidthMm(plate),
+    ),
+  };
+}
+
+export function moveElementLayer(
+  plate: LabelPlate,
+  elementId: string,
+  direction: "back" | "front",
+): LabelPlate {
+  const sourceId = elementId.endsWith(FLAG_PEER_SUFFIX)
+    ? elementId.slice(0, -FLAG_PEER_SUFFIX.length)
+    : elementId;
+  const elements = isFlagPlate(plate)
+    ? [...flagSourceElements(plate)]
+    : [...plate.elements];
+  const index = elements.findIndex((element) => element.id === sourceId);
+  if (index < 0) return plate;
+  const [selected] = elements.splice(index, 1);
+  if (!selected) return plate;
+  if (direction === "back") elements.unshift(selected);
+  else elements.push(selected);
+  return isFlagPlate(plate)
+    ? {
+        ...plate,
+        elements: buildFlagElements(plate, elements, plateEditorWidthMm(plate)),
+      }
+    : { ...plate, elements };
+}
+
 export function updatePlateEditorWidth(
   plate: LabelPlate,
   widthMm: number,
@@ -153,9 +276,7 @@ export function updatePlateEditorWidth(
   if (!isFlagPlate(plate)) {
     return { ...plate, size: { ...plate.size, widthMm: nextWidthMm } };
   }
-  const sourceElements = plate.elements.filter(
-    (element) => !isFlagPeer(element) && element.id !== flagGuideId(plate),
-  );
+  const sourceElements = flagSourceElements(plate);
   return {
     ...plate,
     size: {

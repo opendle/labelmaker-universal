@@ -49,6 +49,8 @@ export interface ImageElement extends LabelElementBase {
 
 export interface ShapeElement extends LabelElementBase {
   readonly kind: "rectangle";
+  /** Omitted by older schema-version 1 files; an omitted value means rectangle. */
+  readonly shapeType?: "line" | "rectangle" | "circle";
   readonly strokeWidthMm: Millimeters;
   readonly filled: boolean;
   readonly cornerRadiusMm: Millimeters;

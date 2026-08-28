@@ -33,7 +33,7 @@ export function SelectionHandles({
   onResizeStart,
   onRotateStart,
 }: {
-  readonly elementLabel: "text" | "image";
+  readonly elementLabel: "text" | "image" | "shape";
   readonly onResizeStart: (
     corner: "nw" | "ne" | "sw" | "se",
     event: PointerEvent<HTMLButtonElement>,

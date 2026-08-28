@@ -6,7 +6,12 @@ import { AddPrinterDialog } from "./AppDialogs.js";
 import { AppHeader } from "./AppHeader.js";
 import { replacePlate } from "./app-state.js";
 import { EditorCanvas } from "./EditorCanvas.js";
-import { trimPlate, updateElementAndFlagPeer } from "./editor-operations.js";
+import {
+  editableElementCount,
+  moveElementLayer,
+  trimPlate,
+  updateElementAndFlagPeer,
+} from "./editor-operations.js";
 import type { LabelmakerHost } from "./host.js";
 import { Inspector } from "./Inspector.js";
 import { nonPrintableMarginsMm } from "./label-layout.js";
@@ -44,8 +49,14 @@ async function trimLatestWorkspace(
 
 export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   const controller = useLabelmakerController(host);
-  const { state, activePlate, selectedText, selectedImage, dispatch } =
-    controller;
+  const {
+    state,
+    activePlate,
+    selectedText,
+    selectedImage,
+    selectedShape,
+    dispatch,
+  } = controller;
   const workspaceRef = useRef(state.workspace);
   useEffect(() => {
     workspaceRef.current = state.workspace;
@@ -117,6 +128,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
         <div className="desktop-body">
           <EditorCanvas
             onAddImage={controller.addImage}
+            onAddShape={controller.addShape}
             onAddSpecial={controller.addSpecial}
             onAddText={controller.addText}
             onChangeElement={(element) =>
@@ -157,6 +169,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             zoom={state.zoom}
           />
           <Inspector
+            hasMultipleElements={editableElementCount(activePlate) > 1}
             onClearSelection={() =>
               dispatch({ type: "select-element", elementId: null })
             }
@@ -174,7 +187,23 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
                 ),
               )
             }
+            onUpdateShape={(shape) =>
+              controller.editWorkspace(
+                replacePlate(state.workspace, activePlate.id, (plate) =>
+                  updateElementAndFlagPeer(plate, shape),
+                ),
+              )
+            }
+            onMoveLayer={(direction) => {
+              if (!state.selectedElementId) return;
+              controller.editWorkspace(
+                replacePlate(state.workspace, activePlate.id, (plate) =>
+                  moveElementLayer(plate, state.selectedElementId!, direction),
+                ),
+              );
+            }}
             selectedImage={selectedImage}
+            selectedShape={selectedShape}
             selectedText={selectedText}
           />
         </div>

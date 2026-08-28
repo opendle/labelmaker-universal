@@ -578,6 +578,40 @@ textarea:focus-visible {
   align-items: center;
   flex: 0 0 auto;
 }
+.shape-control {
+  position: relative;
+}
+.shape-menu {
+  position: absolute;
+  z-index: 12;
+  top: 33px;
+  left: 0;
+  width: 132px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 12px 30px rgba(40, 35, 25, 0.18);
+}
+.shape-menu button {
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #37342e;
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+.shape-menu button:hover,
+.shape-menu button:focus-visible {
+  background: #f2f0eb;
+}
 .toolbar-separator + .tool-button + .tool-button {
   margin-left: 4px;
 }
@@ -902,14 +936,17 @@ textarea.inline-text-editor:focus-visible {
   width: var(--element-width);
   height: var(--element-height);
   transform: var(--element-rotation);
-  border-radius: var(--shape-radius);
+  color: #8f8a80;
   pointer-events: none;
 }
-.canvas-shape.filled {
-  background: #8f8a80;
+.canvas-shape-element {
+  color: #8f8a80;
 }
-.canvas-shape.outlined {
-  border: var(--shape-border-width) solid #8f8a80;
+.shape-artwork {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
 }
 .handle {
   position: absolute;
@@ -954,7 +991,10 @@ textarea.inline-text-editor:focus-visible {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  cursor: grab;
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cpath d='M18.5 8A7.5 7.5 0 1 0 20 15' fill='none' stroke='%2324211e' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='m16 3 3 5-5 1' fill='none' stroke='%2324211e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+      12 12,
+    crosshair;
 }
 .canvas-meta {
   position: absolute;
@@ -1121,6 +1161,41 @@ textarea.inline-text-editor:focus-visible {
   height: 20px;
   padding: 0;
   border: 0;
+  accent-color: var(--accent);
+}
+.layer-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.layer-buttons button {
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid #d5d1c8;
+  border-radius: 5px;
+  background: white;
+  color: #5f5b53;
+  font-size: 9px;
+  cursor: pointer;
+}
+.layer-buttons button:hover {
+  color: var(--accent);
+  border-color: #d8a895;
+  background: var(--soft-accent);
+}
+.shape-fill-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #5f5b53;
+  font-size: 10px;
+}
+.shape-fill-toggle input {
   accent-color: var(--accent);
 }
 .text-style-buttons {
@@ -1538,11 +1613,9 @@ textarea.inline-text-editor:focus-visible {
 .label-artwork-image {
   object-fit: contain;
 }
-.label-artwork-shape.outlined {
-  border: var(--artwork-shape-border);
-}
-.label-artwork-shape.filled {
-  background: #222;
+.label-artwork-shape {
+  color: #222;
+  overflow: visible;
 }
 .artwork-nonprintable {
   z-index: 1;
@@ -2044,20 +2117,29 @@ textarea.inline-text-editor:focus-visible {
   .button,
   .button.secondary,
   .popup-menu,
-  .printer-menu {
+  .printer-menu,
+  .shape-menu {
     border-color: #505257;
     background: #303236;
     color: #efede7;
   }
 
   .printer-menu,
-  .popup-menu {
+  .popup-menu,
+  .shape-menu {
     box-shadow: 0 14px 38px rgba(0, 0, 0, 0.48);
   }
 
   .header-printer-option:hover,
-  .popup-menu button:hover {
+  .popup-menu button:hover,
+  .shape-menu button:hover,
+  .shape-menu button:focus-visible {
     background: #3a3c40;
+  }
+
+  .shape-menu button,
+  .shape-fill-toggle {
+    color: #d0cdc5;
   }
 
   .printer-menu-add {
@@ -2245,6 +2327,7 @@ textarea.inline-text-editor:focus-visible {
   .text-style-buttons .italic-button,
   .text-style-buttons button,
   .trim-button,
+  .layer-buttons button,
   .segmented,
   .segmented button {
     border-color: #55575c;
@@ -2264,6 +2347,12 @@ textarea.inline-text-editor:focus-visible {
 
   .text-style-buttons button {
     border-right-color: #55575c;
+  }
+
+  .layer-buttons button:hover {
+    color: #ff9a7c;
+    border-color: #805346;
+    background: var(--soft-accent);
   }
 
   .text-style-buttons .weight-300 {

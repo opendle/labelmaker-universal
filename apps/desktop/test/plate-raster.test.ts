@@ -102,6 +102,36 @@ describe("desktop plate rasterization", () => {
     expect(svg).toMatch(/<g[^>]+><text[\s\S]*<\/text><\/g><\/svg>$/);
   });
 
+  it("renders line, rectangle, and circle shapes", () => {
+    const plate = createBlankLabelDocument(() => "id").plates[0];
+    if (!plate) throw new Error("Expected a plate");
+    const frame = {
+      kind: "rectangle" as const,
+      xMm: 2,
+      yMm: 3,
+      widthMm: 8,
+      heightMm: 6,
+      rotationDeg: 0,
+      strokeWidthMm: 0.5,
+      filled: false,
+      cornerRadiusMm: 0,
+    };
+    const changed = {
+      ...plate,
+      elements: [
+        { ...frame, id: "line", shapeType: "line" as const },
+        { ...frame, id: "rectangle", shapeType: "rectangle" as const },
+        { ...frame, id: "circle", shapeType: "circle" as const },
+      ],
+    };
+
+    const svg = buildPlateSvg(changed, 320, 96);
+
+    expect(svg).toContain('<line x1="2" y1="6" x2="10" y2="6"');
+    expect(svg).toContain('<rect x="2" y="3" width="8" height="6"');
+    expect(svg).toContain('<ellipse cx="6" cy="6" rx="4" ry="3"');
+  });
+
   it("transposes pixels and reverses the E1 feed-line order", async () => {
     const plate = createBlankLabelDocument(() => "id").plates[0];
     if (!plate) throw new Error("Expected a plate");

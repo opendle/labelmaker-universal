@@ -112,7 +112,7 @@ describe("workspace recovery", () => {
     ).toThrow();
     expect(() =>
       validateWorkspaceRecoveryInput({ ...recoveryInput(), zoom: 1_000 }),
-    ).toThrow("Recovery zoom must be between 60 and 140");
+    ).toThrow("Recovery zoom must be between 60 and 300");
   });
 
   it("debounces updates and flushes only the latest editor state", async () => {
@@ -121,7 +121,7 @@ describe("workspace recovery", () => {
     const store = new WorkspaceRecoveryStore(recoveryPath, () => undefined);
     const first = createWorkspaceRecoveryRecord(recoveryInput(), undefined);
     const latest = createWorkspaceRecoveryRecord(
-      { ...recoveryInput(), zoom: 140 },
+      { ...recoveryInput(), zoom: 300 },
       undefined,
     );
 

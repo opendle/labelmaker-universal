@@ -221,6 +221,13 @@ function renderElement(element: LabelElement): string {
     }
     case "rectangle": {
       const fill = element.filled ? "black" : "none";
+      if (element.shapeType === "line") {
+        const y = element.yMm + element.heightMm / 2;
+        return `<line x1="${number(element.xMm)}" y1="${number(y)}" x2="${number(element.xMm + element.widthMm)}" y2="${number(y)}" stroke="black" stroke-width="${number(element.strokeWidthMm)}"${transform}/>`;
+      }
+      if (element.shapeType === "circle") {
+        return `<ellipse cx="${number(element.xMm + element.widthMm / 2)}" cy="${number(element.yMm + element.heightMm / 2)}" rx="${number(element.widthMm / 2)}" ry="${number(element.heightMm / 2)}" fill="${fill}" stroke="black" stroke-width="${number(element.strokeWidthMm)}"${transform}/>`;
+      }
       return `<rect x="${number(element.xMm)}" y="${number(element.yMm)}" width="${number(element.widthMm)}" height="${number(element.heightMm)}" rx="${number(element.cornerRadiusMm)}" fill="${fill}" stroke="black" stroke-width="${number(element.strokeWidthMm)}"${transform}/>`;
     }
     case "qr":

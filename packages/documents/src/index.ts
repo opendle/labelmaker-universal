@@ -201,9 +201,19 @@ function shapeElement(
 ): ShapeElement {
   if (typeof value.filled !== "boolean")
     fail(`${path}.filled must be a boolean`);
+  const shapeType = value.shapeType;
+  if (
+    shapeType !== undefined &&
+    shapeType !== "line" &&
+    shapeType !== "rectangle" &&
+    shapeType !== "circle"
+  ) {
+    fail(`${path}.shapeType must be line, rectangle, or circle`);
+  }
   return {
     ...baseElement(value, path),
     kind: "rectangle",
+    ...(shapeType === undefined ? {} : { shapeType }),
     strokeWidthMm: numberValue(value.strokeWidthMm, `${path}.strokeWidthMm`, 0),
     filled: value.filled,
     cornerRadiusMm: numberValue(

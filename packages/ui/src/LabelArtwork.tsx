@@ -7,6 +7,7 @@ import {
   type PrintableMargins,
 } from "./label-layout.js";
 import { MonochromeImage } from "./MonochromeImage.js";
+import { ShapeArtwork } from "./ShapeArtwork.js";
 
 type ArtworkStyle = CSSProperties & Record<`--${string}`, string | number>;
 
@@ -91,18 +92,11 @@ export function LabelArtwork({
         }
         if (element.kind === "rectangle") {
           return (
-            <span
-              aria-hidden="true"
-              className={`label-artwork-element label-artwork-shape ${element.filled ? "filled" : "outlined"}`}
+            <ShapeArtwork
+              className="label-artwork-element label-artwork-shape"
+              element={element}
               key={element.id}
-              style={
-                {
-                  ...frame,
-                  "--artwork-shape-border": element.filled
-                    ? "0"
-                    : `${element.strokeWidthMm}px solid #222`,
-                } as ArtworkStyle
-              }
+              style={frame}
             />
           );
         }
