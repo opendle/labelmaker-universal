@@ -1,21 +1,22 @@
 # Labelmaker
 
-Labelmaker is a portable desktop label editor with independent
-printer adapters. A document can contain many label plates. Users can design,
-save, preview, and print each plate without exposing printer protocol details to
-the editor.
+Labelmaker is an open-source label editor for desktop and iPad. One `.lbl`
+workspace can contain many labels. The editor can create text, image, and shape
+elements. It can also set label size and margins, trim a label to its printed
+content, make cable flags, preview output, and print through a printer adapter.
 
-The first target is an Electron application for macOS, Windows, and Linux. The
-same core can later run behind a local or container-hosted print service.
+The desktop app uses Electron. The iPad app uses the same React editor in a
+native Swift shell. Printer adapters keep Bluetooth and printer protocols out
+of the editor and document model.
 
 ## Screenshots
 
 <p align="center">
-  <img src="artifacts/screenshots/labelmaker-primary-1440x960.png" alt="Labelmaker editor with a selected text element and three label plates" width="100%">
+  <img src="artifacts/screenshots/labelmaker-primary-1440x960.png" alt="Labelmaker editor with a selected text element and three labels" width="100%">
 </p>
 
 <p align="center">
-  <img src="artifacts/screenshots/labelmaker-plate-settings-1440x960.png" alt="Plate width, height, trim, and margin controls" width="49%">
+  <img src="artifacts/screenshots/labelmaker-plate-settings-1440x960.png" alt="Label width, height, trim, and margin controls" width="49%">
   <img src="artifacts/screenshots/labelmaker-flag-1440x960.png" alt="Flag label editor with repeated cable text" width="49%">
 </p>
 
@@ -23,24 +24,24 @@ same core can later run behind a local or container-hosted print service.
   <img src="artifacts/screenshots/labelmaker-add-printer-1440x960.png" alt="Bluetooth printer discovery dialog" width="100%">
 </p>
 
-The mock shows movable elements, multi-label workspaces, plate sizing and
-margins, trim-to-content, special label layouts, and printer discovery. Physical
-MakeID E1 printing is not yet verified.
+These screenshots use test printer fixtures. Normal app sessions do not show
+mock printers.
 
-## Repository map
+## Current status
 
-```text
-apps/desktop             Electron shell and desktop composition root
-apps/server              Future headless API and print bridge
-packages/domain          Saved document and plate types
-packages/documents       Workspace validation and JSON serialization
-packages/printing        Printer adapter contracts and registry
-packages/rendering       Deterministic RGBA-to-monochrome raster conversion
-packages/adapters/mock   Safe adapter for UI and orchestration tests
-packages/adapters/makeid Hardware-independent MakeID E1 protocol candidate
-packages/ui              Shared desktop editor UI
-docs                     Product, architecture, and format specifications
-```
+- The macOS desktop app can discover and print to a MakeID E1 through Bluetooth
+  Low Energy. The physical print path is verified on 16 mm tape.
+- The iPad app has Files integration, workspace recovery, touch controls, and a
+  native CoreBluetooth transport for MakeID E1. The iPad printer path still
+  needs a physical hardware test.
+- The editor can run on Windows and Linux, but these systems do not yet have a
+  physical printer transport.
+- Signed install packages are not available. Run the apps from source.
+- Mock printers are available only for tests, screenshots, and the demo video.
+
+See [the roadmap](docs/roadmap.md) and the
+[MakeID adapter notes](packages/adapters/makeid/README.md) for the open work and
+hardware test results.
 
 ## Development
 
@@ -52,19 +53,80 @@ npm run dev
 npm run check
 ```
 
-The desktop application has no real printer dependency during UI development.
-The mock adapter supplies predictable printers, capabilities, states, and print
-results.
+`npm run check` runs formatting, React Doctor, TypeScript, tests, and builds.
+React Doctor must report a score of 100 and no diagnostics.
 
-## Current status
+For iPad setup and Xcode commands, see [the iPad guide](apps/ipad/README.md).
 
-The foundation and interactive desktop mock are complete. The desktop shell can
-create, open, validate, save, and save a copy of workspace files. The application
-still uses the mock adapter only. A deterministic raster package and an
-unverified, transport-injected MakeID E1 protocol adapter are present for later
-hardware integration. See `docs/roadmap.md`.
+## Visual artifacts
 
-The project uses the Apache-2.0 license. Signed desktop distribution is
-planned for macOS, Windows, and Linux, including a separate Mac App Store build.
-The signing identity is not configured in this repository. See
-`docs/distribution.md`.
+Run the screenshot task only after a material UI change:
+
+```bash
+npm run ui:screenshot
+```
+
+The screenshot files in `artifacts/screenshots` stay in the repository.
+
+Run the demo video task only when you need a new video:
+
+```bash
+npm run ui:video
+```
+
+The task installs the Playwright FFmpeg tool when it is not present. It then
+records this flow: add a test printer, add a label, edit its text, change the
+typeface, size, and weight, trim it to content, and print it. The mouse pointer
+is visible. The task writes `artifacts/videos/labelmaker-demo.webm`. Git ignores
+this file, and the normal check does not run the video task.
+
+## Add support for a printer
+
+New printers must use Bluetooth Low Energy or Bluetooth Classic. There are two
+ways to request support.
+
+### Make a pull request
+
+Read [the contribution guide](CONTRIBUTING.md),
+[the adapter contract](docs/adapter-contract.md), and
+[the architecture](docs/architecture.md). Then:
+
+1. Add a separate package under `packages/adapters/<name>`.
+2. Accept the shared one-bit raster format. Do not read editor state or `.lbl`
+   files in the adapter.
+3. Put Bluetooth and operating-system code behind the adapter transport.
+4. Add fixed protocol vectors, discovery filter tests, and fake transport
+   tests before a hardware test.
+5. Add an opt-in hardware test report. State the exact printer model, firmware,
+   host system, Bluetooth type, tape or label size, and test result.
+6. Register the adapter in each supported app shell and make a focused pull
+   request.
+
+Do not add device addresses, private captures, credentials, or vendor binaries
+to the repository.
+
+### Send hardware to the maintainer
+
+If you do not want to make an adapter, send the maintainer a direct message.
+State the exact printer model, the Bluetooth type, and the host system that you
+want to use. You can arrange to send one working printer and enough compatible
+labels or tape for discovery, status, repeated print, and error tests. Send all
+shipping details only in the direct message.
+
+## Repository map
+
+```text
+apps/desktop             Electron shell, files, recovery, and macOS transport
+apps/ipad                Swift iPad shell, Files access, and CoreBluetooth
+apps/server              Future headless API and local print bridge
+packages/domain          Workspace, label, element, and unit types
+packages/documents       Workspace validation and gzip YAML serialization
+packages/printing        Printer adapter contracts, sessions, and jobs
+packages/rendering       Shared SVG and one-bit raster rendering
+packages/adapters/mock   Test-only printer adapter
+packages/adapters/makeid MakeID E1 protocol and platform transports
+packages/ui              Shared React editor and application UI
+docs                     Product, architecture, format, and test documents
+```
+
+Labelmaker uses the [Apache-2.0 license](LICENSE).

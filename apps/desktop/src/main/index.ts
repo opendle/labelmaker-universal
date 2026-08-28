@@ -78,17 +78,25 @@ app.setName(APPLICATION_NAME);
 process.title = APPLICATION_NAME;
 
 const registry = new PrinterAdapterRegistry();
-const includeMockPrinters = mockPrintersEnabled(
+const configureMockPrinterFixture = mockPrintersEnabled(
   process.env.LABELMAKER_ENABLE_MOCK_PRINTER,
 );
-if (includeMockPrinters) registry.register(new MockPrinterAdapter());
+const enableMockPrinterDiscovery = mockPrintersEnabled(
+  process.env.LABELMAKER_ENABLE_MOCK_PRINTER_DISCOVERY,
+);
+if (configureMockPrinterFixture || enableMockPrinterDiscovery) {
+  registry.register(new MockPrinterAdapter());
+}
 if (
   process.platform === "darwin" &&
   process.env.LABELMAKER_DISABLE_HARDWARE_PRINTERS !== "1"
 ) {
   registry.register(new MakeIdE1Adapter(new MacOsMakeIdTransportProvider()));
 }
-let configuredPrinterIds = initialConfiguredPrinterIds([], includeMockPrinters);
+let configuredPrinterIds = initialConfiguredPrinterIds(
+  [],
+  configureMockPrinterFixture,
+);
 let activePrinterId: string | undefined;
 const printerSettings = new Map<string, PrinterSettings>();
 const printerSessions = new PrinterSessionManager((printer) =>
@@ -742,7 +750,7 @@ async function restoreConfiguredPrinters(): Promise<void> {
           );
     configuredPrinterIds = initialConfiguredPrinterIds(
       storedPrinterIds,
-      includeMockPrinters,
+      configureMockPrinterFixture,
     );
     activePrinterId = await readActivePrinterId(configuredPrintersPath());
     printerSettings.clear();
@@ -760,7 +768,10 @@ async function restoreConfiguredPrinters(): Promise<void> {
     context.log.warn("Saved printer configuration could not be loaded", {
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    configuredPrinterIds = initialConfiguredPrinterIds([], includeMockPrinters);
+    configuredPrinterIds = initialConfiguredPrinterIds(
+      [],
+      configureMockPrinterFixture,
+    );
     activePrinterId = undefined;
     printerSettings.clear();
   }

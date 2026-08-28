@@ -23,7 +23,8 @@
     "react:doctor": "node scripts/react-doctor-gate.mjs",
     "test": "vitest run",
     "typecheck": "tsc --build && tsc --project tsconfig.tests.json && npm run typecheck --workspaces --if-present",
-    "ui:screenshot": "npm run screenshot --workspace @labelmaker/desktop"
+    "ui:screenshot": "npm run screenshot --workspace @labelmaker/desktop",
+    "ui:video": "npm run video --workspace @labelmaker/desktop"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",

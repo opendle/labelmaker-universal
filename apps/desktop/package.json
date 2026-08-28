@@ -12,6 +12,7 @@
     "dev": "npm run build && node scripts/launch-desktop.mjs",
     "hardware:print": "npm run build && node scripts/hardware-print.mjs",
     "screenshot": "npm run build && node scripts/run-screenshots.mjs",
+    "video": "playwright install ffmpeg && npm run build && node scripts/run-video.mjs",
     "typecheck": "tsc --project tsconfig.main.json --pretty false && tsc --project tsconfig.renderer.json --pretty false"
   },
   "dependencies": {
