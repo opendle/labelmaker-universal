@@ -20,6 +20,7 @@
     "dev": "npm run dev --workspace @labelmaker/desktop",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "app-store:screenshots": "npm run app-store:screenshots --workspace @labelmaker/ipad",
     "react:doctor": "node scripts/react-doctor-gate.mjs",
     "test": "vitest run",
     "typecheck": "tsc --build && tsc --project tsconfig.tests.json && npm run typecheck --workspaces --if-present",

@@ -36,6 +36,27 @@ xcodebuild -project apps/ipad/Labelmaker.xcodeproj \
 The generated Vite bundle is ignored by Git. Do not commit
 `Labelmaker/Resources/WebApp`.
 
+## App Store screenshots
+
+Run the following command from the repository root:
+
+```sh
+npm run app-store:screenshots
+```
+
+The task creates five landscape screenshots at 2752 × 2064 pixels in
+`artifacts/app-store/ipad-13-landscape`. This folder is ignored by Git.
+
+To create portrait screenshots at 2064 × 2752 pixels, run:
+
+```sh
+LABELMAKER_APP_STORE_SCREENSHOT_ORIENTATION=portrait \
+  npm run app-store:screenshots
+```
+
+Set `LABELMAKER_APP_STORE_SCREENSHOT_DIRECTORY` to use a different output
+folder. The capture uses local test data and does not need a printer.
+
 ## iPad behavior
 
 - Open and Save use iPad document pickers and the same gzip YAML `.lbl` format
