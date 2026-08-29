@@ -248,6 +248,9 @@ not add a separate editor.
   plate strip only while that keyboard reduces the available viewport. Focus
   from a physical keyboard must not hide the strip. Keep the Phone header and
   command row visible during direct text edit with the on-screen keyboard.
+- Move the label smoothly when the on-screen keyboard opens or closes. Animate
+  only the iPadOS viewport and layout rows. Keep canvas drag and zoom immediate,
+  and respect the reduced-motion setting.
 - Use the numeric keyboard for each number field. Do not show the unused web
   form assistant row above the iOS keyboard suggestions. A small visual
   viewport change from hardware keyboard controls must not resize the editor.

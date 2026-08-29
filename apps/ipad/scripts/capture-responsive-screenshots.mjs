@@ -120,6 +120,35 @@ async function capture(viewport) {
           `${viewport.width}x${viewport.height} cuts off header controls.`,
         );
       }
+      if (viewport.width === 1180 && viewport.height === 820) {
+        const keyboardMotion = await page.evaluate(() => {
+          const shell = document.querySelector(".app-shell");
+          const content = document.querySelector(".application-content");
+          if (
+            !(shell instanceof HTMLElement) ||
+            !(content instanceof HTMLElement)
+          ) {
+            throw new Error("The iPad keyboard layout is incomplete.");
+          }
+          return {
+            contentDuration: getComputedStyle(content).transitionDuration,
+            contentProperty: getComputedStyle(content).transitionProperty,
+            shellDuration: getComputedStyle(shell).transitionDuration,
+            shellProperty: getComputedStyle(shell).transitionProperty,
+          };
+        });
+        if (
+          !keyboardMotion.shellProperty.includes("height") ||
+          !keyboardMotion.shellProperty.includes("transform") ||
+          keyboardMotion.shellDuration === "0s" ||
+          !keyboardMotion.contentProperty.includes("grid-template-rows") ||
+          keyboardMotion.contentDuration === "0s"
+        ) {
+          throw new Error(
+            `The iPad keyboard layout does not animate: ${JSON.stringify(keyboardMotion)}.`,
+          );
+        }
+      }
       if (viewport.width <= 850) {
         if (!inspection.historyIsCentered) {
           throw new Error(
@@ -151,6 +180,54 @@ async function capture(viewport) {
             `${viewport.width}x${viewport.height} lets the bottom inspector overflow.`,
           );
         }
+      }
+      if (viewport.width === 768 && viewport.height === 1024) {
+        await page.locator(".canvas-element-control").first().dblclick();
+        await page
+          .getByRole("textbox", { name: "Edit text on label" })
+          .waitFor();
+        const keyboardEditLayout = await page.evaluate(async () => {
+          const shell = document.querySelector(".app-shell");
+          const content = document.querySelector(".application-content");
+          const body = document.querySelector(".desktop-body");
+          if (
+            !(shell instanceof HTMLElement) ||
+            !(content instanceof HTMLElement) ||
+            !(body instanceof HTMLElement)
+          ) {
+            throw new Error("The compact iPad editor is incomplete.");
+          }
+          document.documentElement.style.setProperty(
+            "--visual-viewport-height",
+            "600px",
+          );
+          shell.dataset.softwareKeyboard = "open";
+          await new Promise((resolveFrame) =>
+            requestAnimationFrame(resolveFrame),
+          );
+          return {
+            bodyRow: getComputedStyle(body).gridRowStart,
+            contentRows: getComputedStyle(content).gridTemplateRows,
+          };
+        });
+        if (keyboardEditLayout.bodyRow !== "2") {
+          throw new Error(
+            `The compact iPad keyboard edit moves outside its animated row: ${JSON.stringify(keyboardEditLayout)}.`,
+          );
+        }
+        await page.evaluate(() => {
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
+          const shell = document.querySelector(".app-shell");
+          if (shell instanceof HTMLElement) {
+            delete shell.dataset.softwareKeyboard;
+          }
+          document.documentElement.style.removeProperty(
+            "--visual-viewport-height",
+          );
+        });
+        await page.waitForTimeout(260);
       }
       if (inspection.printerActionGap < 4) {
         throw new Error(
