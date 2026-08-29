@@ -78,12 +78,12 @@ describe("CanvasRulers", () => {
       container
         .querySelector<HTMLElement>(".dimension-ruler-width")
         ?.style.getPropertyValue("--dimension-ruler-width-offset"),
-    ).toBe("90px");
+    ).toBe("82px");
     expect(
       container
         .querySelector<HTMLElement>(".dimension-ruler-height")
         ?.style.getPropertyValue("--dimension-ruler-outer-offset"),
-    ).toBe("182px");
+    ).toBe("166px");
 
     rerender(
       <CanvasRulers
@@ -119,6 +119,6 @@ describe("CanvasRulers", () => {
       container
         .querySelector<HTMLElement>(".dimension-ruler-printable-height")
         ?.style.getPropertyValue("--dimension-ruler-inner-offset"),
-    ).toBe("70px");
+    ).toBe("65px");
   });
 });

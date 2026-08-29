@@ -386,10 +386,11 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
 }
 
 .desktop-body {
+  --editor-toolbar-height: 48px;
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 48px minmax(0, 1fr);
+  grid-template-rows: var(--editor-toolbar-height) minmax(0, 1fr);
   min-height: 0;
   background: #e6e5df;
 }
@@ -1130,7 +1131,7 @@ textarea.inline-text-editor:focus-visible {
 
 .inspector {
   position: absolute;
-  top: 44px;
+  top: var(--editor-toolbar-height);
   right: 0;
   bottom: 0;
   z-index: 10;
@@ -2306,12 +2307,12 @@ textarea.inline-text-editor:focus-visible {
 }
 
 .platform-ipados .desktop-body {
+  --editor-toolbar-height: 50px;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 50px minmax(0, 1fr);
+  grid-template-rows: var(--editor-toolbar-height) minmax(0, 1fr);
 }
 
 .platform-ipados .inspector {
-  top: 50px;
   width: 288px;
 }
 
