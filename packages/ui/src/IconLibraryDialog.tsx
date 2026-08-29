@@ -1,4 +1,4 @@
-import { icons, Search, X, type LucideIcon } from "lucide-react";
+import { Search, X } from "lucide-react";
 import {
   useMemo,
   useRef,
@@ -7,51 +7,55 @@ import {
   type KeyboardEvent,
 } from "react";
 
+import { CatalogIcon } from "./CatalogIcon.js";
 import { IconButton } from "./controls.js";
-import type { IconName } from "./icon-image.js";
+import type { IconCatalogEntry } from "./icon-catalog.js";
 import { Modal } from "./Modal.js";
 
-interface IconEntry {
-  readonly name: IconName;
-  readonly label: string;
-  readonly searchText: string;
-  readonly Icon: LucideIcon;
-}
-
-function iconLabel(name: string): string {
-  return name
-    .replace(/([a-z\d])([A-Z])/g, "$1 $2")
-    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2");
-}
-
-const iconEntries = (Object.entries(icons) as [IconName, LucideIcon][]).map(
-  ([name, Icon]): IconEntry => {
-    const label = iconLabel(name);
-    return { name, label, searchText: label.toLocaleLowerCase(), Icon };
-  },
-);
-
-function matchingIcons(query: string): readonly IconEntry[] {
+function matchingIcons(
+  icons: readonly IconCatalogEntry[],
+  query: string,
+): readonly IconCatalogEntry[] {
   const terms = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-  if (terms.length === 0) return iconEntries;
-  return iconEntries.filter(({ searchText }) =>
-    terms.every((term) => searchText.includes(term)),
+  if (terms.length === 0) return icons;
+  return icons.filter(({ label }) =>
+    terms.every((term) => label.toLocaleLowerCase().includes(term)),
   );
 }
 
+function iconColumnCount(list: HTMLUListElement): number {
+  const items = Array.from(list.children);
+  const firstTop = items[0]?.getBoundingClientRect().top;
+  if (firstTop !== undefined) {
+    const nextRowIndex = items.findIndex(
+      (item) => item.getBoundingClientRect().top > firstTop + 1,
+    );
+    if (nextRowIndex > 0) return nextRowIndex;
+  }
+  const availableWidth = Math.max(0, list.clientWidth - 20);
+  return availableWidth > 0
+    ? Math.max(1, Math.floor((availableWidth + 6) / 82))
+    : 9;
+}
+
 export function IconLibraryDialog({
+  icons,
   onAdd,
   onClose,
 }: {
-  readonly onAdd: (name: IconName) => void;
+  readonly icons: readonly IconCatalogEntry[];
+  readonly onAdd: (name: string) => void;
   readonly onClose: () => void;
 }) {
   const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const [query, setQuery] = useState("");
-  const filteredIcons = useMemo(() => matchingIcons(query), [query]);
-  const [selectedName, setSelectedName] = useState<IconName | null>(
-    iconEntries[0]?.name ?? null,
+  const filteredIcons = useMemo(
+    () => matchingIcons(icons, query),
+    [icons, query],
+  );
+  const [selectedName, setSelectedName] = useState<string | null>(
+    icons[0]?.name ?? null,
   );
   const selectedIndex = filteredIcons.findIndex(
     ({ name }) => name === selectedName,
@@ -64,7 +68,7 @@ export function IconLibraryDialog({
       .focus();
   };
 
-  const addIcon = (name: IconName | null) => {
+  const addIcon = (name: string | null) => {
     if (name) onAdd(name);
   };
 
@@ -74,7 +78,7 @@ export function IconLibraryDialog({
 
   const updateFilter = (event: ChangeEvent<HTMLInputElement>) => {
     const nextQuery = event.target.value;
-    const nextIcons = matchingIcons(nextQuery);
+    const nextIcons = matchingIcons(icons, nextQuery);
     setQuery(nextQuery);
     setSelectedName(nextIcons[0]?.name ?? null);
   };
@@ -94,15 +98,25 @@ export function IconLibraryDialog({
     index: number,
   ) => {
     let nextIndex: number | undefined;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+    const columns = listRef.current ? iconColumnCount(listRef.current) : 1;
+    if (event.key === "ArrowRight") {
       nextIndex = Math.min(filteredIcons.length - 1, index + 1);
-    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+    } else if (event.key === "ArrowDown") {
+      nextIndex = Math.min(filteredIcons.length - 1, index + columns);
+    } else if (event.key === "ArrowLeft") {
       if (index === 0) {
         event.preventDefault();
         searchRef.current?.focus();
         return;
       }
       nextIndex = index - 1;
+    } else if (event.key === "ArrowUp") {
+      if (index < columns) {
+        event.preventDefault();
+        searchRef.current?.focus();
+        return;
+      }
+      nextIndex = index - columns;
     } else if (event.key === "Home") {
       nextIndex = 0;
     } else if (event.key === "End") {
@@ -146,26 +160,30 @@ export function IconLibraryDialog({
         />
       </div>
       <ul aria-label="Icons" className="icon-library-list" ref={listRef}>
-        {filteredIcons.map(({ name, label, Icon }, index) => (
-          <li key={name}>
+        {filteredIcons.map((icon, index) => (
+          <li key={icon.name}>
             <button
-              aria-pressed={name === selectedName}
+              aria-pressed={icon.name === selectedName}
               className="icon-library-item"
-              onClick={() => setSelectedName(name)}
-              onDoubleClick={() => addIcon(name)}
-              onFocus={() => setSelectedName(name)}
+              onClick={() => setSelectedName(icon.name)}
+              onDoubleClick={() => addIcon(icon.name)}
+              onFocus={() => setSelectedName(icon.name)}
               onKeyDown={(event) => onIconKeyDown(event, index)}
-              tabIndex={name === selectedName ? 0 : -1}
-              title={label}
+              tabIndex={icon.name === selectedName ? 0 : -1}
+              title={icon.label}
               type="button"
             >
-              <Icon aria-hidden="true" size={26} />
-              <span>{label}</span>
+              <CatalogIcon icon={icon} size={26} />
+              <span>{icon.label}</span>
             </button>
           </li>
         ))}
         {filteredIcons.length === 0 && (
-          <li className="icon-library-empty">No icons match your search.</li>
+          <li className="icon-library-empty">
+            {icons.length === 0
+              ? "The icon library could not open."
+              : "No icons match your search."}
+          </li>
         )}
       </ul>
       <div className="dialog-footer icon-library-footer">

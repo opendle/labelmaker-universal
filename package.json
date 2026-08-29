@@ -18,6 +18,7 @@
     "build": "npm run build --workspaces --if-present",
     "check": "npm run format:check && npm run react:doctor && npm run typecheck && npm run test && npm run build",
     "dev": "npm run dev --workspace @labelmaker/desktop",
+    "icons:generate": "node scripts/generate-icon-catalog.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "app-store:screenshots": "npm run app-store:screenshots --workspace @labelmaker/ipad",

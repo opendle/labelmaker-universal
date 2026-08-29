@@ -133,6 +133,14 @@ async function capture(width, height, name, setup) {
 }
 
 await capture(1440, 960, "labelmaker-primary-1440x960.png", async (page) => {
+  const iconCatalogLoaded = await page.evaluate(() =>
+    performance
+      .getEntriesByType("resource")
+      .some((entry) => entry.name.includes("lucide-icon-catalog")),
+  );
+  if (iconCatalogLoaded) {
+    throw new Error("The icon catalog loaded during application launch");
+  }
   const headerHeights = await page.evaluate(() => {
     const selectors = [
       ".printer-trigger",
@@ -269,6 +277,31 @@ await capture(1440, 960, "labelmaker-icons-1440x960.png", async (page) => {
   if (!(await firstIcon.evaluate((icon) => icon === document.activeElement))) {
     throw new Error("Arrow Down did not move focus to the icon list");
   }
+  const rowColumns = await dialog
+    .getByRole("list", { name: "Icons" })
+    .getByRole("button")
+    .evaluateAll((icons) => {
+      const firstTop = icons[0]?.getBoundingClientRect().top;
+      return firstTop === undefined
+        ? 0
+        : icons.findIndex(
+            (icon) => icon.getBoundingClientRect().top > firstTop + 1,
+          );
+    });
+  await page.keyboard.press("ArrowDown");
+  const focusedIndex = await dialog
+    .getByRole("list", { name: "Icons" })
+    .getByRole("button")
+    .evaluateAll((icons) => icons.indexOf(document.activeElement));
+  if (rowColumns <= 0 || focusedIndex !== rowColumns) {
+    throw new Error(
+      `Arrow Down did not move to the next icon row: ${focusedIndex} / ${rowColumns}`,
+    );
+  }
+  await page.keyboard.press("ArrowUp");
+  if (!(await firstIcon.evaluate((icon) => icon === document.activeElement))) {
+    throw new Error("Arrow Up did not move to the previous icon row");
+  }
   if ((await dialog.getByRole("button", { name: "Cancel" }).count()) > 0) {
     throw new Error("The icon library has a Cancel action");
   }
@@ -291,6 +324,18 @@ await capture(1440, 960, "labelmaker-icons-dark-1440x960.png", async (page) => {
     throw new Error("Dark icon library keyboard focus is missing");
   }
 });
+await capture(
+  1440,
+  960,
+  "labelmaker-icon-inserted-1440x960.png",
+  async (page) => {
+    await page.getByRole("button", { name: "Icons" }).click();
+    const search = page.getByRole("searchbox", { name: "Search icons" });
+    await search.fill("accessibility");
+    await search.press("Enter");
+    await page.getByLabel("Image black level").waitFor();
+  },
+);
 await capture(
   1440,
   960,

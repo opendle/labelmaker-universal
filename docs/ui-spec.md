@@ -105,11 +105,14 @@ appearances so that they show the physical label and printed result accurately.
 - Put an Icons action between Draw and Shapes. It opens a library of the same
   icons that the application uses in its controls. Focus the search field when
   the library opens, filter as the user types, and select the first result.
-  Arrow keys must move focus between the search field and icon results. Enter
-  adds the selected icon, including when the search field has focus. A double
-  click on an icon also adds it. A single click selects an icon so the Add icon
-  action works with touch input. Use only the close action in the header; do not
-  add a Cancel action. Add each icon as an image with all image controls.
+  Arrow Left and Arrow Right must move between adjacent icons. Arrow Up and
+  Arrow Down must move to the previous and next visual row. Arrow keys must
+  also move focus between the search field and icon results. Enter adds the
+  selected icon, including when the search field has focus. A double click on
+  an icon also adds it. A single click selects an icon so the Add icon action
+  works with touch input. Use only the close action in the header; do not add a
+  Cancel action. Add each icon as a high-resolution image with all image
+  controls. Load the icon catalog only when the icon library opens.
 - Add line, rectangle, and circle shapes from a menu next to Image. Let the
   user select, move, resize, and rotate each shape. A resized circle can become
   an ellipse. Use whole-millimeter geometry when a shape is first inserted.

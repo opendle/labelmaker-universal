@@ -12,7 +12,35 @@ import {
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { IconCatalogEntry } from "./icon-catalog.js";
 import { IconLibraryDialog } from "./IconLibraryDialog.js";
+
+const testIconNames = [
+  "AArrowDown",
+  "Accessibility",
+  "AirVent",
+  "AlarmClock",
+  "AlarmClockCheck",
+  "AlarmClockMinus",
+  "CircleStar",
+  "MoonStar",
+  "SquareStar",
+  "Star",
+  "StarHalf",
+  "StarOff",
+  "UserStar",
+  "ZoomIn",
+  "ZoomOut",
+] as const;
+const iconLabel = (name: string) =>
+  name
+    .replace(/([a-z\d])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2");
+const testIcons: readonly IconCatalogEntry[] = testIconNames.map((name) => ({
+  name,
+  label: iconLabel(name),
+  node: [["circle", { cx: "12", cy: "12", r: "8", key: name }]],
+}));
 
 afterEach(() => {
   cleanup();
@@ -23,7 +51,7 @@ function renderDialog(onAdd = vi.fn()) {
   render(
     <>
       <div className="application-content" />
-      <IconLibraryDialog onAdd={onAdd} onClose={vi.fn()} />
+      <IconLibraryDialog icons={testIcons} onAdd={onAdd} onClose={vi.fn()} />
     </>,
   );
   return onAdd;
@@ -41,6 +69,21 @@ describe("IconLibraryDialog", () => {
     expect(airVent).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("1 icon")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+  });
+
+  it("keeps the dialog usable when the lazy catalog cannot open", () => {
+    render(
+      <>
+        <div className="application-content" />
+        <IconLibraryDialog icons={[]} onAdd={vi.fn()} onClose={vi.fn()} />
+      </>,
+    );
+
+    expect(screen.getByText("The icon library could not open.")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Add icon" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Close icon library" }),
+    ).toBeEnabled();
   });
 
   it("moves between search and results and adds the selected result with Enter", async () => {
@@ -72,6 +115,28 @@ describe("IconLibraryDialog", () => {
     await user.type(search, "accessibility{Enter}");
 
     expect(onAdd).toHaveBeenCalledWith("Accessibility");
+  });
+
+  it("moves Arrow Up and Arrow Down between visual rows", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+    const search = screen.getByRole("searchbox", { name: "Search icons" });
+    await user.type(search, "star");
+    const list = screen.getByRole("list", { name: "Icons" });
+    Object.defineProperty(list, "clientWidth", {
+      configurable: true,
+      value: 272,
+    });
+    const iconButtons = within(list).getAllByRole("button");
+
+    await user.keyboard("{ArrowDown}");
+    expect(iconButtons[0]).toHaveFocus();
+    await user.keyboard("{ArrowDown}");
+    expect(iconButtons[3]).toHaveFocus();
+    await user.keyboard("{ArrowUp}");
+    expect(iconButtons[0]).toHaveFocus();
+    await user.keyboard("{ArrowUp}");
+    expect(search).toHaveFocus();
   });
 
   it("supports click selection, the Add icon action, and double click", async () => {

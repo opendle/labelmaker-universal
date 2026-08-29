@@ -23,6 +23,20 @@ vi.mock("./browser-raster.js", () => ({
   }),
 }));
 
+vi.mock("./icon-catalog.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./icon-catalog.js")>();
+  return {
+    ...actual,
+    loadIconCatalog: vi.fn().mockResolvedValue([
+      {
+        name: "Accessibility",
+        label: "Accessibility",
+        node: [["circle", { cx: "12", cy: "12", r: "8", key: "test" }]],
+      },
+    ]),
+  };
+});
+
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
