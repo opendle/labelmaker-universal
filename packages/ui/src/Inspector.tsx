@@ -30,6 +30,7 @@ import {
 import { TYPEFACES } from "./typefaces.js";
 import { MonochromeImage } from "./MonochromeImage.js";
 import { NumberInput } from "./NumberInput.js";
+import { ROTATION_SNAP_DEGREES, snapRotationDegrees } from "./rotation.js";
 
 function NumberField({
   label,
@@ -39,6 +40,7 @@ function NumberField({
   min,
   icon,
   onChange,
+  normalizeValue,
   step,
   integer = false,
 }: {
@@ -49,6 +51,7 @@ function NumberField({
   readonly min?: number;
   readonly icon?: boolean;
   readonly onChange: (value: number) => void;
+  readonly normalizeValue?: (value: number) => number;
   readonly step?: number;
   readonly integer?: boolean;
 }) {
@@ -63,6 +66,7 @@ function NumberField({
           id={inputId}
           inputMode={integer ? "numeric" : "decimal"}
           min={min}
+          {...(normalizeValue ? { normalizeValue } : {})}
           onValueChange={(next) => {
             onChange(integer ? Math.round(next) : next);
           }}
@@ -149,6 +153,7 @@ function FrameControls<T extends FramedElement>({
   positionName = elementName,
   minSize,
   hasMultipleElements,
+  hideGeometry = false,
   onChange,
   onMoveLayer,
 }: {
@@ -157,57 +162,62 @@ function FrameControls<T extends FramedElement>({
   readonly positionName?: string;
   readonly minSize: number;
   readonly hasMultipleElements: boolean;
+  readonly hideGeometry?: boolean;
   readonly onChange: (element: T) => void;
   readonly onMoveLayer: (direction: "back" | "front") => void;
 }) {
   return (
     <>
-      <div className="field-row">
+      <div className="frame-geometry-controls" hidden={hideGeometry}>
+        <div className="field-row">
+          <NumberField
+            label={`${elementName} width`}
+            min={minSize}
+            shortLabel="WIDTH"
+            step={0.1}
+            value={element.widthMm}
+            onChange={(widthMm) =>
+              onChange({ ...element, widthMm: Math.max(minSize, widthMm) })
+            }
+          />
+          <NumberField
+            label={`${elementName} height`}
+            min={minSize}
+            shortLabel="HEIGHT"
+            step={0.1}
+            value={element.heightMm}
+            onChange={(heightMm) =>
+              onChange({ ...element, heightMm: Math.max(minSize, heightMm) })
+            }
+          />
+        </div>
+        <div className="field-row position-row">
+          <NumberField
+            label={`${positionName ? `${positionName} ` : ""}X position`}
+            shortLabel="X"
+            step={0.1}
+            value={element.xMm}
+            onChange={(xMm) => onChange({ ...element, xMm })}
+          />
+          <NumberField
+            label={`${positionName ? `${positionName} ` : ""}Y position`}
+            shortLabel="Y"
+            step={0.1}
+            value={element.yMm}
+            onChange={(yMm) => onChange({ ...element, yMm })}
+          />
+        </div>
         <NumberField
-          label={`${elementName} width`}
-          min={minSize}
-          shortLabel="WIDTH"
-          step={0.1}
-          value={element.widthMm}
-          onChange={(widthMm) =>
-            onChange({ ...element, widthMm: Math.max(minSize, widthMm) })
-          }
-        />
-        <NumberField
-          label={`${elementName} height`}
-          min={minSize}
-          shortLabel="HEIGHT"
-          step={0.1}
-          value={element.heightMm}
-          onChange={(heightMm) =>
-            onChange({ ...element, heightMm: Math.max(minSize, heightMm) })
-          }
+          icon
+          label={`${elementName} rotation`}
+          normalizeValue={snapRotationDegrees}
+          shortLabel="ROTATION"
+          step={ROTATION_SNAP_DEGREES}
+          unit="°"
+          value={element.rotationDeg}
+          onChange={(rotationDeg) => onChange({ ...element, rotationDeg })}
         />
       </div>
-      <div className="field-row position-row">
-        <NumberField
-          label={`${positionName ? `${positionName} ` : ""}X position`}
-          shortLabel="X"
-          step={0.1}
-          value={element.xMm}
-          onChange={(xMm) => onChange({ ...element, xMm })}
-        />
-        <NumberField
-          label={`${positionName ? `${positionName} ` : ""}Y position`}
-          shortLabel="Y"
-          step={0.1}
-          value={element.yMm}
-          onChange={(yMm) => onChange({ ...element, yMm })}
-        />
-      </div>
-      <NumberField
-        icon
-        label={`${elementName} rotation`}
-        shortLabel="ROTATION"
-        unit="°"
-        value={element.rotationDeg}
-        onChange={(rotationDeg) => onChange({ ...element, rotationDeg })}
-      />
       {hasMultipleElements && (
         <fieldset aria-label="Layer order" className="layer-buttons">
           <button onClick={() => onMoveLayer("back")} type="button">
@@ -363,6 +373,7 @@ function TextInspector({
         element={element}
         elementName="Text frame"
         hasMultipleElements={hasMultipleElements}
+        hideGeometry
         minSize={0.5}
         onChange={onChange}
         onMoveLayer={onMoveLayer}
@@ -454,6 +465,7 @@ function ImageInspector({
         element={element}
         elementName="Image"
         hasMultipleElements={hasMultipleElements}
+        hideGeometry
         minSize={1}
         onChange={onChange}
         onMoveLayer={onMoveLayer}

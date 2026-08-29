@@ -68,6 +68,7 @@ export function CanvasElementView({
   ) => void;
 }) {
   const inlineEditorRef = useRef<HTMLTextAreaElement>(null);
+  const inlineMeasureRef = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
     const editor = inlineEditorRef.current;
     if (!editing || element.kind !== "text" || !editor) return;
@@ -75,10 +76,12 @@ export function CanvasElementView({
   }, [editing, element.id, element.kind]);
   useLayoutEffect(() => {
     const editor = inlineEditorRef.current;
-    if (!editing || element.kind !== "text" || !editor) return;
-    if (!editor.closest(".layout-phone, .layout-phone-short")) return;
-    editor.style.height = "0";
-    editor.style.height = `${editor.scrollHeight}px`;
+    const measure = inlineMeasureRef.current;
+    if (!editing || element.kind !== "text" || !editor || !measure) return;
+    const measuredHeight = Number.parseFloat(
+      globalThis.getComputedStyle(measure).height,
+    );
+    editor.style.height = `${measuredHeight > 0 ? measuredHeight : editor.scrollHeight}px`;
   }, [canvasScale, editing, element]);
   const frameStyle: ElementStyle = {
     "--element-left": `${(element.xMm / plate.size.widthMm) * 100}%`,
@@ -134,6 +137,13 @@ export function CanvasElementView({
     >
       {editing && element.kind === "text" ? (
         <span className="canvas-element-control canvas-text-control">
+          <span
+            aria-hidden="true"
+            className="inline-text-editor inline-text-measure"
+            ref={inlineMeasureRef}
+          >
+            {element.text}
+          </span>
           <textarea
             aria-label="Edit text on label"
             className="inline-text-editor"

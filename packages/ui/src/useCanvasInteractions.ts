@@ -16,6 +16,7 @@ import {
 import { snapMovedElement, snapResizedFrame } from "./canvas-snapping.js";
 import type { SnapThresholds } from "./canvas-snapping.js";
 import type { PrintableMargins } from "./label-layout.js";
+import { snapRotationDegrees } from "./rotation.js";
 
 export type ResizeCorner = "nw" | "ne" | "sw" | "se";
 type FramedElement = TextElement | ImageElement | ShapeElement;
@@ -509,7 +510,7 @@ export function useCanvasInteractions({
     const centerY = bounds.top + bounds.height / 2;
     const onMove = (moveEvent: PointerEvent) => {
       if (touchPointersRef.current.size > 1) return;
-      const rotationDeg = Math.round(
+      const rotationDeg = snapRotationDegrees(
         (Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX) *
           180) /
           Math.PI +

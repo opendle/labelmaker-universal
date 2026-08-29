@@ -89,7 +89,8 @@ appearances so that they show the physical label and printed result accurately.
   print-head width.
 - Resize text, image, and shape elements from corner handles and rotate them
   from a separate rotation handle. Hold Shift during a resize to preserve the
-  frame's current proportions. Elements can extend outside the plate bounds.
+  frame's current proportions. Snap rotation to 45-degree increments. Elements
+  can extend outside the plate bounds.
 - Show a rotation cursor on the rotation handle.
 - Snap moved text and image frames to the absolute label limits and to the
   left, horizontal center, right, top, vertical middle, and bottom of the
@@ -134,7 +135,7 @@ appearances so that they show the physical label and printed result accurately.
   user select, move, resize, and rotate each shape. A resized circle can become
   an ellipse. Use whole-millimeter geometry when a shape is first inserted.
 - When a label contains more than one user element, show Send to back and Bring
-  to front below Rotation in the selected-element inspector.
+  to front after the remaining selected-element controls.
 - Accept only PNG, JPEG, GIF, WebP, and BMP images that the print renderer can
   use.
 - Convert imported images to monochrome with Floyd-Steinberg dithering. Show
@@ -148,9 +149,10 @@ appearances so that they show the physical label and printed result accurately.
   the label and earlier elements. When it is disabled, white pixels stay
   opaque and use the label paper color on screen. Make Transparent a toggle
   button, and do not put a visible label above the Fit select.
-- Show width and height above X and Y for text and image frames. Do not show
-  separate Position or Size section titles. Use 0.1 mm keyboard steps for
-  element width, height, X, Y, and shape stroke controls.
+- Keep width, height, X, Y, and rotation controls implemented for text and image
+  frames, but hide them from the inspector. Keep these geometry controls visible
+  for shapes. Use 0.1 mm keyboard steps for shape geometry and stroke controls,
+  and use 45-degree steps for visible rotation controls.
 - Set left and right plate margins, with zero as the default.
 - Adjust the plate width, larger or smaller, to the first and last black
   pixels of the final monochrome raster plus the selected margins. Apply

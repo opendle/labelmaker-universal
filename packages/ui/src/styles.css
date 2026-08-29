@@ -993,6 +993,7 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   white-space: pre-wrap;
 }
 .canvas-text-control {
+  position: relative;
   padding: 0;
 }
 .canvas-text.editing {
@@ -1026,6 +1027,13 @@ textarea.inline-text-editor:focus-visible {
   outline: 0;
   user-select: text;
   color-scheme: light;
+}
+.inline-text-measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 .canvas-image {
   overflow: visible;
@@ -1203,6 +1211,12 @@ textarea.inline-text-editor:focus-visible {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 9px;
+}
+.frame-geometry-controls {
+  display: contents;
+}
+.frame-geometry-controls[hidden] {
+  display: none;
 }
 .type-metrics-row {
   display: grid;

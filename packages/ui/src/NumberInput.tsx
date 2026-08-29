@@ -3,6 +3,7 @@ import { useState, type InputHTMLAttributes } from "react";
 export function NumberInput({
   value,
   onValueChange,
+  normalizeValue,
   onBlur,
   onFocus,
   ...props
@@ -12,6 +13,7 @@ export function NumberInput({
 > & {
   readonly value: number;
   readonly onValueChange: (value: number) => void;
+  readonly normalizeValue?: (value: number) => number;
 }) {
   const [draft, setDraft] = useState<{
     readonly text: string;
@@ -35,8 +37,9 @@ export function NumberInput({
         }
         const nextValue = Number(rawValue);
         if (!Number.isFinite(nextValue)) return;
-        setDraft({ text: rawValue, expectedValue: nextValue });
-        onValueChange(nextValue);
+        const normalizedValue = normalizeValue?.(nextValue) ?? nextValue;
+        setDraft({ text: rawValue, expectedValue: normalizedValue });
+        onValueChange(normalizedValue);
       }}
       onFocus={(event) => {
         setDraft({ text: String(value), expectedValue: value });

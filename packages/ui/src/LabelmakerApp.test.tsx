@@ -976,7 +976,7 @@ describe("LabelmakerApp", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Saved workshop.lbl");
   });
 
-  it("edits multiline text on the label and applies visible text styles", async () => {
+  it("expands edited text to keep frame overflow visible", async () => {
     let scrollHeight = 32;
     vi.spyOn(
       HTMLTextAreaElement.prototype,
@@ -984,9 +984,7 @@ describe("LabelmakerApp", () => {
       "get",
     ).mockImplementation(() => scrollHeight);
     const user = userEvent.setup();
-    const { container } = render(<LabelmakerApp host={createHost()} />);
-    const appShell = container.querySelector<HTMLElement>(".app-shell")!;
-    appShell.classList.add("layout-phone");
+    render(<LabelmakerApp host={createHost()} />);
 
     await user.click(
       screen.getByRole("button", { name: "Text element: RESISTORS" }),
@@ -1008,7 +1006,6 @@ describe("LabelmakerApp", () => {
     expect(
       screen.queryByRole("textbox", { name: "Edit text on label" }),
     ).not.toBeInTheDocument();
-    appShell.classList.remove("layout-phone");
 
     const element = screen.getByRole("button", {
       name: "Text element: LINE 1\nLINE 2",
@@ -1214,18 +1211,14 @@ describe("LabelmakerApp", () => {
     expect(
       await screen.findByRole("button", { name: "Image element" }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Image X position")).toBeInTheDocument();
-    expect(screen.getByLabelText("Image Y position")).toBeInTheDocument();
+    expect(screen.getByLabelText("Image X position")).not.toBeVisible();
+    expect(screen.getByLabelText("Image Y position")).not.toBeVisible();
     expect(screen.getByLabelText("Image brightness")).toHaveValue("128");
     expect(screen.getByLabelText("Image contrast")).toHaveValue("128");
     expect(
       screen.getByRole("button", { name: "Resize image block se" }),
     ).toBeInTheDocument();
-    const width = screen.getByLabelText("Image width");
-    const x = screen.getByLabelText("Image X position");
-    expect(
-      width.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(screen.getByLabelText("Image width")).not.toBeVisible();
     fireEvent.change(screen.getByLabelText("Image brightness"), {
       target: { value: "180" },
     });

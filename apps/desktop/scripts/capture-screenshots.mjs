@@ -200,6 +200,21 @@ async function capture(width, height, name, setup) {
   }
 }
 
+async function setHiddenNumberControl(page, label, value) {
+  await page.getByLabel(label).evaluate((input, nextValue) => {
+    if (!(input instanceof HTMLInputElement)) {
+      throw new Error(`${input} is not a number input`);
+    }
+    const setValue = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )?.set;
+    if (!setValue) throw new Error("Input value setter is missing");
+    setValue.call(input, nextValue);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  }, value);
+}
+
 await capture(1440, 960, "labelmaker-primary-1440x960.png", async (page) => {
   const iconCatalogLoaded = await page.evaluate(() =>
     performance
@@ -755,7 +770,7 @@ await capture(1440, 960, "labelmaker-trim-1440x960.png", async (page) => {
   });
 });
 await capture(1440, 960, "labelmaker-trim-grow-1440x960.png", async (page) => {
-  await page.getByLabel("Text frame width").fill("120");
+  await setHiddenNumberControl(page, "Text frame width", "120");
   await page.getByRole("button", { name: "Text element: RESISTORS" }).click();
   await page
     .getByRole("textbox", { name: "Edit text on label" })
@@ -810,7 +825,7 @@ await capture(
       ),
     });
     await page.getByLabel("Image fit").selectOption("stretch");
-    await page.getByLabel("Image width").fill("80");
+    await setHiddenNumberControl(page, "Image width", "80");
     await page.getByRole("button", { name: "Trim plate to content" }).click();
     await page.waitForFunction(() => {
       const input = document.querySelector('[aria-label="Plate width"]');
