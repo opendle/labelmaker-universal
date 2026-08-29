@@ -7,6 +7,7 @@ import {
   Image as ImageIcon,
   Minus,
   Pencil,
+  Smile,
   Square,
   Type,
   ZoomIn,
@@ -80,6 +81,7 @@ function CanvasToolbar({
   onAddText,
   onAddImage,
   onDraw,
+  onOpenIcons,
   onAddShape,
   onAddSpecial,
   onUpdatePlate,
@@ -89,6 +91,7 @@ function CanvasToolbar({
   readonly onAddText: () => void;
   readonly onAddImage: (file: File) => void;
   readonly onDraw: () => void;
+  readonly onOpenIcons: () => void;
   readonly onAddShape: (shape: "line" | "rectangle" | "circle") => void;
   readonly onAddSpecial: (kind: "flag") => void;
   readonly onUpdatePlate: (plate: LabelPlate) => void;
@@ -188,6 +191,16 @@ function CanvasToolbar({
           type="button"
         >
           <Pencil size={17} /> Draw
+        </button>
+        <button
+          className="tool-button"
+          onBlur={clearPointerFocusRingSuppression}
+          onClick={onOpenIcons}
+          onKeyDown={clearPointerFocusRingSuppression}
+          onPointerDown={suppressPointerFocusRing}
+          type="button"
+        >
+          <Smile size={17} /> Icons
         </button>
         <div className="shape-control" ref={shapeControlRef}>
           <button
@@ -331,6 +344,7 @@ export function EditorCanvas({
   onAddText,
   onAddImage,
   onDraw,
+  onOpenIcons,
   onAddShape,
   onAddSpecial,
   onSelectElement,
@@ -348,6 +362,7 @@ export function EditorCanvas({
   readonly onAddText: () => void;
   readonly onAddImage: (file: File) => void;
   readonly onDraw: () => void;
+  readonly onOpenIcons: () => void;
   readonly onAddShape: (shape: "line" | "rectangle" | "circle") => void;
   readonly onAddSpecial: (kind: "flag") => void;
   readonly onSelectElement: (id: string | null) => void;
@@ -406,6 +421,7 @@ export function EditorCanvas({
       <CanvasToolbar
         onAddImage={onAddImage}
         onDraw={onDraw}
+        onOpenIcons={onOpenIcons}
         onAddShape={onAddShape}
         onAddSpecial={onAddSpecial}
         onAddText={onAddText}

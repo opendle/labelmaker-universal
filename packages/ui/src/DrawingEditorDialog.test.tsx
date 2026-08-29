@@ -123,6 +123,7 @@ describe("EditorCanvas drawing actions", () => {
         onAddText={vi.fn()}
         onChangeElement={vi.fn()}
         onDraw={onDraw}
+        onOpenIcons={vi.fn()}
         onEditImage={onEditImage}
         onSelectElement={vi.fn()}
         onTrim={vi.fn()}

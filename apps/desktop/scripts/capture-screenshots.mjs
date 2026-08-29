@@ -239,6 +239,58 @@ await capture(1440, 960, "labelmaker-dark-1440x960.png", async (page) => {
     }
   });
 });
+await capture(1440, 960, "labelmaker-icons-1440x960.png", async (page) => {
+  await page.getByRole("button", { name: "Icons" }).click();
+  const dialog = page.getByRole("dialog", { name: "Icon library" });
+  await dialog.waitFor();
+  const search = page.getByRole("searchbox", { name: "Search icons" });
+  if (!(await search.evaluate((input) => input === document.activeElement))) {
+    throw new Error("Icon search did not receive focus");
+  }
+  await search.fill("accessibility");
+  await search.press("Enter");
+  await dialog.waitFor({ state: "detached" });
+  await page.getByLabel("Image black level").waitFor();
+
+  await page.getByRole("button", { name: "Icons" }).click();
+  await dialog.waitFor();
+  if (!(await search.evaluate((input) => input === document.activeElement))) {
+    throw new Error("Icon search did not receive focus when reopened");
+  }
+  await search.fill("star");
+  const firstIcon = dialog
+    .getByRole("list", { name: "Icons" })
+    .getByRole("button")
+    .first();
+  if ((await firstIcon.getAttribute("aria-pressed")) !== "true") {
+    throw new Error("The first filtered icon is not selected");
+  }
+  await search.press("ArrowDown");
+  if (!(await firstIcon.evaluate((icon) => icon === document.activeElement))) {
+    throw new Error("Arrow Down did not move focus to the icon list");
+  }
+  if ((await dialog.getByRole("button", { name: "Cancel" }).count()) > 0) {
+    throw new Error("The icon library has a Cancel action");
+  }
+});
+await capture(1440, 960, "labelmaker-icons-dark-1440x960.png", async (page) => {
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.getByRole("button", { name: "Icons" }).click();
+  const dialog = page.getByRole("dialog", { name: "Icon library" });
+  await dialog.waitFor();
+  const search = page.getByRole("searchbox", { name: "Search icons" });
+  await search.fill("star");
+  await search.press("ArrowDown");
+  if (
+    !(await dialog
+      .getByRole("list", { name: "Icons" })
+      .getByRole("button")
+      .first()
+      .evaluate((icon) => icon === document.activeElement))
+  ) {
+    throw new Error("Dark icon library keyboard focus is missing");
+  }
+});
 await capture(
   1440,
   960,

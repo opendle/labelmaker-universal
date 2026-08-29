@@ -1,6 +1,13 @@
 import type { LabelDocument } from "@labelmaker/domain";
 import { Check, CircleAlert, Info } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { AddPrinterDialog } from "./AppDialogs.js";
 import { AppHeader } from "./AppHeader.js";
@@ -20,6 +27,12 @@ import { PreviewDialog } from "./PreviewDialog.js";
 import { PrinterSettingsDialog } from "./PrinterSettingsDialog.js";
 import { useLabelmakerController } from "./useLabelmakerController.js";
 import { useDrawingEditor } from "./useDrawingEditor.js";
+
+const IconLibraryControl = lazy(() =>
+  import("./IconLibraryControl.js").then(({ IconLibraryControl: Control }) => ({
+    default: Control,
+  })),
+);
 
 async function trimLatestWorkspace(
   plateId: string,
@@ -60,6 +73,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   } = controller;
   const workspaceRef = useRef(state.workspace);
   const shellRef = useRef<HTMLDivElement>(null);
+  const [iconLibraryOpen, setIconLibraryOpen] = useState(false);
   const drawingEditor = useDrawingEditor({
     activePlate,
     workspace: state.workspace,
@@ -192,6 +206,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
           <EditorCanvas
             onAddImage={controller.addImage}
             onDraw={drawingEditor.openNew}
+            onOpenIcons={() => setIconLibraryOpen(true)}
             onEditImage={drawingEditor.openImage}
             onAddShape={controller.addShape}
             onAddSpecial={controller.addSpecial}
@@ -312,6 +327,23 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
         printer={settingsPrinter}
       />
       {drawingEditor.dialog}
+      {iconLibraryOpen && (
+        <Suspense fallback={null}>
+          <IconLibraryControl
+            onAdd={controller.addDrawing}
+            onClose={() => setIconLibraryOpen(false)}
+            onError={() =>
+              dispatch({
+                type: "set-toast",
+                toast: {
+                  tone: "error",
+                  message: "The icon could not be added.",
+                },
+              })
+            }
+          />
+        </Suspense>
+      )}
       {state.toast && (
         <output aria-live="polite" className={`toast ${state.toast.tone}`}>
           {state.toast.busy ? (

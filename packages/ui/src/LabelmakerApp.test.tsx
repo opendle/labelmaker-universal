@@ -1211,7 +1211,19 @@ describe("LabelmakerApp", () => {
     await user.keyboard("{Escape}");
     expect(draw).toHaveAttribute("data-focus-ring-suppressed", "true");
 
+    const icons = screen.getByRole("button", { name: "Icons" });
+    await user.click(icons);
+    await screen.findByRole("dialog", { name: "Icon library" });
+    await user.keyboard("{Escape}");
+    expect(icons).toHaveAttribute("data-focus-ring-suppressed", "true");
+
     const shapes = screen.getByRole("button", { name: "Shapes" });
+    expect(
+      draw.compareDocumentPosition(icons) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      icons.compareDocumentPosition(shapes) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     await user.click(shapes);
     const line = screen.getByRole("menuitem", { name: "Line" });
     await waitFor(() => expect(line).toHaveFocus());
