@@ -2378,7 +2378,7 @@ textarea.inline-text-editor:focus-visible {
 
 /* iPadOS uses the same editor structure with touch-sized platform adjustments. */
 .platform-ipados {
-  --field-control-height: 35px;
+  --field-control-height: 31px;
   --field-label-gap: 0;
   width: 100%;
   height: var(--visual-viewport-height, 100%);
@@ -2498,7 +2498,16 @@ textarea.inline-text-editor:focus-visible {
 .platform-ipados .text-style-buttons,
 .platform-ipados .weight-group,
 .platform-ipados .text-style-buttons .italic-button {
-  min-height: 35px;
+  min-height: 31px;
+}
+
+.platform-ipados .field > span,
+.platform-ipados .toolbar-field > span,
+.platform-ipados .printer-name-setting > span,
+.platform-ipados .printer-readonly-setting > span,
+.platform-ipados .printer-number-setting > span:first-child,
+.platform-ipados .darkness-setting > span {
+  margin-bottom: -2px;
 }
 
 .platform-ipados input,
