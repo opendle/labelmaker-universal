@@ -38,6 +38,21 @@ interface RenameState {
   readonly value: string;
 }
 
+function platesForDragPreview(
+  plates: readonly LabelPlate[],
+  plateId: string | null,
+  targetIndex: number | null,
+): readonly LabelPlate[] {
+  if (plateId === null || targetIndex === null) return plates;
+  const sourceIndex = plates.findIndex((plate) => plate.id === plateId);
+  if (sourceIndex < 0 || sourceIndex === targetIndex) return plates;
+  const preview = [...plates];
+  const [plate] = preview.splice(sourceIndex, 1);
+  if (!plate) return plates;
+  preview.splice(targetIndex, 0, plate);
+  return preview;
+}
+
 function PlateName({
   index,
   plate,
@@ -289,15 +304,20 @@ export function PlateStrip({
   }, []);
 
   const ignoreSuppressedClick = () => suppressNextClickRef.current;
+  const displayedPlates = platesForDragPreview(
+    workspace.plates,
+    draggingPlateId,
+    dropTargetIndex,
+  );
 
   return (
     <footer aria-label="Labels" className="plate-strip" ref={stripRef}>
       <div className="plate-thumbnails">
-        {workspace.plates.map((plate, index) => {
+        {displayedPlates.map((plate, index) => {
           return (
             <div
               aria-grabbed={draggingPlateId === plate.id}
-              className={`plate-thumb${plate.id === activePlateId ? " selected" : ""}${draggingPlateId === plate.id ? " dragging" : ""}${draggingPlateId !== null && dropTargetIndex === index ? " drop-target" : ""}`}
+              className={`plate-thumb${plate.id === activePlateId ? " selected" : ""}${draggingPlateId === plate.id ? " dragging" : ""}`}
               key={plate.id}
               onPointerCancel={(event) => finishPointer(event.pointerId, false)}
               onPointerDown={(event) => handlePointerDown(event, plate.id)}

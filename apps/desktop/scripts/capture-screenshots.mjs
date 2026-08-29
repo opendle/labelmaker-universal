@@ -71,6 +71,7 @@ async function capture(width, height, name, setup) {
       LABELMAKER_WINDOW_SIZE: `${width}x${height}`,
     },
   });
+  let teardown;
   try {
     const applicationIdentity = await application.evaluate(({ app }) => ({
       applicationName: app.getName(),
@@ -92,7 +93,7 @@ async function capture(width, height, name, setup) {
         ?.textContent?.trim();
       return Boolean(name && name !== "No printer");
     });
-    await setup?.(page);
+    teardown = await setup?.(page);
     await page.evaluate(async () => {
       await document.fonts.ready;
       await new Promise((resolveFrame) =>
@@ -127,6 +128,7 @@ async function capture(width, height, name, setup) {
     }
     await page.screenshot({ path: resolve(screenshotDirectory, name) });
   } finally {
+    if (typeof teardown === "function") await teardown().catch(() => undefined);
     await application.close();
     await rm(profileDirectory, { recursive: true, force: true });
   }
@@ -216,6 +218,40 @@ await capture(1440, 960, "labelmaker-primary-1440x960.png", async (page) => {
   }
   await page.locator(".canvas-element-control").first().click();
 });
+await capture(
+  1440,
+  960,
+  "labelmaker-plate-reorder-1440x960.png",
+  async (page) => {
+    const source = await page.locator(".plate-thumb").first().boundingBox();
+    const destination = await page.locator(".plate-thumb").nth(2).boundingBox();
+    if (!source || !destination) {
+      throw new Error("Plate reorder targets are missing");
+    }
+    await page.mouse.move(
+      source.x + source.width / 2,
+      source.y + source.height / 2,
+    );
+    await page.mouse.down();
+    await page.waitForTimeout(550);
+    await page.mouse.move(
+      destination.x + destination.width * 0.75,
+      destination.y + destination.height / 2,
+    );
+    await page.waitForFunction(() => {
+      const names = Array.from(
+        document.querySelectorAll(".plate-thumb .thumb-name"),
+        (name) => name.textContent?.trim(),
+      );
+      return (
+        names.join(",") === "Capacitors,Connectors,Resistors" &&
+        document.querySelector(".plate-thumb.dragging .thumb-name")
+          ?.textContent === "Resistors"
+      );
+    });
+    return async () => page.mouse.up();
+  },
+);
 await capture(1440, 960, "labelmaker-dark-1440x960.png", async (page) => {
   await page.emulateMedia({ colorScheme: "dark" });
   await page.evaluate(() => {

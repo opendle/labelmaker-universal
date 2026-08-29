@@ -104,12 +104,22 @@ describe("PlateStrip", () => {
     act(() => vi.advanceTimersByTime(500));
     expect(source).toHaveAttribute("aria-grabbed", "true");
 
-    dispatchPointer(source, "pointermove", {
-      clientX: 275,
-      clientY: 25,
-      pointerId: 1,
-      pointerType: "touch",
+    act(() => {
+      dispatchPointer(source, "pointermove", {
+        clientX: 275,
+        clientY: 25,
+        pointerId: 1,
+        pointerType: "touch",
+      });
     });
+    expect(
+      Array.from(container.querySelectorAll(".thumb-name"), (name) =>
+        name.textContent?.trim(),
+      ),
+    ).toEqual(["Capacitors", "Connectors", "Resistors"]);
+    expect(
+      container.querySelector(".plate-thumb.dragging .thumb-name"),
+    ).toHaveTextContent("Resistors");
     dispatchPointer(source, "pointerup", {
       clientX: 275,
       clientY: 25,

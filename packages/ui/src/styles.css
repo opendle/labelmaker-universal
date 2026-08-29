@@ -1664,11 +1664,12 @@ textarea.inline-text-editor:focus-visible {
 }
 .plate-thumb.dragging {
   z-index: 4;
-  opacity: 0.58;
+  opacity: 0.48;
+  border-color: var(--accent);
+  border-style: dashed;
+  background: var(--soft-accent);
+  box-shadow: 0 3px 10px rgba(50, 45, 35, 0.16);
   cursor: grabbing;
-}
-.plate-thumb.drop-target:not(.dragging) {
-  box-shadow: -4px 0 0 var(--accent);
 }
 .plate-number {
   position: absolute;
