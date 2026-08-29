@@ -28,6 +28,7 @@ export function Modal({
     const previousFocus = globalThis.document.activeElement;
     const previousFocusWasVisible =
       previousFocus instanceof HTMLElement &&
+      previousFocus.dataset.focusRingSuppressed !== "true" &&
       previousFocus.matches(":focus-visible");
     const background = globalThis.document.querySelector<HTMLElement>(
       ".application-content",

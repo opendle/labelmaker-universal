@@ -1177,7 +1177,8 @@ describe("LabelmakerApp", () => {
     render(<LabelmakerApp host={createHost()} />);
     const trigger = screen.getByRole("button", { name: "Shapes" });
 
-    await user.click(trigger);
+    trigger.focus();
+    await user.keyboard("{Enter}");
     const line = screen.getByRole("menuitem", { name: "Line" });
     const rectangle = screen.getByRole("menuitem", { name: "Rectangle" });
     await waitFor(() => expect(line).toHaveFocus());
@@ -1188,6 +1189,33 @@ describe("LabelmakerApp", () => {
       screen.queryByRole("menu", { name: "Add shape" }),
     ).not.toBeInTheDocument();
     expect(trigger).toHaveFocus();
+  });
+
+  it("hides pointer-only focus rings on the element actions", async () => {
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+
+    const text = screen.getByRole("button", { name: "Text" });
+    await user.click(text);
+    expect(text).toHaveAttribute("data-focus-ring-suppressed", "true");
+
+    const image = screen.getByRole("button", { name: "Image" });
+    await user.click(image);
+    expect(image).toHaveAttribute("data-focus-ring-suppressed", "true");
+
+    const draw = screen.getByRole("button", { name: "Draw" });
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+      fillRect: vi.fn(),
+    } as unknown as CanvasRenderingContext2D);
+    await user.click(draw);
+    await user.keyboard("{Escape}");
+    expect(draw).toHaveAttribute("data-focus-ring-suppressed", "true");
+
+    const shapes = screen.getByRole("button", { name: "Shapes" });
+    await user.click(shapes);
+    const line = screen.getByRole("menuitem", { name: "Line" });
+    await waitFor(() => expect(line).toHaveFocus());
+    expect(line).toHaveAttribute("data-focus-ring-suppressed", "true");
   });
 
   it("changes the selected element layer order", async () => {

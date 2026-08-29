@@ -18,6 +18,9 @@ import {
   useState,
   type ChangeEvent,
   type CSSProperties,
+  type FocusEvent as ReactFocusEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 
 import { CanvasElementView } from "./CanvasElementView.js";
@@ -33,6 +36,18 @@ import { useCanvasInteractions } from "./useCanvasInteractions.js";
 import type { HostPlatform } from "./host.js";
 
 type WorkSurfaceStyle = CSSProperties & Record<`--${string}`, string | number>;
+
+function suppressPointerFocusRing(event: ReactPointerEvent<HTMLButtonElement>) {
+  event.currentTarget.dataset.focusRingSuppressed = "true";
+}
+
+function clearPointerFocusRingSuppression(
+  event:
+    | ReactFocusEvent<HTMLButtonElement>
+    | ReactKeyboardEvent<HTMLButtonElement>,
+) {
+  delete event.currentTarget.dataset.focusRingSuppressed;
+}
 
 function CanvasZoomControl({
   zoom,
@@ -132,12 +147,22 @@ function CanvasToolbar({
   return (
     <div className="editor-toolbar">
       <div className="editor-tools">
-        <button className="tool-button" onClick={onAddText} type="button">
+        <button
+          className="tool-button"
+          onBlur={clearPointerFocusRingSuppression}
+          onClick={onAddText}
+          onKeyDown={clearPointerFocusRingSuppression}
+          onPointerDown={suppressPointerFocusRing}
+          type="button"
+        >
           <Type size={17} /> Text
         </button>
         <button
           className="tool-button"
           onClick={() => imageInputRef.current?.click()}
+          onBlur={clearPointerFocusRingSuppression}
+          onKeyDown={clearPointerFocusRingSuppression}
+          onPointerDown={suppressPointerFocusRing}
           type="button"
         >
           <ImageIcon size={17} /> Image
@@ -154,7 +179,14 @@ function CanvasToolbar({
           }}
           type="file"
         />
-        <button className="tool-button" onClick={onDraw} type="button">
+        <button
+          className="tool-button"
+          onBlur={clearPointerFocusRingSuppression}
+          onClick={onDraw}
+          onKeyDown={clearPointerFocusRingSuppression}
+          onPointerDown={suppressPointerFocusRing}
+          type="button"
+        >
           <Pencil size={17} /> Draw
         </button>
         <div className="shape-control" ref={shapeControlRef}>
@@ -162,17 +194,27 @@ function CanvasToolbar({
             aria-expanded={shapeMenuOpen}
             aria-haspopup="menu"
             className="tool-button"
-            onClick={() => {
+            onBlur={clearPointerFocusRingSuppression}
+            onClick={(event) => {
               const nextOpen = !shapeMenuOpen;
               setShapeMenuOpen(nextOpen);
               if (nextOpen) {
-                globalThis.requestAnimationFrame(() =>
-                  shapeMenuRef.current
-                    ?.querySelector<HTMLButtonElement>('[role="menuitem"]')
-                    ?.focus(),
-                );
+                const showFocusRing = event.detail === 0;
+                globalThis.requestAnimationFrame(() => {
+                  const firstItem =
+                    shapeMenuRef.current?.querySelector<HTMLElement>(
+                      '[role="menuitem"]',
+                    );
+                  if (!firstItem) return;
+                  if (!showFocusRing) {
+                    firstItem.dataset.focusRingSuppressed = "true";
+                  }
+                  firstItem.focus();
+                });
               }
             }}
+            onKeyDown={clearPointerFocusRingSuppression}
+            onPointerDown={suppressPointerFocusRing}
             ref={shapeTriggerRef}
             type="button"
           >
@@ -190,10 +232,13 @@ function CanvasToolbar({
               {shapeOptions.map(([shape, label, Icon]) => (
                 <button
                   key={shape}
+                  onBlur={clearPointerFocusRingSuppression}
                   onClick={() => {
                     onAddShape(shape);
                     setShapeMenuOpen(false);
                   }}
+                  onKeyDown={clearPointerFocusRingSuppression}
+                  onPointerDown={suppressPointerFocusRing}
                   role="menuitem"
                   type="button"
                 >
