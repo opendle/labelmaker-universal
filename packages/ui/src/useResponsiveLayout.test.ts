@@ -41,13 +41,13 @@ describe("responsiveLayoutForViewport", () => {
   });
 
   it("updates Phone mode across breakpoint and orientation changes", () => {
-    vi.stubGlobal("innerWidth", 1_100);
+    vi.stubGlobal("innerWidth", 1_101);
     vi.stubGlobal("innerHeight", 1_024);
     const { result } = renderHook(() => useResponsiveLayout("linux"));
     expect(result.current.layout).toBe("standard");
 
     act(() => {
-      vi.stubGlobal("innerWidth", 900);
+      vi.stubGlobal("innerWidth", 1_100);
       vi.stubGlobal("innerHeight", 852);
       globalThis.dispatchEvent(new Event("resize"));
     });

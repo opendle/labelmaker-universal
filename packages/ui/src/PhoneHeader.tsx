@@ -49,50 +49,54 @@ export function PhoneHeader({
         className={`phone-window-drag-spacer ${platform === "macos" ? "macos" : ""}`}
       />
       <div className="phone-header-actions">
-        <PhoneHeaderAction label="New workspace" onClick={onNew}>
-          <FilePlus2 size={18} />
-        </PhoneHeaderAction>
-        <PhoneHeaderAction label="Open workspace" onClick={onOpen}>
-          <FolderOpen size={18} />
-        </PhoneHeaderAction>
-        <PhoneHeaderAction
-          className={`phone-save-action${unsaved ? " is-dirty" : ""}`}
-          label={`Save workspace, ${saveState}`}
-          onClick={onSave}
-        >
-          <Save size={18} />
-        </PhoneHeaderAction>
-        <span className="phone-history-actions">
+        <div className="phone-workspace-actions">
+          <PhoneHeaderAction label="New workspace" onClick={onNew}>
+            <FilePlus2 size={18} />
+          </PhoneHeaderAction>
+          <PhoneHeaderAction label="Open workspace" onClick={onOpen}>
+            <FolderOpen size={18} />
+          </PhoneHeaderAction>
+          <PhoneHeaderAction
+            className={`phone-save-action${unsaved ? " is-dirty" : ""}`}
+            label={`Save workspace, ${saveState}`}
+            onClick={onSave}
+          >
+            <Save size={18} />
+          </PhoneHeaderAction>
+        </div>
+        <div className="phone-history-actions">
           <PhoneHeaderAction label="Undo" disabled={!canUndo} onClick={onUndo}>
             <Undo2 size={18} />
           </PhoneHeaderAction>
           <PhoneHeaderAction label="Redo" disabled={!canRedo} onClick={onRedo}>
             <Redo2 size={18} />
           </PhoneHeaderAction>
-        </span>
-        <AppHeaderPrinterPicker
-          activePrinterId={activePrinterId}
-          compactStatus
-          onAddPrinter={onAddPrinter}
-          onOpenPrinterSettings={onOpenPrinterSettings}
-          onRemovePrinter={onRemovePrinter}
-          onSelectPrinter={onSelectPrinter}
-          printers={printers}
-        />
-        <AppHeaderPrintControl
-          canPrint={canPrint}
-          menuOpen={printMenuOpen}
-          onMenuChange={onPrintMenuChange}
-          onPreview={() => {
-            onPrintMenuChange(false);
-            onPreview();
-          }}
-          onPrint={(all) => {
-            onPrintMenuChange(false);
-            onPrint(all);
-          }}
-          plateCount={plateCount}
-        />
+        </div>
+        <div className="phone-output-actions">
+          <AppHeaderPrinterPicker
+            activePrinterId={activePrinterId}
+            compactStatus
+            onAddPrinter={onAddPrinter}
+            onOpenPrinterSettings={onOpenPrinterSettings}
+            onRemovePrinter={onRemovePrinter}
+            onSelectPrinter={onSelectPrinter}
+            printers={printers}
+          />
+          <AppHeaderPrintControl
+            canPrint={canPrint}
+            menuOpen={printMenuOpen}
+            onMenuChange={onPrintMenuChange}
+            onPreview={() => {
+              onPrintMenuChange(false);
+              onPreview();
+            }}
+            onPrint={(all) => {
+              onPrintMenuChange(false);
+              onPrint(all);
+            }}
+            plateCount={plateCount}
+          />
+        </div>
       </div>
     </header>
   );

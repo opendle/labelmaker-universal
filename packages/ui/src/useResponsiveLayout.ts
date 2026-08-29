@@ -27,7 +27,7 @@ export function useResponsiveLayout(platform: HostPlatform): {
   readonly layout: ResponsiveLayout;
   readonly softwareKeyboardOpen: boolean;
 } {
-  const phoneWidth = platform === "ipados" ? 600 : 960;
+  const phoneWidth = platform === "ipados" ? 600 : 1_100;
   const [layout, setLayout] = useState<ResponsiveLayout>(() =>
     responsiveLayoutForViewport(
       globalThis.innerWidth,

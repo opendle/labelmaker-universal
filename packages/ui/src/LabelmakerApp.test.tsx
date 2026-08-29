@@ -12,7 +12,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LabelmakerHost } from "./host.js";
 import { LabelmakerApp } from "./LabelmakerApp.js";
@@ -37,6 +37,11 @@ vi.mock("./icon-catalog.js", async (importOriginal) => {
       },
     ]),
   };
+});
+
+beforeEach(() => {
+  vi.stubGlobal("innerWidth", 1_440);
+  vi.stubGlobal("innerHeight", 960);
 });
 
 afterEach(() => {
@@ -2187,9 +2192,20 @@ describe("LabelmakerApp", () => {
     expect(openWorkspace).toHaveTextContent("");
     expect(saveWorkspace).toHaveTextContent("");
     expect(saveWorkspace).toHaveClass("is-dirty");
+    expect(
+      container.querySelector(".phone-workspace-actions"),
+    ).toContainElement(newWorkspace);
+    expect(container.querySelector(".phone-history-actions")).toContainElement(
+      screen.getByRole("button", { name: "Undo" }),
+    );
+    expect(container.querySelector(".phone-output-actions")).toContainElement(
+      await screen.findByRole("button", {
+        name: "Selected printer: Studio Labeler",
+      }),
+    );
     expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
     expect(
-      await screen.findByRole("button", {
+      screen.getByRole("button", {
         name: "Selected printer: Studio Labeler",
       }),
     ).toBeInTheDocument();
@@ -2268,7 +2284,7 @@ describe("LabelmakerApp", () => {
     ).toBeInTheDocument();
 
     act(() => {
-      vi.stubGlobal("innerWidth", 1_100);
+      vi.stubGlobal("innerWidth", 1_101);
       vi.stubGlobal("innerHeight", 1_024);
       globalThis.dispatchEvent(new Event("resize"));
     });
@@ -2402,6 +2418,41 @@ describe("LabelmakerApp", () => {
       screen.queryByRole("button", { name: "Select label 1: Resistors" }),
     ).toBeNull();
     expect(screen.queryByRole("dialog", { name: "Label settings" })).toBeNull();
+  });
+
+  it("keeps a Phone settings input focused when the keyboard opens", async () => {
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 852);
+    const viewport = new EventTarget() as EventTarget & {
+      height: number;
+      offsetTop: number;
+    };
+    viewport.height = 852;
+    viewport.offsetTop = 0;
+    vi.stubGlobal("visualViewport", viewport);
+    const user = userEvent.setup();
+    const { container } = render(
+      <LabelmakerApp host={createHost({ platform: "ipados" })} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Label settings" }));
+    const width = screen.getByLabelText("Plate width");
+    await user.click(width);
+    expect(width).toHaveFocus();
+
+    act(() => {
+      viewport.height = 500;
+      viewport.dispatchEvent(new Event("resize"));
+    });
+    await waitFor(() =>
+      expect(container.querySelector(".app-shell")).toHaveAttribute(
+        "data-software-keyboard",
+        "open",
+      ),
+    );
+    expect(width).toHaveFocus();
+    fireEvent.change(width, { target: { value: "71" } });
+    expect(width).toHaveValue(71);
   });
 
   it("keeps an element sheet current through undo and redo", async () => {

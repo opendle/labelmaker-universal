@@ -21,6 +21,11 @@ export function Modal({
   readonly onClose: () => void;
 }) {
   const dialogRef = useRef<HTMLElement>(null);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -44,7 +49,7 @@ export function Modal({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab") return;
@@ -113,7 +118,7 @@ export function Modal({
         }
       }
     };
-  }, [onClose]);
+  }, []);
 
   return (
     <div className={`modal-backdrop ${className}`}>

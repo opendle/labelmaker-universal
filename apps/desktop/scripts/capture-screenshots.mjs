@@ -58,7 +58,7 @@ const screenshotDirectory = customScreenshotDirectory
   : resolve(appDirectory, "../../artifacts/screenshots");
 const savedScreenshotNames = new Set([
   "labelmaker-primary-1440x960.png",
-  "labelmaker-phone-960x700.png",
+  "labelmaker-phone-1100x700.png",
   "labelmaker-phone-settings-600x500.png",
   "labelmaker-dark-1440x960.png",
   "labelmaker-flag-1440x960.png",
@@ -316,10 +316,12 @@ await capture(600, 500, "labelmaker-phone-600x500.png", async (page) => {
     );
   }
 });
-await capture(960, 700, "labelmaker-phone-960x700.png", async (page) => {
+await capture(1100, 700, "labelmaker-phone-1100x700.png", async (page) => {
   const shellClass = await page.locator(".app-shell").getAttribute("class");
   if (!shellClass?.includes("layout-phone")) {
-    throw new Error(`The 960x700 window did not use Phone mode: ${shellClass}`);
+    throw new Error(
+      `The 1100x700 window did not use Phone mode: ${shellClass}`,
+    );
   }
   const visibleHeaderText = await page
     .locator(".phone-titlebar")
@@ -350,13 +352,33 @@ await capture(
       .getByRole("dialog", { name: "Label settings" })
       .getByRole("button", { name: "Save settings" })
       .waitFor();
+    const sheetGeometry = await page
+      .getByRole("dialog", { name: "Label settings" })
+      .evaluate((dialog) => {
+        const bounds = dialog.getBoundingClientRect();
+        const style = getComputedStyle(dialog);
+        return {
+          bottomLeft: style.borderBottomLeftRadius,
+          bottomRight: style.borderBottomRightRadius,
+          top: bounds.top,
+        };
+      });
+    if (
+      sheetGeometry.top > 12 ||
+      sheetGeometry.bottomLeft === "0px" ||
+      sheetGeometry.bottomRight === "0px"
+    ) {
+      throw new Error(
+        `The Phone settings sheet is not top-aligned and rounded: ${JSON.stringify(sheetGeometry)}`,
+      );
+    }
   },
 );
-await capture(961, 700, "labelmaker-standard-961x700.png", async (page) => {
+await capture(1101, 700, "labelmaker-standard-1101x700.png", async (page) => {
   const shellClass = await page.locator(".app-shell").getAttribute("class");
   if (!shellClass?.includes("layout-standard")) {
     throw new Error(
-      `The 961x700 window did not use standard mode: ${shellClass}`,
+      `The 1101x700 window did not use standard mode: ${shellClass}`,
     );
   }
   const clipped = await page.evaluate(() => {
@@ -745,7 +767,7 @@ await capture(1440, 960, "labelmaker-image-1440x960.png", async (page) => {
   await page.getByLabel("Image brightness").waitFor();
   await page.getByLabel("Image contrast").waitFor();
 });
-await capture(1100, 760, "labelmaker-image-1100x760.png", async (page) => {
+await capture(1101, 760, "labelmaker-image-1101x760.png", async (page) => {
   await page.getByLabel("Choose image").setInputFiles({
     name: "storage-bin.png",
     mimeType: "image/png",

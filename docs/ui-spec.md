@@ -227,18 +227,17 @@ not add a separate editor.
 - Keep all keyboard shortcuts when the iPad has a hardware keyboard.
 - Use the visual viewport height to detect the on-screen keyboard. Hide the
   plate strip only while that keyboard reduces the available viewport. Focus
-  from a physical keyboard must not hide the strip. In a narrow layout, also
-  hide the header and inspector during direct text edit with the on-screen
-  keyboard so that the label stays visible.
+  from a physical keyboard must not hide the strip. Keep the Phone header and
+  command row visible during direct text edit with the on-screen keyboard.
 - Support portrait, landscape, Split View, and Stage Manager sizes. Controls
   that do not fit in the editor toolbar can scroll in the horizontal direction.
 
 ## Visual test sizes
 
 - Primary desktop: 1440 × 960.
-- Compact desktop: 1100 × 760.
-- Narrow standard desktop threshold: 961 × 700.
-- Wide Phone desktop threshold: 960 × 700.
+- Compact Phone desktop: 1100 × 760.
+- Narrow standard desktop threshold: 1101 × 700.
+- Wide Phone desktop threshold: 1100 × 700.
 - Primary iPad landscape: 1180 × 820 CSS pixels.
 - Compact iPad portrait: 768 × 1024 CSS pixels.
 - iPad Split View: 744 × 1024 CSS pixels.
@@ -249,7 +248,7 @@ not add a separate editor.
 
 ## Phone layout
 
-Use Phone mode at 960 CSS pixels wide or less in a desktop host. Use Phone mode
+Use Phone mode at 1100 CSS pixels wide or less in a desktop host. Use Phone mode
 at 600 CSS pixels wide or less in the Apple mobile host, so the current iPad
 portrait and Split View layouts stay unchanged. Also use Phone mode when the
 unobscured height is 500 CSS pixels or less and the width is 1,000 CSS pixels or
@@ -259,15 +258,18 @@ Phone mode.
 - Keep the label strip visible while the software keyboard is closed. Use a
   68-pixel strip in Phone mode and a 54-pixel strip in short Phone mode.
 - Use an icon-only header for New, Open, Save, undo, redo, printer, and print.
-  Do not show the workspace name. Mark the Save icon when the workspace needs
-  its first save or has edits. Put Preview in the Print menu.
+  Align the file actions left, the history actions in the center, and the
+  printer actions right. Do not show the workspace name. Mark the Save icon
+  when the workspace needs its first save or has edits. Put Preview in the
+  Print menu.
 - Use one 48-pixel editor command row. Keep Label settings and Trim fixed.
   Scroll the other controls in the horizontal direction.
 - When no element is selected, show the element, Flag, and Mirror actions.
 - For selected text, show font size and horizontal alignment. For a selected
   image, show Contrast. For a selected shape, show stroke width. Keep Tools,
   More, and Delete available.
-- Open complete element properties and label settings in modal lower sheets.
+- Open complete element properties and label settings in modal sheets that
+  stay at the top of the visual viewport.
   Keep all element properties available. The label-settings sheet contains
   width, height, margins, Delete label, and a Save settings footer. Keep Flag,
   Mirror, and Trim in the Phone command controls instead of repeating them in
@@ -276,6 +278,8 @@ Phone mode.
 - Use safe-area-aware full-screen dialogs. Make dialog content scroll in a
   short landscape viewport.
 - Keep all canvas touch gestures and keyboard shortcuts.
+- Use a long press before a touch drag can reorder labels. A normal horizontal
+  touch drag scrolls the label strip.
 
 ## Accessibility
 

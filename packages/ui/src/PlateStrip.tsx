@@ -15,13 +15,16 @@ import { nonPrintableMarginsMm } from "./label-layout.js";
 
 const THUMBNAIL_PIXELS_PER_MM = 3.25;
 const MOVE_TOLERANCE_PX = 8;
+const TOUCH_REORDER_DELAY_MS = 425;
 
 interface PressState {
   readonly plateId: string;
   readonly pointerId: number;
   readonly startX: number;
   readonly startY: number;
+  readonly pointerType: string;
   moved: boolean;
+  touchDragReady: boolean;
 }
 
 interface DragState {
@@ -167,46 +170,34 @@ function PlateDeleteButton({
   );
 }
 
-export function PlateStrip({
+function usePlateReorder({
   workspace,
-  activePlateId,
-  onSelectPlate,
-  onAddPlate,
-  onDeletePlate,
   onMovePlate,
-  onRenamePlate,
-  printHeadSizeMm,
-  marginTopMm,
-  marginBottomMm,
-  phoneMode = false,
-  short = false,
+  onSelectPlate,
 }: {
   readonly workspace: LabelDocument;
-  readonly activePlateId: string;
-  readonly onSelectPlate: (plateId: string, elementId: string | null) => void;
-  readonly onAddPlate: () => void;
-  readonly onDeletePlate: (plateId: string) => void;
   readonly onMovePlate: (plateId: string, targetIndex: number) => void;
-  readonly onRenamePlate: (plateId: string, name: string) => void;
-  readonly printHeadSizeMm: number | undefined;
-  readonly marginTopMm: number | undefined;
-  readonly marginBottomMm: number | undefined;
-  readonly phoneMode?: boolean;
-  readonly short?: boolean;
+  readonly onSelectPlate: (plateId: string, elementId: string | null) => void;
 }) {
   const keyboardDeleteEnabledRef = useRef(false);
   const stripRef = useRef<HTMLElement>(null);
   const pressRef = useRef<PressState | null>(null);
   const dragRef = useRef<DragState | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pointerListenerCleanupRef = useRef<(() => void) | null>(null);
   const suppressNextClickRef = useRef(false);
   const [draggingPlateId, setDraggingPlateId] = useState<string | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
-  const [rename, setRename] = useState<RenameState | null>(null);
 
   const clearPointerListeners = () => {
     pointerListenerCleanupRef.current?.();
     pointerListenerCleanupRef.current = null;
+  };
+
+  const clearLongPressTimer = () => {
+    if (longPressTimerRef.current === null) return;
+    globalThis.clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
   };
 
   const clearDrag = () => {
@@ -218,6 +209,7 @@ export function PlateStrip({
   const finishPointer = (pointerId: number, commit: boolean) => {
     const press = pressRef.current;
     if (!press || press.pointerId !== pointerId) return;
+    clearLongPressTimer();
     const drag = dragRef.current;
     if (drag?.pointerId === pointerId) {
       if (commit && drag.targetIndex !== drag.sourceIndex) {
@@ -234,6 +226,28 @@ export function PlateStrip({
     pressRef.current = null;
   };
 
+  const startDrag = (
+    press: PressState,
+    pointerTarget: HTMLDivElement,
+  ): DragState | null => {
+    const sourceIndex = workspace.plates.findIndex(
+      (plate) => plate.id === press.plateId,
+    );
+    if (sourceIndex < 0) return null;
+    const drag = {
+      plateId: press.plateId,
+      pointerId: press.pointerId,
+      sourceIndex,
+      targetIndex: sourceIndex,
+    };
+    dragRef.current = drag;
+    pointerTarget.setPointerCapture?.(press.pointerId);
+    setDraggingPlateId(press.plateId);
+    setDropTargetIndex(sourceIndex);
+    onSelectPlate(press.plateId, null);
+    return drag;
+  };
+
   const handlePointerMove = (
     event: PointerEvent,
     pointerTarget: HTMLDivElement,
@@ -245,23 +259,14 @@ export function PlateStrip({
     let drag = dragRef.current;
     if (!drag) {
       if (Math.hypot(deltaX, deltaY) <= MOVE_TOLERANCE_PX) return;
-      const sourceIndex = workspace.plates.findIndex(
-        (plate) => plate.id === press.plateId,
-      );
-      if (sourceIndex < 0) return;
       press.moved = true;
+      if (press.pointerType === "touch" && !press.touchDragReady) {
+        clearLongPressTimer();
+        return;
+      }
       suppressNextClickRef.current = true;
-      drag = {
-        plateId: press.plateId,
-        pointerId: event.pointerId,
-        sourceIndex,
-        targetIndex: sourceIndex,
-      };
-      dragRef.current = drag;
-      pointerTarget.setPointerCapture?.(event.pointerId);
-      setDraggingPlateId(press.plateId);
-      setDropTargetIndex(sourceIndex);
-      onSelectPlate(press.plateId, null);
+      drag = startDrag(press, pointerTarget);
+      if (!drag) return;
     }
     event.preventDefault();
     press.moved = true;
@@ -290,22 +295,36 @@ export function PlateStrip({
       return;
     }
     clearPointerListeners();
+    clearLongPressTimer();
     suppressNextClickRef.current = false;
     pressRef.current = {
       plateId,
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
+      pointerType: event.pointerType,
       moved: false,
+      touchDragReady: event.pointerType !== "touch",
     };
     const activePointerId = event.pointerId;
     const pointerTarget = event.currentTarget;
+    if (event.pointerType === "touch") {
+      longPressTimerRef.current = globalThis.setTimeout(() => {
+        const press = pressRef.current;
+        if (!press || press.pointerId !== activePointerId || press.moved)
+          return;
+        longPressTimerRef.current = null;
+        press.touchDragReady = true;
+        startDrag(press, pointerTarget);
+      }, TOUCH_REORDER_DELAY_MS);
+    }
     const onPointerMove = (pointerEvent: PointerEvent) =>
       handlePointerMove(pointerEvent, pointerTarget);
     const onPointerUp = (pointerEvent: PointerEvent) => {
       if (pointerEvent.pointerId !== activePointerId) return;
       finishPointer(pointerEvent.pointerId, true);
       clearPointerListeners();
+      clearLongPressTimer();
     };
     const onPointerCancel = (pointerEvent: PointerEvent) => {
       if (pointerEvent.pointerId !== activePointerId) return;
@@ -339,10 +358,56 @@ export function PlateStrip({
         updateKeyboardDelete,
       );
       clearPointerListeners();
+      clearLongPressTimer();
     };
   }, []);
 
-  const ignoreSuppressedClick = () => suppressNextClickRef.current;
+  return {
+    draggingPlateId,
+    dropTargetIndex,
+    handlePointerDown,
+    ignoreSuppressedClick: () => suppressNextClickRef.current,
+    keyboardDeleteEnabledRef,
+    stripRef,
+  };
+}
+
+export function PlateStrip({
+  workspace,
+  activePlateId,
+  onSelectPlate,
+  onAddPlate,
+  onDeletePlate,
+  onMovePlate,
+  onRenamePlate,
+  printHeadSizeMm,
+  marginTopMm,
+  marginBottomMm,
+  phoneMode = false,
+  short = false,
+}: {
+  readonly workspace: LabelDocument;
+  readonly activePlateId: string;
+  readonly onSelectPlate: (plateId: string, elementId: string | null) => void;
+  readonly onAddPlate: () => void;
+  readonly onDeletePlate: (plateId: string) => void;
+  readonly onMovePlate: (plateId: string, targetIndex: number) => void;
+  readonly onRenamePlate: (plateId: string, name: string) => void;
+  readonly printHeadSizeMm: number | undefined;
+  readonly marginTopMm: number | undefined;
+  readonly marginBottomMm: number | undefined;
+  readonly phoneMode?: boolean;
+  readonly short?: boolean;
+}) {
+  const [rename, setRename] = useState<RenameState | null>(null);
+  const {
+    draggingPlateId,
+    dropTargetIndex,
+    handlePointerDown,
+    ignoreSuppressedClick,
+    keyboardDeleteEnabledRef,
+    stripRef,
+  } = usePlateReorder({ workspace, onMovePlate, onSelectPlate });
   const displayedPlates = platesForDragPreview(
     workspace.plates,
     draggingPlateId,
@@ -410,7 +475,7 @@ export function PlateStrip({
                     onDeletePlate(plate.id);
                   }
                 }}
-                title="Drag to reorder"
+                title={phoneMode ? "Long-press to reorder" : "Drag to reorder"}
                 type="button"
               >
                 <span className="plate-number">{index + 1}</span>

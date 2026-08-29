@@ -77,7 +77,7 @@ describe("PlateStrip", () => {
     expect(onRenamePlate).toHaveBeenCalledWith("plate-resistors", "Parts");
   });
 
-  it("moves a plate as soon as the pointer starts to drag", () => {
+  it("moves a plate as soon as a mouse pointer starts to drag", () => {
     const onMovePlate = vi.fn();
     const { container } = renderStrip({ onMovePlate });
     const plates = Array.from(
@@ -98,14 +98,14 @@ describe("PlateStrip", () => {
       clientY: 25,
       isPrimary: true,
       pointerId: 1,
-      pointerType: "touch",
+      pointerType: "mouse",
     });
     act(() => {
       dispatchPointer(source, "pointermove", {
         clientX: 275,
         clientY: 25,
         pointerId: 1,
-        pointerType: "touch",
+        pointerType: "mouse",
       });
     });
     expect(source).toHaveAttribute("aria-grabbed", "true");
@@ -121,9 +121,82 @@ describe("PlateStrip", () => {
       clientX: 275,
       clientY: 25,
       pointerId: 2,
-      pointerType: "touch",
+      pointerType: "mouse",
     });
     expect(source).toHaveAttribute("aria-grabbed", "true");
+    dispatchPointer(source, "pointerup", {
+      clientX: 275,
+      clientY: 25,
+      pointerId: 1,
+      pointerType: "mouse",
+    });
+
+    expect(onMovePlate).toHaveBeenCalledWith("plate-resistors", 2);
+  });
+
+  it("lets a touch movement scroll before the reorder delay", () => {
+    vi.useFakeTimers();
+    const onMovePlate = vi.fn();
+    const { container } = renderStrip({ onMovePlate });
+    const source = container.querySelector<HTMLElement>(".plate-thumb")!;
+
+    dispatchPointer(source, "pointerdown", {
+      button: 0,
+      clientX: 25,
+      clientY: 25,
+      isPrimary: true,
+      pointerId: 1,
+      pointerType: "touch",
+    });
+    dispatchPointer(source, "pointermove", {
+      clientX: 75,
+      clientY: 25,
+      pointerId: 1,
+      pointerType: "touch",
+    });
+    act(() => vi.advanceTimersByTime(425));
+    dispatchPointer(source, "pointerup", {
+      clientX: 75,
+      clientY: 25,
+      pointerId: 1,
+      pointerType: "touch",
+    });
+
+    expect(source).toHaveAttribute("aria-grabbed", "false");
+    expect(onMovePlate).not.toHaveBeenCalled();
+  });
+
+  it("reorders with touch after a long press", () => {
+    vi.useFakeTimers();
+    const onMovePlate = vi.fn();
+    const { container } = renderStrip({ onMovePlate });
+    const plates = Array.from(
+      container.querySelectorAll<HTMLElement>(".plate-thumb"),
+    );
+    plates.forEach((plate, index) => {
+      plate.getBoundingClientRect = () =>
+        ({ left: index * 100, width: 100 }) as DOMRect;
+    });
+    const source = plates[0]!;
+
+    dispatchPointer(source, "pointerdown", {
+      button: 0,
+      clientX: 25,
+      clientY: 25,
+      isPrimary: true,
+      pointerId: 1,
+      pointerType: "touch",
+    });
+    act(() => vi.advanceTimersByTime(425));
+    expect(source).toHaveAttribute("aria-grabbed", "true");
+    act(() => {
+      dispatchPointer(source, "pointermove", {
+        clientX: 275,
+        clientY: 25,
+        pointerId: 1,
+        pointerType: "touch",
+      });
+    });
     dispatchPointer(source, "pointerup", {
       clientX: 275,
       clientY: 25,

@@ -49,6 +49,7 @@ export function AppHeaderPrinterPicker({
   if (printers.length === 0) {
     return (
       <button
+        aria-label="Add printer"
         className="printer-trigger printer-add-trigger"
         onClick={onAddPrinter}
         type="button"

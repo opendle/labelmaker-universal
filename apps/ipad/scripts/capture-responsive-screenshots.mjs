@@ -217,6 +217,26 @@ async function capture(viewport) {
         path: resolve(screenshotDirectory, screenshotName(viewport)),
       });
     }
+    if (viewport.width === 393 && viewport.height === 852) {
+      await page.locator(".canvas-element-control").first().dblclick();
+      await page.getByRole("textbox", { name: "Edit text on label" }).waitFor();
+      const phoneChromeVisible = await page.evaluate(() => {
+        const shell = document.querySelector(".app-shell");
+        if (!(shell instanceof HTMLElement)) return false;
+        shell.dataset.softwareKeyboard = "open";
+        const header = document.querySelector(".phone-titlebar");
+        const toolbar = document.querySelector(".phone-editor-toolbar");
+        return [header, toolbar].every(
+          (element) =>
+            element instanceof HTMLElement &&
+            element.getBoundingClientRect().height > 0 &&
+            getComputedStyle(element).display !== "none",
+        );
+      });
+      if (!phoneChromeVisible) {
+        throw new Error("The Phone keyboard state hides the editor chrome.");
+      }
+    }
   } finally {
     await context.close();
   }

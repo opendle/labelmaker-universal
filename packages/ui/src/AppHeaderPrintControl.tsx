@@ -69,6 +69,7 @@ export function AppHeaderPrintControl({
   return (
     <div className="print-control" ref={controlRef}>
       <button
+        aria-label="Print"
         className="button primary"
         disabled={!canPrint}
         onClick={() => onPrint(false)}

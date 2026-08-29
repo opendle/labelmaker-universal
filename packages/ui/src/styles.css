@@ -2715,24 +2715,24 @@ textarea.inline-text-editor:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .platform-ipados[data-software-keyboard="open"]
+  .platform-ipados.layout-standard[data-software-keyboard="open"]
     .application-content:has(.inline-text-editor:focus)
     .titlebar,
-  .platform-ipados[data-software-keyboard="open"]
+  .platform-ipados.layout-standard[data-software-keyboard="open"]
     .application-content:has(.inline-text-editor:focus)
     .plate-strip,
-  .platform-ipados[data-software-keyboard="open"]
+  .platform-ipados.layout-standard[data-software-keyboard="open"]
     .application-content:has(.inline-text-editor:focus)
     .inspector {
     display: none;
   }
 
-  .platform-ipados[data-software-keyboard="open"]
+  .platform-ipados.layout-standard[data-software-keyboard="open"]
     .application-content:has(.inline-text-editor:focus) {
     grid-template-rows: minmax(0, 1fr);
   }
 
-  .platform-ipados[data-software-keyboard="open"]
+  .platform-ipados.layout-standard[data-software-keyboard="open"]
     .application-content:has(.inline-text-editor:focus)
     .desktop-body {
     grid-template-rows: 50px minmax(0, 1fr);
@@ -2800,10 +2800,10 @@ textarea.inline-text-editor:focus-visible {
   min-width: 0;
   flex: 1 1 auto;
   margin-left: auto;
-  display: flex;
+  display: grid;
+  grid-template-columns: max-content max-content max-content;
   align-items: center;
-  justify-content: safe flex-end;
-  gap: 0;
+  justify-content: space-between;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -2870,8 +2870,15 @@ textarea.inline-text-editor:focus-visible {
   background: #f0eee8;
 }
 
-.phone-history-actions {
+.phone-workspace-actions,
+.phone-history-actions,
+.phone-output-actions {
   display: flex;
+  align-items: center;
+}
+
+.phone-output-actions {
+  gap: 4px;
 }
 
 .phone-titlebar .printer-trigger {
@@ -3142,6 +3149,7 @@ textarea.inline-text-editor:focus-visible {
   flex-basis: calc(var(--label-preview-width) + 8px);
   grid-template-rows: minmax(0, 1fr) 13px;
   border-radius: 6px;
+  touch-action: pan-x;
 }
 
 .phone-plate-strip .plate-thumb-select {
@@ -3190,10 +3198,13 @@ textarea.inline-text-editor:focus-visible {
 }
 
 .phone-property-modal.modal-backdrop {
-  align-items: flex-end;
-  padding: 8px max(8px, env(safe-area-inset-right))
-    calc(var(--phone-strip-height) + env(safe-area-inset-bottom))
-    max(8px, env(safe-area-inset-left));
+  --phone-sheet-top-gap: max(8px, env(safe-area-inset-top));
+  --phone-sheet-bottom-gap: calc(
+    var(--phone-strip-height) + env(safe-area-inset-bottom)
+  );
+  align-items: flex-start;
+  padding: var(--phone-sheet-top-gap) max(8px, env(safe-area-inset-right))
+    var(--phone-sheet-bottom-gap) max(8px, env(safe-area-inset-left));
 }
 
 .phone-property-modal .dialog {
@@ -3202,21 +3213,19 @@ textarea.inline-text-editor:focus-visible {
   max-height: min(
     72vh,
     calc(
-      var(--visual-viewport-height, 100vh) - var(--phone-header-height) -
-        var(--phone-strip-height) - env(safe-area-inset-top) -
-        env(safe-area-inset-bottom) - 16px
+      var(--visual-viewport-height, 100vh) - var(--phone-sheet-top-gap) -
+        var(--phone-sheet-bottom-gap)
     )
   );
   display: flex;
   flex-direction: column;
-  border-radius: 14px 14px 0 0;
+  border-radius: 14px;
 }
 
 .layout-phone-short .phone-property-modal .dialog {
   max-height: calc(
-    var(--visual-viewport-height, 100vh) - var(--phone-header-height) -
-      var(--phone-strip-height) - env(safe-area-inset-top) -
-      env(safe-area-inset-bottom) - 12px
+    var(--visual-viewport-height, 100vh) - var(--phone-sheet-top-gap) -
+      var(--phone-sheet-bottom-gap)
   );
 }
 
@@ -3370,42 +3379,10 @@ textarea.inline-text-editor:focus-visible {
 }
 
 .layout-phone[data-software-keyboard="open"]
-  .application-content:has(.inline-text-editor:focus),
-.layout-phone-short[data-software-keyboard="open"]
-  .application-content:has(.inline-text-editor:focus) {
-  grid-template-rows: minmax(0, 1fr);
-}
-
-.layout-phone[data-software-keyboard="open"]
-  .application-content:has(.inline-text-editor:focus)
-  .phone-titlebar,
-.layout-phone-short[data-software-keyboard="open"]
-  .application-content:has(.inline-text-editor:focus)
-  .phone-titlebar,
-.layout-phone[data-software-keyboard="open"]
-  .application-content:has(.inline-text-editor:focus)
-  .phone-editor-toolbar,
-.layout-phone-short[data-software-keyboard="open"]
-  .application-content:has(.inline-text-editor:focus)
-  .phone-editor-toolbar {
-  display: none;
-}
-
-.layout-phone[data-software-keyboard="open"]
-  .application-content:has(.inline-text-editor:focus)
-  .desktop-body,
-.layout-phone-short[data-software-keyboard="open"]
-  .application-content:has(.inline-text-editor:focus)
-  .desktop-body {
-  grid-template-rows: minmax(0, 1fr);
-  padding-top: env(safe-area-inset-top);
-}
-
-.layout-phone[data-software-keyboard="open"]
   .phone-property-modal.modal-backdrop,
 .layout-phone-short[data-software-keyboard="open"]
   .phone-property-modal.modal-backdrop {
-  padding-bottom: 0;
+  --phone-sheet-bottom-gap: 8px;
 }
 
 @media (prefers-color-scheme: dark) {
