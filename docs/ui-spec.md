@@ -53,6 +53,8 @@ appearances so that they show the physical label and printed result accurately.
   data is missing or invalid, start with the default workspace named `Labels`.
 - Open an add-printer dialog with physical discovery results. Do not show mock
   or virtual printers in the user interface.
+- Close a modal with its close action, Escape, or a click or tap outside the
+  dialog. Keep a modal open while an active operation prevents closing.
 - While a printer is added, show progress and disable conflicting dialog
   actions. Close the dialog after success and keep it open after failure.
 - Do not show controls that have no action.
@@ -158,8 +160,10 @@ appearances so that they show the physical label and printed result accurately.
   millimeter and divide only the rounding remainder equally between the left
   and right sides.
 - Keep the plate width field in whole millimeters.
-- Run trim-to-content when the user presses Enter in the plate width, height,
-  left margin, or right margin field.
+- Accept the current plate width, height, left margin, or right margin when the
+  user presses Enter, then remove focus from the field. Also remove focus when
+  the user clicks or taps another part of the application. Run trim-to-content
+  only from the Trim action.
 - Align the work-surface dots to the label grid at 1 mm intervals. Fade the
   5 mm grid in all directions over 10 mm outside the label.
 - Open printer settings from each configured printer. Keep the current label

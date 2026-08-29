@@ -19,7 +19,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { IconButton } from "./controls.js";
 import {
@@ -533,18 +533,37 @@ export function PlateToolbarSettings({
   plate,
   onChange,
   onTrim,
-  onEnter = onTrim,
   showTrim = true,
 }: {
   readonly plate: LabelPlate;
   readonly onChange: (plate: LabelPlate) => void;
   readonly onTrim: () => void;
-  readonly onEnter?: () => void;
   readonly showTrim?: boolean;
 }) {
   const inputIdPrefix = useId();
+  const settingsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const blurActiveField = (event: PointerEvent) => {
+      const activeElement = globalThis.document.activeElement;
+      if (
+        !(activeElement instanceof HTMLInputElement) ||
+        !settingsRef.current?.contains(activeElement) ||
+        event.target === activeElement
+      ) {
+        return;
+      }
+      activeElement.blur();
+    };
+    globalThis.document.addEventListener("pointerdown", blurActiveField, true);
+    return () =>
+      globalThis.document.removeEventListener(
+        "pointerdown",
+        blurActiveField,
+        true,
+      );
+  }, []);
   return (
-    <div className="plate-toolbar-settings">
+    <div className="plate-toolbar-settings" ref={settingsRef}>
       <label
         className="toolbar-field width-field"
         htmlFor={`${inputIdPrefix}-width`}
@@ -564,7 +583,7 @@ export function PlateToolbarSettings({
             onKeyDown={(event) => {
               if (event.key !== "Enter") return;
               event.preventDefault();
-              onEnter();
+              event.currentTarget.blur();
             }}
             step={1}
             value={plateEditorWidthMm(plate)}
@@ -606,7 +625,7 @@ export function PlateToolbarSettings({
               onKeyDown={(event) => {
                 if (event.key !== "Enter") return;
                 event.preventDefault();
-                onEnter();
+                event.currentTarget.blur();
               }}
               value={Math.round((value as number) * 10) / 10}
             />

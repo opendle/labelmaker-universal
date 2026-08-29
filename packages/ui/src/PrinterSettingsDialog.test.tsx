@@ -102,6 +102,33 @@ describe("PrinterSettingsDialog", () => {
     expect(onClose).toHaveBeenCalledOnce();
   });
 
+  it("does not close from the backdrop or Escape while a save is active", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    let finishSave!: (saved: boolean) => void;
+    const onSave = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finishSave = resolve;
+        }),
+    );
+    renderDialog({ onClose, onSave });
+
+    await user.click(screen.getByRole("button", { name: "Save settings" }));
+    await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
+    const dialog = screen.getByRole("dialog", { name: "Printer settings" });
+    fireEvent.pointerDown(dialog.closest(".modal-backdrop")!);
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(onClose).not.toHaveBeenCalled();
+    finishSave(false);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Save settings" }),
+      ).toBeEnabled(),
+    );
+  });
+
   it("keeps the MakeID E1 darkness control and saves its value", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockResolvedValue(true);

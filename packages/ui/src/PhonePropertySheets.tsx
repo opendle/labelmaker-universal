@@ -100,7 +100,6 @@ export function PhonePlatePropertySheet({
         <div className="phone-plate-settings-content">
           <PlateToolbarSettings
             onChange={onChange}
-            onEnter={save}
             onTrim={() => undefined}
             plate={draft}
             showTrim={false}

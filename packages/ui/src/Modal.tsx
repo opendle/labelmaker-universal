@@ -127,7 +127,12 @@ export function Modal({
   }, []);
 
   return (
-    <div className={`modal-backdrop ${className}`}>
+    <div
+      className={`modal-backdrop ${className}`}
+      onPointerDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
       <section
         aria-labelledby={labelId}
         aria-modal="true"

@@ -14,6 +14,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { renderPlateBlackBounds } from "./browser-raster.js";
 import type { LabelmakerHost } from "./host.js";
 import { LabelmakerApp } from "./LabelmakerApp.js";
 import { sampleDocument } from "./sample.js";
@@ -1407,17 +1408,32 @@ describe("LabelmakerApp", () => {
   });
 
   it.each(["Plate width", "Plate height", "Left margin", "Right margin"])(
-    "trims the plate when Enter is pressed in %s",
-    async (fieldName) => {
+    "accepts %s and removes focus when Enter is pressed",
+    (fieldName) => {
+      const renderBounds = vi.mocked(renderPlateBlackBounds);
+      renderBounds.mockClear();
       render(<LabelmakerApp host={createHost()} />);
+      const field = screen.getByLabelText(fieldName);
 
-      fireEvent.keyDown(screen.getByLabelText(fieldName), { key: "Enter" });
+      field.focus();
+      fireEvent.keyDown(field, { key: "Enter" });
 
-      await waitFor(() =>
-        expect(screen.getByLabelText("Plate width")).toHaveValue(31),
-      );
+      expect(field).not.toHaveFocus();
+      expect(screen.getByLabelText("Plate width")).toHaveValue(62);
+      expect(renderBounds).not.toHaveBeenCalled();
     },
   );
+
+  it("removes focus from a plate setting when another app area is pressed", () => {
+    const { container } = render(<LabelmakerApp host={createHost()} />);
+    const field = screen.getByLabelText("Plate height");
+
+    field.focus();
+    expect(field).toHaveFocus();
+    fireEvent.pointerDown(container.querySelector(".work-surface")!);
+
+    expect(field).not.toHaveFocus();
+  });
 
   it("keeps manual label widths in whole millimeters", () => {
     render(<LabelmakerApp host={createHost()} />);
@@ -1934,6 +1950,20 @@ describe("LabelmakerApp", () => {
     expect(opener).toHaveFocus();
   });
 
+  it("closes a modal when its backdrop is pressed", async () => {
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+    const opener = await openAddPrinterDialog(user);
+    const dialog = screen.getByRole("dialog", { name: "Add a printer" });
+
+    fireEvent.pointerDown(dialog);
+    expect(dialog).toBeInTheDocument();
+    fireEvent.pointerDown(dialog.closest(".modal-backdrop")!);
+
+    expect(dialog).not.toBeInTheDocument();
+    expect(opener).toHaveFocus();
+  });
+
   it("gives the print menu focus, arrow navigation, and Escape behavior", async () => {
     const user = userEvent.setup();
     render(<LabelmakerApp host={createHost()} />);
@@ -2106,14 +2136,18 @@ describe("LabelmakerApp", () => {
     expect(errorToast).toHaveClass("error");
     expect(errorToast?.querySelector(".mini-spinner")).toBeNull();
     expect(errorToast?.querySelector("svg")).not.toBeNull();
-    expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 8000);
+    await waitFor(() =>
+      expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 8000),
+    );
 
     await user.click(screen.getByRole("button", { name: /^Save$/ }));
     const canceledMessage = await screen.findByText("Save canceled");
     const canceledToast = canceledMessage.closest("output");
     expect(canceledToast?.querySelector(".mini-spinner")).toBeNull();
     expect(canceledToast?.querySelector("svg")).not.toBeNull();
-    expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 6000);
+    await waitFor(() =>
+      expect(timeoutSpy).toHaveBeenCalledWith(expect.any(Function), 6000),
+    );
   });
 
   it("uses a spinner only while a print operation is active", async () => {
@@ -2454,6 +2488,33 @@ describe("LabelmakerApp", () => {
       screen.queryByRole("button", { name: "Select label 1: Resistors" }),
     ).toBeNull();
     expect(screen.queryByRole("dialog", { name: "Label settings" })).toBeNull();
+  });
+
+  it("accepts a Phone label value with Enter without saving the sheet", async () => {
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 852);
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+
+    await user.click(screen.getByRole("button", { name: "Label settings" }));
+    const sheet = screen.getByRole("dialog", { name: "Label settings" });
+    const width = within(sheet).getByLabelText("Plate width");
+    await user.clear(width);
+    await user.type(width, "70{Enter}");
+
+    expect(sheet).toBeInTheDocument();
+    expect(width).toHaveValue(70);
+    expect(width).not.toHaveFocus();
+
+    await user.click(
+      within(sheet).getByRole("button", { name: "Close label settings" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Label settings" }));
+    expect(
+      within(
+        screen.getByRole("dialog", { name: "Label settings" }),
+      ).getByLabelText("Plate width"),
+    ).toHaveValue(62);
   });
 
   it("keeps a Phone settings input focused when the keyboard opens", async () => {

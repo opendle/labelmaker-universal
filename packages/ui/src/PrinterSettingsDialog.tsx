@@ -91,6 +91,9 @@ export function PrinterSettingsDialog({
       setForm((current) => ({ ...current, saving: false }));
     }
   };
+  const close = () => {
+    if (!form.saving) onClose();
+  };
   const marginFields = [
     {
       key: "marginTopMm" as const,
@@ -115,7 +118,7 @@ export function PrinterSettingsDialog({
     <Modal
       className="phone-form-modal printer-settings-modal"
       labelId="printer-settings-title"
-      onClose={onClose}
+      onClose={close}
     >
       <div className="dialog-header">
         <div>
@@ -125,7 +128,7 @@ export function PrinterSettingsDialog({
         <IconButton
           disabled={form.saving}
           label="Close printer settings"
-          onClick={onClose}
+          onClick={close}
         >
           <X size={18} />
         </IconButton>
