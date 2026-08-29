@@ -54,30 +54,21 @@
     />
     <path
       d="M46 158c0-31 49-56 110-56s110 25 110 56v139c0 31-49 56-110 56S46 328 46 297V158Z"
-      fill="#e2ded5"
+      fill="#fffdf8"
     />
     <ellipse cx="156" cy="158" rx="110" ry="56" fill="#fffdf8" />
     <ellipse cx="156" cy="158" rx="51" ry="26" fill="#cbc7be" />
     <ellipse cx="156" cy="163" rx="31" ry="16" fill="#6b6964" />
     <path
-      d="M52 176c0 21 47 38 104 38 31 0 51-17 79-17h221v139H235c-28 0-48 17-79 17-57 0-104-17-104-38V176Z"
+      d="M156 353h300v12H156Z"
       fill="#292925"
       opacity=".22"
-      transform="translate(0 12)"
     />
     <path
-      d="M52 176c0 21 47 38 104 38 31 0 51-17 79-17h221v139H235c-28 0-48 17-79 17-57 0-104-17-104-38V176Z"
+      d="M156 214h300v139H156V214Z"
       fill="#fffdf8"
     />
-    <path
-      d="M52 172c0 21 47 38 104 38 31 0 51-17 79-17v7c-28 0-48 17-79 17-57 0-104-17-104-38v-7Z"
-      fill="#d6d1c7"
-    />
-    <path
-      d="M52 311c0 21 47 38 104 38 31 0 51-17 79-17v7c-28 0-48 17-79 17-57 0-104-17-104-38v-7Z"
-      fill="#e4dfd5"
-    />
-    <g fill="#292925" transform="translate(243 250.75) scale(3.45 4.5)">
+    <g fill="#292925" transform="translate(156 253.75) scale(4.9 8.5)">
       <use href="#glyph-l" />
       <use href="#glyph-a" x="6" />
       <use href="#glyph-b" x="12" />
