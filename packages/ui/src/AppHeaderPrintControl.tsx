@@ -6,12 +6,14 @@ export function AppHeaderPrintControl({
   canPrint,
   menuOpen,
   onPrint,
+  onPreview,
   onMenuChange,
 }: {
   readonly plateCount: number;
   readonly canPrint: boolean;
   readonly menuOpen: boolean;
   readonly onPrint: (all: boolean) => void;
+  readonly onPreview?: () => void;
   readonly onMenuChange: (open: boolean) => void;
 }) {
   const controlRef = useRef<HTMLDivElement>(null);
@@ -72,14 +74,14 @@ export function AppHeaderPrintControl({
         onClick={() => onPrint(false)}
         type="button"
       >
-        <Printer size={16} /> Print
+        <Printer size={16} /> <span className="print-label">Print</span>
       </button>
       <button
         aria-expanded={menuOpen}
         aria-haspopup="menu"
         aria-label="Print options"
         className="button primary split"
-        disabled={!canPrint}
+        disabled={!canPrint && !onPreview}
         onClick={() => {
           const nextOpen = !menuOpen;
           onMenuChange(nextOpen);
@@ -104,10 +106,25 @@ export function AppHeaderPrintControl({
           role="menu"
           tabIndex={-1}
         >
-          <button onClick={() => onPrint(false)} role="menuitem" type="button">
+          {onPreview && (
+            <button onClick={onPreview} role="menuitem" type="button">
+              Preview label
+            </button>
+          )}
+          <button
+            disabled={!canPrint}
+            onClick={() => onPrint(false)}
+            role="menuitem"
+            type="button"
+          >
             Print current label
           </button>
-          <button onClick={() => onPrint(true)} role="menuitem" type="button">
+          <button
+            disabled={!canPrint}
+            onClick={() => onPrint(true)}
+            role="menuitem"
+            type="button"
+          >
             Print all {plateCount} labels
           </button>
         </div>

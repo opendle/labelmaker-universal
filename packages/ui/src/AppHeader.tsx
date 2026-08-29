@@ -12,6 +12,31 @@ import { AppHeaderPrintControl } from "./AppHeaderPrintControl.js";
 import { IconButton } from "./controls.js";
 import type { HostPlatform, PrinterSummary } from "./host.js";
 
+export interface AppHeaderProps {
+  readonly workspaceName: string;
+  readonly plateCount: number;
+  readonly saveState: string;
+  readonly printers: readonly PrinterSummary[];
+  readonly activePrinterId: string;
+  readonly canUndo: boolean;
+  readonly canRedo: boolean;
+  readonly canPrint: boolean;
+  readonly printMenuOpen: boolean;
+  readonly onNew: () => void;
+  readonly onOpen: () => void;
+  readonly onSave: () => void;
+  readonly onSelectPrinter: (printerId: string) => void;
+  readonly onAddPrinter: () => void;
+  readonly onRemovePrinter?: (printerId: string) => void;
+  readonly onOpenPrinterSettings: (printerId: string) => void;
+  readonly onUndo: () => void;
+  readonly onRedo: () => void;
+  readonly onPreview: () => void;
+  readonly onPrint: (all: boolean) => void;
+  readonly onPrintMenuChange: (open: boolean) => void;
+  readonly platform: HostPlatform;
+}
+
 export function AppHeader({
   workspaceName,
   plateCount,
@@ -35,30 +60,7 @@ export function AppHeader({
   onPrint,
   onPrintMenuChange,
   platform,
-}: {
-  readonly workspaceName: string;
-  readonly plateCount: number;
-  readonly saveState: string;
-  readonly printers: readonly PrinterSummary[];
-  readonly activePrinterId: string;
-  readonly canUndo: boolean;
-  readonly canRedo: boolean;
-  readonly canPrint: boolean;
-  readonly printMenuOpen: boolean;
-  readonly onNew: () => void;
-  readonly onOpen: () => void;
-  readonly onSave: () => void;
-  readonly onSelectPrinter: (printerId: string) => void;
-  readonly onAddPrinter: () => void;
-  readonly onRemovePrinter?: (printerId: string) => void;
-  readonly onOpenPrinterSettings: (printerId: string) => void;
-  readonly onUndo: () => void;
-  readonly onRedo: () => void;
-  readonly onPreview: () => void;
-  readonly onPrint: (all: boolean) => void;
-  readonly onPrintMenuChange: (open: boolean) => void;
-  readonly platform: HostPlatform;
-}) {
+}: AppHeaderProps) {
   return (
     <header className="titlebar">
       <div className="header-leading">

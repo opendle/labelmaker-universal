@@ -118,6 +118,7 @@ describe("EditorCanvas drawing actions", () => {
     const onEditImage = vi.fn();
     render(
       <EditorCanvas
+        layout="standard"
         onAddImage={vi.fn()}
         onAddShape={vi.fn()}
         onAddSpecial={vi.fn()}
@@ -125,7 +126,10 @@ describe("EditorCanvas drawing actions", () => {
         onChangeElement={vi.fn()}
         onDraw={onDraw}
         onOpenIcons={vi.fn()}
+        onOpenElementProperties={vi.fn()}
+        onOpenPlateSettings={vi.fn()}
         onEditImage={onEditImage}
+        onDeleteSelection={vi.fn()}
         onSelectElement={vi.fn()}
         onTrim={vi.fn()}
         onUpdatePlate={vi.fn()}
@@ -134,6 +138,9 @@ describe("EditorCanvas drawing actions", () => {
         platform="linux"
         printableMargins={{ topMm: 0, bottomMm: 0 }}
         selectedElementId={null}
+        selectedImage={undefined}
+        selectedShape={undefined}
+        selectedText={undefined}
         zoom={100}
       />,
     );

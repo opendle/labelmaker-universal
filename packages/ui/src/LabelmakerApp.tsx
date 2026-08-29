@@ -10,7 +10,7 @@ import {
 } from "react";
 
 import { AddPrinterDialog } from "./AppDialogs.js";
-import { AppHeader } from "./AppHeader.js";
+import { AppHeader, type AppHeaderProps } from "./AppHeader.js";
 import { movePlate, replacePlate } from "./app-state.js";
 import { EditorCanvas } from "./EditorCanvas.js";
 import {
@@ -23,10 +23,19 @@ import type { LabelmakerHost } from "./host.js";
 import { Inspector } from "./Inspector.js";
 import { nonPrintableMarginsMm } from "./label-layout.js";
 import { PlateStrip } from "./PlateStrip.js";
+import { PhoneHeader } from "./PhoneHeader.js";
+import {
+  PhoneElementPropertySheet,
+  PhonePlatePropertySheet,
+} from "./PhonePropertySheets.js";
 import { PreviewDialog } from "./PreviewDialog.js";
 import { PrinterSettingsDialog } from "./PrinterSettingsDialog.js";
 import { useLabelmakerController } from "./useLabelmakerController.js";
 import { useDrawingEditor } from "./useDrawingEditor.js";
+import {
+  useResponsiveLayout,
+  type ResponsiveLayout,
+} from "./useResponsiveLayout.js";
 
 const IconLibraryControl = lazy(() =>
   import("./IconLibraryControl.js").then(({ IconLibraryControl: Control }) => ({
@@ -36,8 +45,10 @@ const IconLibraryControl = lazy(() =>
 
 function AppPlateStrip({
   controller,
+  layout,
 }: {
   readonly controller: ReturnType<typeof useLabelmakerController>;
+  readonly layout: ResponsiveLayout;
 }) {
   const { activePrinter, dispatch, state } = controller;
   return (
@@ -63,6 +74,8 @@ function AppPlateStrip({
         dispatch({ type: "select-plate", plateId, elementId })
       }
       printHeadSizeMm={activePrinter?.printableWidthMm}
+      phoneMode={layout !== "standard"}
+      short={layout === "phone-short"}
       workspace={state.workspace}
     />
   );
@@ -108,6 +121,19 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   const workspaceRef = useRef(state.workspace);
   const shellRef = useRef<HTMLDivElement>(null);
   const [iconLibraryOpen, setIconLibraryOpen] = useState(false);
+  const [phoneSheet, setPhoneSheet] = useState<"element" | "plate" | null>(
+    null,
+  );
+  const { layout, softwareKeyboardOpen } = useResponsiveLayout(host.platform);
+  const closePhoneSheetDuringRender =
+    phoneSheet !== null &&
+    (layout === "standard" ||
+      (phoneSheet === "element" &&
+        !selectedText &&
+        !selectedImage &&
+        !selectedShape));
+  if (closePhoneSheetDuringRender) setPhoneSheet(null);
+  const visiblePhoneSheet = closePhoneSheetDuringRender ? null : phoneSheet;
   const drawingEditor = useDrawingEditor({
     activePlate,
     workspace: state.workspace,
@@ -117,61 +143,6 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   useEffect(() => {
     workspaceRef.current = state.workspace;
   }, [state.workspace]);
-  useEffect(() => {
-    if (host.platform !== "ipados") return;
-    const viewport = globalThis.visualViewport;
-    if (!viewport) return;
-    const shellElement = shellRef.current;
-    let unobscuredViewportHeight = viewport.height;
-    let viewportWidth = globalThis.innerWidth;
-    const updateViewport = () => {
-      globalThis.document.documentElement.style.setProperty(
-        "--visual-viewport-height",
-        `${viewport.height}px`,
-      );
-      globalThis.document.documentElement.style.setProperty(
-        "--visual-viewport-offset-top",
-        `${viewport.offsetTop}px`,
-      );
-      const activeElement = globalThis.document.activeElement;
-      const editableHasFocus =
-        activeElement instanceof HTMLInputElement ||
-        activeElement instanceof HTMLTextAreaElement;
-      const windowWidthChanged =
-        Math.abs(globalThis.innerWidth - viewportWidth) > 1;
-      if (
-        !editableHasFocus ||
-        windowWidthChanged ||
-        viewport.height > unobscuredViewportHeight
-      ) {
-        unobscuredViewportHeight = viewport.height;
-        viewportWidth = globalThis.innerWidth;
-      }
-      const softwareKeyboardOpen =
-        editableHasFocus && unobscuredViewportHeight - viewport.height > 80;
-      if (softwareKeyboardOpen) {
-        shellElement?.setAttribute("data-software-keyboard", "open");
-      } else {
-        shellElement?.removeAttribute("data-software-keyboard");
-      }
-    };
-    updateViewport();
-    viewport.addEventListener("resize", updateViewport);
-    viewport.addEventListener("scroll", updateViewport, { passive: true });
-    globalThis.addEventListener("resize", updateViewport);
-    return () => {
-      viewport.removeEventListener("resize", updateViewport);
-      viewport.removeEventListener("scroll", updateViewport);
-      globalThis.removeEventListener("resize", updateViewport);
-      globalThis.document.documentElement.style.removeProperty(
-        "--visual-viewport-height",
-      );
-      globalThis.document.documentElement.style.removeProperty(
-        "--visual-viewport-offset-top",
-      );
-      shellElement?.removeAttribute("data-software-keyboard");
-    };
-  }, [host.platform]);
   const closeAddPrinter = useCallback(
     () => dispatch({ type: "close-add-printer" }),
     [dispatch],
@@ -202,42 +173,88 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
       : state.workspaceFileName
         ? "Saved"
         : "Not saved";
+  const trimActivePlate = () => {
+    void trimLatestWorkspace(
+      activePlate.id,
+      () => workspaceRef.current,
+      controller.editWorkspace,
+    ).catch(() =>
+      dispatch({
+        type: "set-toast",
+        toast: {
+          tone: "error",
+          message: "The label could not be trimmed.",
+        },
+      }),
+    );
+  };
+  const updateText = (text: NonNullable<typeof selectedText>) =>
+    controller.editWorkspace(
+      replacePlate(state.workspace, activePlate.id, (plate) =>
+        updateElementAndFlagPeer(plate, text),
+      ),
+    );
+  const updateImage = (image: NonNullable<typeof selectedImage>) =>
+    controller.editWorkspace(
+      replacePlate(state.workspace, activePlate.id, (plate) =>
+        updateElementAndFlagPeer(plate, image),
+      ),
+    );
+  const updateShape = (shape: NonNullable<typeof selectedShape>) =>
+    controller.editWorkspace(
+      replacePlate(state.workspace, activePlate.id, (plate) =>
+        updateElementAndFlagPeer(plate, shape),
+      ),
+    );
+  const moveLayer = (direction: "back" | "front") => {
+    if (!state.selectedElementId) return;
+    controller.editWorkspace(
+      replacePlate(state.workspace, activePlate.id, (plate) =>
+        moveElementLayer(plate, state.selectedElementId!, direction),
+      ),
+    );
+  };
+  const headerProps: AppHeaderProps = {
+    activePrinterId: state.activePrinterId,
+    canPrint: controller.canPrint,
+    canRedo: state.future.length > 0,
+    canUndo: state.past.length > 0,
+    onAddPrinter: () => void controller.startDiscovery(),
+    onNew: () => void controller.newWorkspace(),
+    onOpen: () => void controller.openWorkspace(),
+    onOpenPrinterSettings: (printerId) =>
+      dispatch({ type: "open-printer-settings", printerId }),
+    onPreview: () => dispatch({ type: "open-preview" }),
+    onPrint: (all) => void controller.print(all),
+    onPrintMenuChange: (open) => dispatch({ type: "set-print-menu", open }),
+    onRedo: () => dispatch({ type: "redo" }),
+    onRemovePrinter: (printerId) => void controller.removePrinter(printerId),
+    onSave: () => void controller.save(false),
+    onSelectPrinter: controller.selectPrinter,
+    onUndo: () => dispatch({ type: "undo" }),
+    plateCount: state.workspace.plates.length,
+    platform: host.platform,
+    printMenuOpen: state.printMenuOpen,
+    printers: state.printers,
+    saveState,
+    workspaceName: state.workspace.name,
+  };
 
   return (
-    <div ref={shellRef} className={`app-shell platform-${host.platform}`}>
+    <div
+      ref={shellRef}
+      className={`app-shell platform-${host.platform} layout-${layout}`}
+      data-software-keyboard={softwareKeyboardOpen ? "open" : undefined}
+    >
       <div className="application-content">
-        <AppHeader
-          activePrinterId={state.activePrinterId}
-          canPrint={controller.canPrint}
-          canRedo={state.future.length > 0}
-          canUndo={state.past.length > 0}
-          onAddPrinter={() => void controller.startDiscovery()}
-          onNew={() => void controller.newWorkspace()}
-          onOpen={() => void controller.openWorkspace()}
-          onOpenPrinterSettings={(printerId) =>
-            dispatch({ type: "open-printer-settings", printerId })
-          }
-          onPreview={() => dispatch({ type: "open-preview" })}
-          onPrint={(all) => void controller.print(all)}
-          onPrintMenuChange={(open) =>
-            dispatch({ type: "set-print-menu", open })
-          }
-          onRedo={() => dispatch({ type: "redo" })}
-          onRemovePrinter={(printerId) =>
-            void controller.removePrinter(printerId)
-          }
-          onSave={() => void controller.save(false)}
-          onSelectPrinter={controller.selectPrinter}
-          onUndo={() => dispatch({ type: "undo" })}
-          plateCount={state.workspace.plates.length}
-          platform={host.platform}
-          printMenuOpen={state.printMenuOpen}
-          printers={state.printers}
-          saveState={saveState}
-          workspaceName={state.workspace.name}
-        />
+        {layout === "standard" ? (
+          <AppHeader {...headerProps} />
+        ) : (
+          <PhoneHeader {...headerProps} />
+        )}
         <div className="desktop-body">
           <EditorCanvas
+            layout={layout}
             onAddImage={controller.addImage}
             onDraw={drawingEditor.openNew}
             onOpenIcons={() => setIconLibraryOpen(true)}
@@ -255,21 +272,10 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             onSelectElement={(elementId) =>
               dispatch({ type: "select-element", elementId })
             }
-            onTrim={() => {
-              void trimLatestWorkspace(
-                activePlate.id,
-                () => workspaceRef.current,
-                controller.editWorkspace,
-              ).catch(() =>
-                dispatch({
-                  type: "set-toast",
-                  toast: {
-                    tone: "error",
-                    message: "The label could not be trimmed.",
-                  },
-                }),
-              );
-            }}
+            onDeleteSelection={controller.deleteSelected}
+            onOpenElementProperties={() => setPhoneSheet("element")}
+            onOpenPlateSettings={() => setPhoneSheet("plate")}
+            onTrim={trimActivePlate}
             onUpdatePlate={(plate) =>
               controller.editWorkspace(
                 replacePlate(state.workspace, activePlate.id, () => plate),
@@ -279,48 +285,57 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             platform={host.platform}
             plate={activePlate}
             selectedElementId={state.selectedElementId}
+            selectedImage={selectedImage}
+            selectedShape={selectedShape}
+            selectedText={selectedText}
             printableMargins={printableMargins}
             zoom={state.zoom}
           />
-          <Inspector
+          {layout === "standard" && (
+            <Inspector
+              hasMultipleElements={editableElementCount(activePlate) > 1}
+              onDeleteSelection={controller.deleteSelected}
+              onMoveLayer={moveLayer}
+              onUpdateImage={updateImage}
+              onUpdateShape={updateShape}
+              onUpdateText={updateText}
+              selectedImage={selectedImage}
+              selectedShape={selectedShape}
+              selectedText={selectedText}
+            />
+          )}
+        </div>
+        <AppPlateStrip controller={controller} layout={layout} />
+      </div>
+      {layout !== "standard" &&
+        visiblePhoneSheet === "element" &&
+        (selectedText || selectedImage || selectedShape) && (
+          <PhoneElementPropertySheet
             hasMultipleElements={editableElementCount(activePlate) > 1}
+            onClose={() => setPhoneSheet(null)}
             onDeleteSelection={controller.deleteSelected}
-            onUpdateImage={(image) =>
-              controller.editWorkspace(
-                replacePlate(state.workspace, activePlate.id, (plate) =>
-                  updateElementAndFlagPeer(plate, image),
-                ),
-              )
-            }
-            onUpdateText={(text) =>
-              controller.editWorkspace(
-                replacePlate(state.workspace, activePlate.id, (plate) =>
-                  updateElementAndFlagPeer(plate, text),
-                ),
-              )
-            }
-            onUpdateShape={(shape) =>
-              controller.editWorkspace(
-                replacePlate(state.workspace, activePlate.id, (plate) =>
-                  updateElementAndFlagPeer(plate, shape),
-                ),
-              )
-            }
-            onMoveLayer={(direction) => {
-              if (!state.selectedElementId) return;
-              controller.editWorkspace(
-                replacePlate(state.workspace, activePlate.id, (plate) =>
-                  moveElementLayer(plate, state.selectedElementId!, direction),
-                ),
-              );
-            }}
+            onMoveLayer={moveLayer}
+            onUpdateImage={updateImage}
+            onUpdateShape={updateShape}
+            onUpdateText={updateText}
             selectedImage={selectedImage}
             selectedShape={selectedShape}
             selectedText={selectedText}
           />
-        </div>
-        <AppPlateStrip controller={controller} />
-      </div>
+        )}
+      {layout !== "standard" && visiblePhoneSheet === "plate" && (
+        <PhonePlatePropertySheet
+          onChange={(plate) =>
+            controller.editWorkspace(
+              replacePlate(state.workspace, activePlate.id, () => plate),
+            )
+          }
+          onClose={() => setPhoneSheet(null)}
+          onToggleFlag={() => controller.addSpecial("flag")}
+          onTrim={trimActivePlate}
+          plate={activePlate}
+        />
+      )}
       <AddPrinterDialog
         discovered={state.discovered}
         discoveryFailed={state.discoveryFailed}

@@ -5,7 +5,7 @@
 - Publish the source repository for public development.
 - Publish signed desktop builds for macOS, Windows, and Linux.
 - Publish a separate macOS build through the Mac App Store.
-- Publish a separate iPadOS application through the App Store.
+- Publish one universal iPhone and iPad application through the App Store.
 - Keep the optional server and local print bridge separate from desktop bundles.
 
 ## Open-source release
@@ -39,14 +39,14 @@ The Mac App Store build is different from a normal Electron macOS build:
 Do not store certificates, provisioning profiles, private keys, App Store
 Connect API keys, or account identifiers in the repository.
 
-## iPadOS build
+## iPhone and iPad build
 
-The iPad application is a separate native binary. It bundles the shared React
+The Apple mobile application is a separate native binary. It bundles the shared React
 application and TypeScript printer code as local web resources. A Swift shell
 provides document access and CoreBluetooth. Use automatic signing for local
 device builds. Use an explicit distribution profile for App Store builds.
 
-The development build needs an Apple Development identity, an available iPad
+The development build needs an Apple Development identity, an available iPhone or iPad
 in Developer Mode, and Bluetooth and document-use privacy descriptions. Keep
 the development Team ID outside the committed project configuration when
 possible.
@@ -56,7 +56,7 @@ possible.
 - The Apple Developer membership, Team ID, bundle ID, and signing identities are
   not available in this repository.
 - Bluetooth Low Energy has not been tested from an Electron `mas` build.
-- Bluetooth Low Energy on iPadOS needs a physical MakeID E1 hardware test.
+- Bluetooth Low Energy on iPhone and iPad needs a physical MakeID E1 hardware test.
 - The application icon, privacy text, support URL, and store metadata are not
   final.
 

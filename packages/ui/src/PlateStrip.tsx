@@ -59,6 +59,8 @@ function PlateName({
   ignoreSuppressedClick,
   onRenamePlate,
   onSelectPlate,
+  active,
+  phoneMode,
 }: {
   readonly index: number;
   readonly plate: LabelPlate;
@@ -67,6 +69,8 @@ function PlateName({
   readonly ignoreSuppressedClick: () => boolean;
   readonly onRenamePlate: (plateId: string, name: string) => void;
   readonly onSelectPlate: (plateId: string, elementId: string | null) => void;
+  readonly active: boolean;
+  readonly phoneMode: boolean;
 }) {
   const editing = rename?.plateId === plate.id;
   const inputRef = useRef<HTMLInputElement>(null);
@@ -116,7 +120,11 @@ function PlateName({
           event.preventDefault();
           return;
         }
-        onSelectPlate(plate.id, null);
+        if (phoneMode && active) {
+          setRename({ plateId: plate.id, value: plate.name });
+        } else {
+          onSelectPlate(plate.id, null);
+        }
       }}
       onDoubleClick={(event) => {
         event.preventDefault();
@@ -147,6 +155,8 @@ export function PlateStrip({
   printHeadSizeMm,
   marginTopMm,
   marginBottomMm,
+  phoneMode = false,
+  short = false,
 }: {
   readonly workspace: LabelDocument;
   readonly activePlateId: string;
@@ -158,6 +168,8 @@ export function PlateStrip({
   readonly printHeadSizeMm: number | undefined;
   readonly marginTopMm: number | undefined;
   readonly marginBottomMm: number | undefined;
+  readonly phoneMode?: boolean;
+  readonly short?: boolean;
 }) {
   const keyboardDeleteEnabledRef = useRef(false);
   const stripRef = useRef<HTMLElement>(null);
@@ -315,7 +327,11 @@ export function PlateStrip({
   );
 
   return (
-    <footer aria-label="Labels" className="plate-strip" ref={stripRef}>
+    <footer
+      aria-label="Labels"
+      className={`plate-strip${phoneMode ? " phone-plate-strip" : ""}${short ? " short" : ""}`}
+      ref={stripRef}
+    >
       <div className="plate-thumbnails">
         {displayedPlates.map((plate, index) => {
           return (
@@ -326,8 +342,8 @@ export function PlateStrip({
               onPointerDown={(event) => handlePointerDown(event, plate.id)}
               style={
                 {
-                  "--label-preview-height": `${plate.size.heightMm * THUMBNAIL_PIXELS_PER_MM}px`,
-                  "--label-preview-width": `${plate.size.widthMm * THUMBNAIL_PIXELS_PER_MM}px`,
+                  "--label-preview-height": `${plate.size.heightMm * (phoneMode ? (short ? 1.75 : 2.35) : THUMBNAIL_PIXELS_PER_MM)}px`,
+                  "--label-preview-width": `${plate.size.widthMm * (phoneMode ? (short ? 1.75 : 2.35) : THUMBNAIL_PIXELS_PER_MM)}px`,
                 } as CSSProperties & Record<`--${string}`, string>
               }
             >
@@ -387,10 +403,12 @@ export function PlateStrip({
                 />
               </button>
               <PlateName
+                active={plate.id === activePlateId}
                 ignoreSuppressedClick={ignoreSuppressedClick}
                 index={index}
                 onRenamePlate={onRenamePlate}
                 onSelectPlate={onSelectPlate}
+                phoneMode={phoneMode}
                 plate={plate}
                 rename={rename}
                 setRename={setRename}

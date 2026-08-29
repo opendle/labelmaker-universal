@@ -624,6 +624,51 @@ export function PlateToolbarSettings({
   );
 }
 
+export interface InspectorContentProps {
+  readonly selectedText: TextElement | undefined;
+  readonly selectedImage: ImageElement | undefined;
+  readonly selectedShape: ShapeElement | undefined;
+  readonly hasMultipleElements: boolean;
+  readonly onUpdateText: (element: TextElement) => void;
+  readonly onUpdateImage: (element: ImageElement) => void;
+  readonly onUpdateShape: (element: ShapeElement) => void;
+  readonly onMoveLayer: (direction: "back" | "front") => void;
+}
+
+export function InspectorContent({
+  selectedText,
+  selectedImage,
+  selectedShape,
+  hasMultipleElements,
+  onUpdateText,
+  onUpdateImage,
+  onUpdateShape,
+  onMoveLayer,
+}: InspectorContentProps) {
+  return selectedText ? (
+    <TextInspector
+      element={selectedText}
+      hasMultipleElements={hasMultipleElements}
+      onChange={onUpdateText}
+      onMoveLayer={onMoveLayer}
+    />
+  ) : selectedImage ? (
+    <ImageInspector
+      element={selectedImage}
+      hasMultipleElements={hasMultipleElements}
+      onChange={onUpdateImage}
+      onMoveLayer={onMoveLayer}
+    />
+  ) : selectedShape ? (
+    <ShapeInspector
+      element={selectedShape}
+      hasMultipleElements={hasMultipleElements}
+      onChange={onUpdateShape}
+      onMoveLayer={onMoveLayer}
+    />
+  ) : null;
+}
+
 export function Inspector({
   selectedText,
   selectedImage,
@@ -634,16 +679,8 @@ export function Inspector({
   onUpdateImage,
   onUpdateShape,
   onMoveLayer,
-}: {
-  readonly selectedText: TextElement | undefined;
-  readonly selectedImage: ImageElement | undefined;
-  readonly selectedShape: ShapeElement | undefined;
-  readonly hasMultipleElements: boolean;
+}: InspectorContentProps & {
   readonly onDeleteSelection: () => void;
-  readonly onUpdateText: (element: TextElement) => void;
-  readonly onUpdateImage: (element: ImageElement) => void;
-  readonly onUpdateShape: (element: ShapeElement) => void;
-  readonly onMoveLayer: (direction: "back" | "front") => void;
 }) {
   const selectedElement = selectedText ?? selectedImage ?? selectedShape;
   return (
@@ -666,28 +703,16 @@ export function Inspector({
           </div>
         </div>
       )}
-      {selectedText ? (
-        <TextInspector
-          element={selectedText}
-          hasMultipleElements={hasMultipleElements}
-          onChange={onUpdateText}
-          onMoveLayer={onMoveLayer}
-        />
-      ) : selectedImage ? (
-        <ImageInspector
-          element={selectedImage}
-          hasMultipleElements={hasMultipleElements}
-          onChange={onUpdateImage}
-          onMoveLayer={onMoveLayer}
-        />
-      ) : selectedShape ? (
-        <ShapeInspector
-          element={selectedShape}
-          hasMultipleElements={hasMultipleElements}
-          onChange={onUpdateShape}
-          onMoveLayer={onMoveLayer}
-        />
-      ) : null}
+      <InspectorContent
+        hasMultipleElements={hasMultipleElements}
+        onMoveLayer={onMoveLayer}
+        onUpdateImage={onUpdateImage}
+        onUpdateShape={onUpdateShape}
+        onUpdateText={onUpdateText}
+        selectedImage={selectedImage}
+        selectedShape={selectedShape}
+        selectedText={selectedText}
+      />
     </aside>
   );
 }

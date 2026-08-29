@@ -9,7 +9,7 @@ documents -> domain <- rendering <- printing <- concrete adapters
                 +---- application ports ---- shared UI
                                       ^
                                       |
-                        desktop, iPad, or server shell
+                    desktop, Apple mobile, or server shell
 ```
 
 Dependencies point toward stable contracts. The UI knows application ports,
@@ -60,8 +60,9 @@ Electron IPC, filesystem APIs, or adapters directly.
 `apps/desktop` creates the Electron window, provides a safe preload API, stores
 documents, registers local adapters, and assembles the UI.
 
-`apps/ipad` embeds the same local React application in a restricted `WKWebView`.
-Its Swift host provides iPad document pickers, recovery storage, and native
+`apps/ipad` is the universal iPhone and iPad shell. It embeds the same local
+React application in a restricted `WKWebView`. Its Swift host provides system
+document pickers, recovery storage, and native
 CoreBluetooth transport operations through a narrow request and reply bridge.
 The TypeScript MakeID adapter still owns printer protocol behavior.
 
@@ -73,7 +74,7 @@ or USB printer.
 
 `@labelmaker/rendering` owns plate SVG construction and transport-neutral raster
 conversion. A shell injects only the platform rasterizer that converts SVG into
-RGBA pixels. This keeps desktop and iPad print output on the same tested path.
+RGBA pixels. This keeps desktop, iPhone, and iPad print output on the same tested path.
 
 ## Composition
 

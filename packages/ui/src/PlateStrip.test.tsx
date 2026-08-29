@@ -169,4 +169,32 @@ describe("PlateStrip", () => {
 
     expect(onMovePlate).toHaveBeenCalledWith("plate-capacitors", 0);
   });
+
+  it("renames the active label from one Phone name tap", () => {
+    const onRenamePlate = vi.fn();
+    render(
+      <PlateStrip
+        activePlateId="plate-resistors"
+        marginBottomMm={undefined}
+        marginTopMm={undefined}
+        onAddPlate={vi.fn()}
+        onDeletePlate={vi.fn()}
+        onMovePlate={vi.fn()}
+        onRenamePlate={onRenamePlate}
+        onSelectPlate={vi.fn()}
+        phoneMode
+        printHeadSizeMm={undefined}
+        workspace={sampleDocument}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Rename label 1: Resistors" }),
+    );
+    const input = screen.getByLabelText("Label name");
+    fireEvent.change(input, { target: { value: "Parts" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(onRenamePlate).toHaveBeenCalledWith("plate-resistors", "Parts");
+  });
 });

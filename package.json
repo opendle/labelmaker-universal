@@ -24,6 +24,7 @@
     "format:check": "prettier --check .",
     "app-store:screenshots": "npm run app-store:screenshots --workspace @labelmaker/ipad",
     "react:doctor": "node scripts/react-doctor-gate.mjs",
+    "responsive:screenshots": "npm run responsive:screenshots --workspace @labelmaker/ipad",
     "test": "vitest run",
     "typecheck": "tsc --build && tsc --project tsconfig.tests.json && npm run typecheck --workspaces --if-present",
     "ui:screenshot": "npm run screenshot --workspace @labelmaker/desktop",

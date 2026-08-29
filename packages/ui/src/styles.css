@@ -2740,6 +2740,740 @@ textarea.inline-text-editor:focus-visible {
   }
 }
 
+/* Phone mode is a separate responsive presentation of the shared editor. */
+.layout-phone,
+.layout-phone-short {
+  --phone-header-height: 56px;
+  --phone-strip-height: 68px;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.layout-phone-short {
+  --phone-header-height: 48px;
+  --phone-strip-height: 54px;
+}
+
+.layout-phone .application-content,
+.layout-phone-short .application-content,
+.platform-ipados.layout-phone .application-content,
+.platform-ipados.layout-phone-short .application-content {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows:
+    calc(var(--phone-header-height) + env(safe-area-inset-top)) minmax(0, 1fr)
+    calc(var(--phone-strip-height) + env(safe-area-inset-bottom));
+}
+
+.phone-titlebar {
+  -webkit-app-region: drag;
+  z-index: 20;
+  width: 100%;
+  min-width: 0;
+  padding: env(safe-area-inset-top) max(8px, env(safe-area-inset-right)) 0
+    max(8px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  background: rgba(250, 249, 246, 0.97);
+}
+
+.phone-titlebar button,
+.phone-titlebar .print-control {
+  -webkit-app-region: no-drag;
+}
+
+.phone-window-drag-spacer {
+  flex: 0 0 0;
+}
+
+.phone-window-drag-spacer.macos {
+  flex-basis: 74px;
+}
+
+.platform-ipados .phone-window-drag-spacer.macos {
+  flex-basis: 0;
+}
+
+.phone-header-actions {
+  min-width: 0;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.phone-header-actions .icon-button,
+.phone-header-icon {
+  width: 44px;
+  height: 44px;
+}
+
+.phone-header-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #68655d;
+}
+
+.phone-header-icon:hover,
+.phone-header-icon:focus-visible,
+.phone-header-icon[aria-expanded="true"] {
+  background: #ebe9e2;
+  color: var(--ink);
+}
+
+.phone-header-icon.is-dirty::after {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  content: "";
+  border: 1px solid var(--panel);
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.phone-workspace-control {
+  position: relative;
+}
+
+.phone-workspace-menu {
+  position: absolute;
+  z-index: 30;
+  top: 48px;
+  left: 0;
+  width: 230px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+  box-shadow: 0 12px 35px rgba(40, 35, 25, 0.2);
+}
+
+.phone-workspace-summary {
+  padding: 9px 10px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  border-bottom: 1px solid var(--line);
+}
+
+.phone-workspace-summary strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.phone-workspace-summary span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.phone-workspace-menu button,
+.phone-tools-menu button {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+
+.phone-workspace-menu button:hover,
+.phone-tools-menu button:hover,
+.phone-workspace-menu button:focus-visible,
+.phone-tools-menu button:focus-visible {
+  background: #f0eee8;
+}
+
+.phone-history-actions {
+  display: flex;
+}
+
+.phone-titlebar .printer-trigger {
+  position: relative;
+  width: 116px;
+  height: 44px;
+  min-height: 44px;
+}
+
+.phone-titlebar .printer-add-trigger {
+  width: 116px;
+}
+
+.printer-compact-status {
+  display: none;
+}
+
+.phone-titlebar .printer-menu,
+.phone-titlebar .popup-menu {
+  top: 48px;
+}
+
+.phone-titlebar .print-control > .button {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+
+.phone-titlebar .print-control .split {
+  width: 44px;
+}
+
+.phone-titlebar .print-label {
+  display: none;
+}
+
+.phone-titlebar .popup-menu {
+  width: 220px;
+}
+
+.phone-titlebar .popup-menu button {
+  min-height: 44px;
+}
+
+.layout-phone .desktop-body,
+.layout-phone-short .desktop-body,
+.platform-ipados.layout-phone .desktop-body,
+.platform-ipados.layout-phone-short .desktop-body {
+  --editor-toolbar-height: 48px;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 48px minmax(0, 1fr);
+}
+
+.phone-editor-toolbar {
+  position: relative;
+  z-index: 11;
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  display: flex;
+  border-bottom: 1px solid var(--line);
+  background: #f7f6f2;
+}
+
+.phone-command-scroll {
+  min-width: 0;
+  flex: 1 1 auto;
+  padding: 2px 4px 2px max(5px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.phone-command-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.phone-command-fixed {
+  flex: 0 0 auto;
+  padding-right: max(3px, env(safe-area-inset-right));
+  display: flex;
+  align-items: center;
+  border-left: 1px solid var(--line);
+  background: #f7f6f2;
+  box-shadow: -5px 0 9px rgba(40, 35, 25, 0.06);
+}
+
+.phone-command-button,
+.phone-command-icon,
+.phone-quick-segmented button {
+  flex: 0 0 auto;
+  min-width: 44px;
+  height: 44px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #5f5b53;
+}
+
+.phone-command-button {
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.phone-command-icon {
+  width: 44px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+}
+
+.phone-command-button:hover,
+.phone-command-button:focus-visible,
+.phone-command-button.active,
+.phone-command-icon:hover,
+.phone-command-icon:focus-visible,
+.phone-quick-segmented button:hover,
+.phone-quick-segmented button:focus-visible,
+.phone-quick-segmented button.active {
+  border-color: #d9d5cd;
+  background: white;
+  color: var(--ink);
+}
+
+.phone-command-icon.danger {
+  color: #9a5f52;
+}
+
+.phone-command-icon.trim {
+  border-color: #d4d0c7;
+  background: white;
+  color: #5b5851;
+}
+
+.phone-tools-menu {
+  position: fixed;
+  z-index: 60;
+  width: 210px;
+  max-height: calc(var(--visual-viewport-height, 100vh) - 70px);
+  padding: 6px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel);
+  box-shadow: 0 14px 38px rgba(40, 35, 25, 0.22);
+}
+
+.phone-quick-number {
+  flex: 0 0 90px;
+  height: 40px;
+  padding: 2px 5px 2px 7px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: 11px minmax(0, 1fr);
+  align-items: center;
+  border: 1px solid var(--field-control-border);
+  border-radius: 6px;
+  background: var(--field-control-background);
+}
+
+.phone-quick-number span {
+  grid-column: 1 / 3;
+  color: var(--field-label-color);
+  font-size: 7.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.phone-quick-number input {
+  width: 100%;
+  min-width: 0;
+  height: 25px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--field-control-color);
+  text-align: right;
+  font-size: 16px;
+}
+
+.phone-quick-number b {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.phone-stroke-control {
+  flex-basis: 100px;
+}
+
+.phone-quick-segmented {
+  flex: 0 0 auto;
+  display: flex;
+}
+
+.phone-quick-segmented button + button {
+  margin-left: -1px;
+}
+
+.phone-quick-range {
+  flex: 0 0 155px;
+  height: 44px;
+  padding: 3px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.phone-quick-range span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--field-label-color);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.phone-quick-range input {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.layout-phone .work-surface,
+.layout-phone-short .work-surface {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.phone-plate-strip {
+  height: 100%;
+  padding: 4px max(6px, env(safe-area-inset-right))
+    max(3px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+}
+
+.phone-plate-strip .plate-thumbnails {
+  gap: 6px;
+  padding-bottom: 0;
+}
+
+.phone-plate-strip .plate-thumb {
+  flex-basis: calc(var(--label-preview-width) + 8px);
+  grid-template-rows: minmax(0, 1fr) 13px;
+  border-radius: 6px;
+}
+
+.phone-plate-strip .plate-thumb-select {
+  min-height: 44px;
+  padding: 2px 4px 0;
+}
+
+.phone-plate-strip .thumb-name-control,
+.phone-plate-strip .thumb-name-input {
+  height: 13px;
+  margin-bottom: 0;
+}
+
+.phone-plate-strip .thumb-name {
+  font-size: 8px;
+}
+
+.phone-plate-strip .plate-number {
+  top: 2px;
+  left: 2px;
+  width: 13px;
+  height: 13px;
+  font-size: 7px;
+}
+
+.phone-plate-strip .plate-delete {
+  top: 0;
+  right: 0;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+}
+
+.phone-plate-strip .plate-delete::before {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  content: "";
+  border: 1px solid rgba(117, 110, 99, 0.3);
+  border-radius: 5px;
+  background: rgba(255, 254, 250, 0.92);
+}
+
+.phone-plate-strip .plate-delete svg {
+  position: relative;
+  z-index: 1;
+}
+
+.phone-plate-strip .add-plate {
+  flex-basis: 58px;
+  min-width: 58px;
+  min-height: 44px;
+  gap: 2px;
+  border-radius: 6px;
+}
+
+.phone-plate-strip .add-plate span {
+  font-size: 8px;
+}
+
+.phone-plate-strip.short .add-plate span,
+.phone-plate-strip.short .thumb-name-control,
+.phone-plate-strip.short .thumb-name-input {
+  display: none;
+}
+
+.phone-plate-strip.short .plate-thumb {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.phone-property-modal.modal-backdrop {
+  align-items: flex-end;
+  padding: 8px max(8px, env(safe-area-inset-right))
+    calc(var(--phone-strip-height) + env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
+}
+
+.phone-property-modal .dialog {
+  width: 100%;
+  max-width: 600px;
+  max-height: min(
+    72vh,
+    calc(
+      var(--visual-viewport-height, 100vh) - var(--phone-header-height) -
+        var(--phone-strip-height) - env(safe-area-inset-top) -
+        env(safe-area-inset-bottom) - 16px
+    )
+  );
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px 14px 0 0;
+}
+
+.layout-phone-short .phone-property-modal .dialog {
+  max-height: calc(
+    var(--visual-viewport-height, 100vh) - var(--phone-header-height) -
+      var(--phone-strip-height) - env(safe-area-inset-top) -
+      env(safe-area-inset-bottom) - 12px
+  );
+}
+
+.phone-sheet-header {
+  flex: 0 0 52px;
+  padding: 0 8px 0 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--line);
+}
+
+.phone-sheet-header h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.phone-sheet-header-actions {
+  display: flex;
+}
+
+.phone-sheet-header .icon-button {
+  width: 44px;
+  height: 44px;
+}
+
+.phone-property-modal .property-stack {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px;
+}
+
+.phone-plate-settings-content {
+  min-height: 0;
+  padding: 14px;
+  overflow-y: auto;
+}
+
+.phone-plate-mode-actions {
+  margin-bottom: 12px;
+  display: flex;
+  gap: 6px;
+}
+
+.phone-plate-mode-actions .tool-button {
+  min-height: 44px;
+}
+
+.phone-plate-property-modal .plate-toolbar-settings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.phone-plate-property-modal .toolbar-field {
+  width: auto;
+}
+
+.phone-plate-property-modal .toolbar-unit-input {
+  width: 100%;
+  min-height: 44px;
+}
+
+.phone-plate-property-modal .toolbar-separator {
+  display: none;
+}
+
+.phone-plate-property-modal .toolbar-trim-button {
+  min-height: 44px;
+}
+
+.layout-phone .modal-backdrop:not(.phone-property-modal),
+.layout-phone-short .modal-backdrop:not(.phone-property-modal) {
+  align-items: stretch;
+  justify-content: stretch;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  backdrop-filter: none;
+}
+
+.layout-phone .modal-backdrop:not(.phone-property-modal) .dialog,
+.layout-phone-short .modal-backdrop:not(.phone-property-modal) .dialog {
+  width: 100%;
+  height: var(--visual-viewport-height, 100vh);
+  max-width: none;
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0;
+}
+
+.layout-phone .dialog-header,
+.layout-phone-short .dialog-header,
+.layout-phone .drawing-header,
+.layout-phone-short .drawing-header {
+  flex: 0 0 auto;
+}
+
+.layout-phone .discovery-list,
+.layout-phone-short .discovery-list,
+.layout-phone .printer-settings-content,
+.layout-phone-short .printer-settings-content,
+.layout-phone .icon-library-list,
+.layout-phone-short .icon-library-list,
+.layout-phone .drawing-surface,
+.layout-phone-short .drawing-surface,
+.layout-phone .preview-surface,
+.layout-phone-short .preview-surface {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+
+.layout-phone .printer-settings-form,
+.layout-phone-short .printer-settings-form {
+  overflow-y: auto;
+}
+
+.layout-phone .printer-geometry-grid,
+.layout-phone-short .printer-geometry-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.layout-phone .dialog-footer,
+.layout-phone-short .dialog-footer,
+.layout-phone .drawing-tools,
+.layout-phone-short .drawing-tools {
+  flex: 0 0 auto;
+}
+
+.layout-phone[data-software-keyboard="open"] .application-content,
+.layout-phone-short[data-software-keyboard="open"] .application-content,
+.platform-ipados.layout-phone[data-software-keyboard="open"]
+  .application-content,
+.platform-ipados.layout-phone-short[data-software-keyboard="open"]
+  .application-content {
+  grid-template-rows:
+    calc(var(--phone-header-height) + env(safe-area-inset-top)) minmax(0, 1fr)
+    0;
+}
+
+.layout-phone[data-software-keyboard="open"] .plate-strip,
+.layout-phone-short[data-software-keyboard="open"] .plate-strip {
+  display: none;
+}
+
+.layout-phone[data-software-keyboard="open"]
+  .application-content:has(.inline-text-editor:focus),
+.layout-phone-short[data-software-keyboard="open"]
+  .application-content:has(.inline-text-editor:focus) {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.layout-phone[data-software-keyboard="open"]
+  .application-content:has(.inline-text-editor:focus)
+  .phone-titlebar,
+.layout-phone-short[data-software-keyboard="open"]
+  .application-content:has(.inline-text-editor:focus)
+  .phone-titlebar,
+.layout-phone[data-software-keyboard="open"]
+  .application-content:has(.inline-text-editor:focus)
+  .phone-editor-toolbar,
+.layout-phone-short[data-software-keyboard="open"]
+  .application-content:has(.inline-text-editor:focus)
+  .phone-editor-toolbar {
+  display: none;
+}
+
+.layout-phone[data-software-keyboard="open"]
+  .application-content:has(.inline-text-editor:focus)
+  .desktop-body,
+.layout-phone-short[data-software-keyboard="open"]
+  .application-content:has(.inline-text-editor:focus)
+  .desktop-body {
+  grid-template-rows: minmax(0, 1fr);
+  padding-top: env(safe-area-inset-top);
+}
+
+.layout-phone[data-software-keyboard="open"]
+  .phone-property-modal.modal-backdrop,
+.layout-phone-short[data-software-keyboard="open"]
+  .phone-property-modal.modal-backdrop {
+  padding-bottom: 0;
+}
+
+@media (max-width: 430px) {
+  .phone-titlebar .printer-trigger,
+  .phone-titlebar .printer-add-trigger {
+    width: 44px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .phone-titlebar .printer-trigger-copy,
+  .phone-titlebar .printer-trigger > svg:last-child,
+  .phone-titlebar .printer-add-trigger strong {
+    display: none;
+  }
+
+  .phone-titlebar .printer-compact-status {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    display: block;
+    width: 7px;
+    height: 7px;
+  }
+}
+
+@media (max-width: 360px) {
+  .phone-header-actions > .icon-button {
+    display: none;
+  }
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -2778,6 +3512,54 @@ textarea.inline-text-editor:focus-visible {
   .titlebar {
     background: rgba(35, 36, 39, 0.97);
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.035);
+  }
+
+  .phone-titlebar {
+    background: rgba(35, 36, 39, 0.97);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.035);
+  }
+
+  .phone-header-icon,
+  .phone-command-button,
+  .phone-command-icon,
+  .phone-quick-segmented button {
+    color: #c4c1ba;
+  }
+
+  .phone-header-icon:hover,
+  .phone-header-icon:focus-visible,
+  .phone-header-icon[aria-expanded="true"],
+  .phone-workspace-menu button:hover,
+  .phone-tools-menu button:hover,
+  .phone-workspace-menu button:focus-visible,
+  .phone-tools-menu button:focus-visible {
+    background: #383a3e;
+    color: #fff;
+  }
+
+  .phone-editor-toolbar,
+  .phone-command-fixed {
+    border-color: #3d3f43;
+    background: #292a2d;
+  }
+
+  .phone-command-button:hover,
+  .phone-command-button:focus-visible,
+  .phone-command-button.active,
+  .phone-command-icon:hover,
+  .phone-command-icon:focus-visible,
+  .phone-quick-segmented button:hover,
+  .phone-quick-segmented button:focus-visible,
+  .phone-quick-segmented button.active,
+  .phone-command-icon.trim {
+    border-color: #505258;
+    background: #36383c;
+    color: #fff;
+  }
+
+  .phone-plate-strip .plate-delete::before {
+    border-color: #5b5d61;
+    background: rgba(42, 43, 46, 0.94);
   }
 
   .header-action {

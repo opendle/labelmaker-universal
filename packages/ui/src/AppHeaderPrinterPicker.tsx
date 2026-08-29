@@ -15,6 +15,7 @@ export function AppHeaderPrinterPicker({
   onAddPrinter,
   onRemovePrinter,
   onOpenPrinterSettings,
+  compactStatus = false,
 }: {
   readonly printers: readonly PrinterSummary[];
   readonly activePrinterId: string;
@@ -22,6 +23,7 @@ export function AppHeaderPrinterPicker({
   readonly onAddPrinter: () => void;
   readonly onRemovePrinter: ((printerId: string) => void) | undefined;
   readonly onOpenPrinterSettings: (printerId: string) => void;
+  readonly compactStatus?: boolean;
 }) {
   const activePrinter = printers.find(
     (printer) => printer.id === activePrinterId,
@@ -73,6 +75,11 @@ export function AppHeaderPrinterPicker({
         type="button"
       >
         <Printer size={17} />
+        {compactStatus && activePrinter && (
+          <span className="printer-compact-status">
+            <StatusDot state={activePrinter.state} />
+          </span>
+        )}
         <span className="printer-trigger-copy">
           <strong>{activePrinter?.name ?? "No printer"}</strong>
           <small>

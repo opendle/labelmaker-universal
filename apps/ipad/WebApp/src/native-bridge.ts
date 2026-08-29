@@ -145,7 +145,7 @@ export async function callNative<M extends keyof NativeMethodMap>(
   if (!handler) {
     throw new NativeBridgeError(
       "NATIVE_BRIDGE_UNAVAILABLE",
-      "The iPad host is not available.",
+      "The iPhone or iPad host is not available.",
     );
   }
   const rawReply = await handler.postMessage({
@@ -156,7 +156,7 @@ export async function callNative<M extends keyof NativeMethodMap>(
   if (!isRecord(rawReply) || typeof rawReply.ok !== "boolean") {
     throw new NativeBridgeError(
       "INVALID_NATIVE_REPLY",
-      "The iPad host returned an invalid reply.",
+      "The iPhone or iPad host returned an invalid reply.",
     );
   }
   const reply = rawReply as unknown as NativeReply<
@@ -164,7 +164,8 @@ export async function callNative<M extends keyof NativeMethodMap>(
   >;
   if (!reply.ok) {
     const code = reply.error?.code ?? "NATIVE_OPERATION_FAILED";
-    const message = reply.error?.message ?? "The iPad operation failed.";
+    const message =
+      reply.error?.message ?? "The operation failed on this device.";
     throw new NativeBridgeError(code, message);
   }
   return reply.result as NativeMethodMap[M]["response"];

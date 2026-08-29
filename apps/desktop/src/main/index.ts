@@ -842,8 +842,8 @@ function createWindow(): void {
   const window = new BrowserWindow({
     width,
     height,
-    minWidth: 900,
-    minHeight: 650,
+    minWidth: 600,
+    minHeight: 500,
     show: false,
     skipTaskbar: isScreenshotCapture,
     backgroundColor: nativeTheme.shouldUseDarkColors ? "#1c1d1f" : "#efeee9",

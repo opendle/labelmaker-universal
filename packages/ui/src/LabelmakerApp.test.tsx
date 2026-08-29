@@ -3,6 +3,7 @@
 import "@testing-library/jest-dom/vitest";
 
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -2163,5 +2164,345 @@ describe("LabelmakerApp", () => {
     expect(
       macView.container.querySelector(".window-drag-spacer.macos"),
     ).not.toBeNull();
+  });
+
+  it("uses the Phone header and compact text controls in a narrow viewport", async () => {
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 852);
+    const user = userEvent.setup();
+    const { container } = render(<LabelmakerApp host={createHost()} />);
+
+    expect(container.querySelector(".app-shell")).toHaveClass("layout-phone");
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", {
+        name: "Selected printer: Studio Labeler",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("spinbutton", { name: "Font size" })).toHaveValue(
+      18,
+    );
+    expect(
+      screen.getByRole("button", { name: "Align center" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: "More element properties" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Trim label to content" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("contentinfo", { name: "Labels" })).toHaveClass(
+      "phone-plate-strip",
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /Workspace Labels, Not saved/ }),
+    );
+    expect(
+      screen.getByRole("menuitem", { name: "New workspace" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Open workspace" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Save workspace" }),
+    ).toBeInTheDocument();
+  });
+
+  it("fits a wide label inside the Phone work area at 100 percent", async () => {
+    vi.stubGlobal("innerWidth", 320);
+    vi.stubGlobal("innerHeight", 667);
+    const wideDocument = {
+      ...sampleDocument,
+      plates: [
+        {
+          ...sampleDocument.plates[0]!,
+          size: { ...sampleDocument.plates[0]!.size, widthMm: 1_000 },
+        },
+        ...sampleDocument.plates.slice(1),
+      ],
+    };
+    render(
+      <LabelmakerApp
+        host={createHost({
+          loadWorkspaceRecovery: vi.fn().mockResolvedValue({
+            document: wideDocument,
+            dirty: false,
+            activePlateId: wideDocument.plates[0]!.id,
+            selectedElementId: wideDocument.plates[0]!.elements[0]!.id,
+            zoom: 100,
+            savedAt: null,
+            fileName: null,
+          }),
+        })}
+      />,
+    );
+
+    expect(await screen.findAllByText("1000 mm")).not.toHaveLength(0);
+    await waitFor(() =>
+      expect(
+        Number.parseFloat(
+          screen.getByRole("region", { name: "Resistors label canvas" }).style
+            .width,
+        ),
+      ).toBeLessThanOrEqual(236),
+    );
+  });
+
+  it("closes Phone menus and preserves editor state in standard mode", async () => {
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 852);
+    const user = userEvent.setup();
+    const { container } = render(<LabelmakerApp host={createHost()} />);
+
+    const fontSize = screen.getByRole("spinbutton", { name: "Font size" });
+    fireEvent.change(fontSize, { target: { value: "23" } });
+    await user.click(screen.getByRole("button", { name: "Print options" }));
+    expect(
+      screen.getByRole("menu", { name: "Print options" }),
+    ).toBeInTheDocument();
+
+    act(() => {
+      vi.stubGlobal("innerWidth", 744);
+      vi.stubGlobal("innerHeight", 1_024);
+      globalThis.dispatchEvent(new Event("resize"));
+    });
+    await waitFor(() =>
+      expect(container.querySelector(".app-shell")).toHaveClass(
+        "layout-standard",
+      ),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("menu", { name: "Print options" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(screen.getByRole("spinbutton", { name: "Font size" })).toHaveValue(
+      23,
+    );
+    expect(
+      screen
+        .getByRole("button", { name: "Text element: RESISTORS" })
+        .closest(".canvas-element"),
+    ).toHaveClass("selected");
+
+    act(() => {
+      vi.stubGlobal("innerWidth", 393);
+      vi.stubGlobal("innerHeight", 852);
+      globalThis.dispatchEvent(new Event("resize"));
+    });
+    await waitFor(() =>
+      expect(container.querySelector(".app-shell")).toHaveClass("layout-phone"),
+    );
+    expect(screen.getByRole("spinbutton", { name: "Font size" })).toHaveValue(
+      23,
+    );
+  });
+
+  it("keeps Preview available in Phone mode without a printer", async () => {
+    vi.stubGlobal("innerWidth", 375);
+    vi.stubGlobal("innerHeight", 667);
+    const user = userEvent.setup();
+    render(
+      <LabelmakerApp
+        host={createHost({ listPrinters: vi.fn().mockResolvedValue([]) })}
+      />,
+    );
+
+    const options = screen.getByRole("button", { name: "Print options" });
+    expect(options).toBeEnabled();
+    await user.click(options);
+    expect(
+      screen.getByRole("menuitem", { name: "Preview label" }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("menuitem", { name: "Print current label" }),
+    ).toBeDisabled();
+    await user.click(screen.getByRole("menuitem", { name: "Preview label" }));
+    expect(
+      screen.getByRole("dialog", { name: "Print preview" }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens complete element and label property sheets in Phone mode", async () => {
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 852);
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "More element properties" }),
+    );
+    const elementSheet = screen.getByRole("dialog", {
+      name: "Text properties",
+    });
+    expect(elementSheet).toHaveTextContent("TYPEFACE");
+    expect(elementSheet).toHaveTextContent("LINE HEIGHT");
+    expect(elementSheet).toHaveTextContent("VERTICAL");
+    expect(elementSheet).toHaveTextContent("ROTATION");
+    await user.click(screen.getByRole("button", { name: "Close properties" }));
+
+    await user.click(screen.getByRole("button", { name: "Label settings" }));
+    const labelSheet = screen.getByRole("dialog", { name: "Label settings" });
+    expect(labelSheet).toHaveTextContent("WIDTH");
+    expect(labelSheet).toHaveTextContent("HEIGHT");
+    expect(labelSheet).toHaveTextContent("LEFT");
+    expect(labelSheet).toHaveTextContent("RIGHT");
+    expect(
+      screen.getByRole("button", { name: "Trim plate to content" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps an element sheet current through undo and redo", async () => {
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 852);
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "More element properties" }),
+    );
+    const fontSize = screen.getByRole("spinbutton", { name: "Font size" });
+    fireEvent.change(fontSize, { target: { value: "24" } });
+    expect(fontSize).toHaveValue(24);
+
+    await user.keyboard("{Control>}z{/Control}");
+    expect(
+      screen.getByRole("dialog", { name: "Text properties" }),
+    ).toBeVisible();
+    expect(screen.getByRole("spinbutton", { name: "Font size" })).toHaveValue(
+      18,
+    );
+    await user.keyboard("{Control>}y{/Control}");
+    expect(screen.getByRole("spinbutton", { name: "Font size" })).toHaveValue(
+      24,
+    );
+
+    await user.keyboard("{Escape}");
+    expect(
+      screen.queryByRole("dialog", { name: "Text properties" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "More element properties" }),
+    ).toHaveFocus();
+  });
+
+  it("closes the element sheet when its selection is deleted", async () => {
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 852);
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "More element properties" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Delete selected element" }),
+    );
+    expect(
+      screen.queryByRole("dialog", { name: "Text properties" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "More element properties" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("exposes all insertion commands from the selected-element Tools menu", async () => {
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 852);
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+
+    const tools = screen.getByRole("button", { name: "Tools" });
+    await user.click(tools);
+    await waitFor(() =>
+      expect(screen.getByRole("menuitem", { name: "Text" })).toHaveFocus(),
+    );
+    for (const name of [
+      "Text",
+      "Image",
+      "Draw",
+      "Icons",
+      "Line",
+      "Rectangle",
+      "Circle",
+      "Label settings",
+    ]) {
+      expect(screen.getByRole("menuitem", { name })).toBeInTheDocument();
+    }
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: "Flag" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitemcheckbox", { name: "Mirror" }),
+    ).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+    expect(
+      screen.queryByRole("menu", { name: "Editor tools" }),
+    ).not.toBeInTheDocument();
+    expect(tools).toHaveFocus();
+
+    await user.click(tools);
+    await user.click(tools);
+    expect(
+      screen.queryByRole("menu", { name: "Editor tools" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("uses image Contrast and shape stroke as Phone quick controls", async () => {
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 852);
+    const image = {
+      id: "phone-image",
+      kind: "image" as const,
+      xMm: 2,
+      yMm: 2,
+      widthMm: 20,
+      heightMm: 8,
+      rotationDeg: 0,
+      source: "data:image/png;base64,AA==",
+      fit: "contain" as const,
+      brightness: 128,
+      contrast: 140,
+    };
+    const recovered = {
+      ...sampleDocument,
+      plates: [
+        {
+          ...sampleDocument.plates[0]!,
+          elements: [image],
+        },
+        ...sampleDocument.plates.slice(1),
+      ],
+    };
+    render(
+      <LabelmakerApp
+        host={createHost({
+          loadWorkspaceRecovery: vi.fn().mockResolvedValue({
+            document: recovered,
+            dirty: false,
+            activePlateId: recovered.plates[0]!.id,
+            selectedElementId: image.id,
+            zoom: 100,
+            savedAt: null,
+            fileName: null,
+          }),
+        })}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("slider", { name: "Image contrast" }),
+    ).toHaveValue("140");
+    expect(screen.queryByRole("combobox", { name: "Image fit" })).toBeNull();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Tools" }));
+    await user.click(screen.getByRole("menuitem", { name: "Rectangle" }));
+    expect(
+      screen.getByRole("spinbutton", { name: "Shape stroke width" }),
+    ).toBeInTheDocument();
   });
 });

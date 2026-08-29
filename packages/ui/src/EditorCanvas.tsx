@@ -1,4 +1,10 @@
-import type { LabelElement, LabelPlate } from "@labelmaker/domain";
+import type {
+  ImageElement,
+  LabelElement,
+  LabelPlate,
+  ShapeElement,
+  TextElement,
+} from "@labelmaker/domain";
 import {
   ChevronDown,
   Circle,
@@ -14,9 +20,11 @@ import {
   ZoomOut,
 } from "lucide-react";
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type ChangeEvent,
   type CSSProperties,
   type FocusEvent as ReactFocusEvent,
@@ -29,6 +37,7 @@ import { CanvasElementView } from "./CanvasElementView.js";
 import { CanvasGrid, CanvasRulers } from "./CanvasGuides.js";
 import { IconButton } from "./controls.js";
 import { clamp, isFlagPlate, MAX_ZOOM, MIN_ZOOM } from "./editor-operations.js";
+import { PhoneEditorToolbar } from "./PhoneEditorToolbar.js";
 import { PlateToolbarSettings } from "./Inspector.js";
 import {
   printableMarginPercent,
@@ -36,8 +45,44 @@ import {
 } from "./label-layout.js";
 import { useCanvasInteractions } from "./useCanvasInteractions.js";
 import type { HostPlatform } from "./host.js";
+import type { ResponsiveLayout } from "./useResponsiveLayout.js";
 
 type WorkSurfaceStyle = CSSProperties & Record<`--${string}`, string | number>;
+
+function useElementSize(ref: React.RefObject<HTMLElement | null>) {
+  const sizeRef = useRef<
+    { readonly width: number; readonly height: number } | undefined
+  >(undefined);
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      const element = ref.current;
+      if (!element) return () => undefined;
+      const update = () => {
+        const bounds = element.getBoundingClientRect();
+        const current = sizeRef.current;
+        if (
+          current?.width === bounds.width &&
+          current.height === bounds.height
+        ) {
+          return;
+        }
+        sizeRef.current = { width: bounds.width, height: bounds.height };
+        onStoreChange();
+      };
+      update();
+      if (typeof ResizeObserver === "undefined") {
+        globalThis.addEventListener("resize", update);
+        return () => globalThis.removeEventListener("resize", update);
+      }
+      const observer = new ResizeObserver(update);
+      observer.observe(element);
+      return () => observer.disconnect();
+    },
+    [ref],
+  );
+  const getSnapshot = useCallback(() => sizeRef.current, []);
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
 
 function suppressPointerFocusRing(event: ReactPointerEvent<HTMLButtonElement>) {
   event.currentTarget.dataset.focusRingSuppressed = "true";
@@ -383,6 +428,13 @@ export function EditorCanvas({
   onZoom,
   printableMargins,
   platform,
+  layout,
+  selectedText,
+  selectedImage,
+  selectedShape,
+  onDeleteSelection,
+  onOpenElementProperties,
+  onOpenPlateSettings,
 }: {
   readonly plate: LabelPlate;
   readonly selectedElementId: string | null;
@@ -403,10 +455,40 @@ export function EditorCanvas({
   readonly onZoom: (zoom: number) => void;
   readonly printableMargins: PrintableMargins;
   readonly platform: HostPlatform;
+  readonly layout: ResponsiveLayout;
+  readonly selectedText: TextElement | undefined;
+  readonly selectedImage: ImageElement | undefined;
+  readonly selectedShape: ShapeElement | undefined;
+  readonly onDeleteSelection: () => void;
+  readonly onOpenElementProperties: () => void;
+  readonly onOpenPlateSettings: () => void;
 }) {
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
+  const workSurfaceRef = useRef<HTMLDivElement>(null);
+  const workSurfaceSize = useElementSize(workSurfaceRef);
   useCommitInlineEdit(editingElementId, setEditingElementId);
-  const canvasScale = Math.min(9, 720 / plate.size.widthMm) * (zoom / 100);
+  const phoneLayout = layout !== "standard";
+  const fallbackPhoneWidth = Math.max(1, globalThis.innerWidth - 84);
+  const fallbackPhoneHeight = Math.max(1, globalThis.innerHeight - 210);
+  const availableWidth =
+    workSurfaceSize && workSurfaceSize.width > 0
+      ? workSurfaceSize.width - 84
+      : fallbackPhoneWidth;
+  const availableHeight =
+    workSurfaceSize && workSurfaceSize.height > 0
+      ? workSurfaceSize.height - 80
+      : fallbackPhoneHeight;
+  const baseCanvasScale = phoneLayout
+    ? Math.max(
+        0.01,
+        Math.min(
+          9,
+          availableWidth / plate.size.widthMm,
+          availableHeight / plate.size.heightMm,
+        ),
+      )
+    : Math.min(9, 720 / plate.size.widthMm);
+  const canvasScale = baseCanvasScale * (zoom / 100);
   const topMarginPercent = printableMarginPercent(
     printableMargins.topMm,
     plate.size.heightMm,
@@ -446,20 +528,42 @@ export function EditorCanvas({
 
   return (
     <main className="editor-area">
-      <CanvasToolbar
-        onAddImage={onAddImage}
-        onDraw={onDraw}
-        onOpenIcons={onOpenIcons}
-        onAddShape={onAddShape}
-        onAddSpecial={onAddSpecial}
-        onAddText={onAddText}
-        onTrim={onTrim}
-        onUpdatePlate={onUpdatePlate}
-        plate={plate}
-        platform={platform}
-      />
+      {phoneLayout ? (
+        <PhoneEditorToolbar
+          onAddImage={onAddImage}
+          onAddShape={onAddShape}
+          onAddSpecial={onAddSpecial}
+          onAddText={onAddText}
+          onChangeElement={onChangeElement}
+          onDeleteSelection={onDeleteSelection}
+          onDraw={onDraw}
+          onOpenElementProperties={onOpenElementProperties}
+          onOpenIcons={onOpenIcons}
+          onOpenPlateSettings={onOpenPlateSettings}
+          onTrim={onTrim}
+          onUpdatePlate={onUpdatePlate}
+          plate={plate}
+          selectedImage={selectedImage}
+          selectedShape={selectedShape}
+          selectedText={selectedText}
+        />
+      ) : (
+        <CanvasToolbar
+          onAddImage={onAddImage}
+          onDraw={onDraw}
+          onOpenIcons={onOpenIcons}
+          onAddShape={onAddShape}
+          onAddSpecial={onAddSpecial}
+          onAddText={onAddText}
+          onTrim={onTrim}
+          onUpdatePlate={onUpdatePlate}
+          plate={plate}
+          platform={platform}
+        />
+      )}
       <div
         className="work-surface"
+        ref={workSurfaceRef}
         style={
           {
             "--dot-grid-size": `${canvasScale}px`,

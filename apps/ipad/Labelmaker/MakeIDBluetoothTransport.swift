@@ -119,7 +119,7 @@ enum MakeIDBluetoothIdentity {
   }
 }
 
-/// A raw MakeID E1 CoreBluetooth byte transport for an iPad application shell.
+/// A raw MakeID E1 CoreBluetooth byte transport for an Apple mobile application shell.
 ///
 /// The class owns discovery and the GATT connection only. It does not parse
 /// MakeID packets and it does not know about workspaces, plates, or rasters.
@@ -394,7 +394,7 @@ public final class MakeIDBluetoothTransport: NSObject {
     case .unknown, .resetting:
       break
     @unknown default:
-      throw error(.bluetoothUnavailable, "Bluetooth is not available on this iPad.")
+      throw error(.bluetoothUnavailable, "Bluetooth is not available on this device.")
     }
 
     let boundedTimeout = bounded(timeoutMs)
@@ -642,9 +642,9 @@ public final class MakeIDBluetoothTransport: NSObject {
     case .poweredOff:
       return error(.bluetoothOff, "Bluetooth is off. Turn on Bluetooth, then try again.")
     case .unsupported:
-      return error(.bluetoothUnavailable, "This iPad does not support Bluetooth Low Energy.")
+      return error(.bluetoothUnavailable, "This device does not support Bluetooth Low Energy.")
     default:
-      return error(.bluetoothUnavailable, "Bluetooth is not available on this iPad.")
+      return error(.bluetoothUnavailable, "Bluetooth is not available on this device.")
     }
   }
 

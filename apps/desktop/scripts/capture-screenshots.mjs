@@ -258,6 +258,38 @@ await capture(1440, 960, "labelmaker-primary-1440x960.png", async (page) => {
   }
   await page.locator(".canvas-element-control").first().click();
 });
+await capture(600, 500, "labelmaker-phone-600x500.png", async (page) => {
+  const phoneLayout = await page.locator(".app-shell").getAttribute("class");
+  if (!phoneLayout?.includes("layout-phone-short")) {
+    throw new Error(
+      `The 600x500 window did not use Phone mode: ${phoneLayout}`,
+    );
+  }
+  await page.locator(".phone-plate-strip").waitFor();
+  const undersizedTargets = await page
+    .locator(
+      ".phone-titlebar button, .phone-editor-toolbar button, .phone-plate-strip .plate-thumb-select, .phone-plate-strip .plate-delete, .phone-plate-strip .add-plate",
+    )
+    .evaluateAll((targets) =>
+      targets.flatMap((target) => {
+        const bounds = target.getBoundingClientRect();
+        return bounds.width < 44 || bounds.height < 44
+          ? [
+              {
+                label: target.getAttribute("aria-label") ?? target.textContent,
+                width: bounds.width,
+                height: bounds.height,
+              },
+            ]
+          : [];
+      }),
+    );
+  if (undersizedTargets.length > 0) {
+    throw new Error(
+      `Phone controls are smaller than 44 px: ${JSON.stringify(undersizedTargets)}`,
+    );
+  }
+});
 await capture(
   1440,
   960,

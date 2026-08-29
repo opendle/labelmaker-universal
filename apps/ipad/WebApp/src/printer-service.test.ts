@@ -82,7 +82,7 @@ describe("iPad printer configuration", () => {
     const service = new IpadPrinterService();
 
     await expect(service.discoverPrinters()).rejects.toThrow(
-      "The iPad host is not available.",
+      "The iPhone or iPad host is not available.",
     );
   });
 });
