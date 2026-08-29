@@ -16,6 +16,7 @@ import {
   Italic,
   RotateCcw,
   SendToBack,
+  Sparkles,
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
@@ -83,29 +84,29 @@ function LineHeightField({
 }) {
   const enabled = element.lineHeightPt !== undefined;
   const [emptyDraft, setEmptyDraft] = useState(false);
+  const toggleAutomatic = () => {
+    setEmptyDraft(false);
+    if (enabled) {
+      const { lineHeightPt: _lineHeightPt, ...automatic } = element;
+      onChange(automatic);
+    } else {
+      onChange({ ...element, lineHeightPt: element.fontSizePt });
+    }
+  };
   return (
     <div className="field line-height-field">
-      <span className="field-heading">
-        LINE HEIGHT
-        <label className="auto-setting">
-          <input
-            aria-label="Use automatic line height"
-            checked={!enabled}
-            onChange={(event) => {
-              setEmptyDraft(false);
-              if (event.target.checked) {
-                const { lineHeightPt: _lineHeightPt, ...automatic } = element;
-                onChange(automatic);
-              } else {
-                onChange({ ...element, lineHeightPt: element.fontSizePt });
-              }
-            }}
-            type="checkbox"
-          />
-          AUTO
-        </label>
-      </span>
+      <span>LINE HEIGHT</span>
       <div className="unit-input">
+        <button
+          aria-label="Use automatic line height"
+          aria-pressed={!enabled}
+          className={`auto-line-height-toggle${enabled ? "" : " active"}`}
+          onClick={toggleAutomatic}
+          title="Automatic line height"
+          type="button"
+        >
+          <Sparkles size={13} />
+        </button>
         <input
           aria-label="Line height"
           disabled={!enabled}

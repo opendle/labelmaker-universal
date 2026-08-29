@@ -16,7 +16,7 @@ and excessive decoration.
   width, height, and margin controls on the right. Put a separated Trim action
   at the far right. It spans the center and inspector columns.
 - Use one shared field style for the editor toolbar, selected-element inspector,
-  and printer settings. Put each field label in a clean break in the top border.
+  and printer settings. Put each field label inside the top edge of the border.
   Keep control height, input text, borders, and units consistent in all three
   areas. Make each field, select, segmented group, toggle, and text action the
   same height as the editor toolbar buttons. Right-align values in controls
@@ -98,7 +98,8 @@ appearances so that they show the physical label and printed result accurately.
 - Do not put visible group labels above weight, horizontal alignment, vertical
   alignment, or layer-order buttons. Keep an accessible name for each group.
 - Keep font size in whole points. Put its compact input on the same aligned row
-  as the wider line-height input.
+  as the wider line-height input. Put the automatic line-height toggle as an
+  icon at the start of the line-height input.
 - Offer twelve useful system typefaces in alphabetical order. Use Avenir
   Next, with a Segoe UI fallback, for new text.
 - Change plate width and height.

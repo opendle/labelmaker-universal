@@ -29,7 +29,6 @@
   --field-label-font-weight: 700;
   --field-label-gap: 2px;
   --field-label-letter-spacing: 0.09em;
-  --field-label-background: var(--panel);
   --focus-ring: #4f8acb;
 }
 
@@ -595,7 +594,6 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   background: #e8e7e2;
 }
 .editor-toolbar {
-  --field-label-background: #f7f6f2;
   grid-column: 1;
   grid-row: 1;
   display: flex;
@@ -1195,13 +1193,12 @@ textarea.inline-text-editor:focus-visible {
 }
 .field:not(.image-tone-field) > span {
   position: absolute;
-  top: -5px;
+  top: 3px;
   left: 8px;
   z-index: 1;
   max-width: calc(100% - 16px);
-  padding: 0 4px;
+  padding: 0;
   overflow: hidden;
-  background: var(--field-label-background);
   line-height: 10px;
   text-overflow: ellipsis;
 }
@@ -1221,7 +1218,7 @@ textarea.inline-text-editor:focus-visible {
 .field:has(> span):not(.image-tone-field) > select,
 .field:has(> span):not(.image-tone-field) > textarea,
 .field:has(> span):not(.image-tone-field) > .unit-input {
-  padding-top: 5px;
+  padding-top: 10px;
 }
 .field textarea {
   height: 55px;
@@ -1255,33 +1252,25 @@ textarea.inline-text-editor:focus-visible {
   padding: 0;
   border: 0;
 }
-.field-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  white-space: nowrap;
-}
-.line-height-field .field-heading {
-  font-size: 8px;
-  letter-spacing: 0.06em;
-}
-.auto-setting {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  color: #88847b;
-  font-size: 7px;
-  letter-spacing: 0.04em;
+.auto-line-height-toggle {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #918c82;
   cursor: pointer;
 }
-.auto-setting input {
-  width: 11px;
-  height: 11px;
-  margin: 0;
-  accent-color: var(--accent);
+.auto-line-height-toggle.active {
+  background: var(--soft-accent);
+  color: var(--accent-dark);
 }
-.line-height-field .unit-input:has(input:disabled) {
+.line-height-field .unit-input:has(input:disabled) > input,
+.line-height-field .unit-input:has(input:disabled) > b {
   opacity: 0.55;
 }
 .image-tone-field > span {
@@ -1424,11 +1413,10 @@ textarea.inline-text-editor:focus-visible {
 }
 .toolbar-field > span {
   position: absolute;
-  top: -5px;
+  top: 3px;
   left: 8px;
   z-index: 1;
-  padding: 0 4px;
-  background: var(--field-label-background);
+  padding: 0;
   color: var(--field-label-color);
   font-size: var(--field-label-font-size);
   font-weight: var(--field-label-font-weight);
@@ -1451,13 +1439,13 @@ textarea.inline-text-editor:focus-visible {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 5px 7px 0;
+  padding: 10px 7px 2px;
 }
 .toolbar-unit-input input {
   width: 32px;
   flex: 1 1 auto;
   min-width: 0;
-  height: calc(var(--field-control-height) - 3px);
+  height: 100%;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1581,7 +1569,7 @@ textarea.inline-text-editor:focus-visible {
   padding: 0 7px;
 }
 .unit-input input {
-  height: calc(var(--field-control-height) - 3px);
+  height: 100%;
   flex: 1 1 auto;
   min-width: 0;
   padding: 0;
@@ -1886,7 +1874,6 @@ textarea.inline-text-editor:focus-visible {
   backdrop-filter: blur(2px);
 }
 .dialog {
-  --field-label-background: #fbfaf7;
   width: 470px;
   border: 1px solid rgba(99, 91, 76, 0.25);
   border-radius: 12px;
@@ -2174,11 +2161,10 @@ textarea.inline-text-editor:focus-visible {
 .printer-readonly-setting > span,
 .printer-number-setting > span:first-child {
   position: absolute;
-  top: -5px;
+  top: 3px;
   left: 8px;
   z-index: 1;
-  padding: 0 4px;
-  background: var(--field-label-background);
+  padding: 0;
   line-height: 10px;
 }
 .printer-name-control {
@@ -2191,7 +2177,7 @@ textarea.inline-text-editor:focus-visible {
   width: 100%;
   height: var(--field-control-height);
   min-width: 0;
-  padding: 5px var(--field-control-padding-inline) 0;
+  padding: 10px var(--field-control-padding-inline) 1px;
   border: 1px solid var(--field-control-border);
   border-radius: var(--field-control-radius);
   background: var(--field-control-background);
@@ -2223,7 +2209,7 @@ textarea.inline-text-editor:focus-visible {
 .printer-readonly-setting output {
   width: 100%;
   height: var(--field-control-height);
-  padding: 5px var(--field-control-padding-inline) 0;
+  padding: 10px var(--field-control-padding-inline) 1px;
   display: flex;
   align-items: center;
   border: 1px solid var(--field-control-border);
@@ -2249,7 +2235,8 @@ textarea.inline-text-editor:focus-visible {
 }
 .printer-number-setting .unit-input {
   width: 100%;
-  padding-top: 5px;
+  padding-top: 10px;
+  padding-bottom: 2px;
 }
 .darkness-setting {
   display: flex;
@@ -2685,12 +2672,6 @@ textarea.inline-text-editor:focus-visible {
   background: rgba(255, 254, 250, 0.92);
 }
 
-.platform-ipados .auto-setting input {
-  width: 14px;
-  height: 14px;
-  min-height: 14px;
-}
-
 .platform-ipados .add-plate {
   flex-basis: 88px;
   min-width: 88px;
@@ -3020,7 +3001,6 @@ textarea.inline-text-editor:focus-visible {
 }
 
 .phone-editor-toolbar {
-  --field-label-background: #f7f6f2;
   position: relative;
   z-index: 11;
   grid-column: 1;
@@ -3543,7 +3523,6 @@ textarea.inline-text-editor:focus-visible {
     --green: #55c98e;
     --field-control-background: #303236;
     --field-control-border: #55575c;
-    --field-label-background: var(--panel);
     --field-control-color: #efede7;
     --field-label-color: #b8b4ac;
     --focus-ring: #7eb2ee;
@@ -3592,7 +3571,6 @@ textarea.inline-text-editor:focus-visible {
 
   .phone-editor-toolbar,
   .phone-command-fixed {
-    --field-label-background: #292a2d;
     border-color: #3d3f43;
     background: #292a2d;
   }
@@ -3749,7 +3727,6 @@ textarea.inline-text-editor:focus-visible {
 
   .editor-toolbar,
   .plate-strip {
-    --field-label-background: #292a2d;
     border-color: #3d3f43;
     background: #292a2d;
   }
@@ -3962,7 +3939,6 @@ textarea.inline-text-editor:focus-visible {
   }
 
   .dialog {
-    --field-label-background: #252629;
     border-color: #505258;
     background: #252629;
     box-shadow: 0 24px 75px rgba(0, 0, 0, 0.6);

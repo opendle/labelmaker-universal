@@ -1037,12 +1037,12 @@ describe("LabelmakerApp", () => {
     const user = userEvent.setup();
     render(<LabelmakerApp host={createHost()} />);
 
-    const automatic = screen.getByRole("checkbox", {
+    const automatic = screen.getByRole("button", {
       name: "Use automatic line height",
     });
     const lineHeight = screen.getByLabelText("Line height");
     const fontSize = screen.getByLabelText("Font size");
-    expect(automatic).toBeChecked();
+    expect(automatic).toHaveAttribute("aria-pressed", "true");
     expect(lineHeight).toBeDisabled();
     expect(lineHeight).toHaveValue(18);
     expect(fontSize).toHaveAttribute("step", "1");
@@ -1050,6 +1050,7 @@ describe("LabelmakerApp", () => {
     expect(fontSize).toHaveValue(19);
 
     await user.click(automatic);
+    expect(automatic).toHaveAttribute("aria-pressed", "false");
     expect(lineHeight).toBeEnabled();
     await user.clear(lineHeight);
     await user.type(lineHeight, "24");
