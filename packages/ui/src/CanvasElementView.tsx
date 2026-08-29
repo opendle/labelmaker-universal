@@ -71,6 +71,11 @@ export function CanvasElementView({
   useLayoutEffect(() => {
     const editor = inlineEditorRef.current;
     if (!editing || element.kind !== "text" || !editor) return;
+    editor.select();
+  }, [editing, element.id, element.kind]);
+  useLayoutEffect(() => {
+    const editor = inlineEditorRef.current;
+    if (!editing || element.kind !== "text" || !editor) return;
     if (!editor.closest(".layout-phone, .layout-phone-short")) return;
     editor.style.height = "0";
     editor.style.height = `${editor.scrollHeight}px`;
@@ -161,6 +166,9 @@ export function CanvasElementView({
           onFocus={() => onFocus(element)}
           onKeyDown={(event) => onMoveKey(event, element)}
           onPointerDown={(event) => onMoveStart(event, element)}
+          style={
+            element.kind === "text" ? { textAlign: element.align } : undefined
+          }
           type="button"
         >
           {element.kind === "image" ? (

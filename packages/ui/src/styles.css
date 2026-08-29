@@ -907,13 +907,6 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
     0 13px 30px rgba(42, 38, 29, 0.18),
     0 2px 5px rgba(42, 38, 29, 0.12);
 }
-.label-canvas::before {
-  content: "";
-  position: absolute;
-  inset: 3px;
-  border: 1px dashed rgba(155, 150, 139, 0.35);
-  pointer-events: none;
-}
 .nonprintable-zone,
 .artwork-nonprintable {
   position: absolute;
@@ -1114,32 +1107,6 @@ textarea.inline-text-editor:focus-visible {
       12 12,
     crosshair;
 }
-.zoom-control {
-  position: absolute;
-  top: 12px;
-  left: 15px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 0 3px;
-  border: 1px solid #d2cfc6;
-  border-radius: 7px;
-  background: rgba(250, 249, 246, 0.92);
-  box-shadow: 0 2px 6px rgba(40, 35, 25, 0.06);
-}
-.zoom-control .icon-button {
-  width: 26px;
-  height: 26px;
-}
-.zoom-control span {
-  min-width: 37px;
-  text-align: center;
-  color: #69655d;
-  font-family: "DM Mono", monospace;
-  font-size: 9px;
-}
-
 .inspector {
   position: absolute;
   top: var(--editor-toolbar-height);
@@ -2494,8 +2461,7 @@ textarea.inline-text-editor:focus-visible {
 }
 
 .platform-ipados .icon-button,
-.platform-ipados .header-printer-row > .icon-button,
-.platform-ipados .zoom-control .icon-button {
+.platform-ipados .header-printer-row > .icon-button {
   width: 44px;
   height: 44px;
 }
@@ -2670,16 +2636,6 @@ textarea.inline-text-editor:focus-visible {
 .platform-ipados .rotation-stem {
   top: -29px;
   height: 29px;
-}
-
-.platform-ipados .zoom-control {
-  height: 44px;
-  padding: 0 3px;
-}
-
-.platform-ipados .zoom-control span {
-  min-width: 44px;
-  font-size: 11px;
 }
 
 .platform-ipados .plate-strip {
@@ -3085,9 +3041,7 @@ textarea.inline-text-editor:focus-visible {
   padding-right: max(3px, env(safe-area-inset-right));
   display: flex;
   align-items: center;
-  border-left: 1px solid var(--line);
   background: #f7f6f2;
-  box-shadow: -5px 0 9px rgba(40, 35, 25, 0.06);
 }
 
 .phone-command-button,
@@ -3144,10 +3098,6 @@ textarea.inline-text-editor:focus-visible {
 
 .phone-command-icon.danger {
   color: #9a5f52;
-}
-
-.phone-quick-fixed {
-  border-left: 1px solid var(--line);
 }
 
 .phone-tools-menu {
@@ -3521,10 +3471,6 @@ textarea.inline-text-editor:focus-visible {
   text-align: center;
 }
 
-.platform-ipados[data-software-keyboard="open"] .zoom-control {
-  display: none;
-}
-
 .layout-phone[data-software-keyboard="open"]
   :is(.phone-property-modal, .phone-form-modal).modal-backdrop,
 .layout-phone-short[data-software-keyboard="open"]
@@ -3817,16 +3763,6 @@ textarea.inline-text-editor:focus-visible {
 
   .dimension-ruler span {
     background: #191a1c;
-  }
-
-  .zoom-control {
-    border-color: #505258;
-    background: rgba(43, 45, 48, 0.94);
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
-  }
-
-  .zoom-control span {
-    color: #ccc9c1;
   }
 
   .field > span,

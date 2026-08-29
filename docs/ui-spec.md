@@ -77,7 +77,8 @@ appearances so that they show the physical label and printed result accurately.
 - Use the same element frame, horizontal and vertical alignment, line-height,
   and font rules in the canvas, print preview, plate strip, and printed raster.
 - Scale the canvas and its elements in one update when the user changes zoom.
-- Allow canvas zoom from 60% through 300%.
+- Allow canvas zoom from 60% through 300%. Use wheel or trackpad scroll and
+  touch pinch for zoom. Do not show an on-screen zoom control.
 - Align every 5 mm background grid line to the center of its ruler tick.
 - Show capability-reported top and bottom non-printable areas on the canvas and
   in previews. Calculate each area from the current label height and the
@@ -238,9 +239,8 @@ not add a separate editor.
   plate strip only while that keyboard reduces the available viewport. Focus
   from a physical keyboard must not hide the strip. Keep the Phone header and
   command row visible during direct text edit with the on-screen keyboard.
-- Hide the canvas zoom control while the on-screen keyboard is open. Use the
-  numeric keyboard for each number field. Do not show the unused web form
-  assistant row above the iOS keyboard suggestions.
+- Use the numeric keyboard for each number field. Do not show the unused web
+  form assistant row above the iOS keyboard suggestions.
 - Support portrait, landscape, Split View, and Stage Manager sizes. Controls
   that do not fit in the editor toolbar can scroll in the horizontal direction.
 
@@ -277,12 +277,14 @@ Phone mode.
 - Use a 48-pixel editor command row with icon-only Text, Image, Draw, Icons,
   and Shapes actions. Keep this row visible when an element is selected. Keep
   Label settings and Trim fixed. Scroll the other controls in the horizontal
-  direction. Style Trim as an action, not as an enabled toggle.
+  direction. Do not put a separator before the fixed actions. Style Trim as an
+  action, not as an enabled toggle.
 - When an element is selected, add a second 48-pixel row below the command
   row. For selected text, show font size and horizontal alignment. For a
   selected image, show Contrast. For a selected shape, show stroke width. Keep
-  More and Delete fixed in this row. Use the same label and input alignment as
-  the complete element-property sheet.
+  More and Delete fixed in this row. Do not put a separator before the fixed
+  actions. Use the same label and input alignment as the complete
+  element-property sheet.
 - Open complete element properties and label settings in modal sheets that
   stay at the top of the visual viewport.
   Keep all element properties available. The label-settings sheet contains

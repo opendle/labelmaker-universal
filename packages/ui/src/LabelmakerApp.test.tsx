@@ -182,7 +182,6 @@ describe("LabelmakerApp", () => {
         name: `Rename label 2: ${activePlate.name}`,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText("130%")).toBeInTheDocument();
     expect(screen.getByText("Edited")).toBeInTheDocument();
     expect(
       screen
@@ -461,8 +460,7 @@ describe("LabelmakerApp", () => {
     );
   });
 
-  it("scales the label and its text by the same zoom ratio", async () => {
-    const user = userEvent.setup();
+  it("scales the label and its text by the same zoom ratio", () => {
     render(<LabelmakerApp host={createHost()} />);
     const canvas = screen.getByRole("region", {
       name: "Resistors label canvas",
@@ -475,7 +473,7 @@ describe("LabelmakerApp", () => {
       frame.style.getPropertyValue("--element-font-size"),
     );
 
-    await user.click(screen.getByRole("button", { name: "Zoom in" }));
+    fireEvent.wheel(canvas.closest(".work-surface")!, { deltaY: -1 });
 
     expect(Number.parseFloat(canvas.style.width) / widthBefore).toBeCloseTo(
       1.1,
@@ -487,16 +485,22 @@ describe("LabelmakerApp", () => {
     ).toBeCloseTo(1.1, 5);
   });
 
-  it("allows zoom through 300 percent and stops there", async () => {
-    const user = userEvent.setup();
+  it("allows zoom through 300 percent and stops there", () => {
     render(<LabelmakerApp host={createHost()} />);
-    const zoomIn = screen.getByRole("button", { name: "Zoom in" });
+    const canvas = screen.getByRole("region", {
+      name: "Resistors label canvas",
+    });
+    const workSurface = canvas.closest(".work-surface")!;
+    const widthBefore = Number.parseFloat(canvas.style.width);
 
-    for (let index = 0; index < 22; index += 1) await user.click(zoomIn);
+    for (let index = 0; index < 22; index += 1) {
+      fireEvent.wheel(workSurface, { deltaY: -1 });
+    }
 
-    expect(screen.getByText("300%")).toBeInTheDocument();
-    await user.click(zoomIn);
-    expect(screen.getByText("300%")).toBeInTheDocument();
+    expect(Number.parseFloat(canvas.style.width) / widthBefore).toBeCloseTo(3);
+    const widthAtMaximum = canvas.style.width;
+    fireEvent.wheel(workSurface, { deltaY: -1 });
+    expect(canvas.style.width).toBe(widthAtMaximum);
   });
 
   it("uses the ruler coordinates for every five millimeter grid line", () => {
@@ -1597,11 +1601,17 @@ describe("LabelmakerApp", () => {
     await user.click(
       screen.getByRole("button", { name: "Select label 4: Label 4" }),
     );
+    const canvas = screen.getByRole("region", {
+      name: "Label 4 label canvas",
+    });
+    const widthBefore = Number.parseFloat(canvas.style.width);
 
     fireEvent.keyDown(window, { key: "+", ctrlKey: true });
-    expect(screen.getByText("110%")).toBeInTheDocument();
+    expect(Number.parseFloat(canvas.style.width) / widthBefore).toBeCloseTo(
+      1.1,
+    );
     fireEvent.keyDown(window, { key: "-", ctrlKey: true });
-    expect(screen.getByText("100%")).toBeInTheDocument();
+    expect(Number.parseFloat(canvas.style.width)).toBeCloseTo(widthBefore);
 
     await user.click(
       screen.getByRole("button", { name: "Text element: NEW LABEL" }),
@@ -1753,6 +1763,7 @@ describe("LabelmakerApp", () => {
     });
     const workSurface = canvas.closest<HTMLElement>(".work-surface")!;
     const stage = canvas.closest<HTMLElement>(".canvas-stage")!;
+    const widthBefore = Number.parseFloat(canvas.style.width);
     const touchEvent = (
       type: string,
       pointerId: number,
@@ -1777,7 +1788,9 @@ describe("LabelmakerApp", () => {
     fireEvent(workSurface, touchEvent("pointerdown", 2, 120, 0));
     fireEvent(window, touchEvent("pointermove", 2, 170, 0));
 
-    expect(screen.getByText("150%")).toBeInTheDocument();
+    expect(Number.parseFloat(canvas.style.width) / widthBefore).toBeCloseTo(
+      1.5,
+    );
     expect(stage).toHaveStyle({ transform: "translate(45px, 0px)" });
   });
 

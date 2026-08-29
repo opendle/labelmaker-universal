@@ -16,8 +16,6 @@ import {
   Smile,
   Square,
   Type,
-  ZoomIn,
-  ZoomOut,
 } from "lucide-react";
 import {
   useCallback,
@@ -35,7 +33,6 @@ import { createPortal } from "react-dom";
 
 import { CanvasElementView } from "./CanvasElementView.js";
 import { CanvasGrid, CanvasRulers } from "./CanvasGuides.js";
-import { IconButton } from "./controls.js";
 import { clamp, isFlagPlate, MAX_ZOOM, MIN_ZOOM } from "./editor-operations.js";
 import { PhoneEditorToolbar } from "./PhoneEditorToolbar.js";
 import { PlateToolbarSettings } from "./Inspector.js";
@@ -94,32 +91,6 @@ function clearPointerFocusRingSuppression(
     | ReactKeyboardEvent<HTMLButtonElement>,
 ) {
   delete event.currentTarget.dataset.focusRingSuppressed;
-}
-
-function CanvasZoomControl({
-  zoom,
-  onZoom,
-}: {
-  readonly zoom: number;
-  readonly onZoom: (zoom: number) => void;
-}) {
-  return (
-    <div className="zoom-control">
-      <IconButton
-        label="Zoom out"
-        onClick={() => onZoom(clamp(zoom - 10, MIN_ZOOM, MAX_ZOOM))}
-      >
-        <ZoomOut size={15} />
-      </IconButton>
-      <span>{zoom}%</span>
-      <IconButton
-        label="Zoom in"
-        onClick={() => onZoom(clamp(zoom + 10, MIN_ZOOM, MAX_ZOOM))}
-      >
-        <ZoomIn size={15} />
-      </IconButton>
-    </div>
-  );
 }
 
 function CanvasToolbar({
@@ -572,7 +543,7 @@ export function EditorCanvas({
           const touchGestureStarted = trackTouchPointer(event);
           const target = event.target as HTMLElement;
           if (
-            !target.closest(".canvas-element, .zoom-control, button") ||
+            !target.closest(".canvas-element, button") ||
             target.closest(".canvas-clear-selection")
           ) {
             setEditingElementId(null);
@@ -658,7 +629,6 @@ export function EditorCanvas({
             />
           </section>
         </div>
-        <CanvasZoomControl onZoom={onZoom} zoom={zoom} />
       </div>
     </main>
   );
