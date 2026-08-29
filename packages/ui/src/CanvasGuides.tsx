@@ -89,9 +89,9 @@ export function CanvasRulers({
   const intervalFontSize = Math.max(8, 8 * (zoom / 100));
   const rulerLayoutScale = Math.max(1, zoom / 100);
   const layoutStyle = {
-    "--dimension-ruler-outer-offset": `${83 * rulerLayoutScale}px`,
-    "--dimension-ruler-width-offset": `${41 * rulerLayoutScale}px`,
-    "--dimension-ruler-inner-offset": `${65 * rulerLayoutScale}px`,
+    "--dimension-ruler-outer-offset": `${78 * rulerLayoutScale}px`,
+    "--dimension-ruler-width-offset": `${36 * rulerLayoutScale}px`,
+    "--dimension-ruler-inner-offset": `${60 * rulerLayoutScale}px`,
     "--interval-ruler-left-offset": `${48 * rulerLayoutScale}px`,
     "--interval-ruler-left-width": `${46 * rulerLayoutScale}px`,
     "--interval-ruler-top-height": `${22 * rulerLayoutScale}px`,
