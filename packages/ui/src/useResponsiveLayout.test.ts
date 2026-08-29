@@ -104,4 +104,25 @@ describe("responsiveLayoutForViewport", () => {
       softwareKeyboardOpen: false,
     });
   });
+
+  it("ignores the small viewport change from hardware keyboard controls", () => {
+    vi.stubGlobal("innerWidth", 768);
+    vi.stubGlobal("innerHeight", 1_024);
+    const viewport = new TestVisualViewport(1_024);
+    vi.stubGlobal("visualViewport", viewport);
+    const input = document.createElement("input");
+    document.body.append(input);
+    const { result } = renderHook(() => useResponsiveLayout("ipados"));
+
+    act(() => input.focus());
+    act(() => {
+      viewport.height = 980;
+      viewport.dispatchEvent(new Event("resize"));
+    });
+
+    expect(result.current).toEqual({
+      layout: "standard",
+      softwareKeyboardOpen: false,
+    });
+  });
 });

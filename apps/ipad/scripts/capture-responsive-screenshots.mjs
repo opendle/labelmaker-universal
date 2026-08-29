@@ -11,6 +11,9 @@ const screenshotDirectory = process.env
   ? resolve(process.env.LABELMAKER_RESPONSIVE_SCREENSHOT_DIRECTORY)
   : resolve(appDirectory, "../../artifacts/responsive");
 const viewports = [
+  { width: 1180, height: 820, save: true },
+  { width: 768, height: 1024, save: true },
+  { width: 744, height: 1024, save: true },
   { width: 393, height: 852, save: true },
   { width: 852, height: 393, save: true },
   { width: 375, height: 667, save: false },
@@ -95,6 +98,68 @@ async function capture(viewport) {
       );
     });
 
+    const expectedLayout =
+      viewport.width > 600 &&
+      !(viewport.height <= 500 && viewport.width <= 1_000)
+        ? "standard"
+        : viewport.height <= 500
+          ? "phone-short"
+          : "phone";
+    if (expectedLayout === "standard") {
+      const inspection = await inspectStandardIPad(page);
+      if (!inspection.className.includes("layout-standard")) {
+        throw new Error(
+          `${viewport.width}x${viewport.height} used the wrong layout: ${inspection.className}`,
+        );
+      }
+      if (inspection.overflow) {
+        throw new Error(`${viewport.width}x${viewport.height} overflows.`);
+      }
+      if (!inspection.headerControlsFit) {
+        throw new Error(
+          `${viewport.width}x${viewport.height} cuts off header controls.`,
+        );
+      }
+      if (viewport.width <= 850) {
+        if (!inspection.historyIsCentered) {
+          throw new Error(
+            `${viewport.width}x${viewport.height} does not center undo and redo: ${JSON.stringify(inspection)}.`,
+          );
+        }
+        if (!inspection.outputIsRightAligned) {
+          throw new Error(
+            `${viewport.width}x${viewport.height} does not right-align printer controls.`,
+          );
+        }
+        if (!inspection.editorActionsAreIconOnly) {
+          throw new Error(
+            `${viewport.width}x${viewport.height} shows editor action labels.`,
+          );
+        }
+        if (!inspection.editorToolbarFits) {
+          throw new Error(
+            `${viewport.width}x${viewport.height} scrolls the compact editor toolbar.`,
+          );
+        }
+        if (!inspection.inspectorFits) {
+          throw new Error(
+            `${viewport.width}x${viewport.height} lets the bottom inspector overflow.`,
+          );
+        }
+      }
+      if (failures.length > 0) {
+        throw new Error(
+          `The iPad app reported an error: ${failures.join("; ")}`,
+        );
+      }
+      if (viewport.save) {
+        await page.screenshot({
+          path: resolve(screenshotDirectory, screenshotName(viewport)),
+        });
+      }
+      return;
+    }
+
     const inspection = await page.evaluate(() => {
       const shell = document.querySelector(".app-shell");
       const strip = document.querySelector(".phone-plate-strip");
@@ -176,7 +241,6 @@ async function capture(viewport) {
         undersizedTargets,
       };
     });
-    const expectedLayout = viewport.height <= 500 ? "phone-short" : "phone";
     if (!inspection.className.includes(`layout-${expectedLayout}`)) {
       throw new Error(
         `${viewport.width}x${viewport.height} used the wrong layout: ${inspection.className}`,
@@ -277,7 +341,91 @@ async function capture(viewport) {
 }
 
 function screenshotName(viewport) {
-  return `labelmaker-phone-${viewport.width}x${viewport.height}.png`;
+  return `labelmaker-${viewport.width > 600 && viewport.height > 500 ? "ipad" : "phone"}-${viewport.width}x${viewport.height}.png`;
+}
+
+async function inspectStandardIPad(page) {
+  return page.evaluate(() => {
+    const shell = document.querySelector(".app-shell");
+    const header = document.querySelector(".titlebar");
+    const history = document.querySelector(".title-actions .toolbar-cluster");
+    const output = document.querySelector(".header-output-actions");
+    const toolbar = document.querySelector(".editor-toolbar");
+    const inspector = document.querySelector(".inspector");
+    if (
+      !(shell instanceof HTMLElement) ||
+      !(header instanceof HTMLElement) ||
+      !(history instanceof HTMLElement) ||
+      !(output instanceof HTMLElement) ||
+      !(toolbar instanceof HTMLElement) ||
+      !(inspector instanceof HTMLElement)
+    ) {
+      throw new Error("The standard iPad editor is incomplete.");
+    }
+    const client = document.documentElement;
+    const headerBounds = header.getBoundingClientRect();
+    const historyBounds = history.getBoundingClientRect();
+    const outputBounds = output.getBoundingClientRect();
+    const inspectorBounds = inspector.getBoundingClientRect();
+    const propertyStack = inspector.querySelector(".property-stack");
+    const visibleHeaderButtons = Array.from(
+      header.querySelectorAll("button"),
+    ).filter((target) => target.getBoundingClientRect().width > 0);
+    const editorActionLabels = Array.from(
+      toolbar.querySelectorAll(".tool-button-label"),
+    );
+    return {
+      className: shell.className,
+      dimensions: {
+        clientWidth: client.clientWidth,
+        innerWidth: window.innerWidth,
+        shellWidth: shell.getBoundingClientRect().width,
+        visualWidth: window.visualViewport?.width,
+      },
+      editorActionsAreIconOnly: editorActionLabels.every(
+        (label) => label.getBoundingClientRect().width === 0,
+      ),
+      editorToolbarFits: toolbar.scrollWidth <= toolbar.clientWidth,
+      headerControlsFit: visibleHeaderButtons.every((target) => {
+        const bounds = target.getBoundingClientRect();
+        return (
+          bounds.left >= headerBounds.left - 0.5 &&
+          bounds.right <= headerBounds.right + 0.5
+        );
+      }),
+      historyIsCentered:
+        Math.abs(
+          historyBounds.left + historyBounds.width / 2 - client.clientWidth / 2,
+        ) <= 1,
+      historyLeft: historyBounds.left,
+      historyWidth: historyBounds.width,
+      inspectorFits:
+        inspectorBounds.left >= -0.5 &&
+        inspectorBounds.right <= client.clientWidth + 0.5 &&
+        inspectorBounds.top >= -0.5 &&
+        inspectorBounds.bottom <= client.clientHeight + 0.5 &&
+        (!(propertyStack instanceof HTMLElement) ||
+          propertyStack.scrollWidth <= propertyStack.clientWidth),
+      inspectorBounds: {
+        bottom: inspectorBounds.bottom,
+        left: inspectorBounds.left,
+        right: inspectorBounds.right,
+        top: inspectorBounds.top,
+      },
+      propertyStackWidth:
+        propertyStack instanceof HTMLElement
+          ? {
+              client: propertyStack.clientWidth,
+              scroll: propertyStack.scrollWidth,
+            }
+          : null,
+      outputIsRightAligned:
+        Math.abs(headerBounds.right - outputBounds.right) <= 14,
+      overflow:
+        client.scrollWidth > client.clientWidth ||
+        client.scrollHeight > client.clientHeight,
+    };
+  });
 }
 
 function installCaptureHost() {

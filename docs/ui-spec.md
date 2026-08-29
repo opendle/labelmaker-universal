@@ -224,6 +224,11 @@ not add a separate editor.
 - Respect the safe area on each edge of the screen.
 - Use a right inspector in landscape. At 850 CSS pixels or less, overlay the
   inspector on the lower edge instead of moving or resizing the canvas.
+  Keep its existing field groups inside the screen without horizontal
+  overflow.
+- At 850 CSS pixels or less, show only icons for the editor element actions.
+  Keep undo and redo centered in the top bar. Align the printer, preview, and
+  print controls to the right edge.
 - Keep each main touch target at least 44 CSS pixels wide and high.
 - Keep resize and rotation marks small. Give each mark an invisible 44 CSS
   pixel touch area.
@@ -240,7 +245,8 @@ not add a separate editor.
   from a physical keyboard must not hide the strip. Keep the Phone header and
   command row visible during direct text edit with the on-screen keyboard.
 - Use the numeric keyboard for each number field. Do not show the unused web
-  form assistant row above the iOS keyboard suggestions.
+  form assistant row above the iOS keyboard suggestions. A small visual
+  viewport change from hardware keyboard controls must not resize the editor.
 - Support portrait, landscape, Split View, and Stage Manager sizes. Controls
   that do not fit in the editor toolbar can scroll in the horizontal direction.
 

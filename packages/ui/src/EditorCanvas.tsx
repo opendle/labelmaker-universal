@@ -185,7 +185,7 @@ function CanvasToolbar({
           onPointerDown={suppressPointerFocusRing}
           type="button"
         >
-          <Type size={17} /> Text
+          <Type size={17} /> <span className="tool-button-label">Text</span>
         </button>
         <button
           className="tool-button"
@@ -195,7 +195,8 @@ function CanvasToolbar({
           onPointerDown={suppressPointerFocusRing}
           type="button"
         >
-          <ImageIcon size={17} /> Image
+          <ImageIcon size={17} />
+          <span className="tool-button-label">Image</span>
         </button>
         <input
           ref={imageInputRef}
@@ -217,7 +218,7 @@ function CanvasToolbar({
           onPointerDown={suppressPointerFocusRing}
           type="button"
         >
-          <Smile size={17} /> Icons
+          <Smile size={17} /> <span className="tool-button-label">Icons</span>
         </button>
         <button
           className="tool-button"
@@ -227,7 +228,7 @@ function CanvasToolbar({
           onPointerDown={suppressPointerFocusRing}
           type="button"
         >
-          <Pencil size={17} /> Draw
+          <Pencil size={17} /> <span className="tool-button-label">Draw</span>
         </button>
         <div className="shape-control" ref={shapeControlRef}>
           <button
@@ -272,7 +273,9 @@ function CanvasToolbar({
             ref={shapeTriggerRef}
             type="button"
           >
-            <Square size={16} /> Shapes <ChevronDown size={13} />
+            <Square size={16} />
+            <span className="tool-button-label">Shapes</span>
+            <ChevronDown className="tool-button-disclosure" size={13} />
           </button>
           {shapeMenuOpen &&
             createPortal(
@@ -312,7 +315,7 @@ function CanvasToolbar({
           onClick={() => onAddSpecial("flag")}
           type="button"
         >
-          <Flag size={16} /> Flag
+          <Flag size={16} /> <span className="tool-button-label">Flag</span>
         </button>
         <button
           aria-pressed={plate.mirrorPrint === true}
@@ -322,7 +325,8 @@ function CanvasToolbar({
           }
           type="button"
         >
-          <FlipHorizontal2 size={16} /> Mirror
+          <FlipHorizontal2 size={16} />
+          <span className="tool-button-label">Mirror</span>
         </button>
       </div>
       <PlateToolbarSettings

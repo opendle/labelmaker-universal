@@ -100,24 +100,30 @@ export function AppHeader({
             <Redo2 size={17} />
           </IconButton>
         </div>
-        <AppHeaderPrinterPicker
-          activePrinterId={activePrinterId}
-          onAddPrinter={onAddPrinter}
-          onOpenPrinterSettings={onOpenPrinterSettings}
-          onRemovePrinter={onRemovePrinter}
-          onSelectPrinter={onSelectPrinter}
-          printers={printers}
-        />
-        <button className="button secondary" onClick={onPreview} type="button">
-          <ImageIcon size={16} /> Preview
-        </button>
-        <AppHeaderPrintControl
-          canPrint={canPrint}
-          menuOpen={printMenuOpen}
-          onMenuChange={onPrintMenuChange}
-          onPrint={onPrint}
-          plateCount={plateCount}
-        />
+        <div className="header-output-actions">
+          <AppHeaderPrinterPicker
+            activePrinterId={activePrinterId}
+            onAddPrinter={onAddPrinter}
+            onOpenPrinterSettings={onOpenPrinterSettings}
+            onRemovePrinter={onRemovePrinter}
+            onSelectPrinter={onSelectPrinter}
+            printers={printers}
+          />
+          <button
+            className="button secondary"
+            onClick={onPreview}
+            type="button"
+          >
+            <ImageIcon size={16} /> Preview
+          </button>
+          <AppHeaderPrintControl
+            canPrint={canPrint}
+            menuOpen={printMenuOpen}
+            onMenuChange={onPrintMenuChange}
+            onPrint={onPrint}
+            plateCount={plateCount}
+          />
+        </div>
       </div>
     </header>
   );

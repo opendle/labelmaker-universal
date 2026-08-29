@@ -23,8 +23,7 @@ struct LabelmakerWebView: UIViewRepresentable {
         )
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.inputAssistantItem.leadingBarButtonGroups = []
-        webView.inputAssistantItem.trailingBarButtonGroups = []
+        webView.hideInputAssistant()
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = false
@@ -42,6 +41,7 @@ struct LabelmakerWebView: UIViewRepresentable {
         context.coordinator.workspace.setPresentingViewController(webView.enclosingViewController)
         DispatchQueue.main.async {
             context.coordinator.workspace.setPresentingViewController(webView.enclosingViewController)
+            webView.hideInputAssistant()
         }
 
         guard
@@ -57,6 +57,7 @@ struct LabelmakerWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.workspace.setPresentingViewController(webView.enclosingViewController)
+        webView.hideInputAssistant()
     }
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
@@ -111,10 +112,20 @@ struct LabelmakerWebView: UIViewRepresentable {
         ) -> WKWebView? {
             nil
         }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            webView.hideInputAssistant()
+        }
     }
 }
 
 private extension UIView {
+    func hideInputAssistant() {
+        inputAssistantItem.leadingBarButtonGroups = []
+        inputAssistantItem.trailingBarButtonGroups = []
+        subviews.forEach { $0.hideInputAssistant() }
+    }
+
     var enclosingViewController: UIViewController? {
         sequence(first: next, next: { $0?.next }).first { $0 is UIViewController } as? UIViewController
     }

@@ -166,8 +166,13 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   align-items: center;
   gap: 7px;
 }
-.title-actions > .button,
-.title-actions .print-control > .button {
+.header-output-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.header-output-actions > .button,
+.header-output-actions .print-control > .button {
   height: 40px;
 }
 .printer-picker {
@@ -1872,7 +1877,6 @@ textarea.inline-text-editor:focus-visible {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  border-bottom: 1px solid var(--line);
 }
 .dialog-header h2 {
   margin: 0 0 5px;
@@ -2265,7 +2269,6 @@ textarea.inline-text-editor:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid var(--line);
   background: #f6f4ef;
 }
 .dialog-footer.end {
@@ -2425,14 +2428,20 @@ textarea.inline-text-editor:focus-visible {
   --field-control-height: 44px;
   --field-label-gap: 0;
   width: 100%;
-  height: var(--visual-viewport-height, 100%);
+  height: 100%;
   min-width: 0;
   overflow: hidden;
   overscroll-behavior: none;
+  transform: none;
+}
+
+.platform-ipados[data-software-keyboard="open"] {
+  height: var(--visual-viewport-height, 100%);
   transform: translateY(var(--visual-viewport-offset-top, 0));
 }
 
 .platform-ipados .application-content {
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows:
     calc(64px + env(safe-area-inset-top)) minmax(0, 1fr)
     calc(100px + env(safe-area-inset-bottom));
@@ -2489,6 +2498,8 @@ textarea.inline-text-editor:focus-visible {
 
 .platform-ipados .desktop-body {
   --editor-toolbar-height: 50px;
+  width: 100%;
+  min-width: 0;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--editor-toolbar-height) minmax(0, 1fr);
 }
@@ -2691,7 +2702,8 @@ textarea.inline-text-editor:focus-visible {
 
 @media (max-width: 850px) {
   .platform-ipados .titlebar {
-    grid-template-columns: auto minmax(0, 1fr);
+    position: relative;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   }
 
   .platform-ipados .document-identity {
@@ -2699,7 +2711,20 @@ textarea.inline-text-editor:focus-visible {
   }
 
   .platform-ipados .title-actions {
+    display: contents;
+  }
+
+  .platform-ipados .title-actions .toolbar-cluster {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+  }
+
+  .platform-ipados .header-output-actions {
+    grid-column: 3;
     justify-self: end;
+    gap: 4px;
   }
 
   .platform-ipados .printer-trigger {
@@ -2714,6 +2739,18 @@ textarea.inline-text-editor:focus-visible {
 
   .platform-ipados .editor-toolbar {
     grid-column: 1;
+    gap: 6px;
+  }
+
+  .platform-ipados .editor-tools .tool-button {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .platform-ipados .editor-tools .tool-button-label,
+  .platform-ipados .editor-tools .tool-button-disclosure {
+    display: none;
   }
 
   .platform-ipados .work-surface {
@@ -2728,14 +2765,25 @@ textarea.inline-text-editor:focus-visible {
     left: 0;
     width: auto;
     height: min(320px, 32vh);
+    max-width: 100%;
+    max-height: 100%;
+    overflow: hidden;
     border-top: 1px solid var(--line);
     border-left: 0;
     box-shadow: 0 -8px 24px rgba(40, 35, 25, 0.12);
   }
 
   .platform-ipados .property-stack {
+    min-width: 0;
+    min-height: 0;
+    flex: 1 1 auto;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+  }
+
+  .platform-ipados .property-stack > * {
+    min-width: 0;
   }
 
   .platform-ipados.layout-standard[data-software-keyboard="open"]
@@ -3271,7 +3319,6 @@ textarea.inline-text-editor:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid var(--line);
 }
 
 .phone-sheet-header h2 {
