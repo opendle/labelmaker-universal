@@ -21,14 +21,31 @@ transport. The shared TypeScript adapter owns the printer protocol.
    signing and the `com.opendle.labelmaker` development bundle identifier.
 5. Press Run.
 
-After signing and device trust are configured, set `IPAD_ID` to the connected
-device identifier and run this command from the repository root:
+After signing and device trust are configured, set `IPHONE_ID` to the connected
+iPhone identifier and run this command from the repository root:
+
+```sh
+npm run iphone:deploy
+```
+
+For an iPad, set `IPAD_ID` to its identifier and run:
 
 ```sh
 npm run ipad:deploy
 ```
 
 The command builds the app, installs it on the device, and starts it.
+
+To build and start the app in the default local simulators, run:
+
+```sh
+npm run iphone:simulator
+npm run ipad:simulator
+```
+
+The defaults are `iPhone 17 Pro` and `iPad Pro 13-inch (M5)`. Set
+`IPHONE_SIMULATOR` or `IPAD_SIMULATOR` to another available simulator name or
+simulator identifier when needed.
 
 The Xcode target runs the Apple mobile web build before each native build. You can also
 check it separately with:

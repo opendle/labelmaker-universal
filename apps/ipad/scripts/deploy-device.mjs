@@ -9,18 +9,21 @@ const appPath = resolve(
   buildDirectory,
   "Build/Products/Debug-iphoneos/LabelMaker for MakeID.app",
 );
+const iphone = process.argv.includes("--iphone");
+const deviceName = iphone ? "iPhone" : "iPad";
+const deviceVariable = iphone ? "IPHONE_ID" : "IPAD_ID";
 
 if (process.argv.includes("--help")) {
   console.log(
-    "Build, install, and start Labelmaker on the iPad in the IPAD_ID environment variable.",
+    `Build, install, and start Labelmaker on the ${deviceName} in the ${deviceVariable} environment variable.`,
   );
   process.exit(0);
 }
 
-const ipadId = process.env.IPAD_ID?.trim();
-if (!ipadId) {
+const deviceId = process.env[deviceVariable]?.trim();
+if (!deviceId) {
   console.error(
-    "Set IPAD_ID to the connected iPad identifier, then try again.",
+    `Set ${deviceVariable} to the connected ${deviceName} identifier, then try again.`,
   );
   process.exit(1);
 }
@@ -33,7 +36,7 @@ run("xcodebuild", [
   "-configuration",
   "Debug",
   "-destination",
-  `platform=iOS,id=${ipadId}`,
+  `platform=iOS,id=${deviceId}`,
   "-derivedDataPath",
   buildDirectory,
   "-allowProvisioningUpdates",
@@ -46,7 +49,7 @@ run("xcrun", [
   "install",
   "app",
   "--device",
-  ipadId,
+  deviceId,
   appPath,
 ]);
 
@@ -56,7 +59,7 @@ run("xcrun", [
   "process",
   "launch",
   "--device",
-  ipadId,
+  deviceId,
   "--terminate-existing",
   "com.opendle.labelmaker",
 ]);
