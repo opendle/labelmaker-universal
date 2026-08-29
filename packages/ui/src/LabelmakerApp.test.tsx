@@ -530,7 +530,7 @@ describe("LabelmakerApp", () => {
     ).toBe("90px");
   });
 
-  it("uses concise editor actions, puts Preview beside Print, and offers twelve typefaces", async () => {
+  it("uses concise editor actions, puts Preview beside Print, and offers thirteen typefaces", async () => {
     render(<LabelmakerApp host={createHost()} />);
     expect(screen.getByRole("button", { name: "Text" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Image" })).toBeInTheDocument();
@@ -546,7 +546,29 @@ describe("LabelmakerApp", () => {
       preview.compareDocumentPosition(print) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     const typeface = screen.getByLabelText("Typeface");
-    expect(typeface.querySelectorAll("option")).toHaveLength(12);
+    expect(
+      Array.from(
+        typeface.querySelectorAll("option"),
+        (option) => option.textContent,
+      ),
+    ).toEqual([
+      "Arial",
+      "Avenir Next",
+      "Baskerville",
+      "Consolas",
+      "Courier New",
+      "Futura",
+      "Georgia",
+      "Gill Sans",
+      "Helvetica Neue",
+      "Menlo",
+      "Times New Roman",
+      "Trebuchet MS",
+      "Verdana",
+    ]);
+    expect(typeface).toContainHTML(
+      '<option value="Consolas, monospace">Consolas</option>',
+    );
     expect(typeface).toHaveValue('"Avenir Next", "Segoe UI", sans-serif');
   });
 

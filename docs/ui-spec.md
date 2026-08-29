@@ -92,8 +92,8 @@ appearances so that they show the physical label and printed result accurately.
   to selected text.
 - Keep font size in whole points. Put its compact input on the same aligned row
   as the wider line-height input.
-- Offer twelve useful system typefaces and use Avenir Next, with a Segoe UI
-  fallback, for new text.
+- Offer thirteen useful system typefaces in alphabetical order. Use Avenir
+  Next, with a Segoe UI fallback, for new text.
 - Change plate width and height.
 - Resize label height equally from the top and bottom, so existing elements keep
   the same position relative to the label center.
