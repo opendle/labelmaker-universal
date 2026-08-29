@@ -171,6 +171,7 @@ export function PrinterSettingsDialog({
                   <input
                     aria-label="Print head size"
                     disabled={form.saving}
+                    inputMode="decimal"
                     max={100}
                     min={0.1}
                     onChange={(event) =>
@@ -196,6 +197,7 @@ export function PrinterSettingsDialog({
                     <input
                       aria-label={field.label}
                       disabled={form.saving}
+                      inputMode="decimal"
                       max={100}
                       min={field.minimum}
                       onChange={(event) =>

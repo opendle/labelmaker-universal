@@ -391,6 +391,7 @@ function TextQuickControls({
         <div className="unit-input">
           <input
             aria-label="Font size"
+            inputMode="numeric"
             min={1}
             onChange={(event) =>
               onChange({
@@ -471,6 +472,7 @@ function ShapeQuickControls({
       <div className="unit-input">
         <input
           aria-label="Shape stroke width"
+          inputMode="decimal"
           min={0.1}
           onChange={(event) =>
             onChange({

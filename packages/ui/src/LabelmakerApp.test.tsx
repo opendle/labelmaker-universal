@@ -2469,6 +2469,39 @@ describe("LabelmakerApp", () => {
     expect(width).toHaveValue(71);
   });
 
+  it("uses numeric keyboards and turns Phone mirroring off again", async () => {
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 852);
+    const user = userEvent.setup();
+    const { container } = render(<LabelmakerApp host={createHost()} />);
+
+    const mirror = screen.getByRole("button", { name: "Mirror" });
+    expect(mirror).toHaveAttribute("aria-pressed", "false");
+    await user.click(mirror);
+    expect(mirror).toHaveAttribute("aria-pressed", "true");
+    await user.click(mirror);
+    expect(mirror).toHaveAttribute("aria-pressed", "false");
+    expect(mirror).not.toHaveClass("active");
+
+    await user.click(
+      screen.getByRole("button", { name: "More element properties" }),
+    );
+
+    for (const input of container.querySelectorAll('input[type="number"]')) {
+      expect(["decimal", "numeric"]).toContain(input.getAttribute("inputmode"));
+    }
+    await user.click(screen.getByRole("button", { name: "Close properties" }));
+    await user.click(screen.getByRole("button", { name: "Label settings" }));
+
+    for (const input of container.querySelectorAll('input[type="number"]')) {
+      expect(["decimal", "numeric"]).toContain(input.getAttribute("inputmode"));
+    }
+    expect(screen.getByLabelText("Plate width")).toHaveAttribute(
+      "inputmode",
+      "numeric",
+    );
+  });
+
   it("keeps an element sheet current through undo and redo", async () => {
     vi.stubGlobal("innerWidth", 393);
     vi.stubGlobal("innerHeight", 852);

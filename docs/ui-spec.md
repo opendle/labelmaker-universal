@@ -229,6 +229,9 @@ not add a separate editor.
   plate strip only while that keyboard reduces the available viewport. Focus
   from a physical keyboard must not hide the strip. Keep the Phone header and
   command row visible during direct text edit with the on-screen keyboard.
+- Hide the canvas zoom control while the on-screen keyboard is open. Use the
+  numeric keyboard for each number field. Do not show the unused web form
+  assistant row above the iOS keyboard suggestions.
 - Support portrait, landscape, Split View, and Stage Manager sizes. Controls
   that do not fit in the editor toolbar can scroll in the horizontal direction.
 

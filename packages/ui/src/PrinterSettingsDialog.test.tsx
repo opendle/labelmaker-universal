@@ -70,6 +70,14 @@ describe("PrinterSettingsDialog", () => {
     expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
   });
 
+  it("requests a decimal keyboard for each number field", () => {
+    const { container } = renderDialog();
+
+    for (const input of container.querySelectorAll('input[type="number"]')) {
+      expect(input).toHaveAttribute("inputmode", "decimal");
+    }
+  });
+
   it("saves and closes with Enter from a setting", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();

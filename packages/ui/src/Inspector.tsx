@@ -57,6 +57,7 @@ function NumberField({
         {icon && <RotateCcw size={14} />}
         <input
           aria-label={label}
+          inputMode={integer ? "numeric" : "decimal"}
           min={min}
           onChange={(event) => {
             const next = Number(event.target.value);
@@ -108,6 +109,7 @@ function LineHeightField({
         <input
           aria-label="Line height"
           disabled={!enabled}
+          inputMode="decimal"
           min={0.1}
           onBlur={() => setEmptyDraft(false)}
           onChange={(event) => {
@@ -554,6 +556,7 @@ export function PlateToolbarSettings({
         <div className="toolbar-unit-input">
           <input
             aria-label="Plate width"
+            inputMode="numeric"
             min={1}
             onChange={(event) =>
               onChange(
@@ -585,6 +588,7 @@ export function PlateToolbarSettings({
           <div className="toolbar-unit-input">
             <input
               aria-label={label as string}
+              inputMode="decimal"
               min={label === "Plate height" ? 1 : 0}
               onChange={(event) => {
                 const next = Math.max(

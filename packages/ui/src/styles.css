@@ -2804,8 +2804,7 @@ textarea.inline-text-editor:focus-visible {
   grid-template-columns: max-content max-content max-content;
   align-items: center;
   justify-content: space-between;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: visible;
   scrollbar-width: none;
 }
 
@@ -2906,9 +2905,15 @@ textarea.inline-text-editor:focus-visible {
   position: absolute;
   right: 6px;
   bottom: 6px;
-  display: block;
+  display: grid;
+  place-items: center;
   width: 7px;
   height: 7px;
+  line-height: 0;
+}
+
+.phone-titlebar .printer-compact-status .status-dot {
+  display: block;
 }
 
 .phone-titlebar .printer-menu,
@@ -3046,17 +3051,24 @@ textarea.inline-text-editor:focus-visible {
   place-items: center;
 }
 
-.phone-command-button:hover,
 .phone-command-button:focus-visible,
 .phone-command-button.active,
-.phone-command-icon:hover,
 .phone-command-icon:focus-visible,
-.phone-quick-segmented button:hover,
 .phone-quick-segmented button:focus-visible,
 .phone-quick-segmented button.active {
   border-color: #d9d5cd;
   background: white;
   color: var(--ink);
+}
+
+@media (hover: hover) {
+  .phone-command-button:hover,
+  .phone-command-icon:hover,
+  .phone-quick-segmented button:hover {
+    border-color: #d9d5cd;
+    background: white;
+    color: var(--ink);
+  }
 }
 
 .phone-command-icon.danger {
@@ -3383,6 +3395,10 @@ textarea.inline-text-editor:focus-visible {
   display: none;
 }
 
+.platform-ipados[data-software-keyboard="open"] .zoom-control {
+  display: none;
+}
+
 .layout-phone[data-software-keyboard="open"]
   .phone-property-modal.modal-backdrop,
 .layout-phone-short[data-software-keyboard="open"]
@@ -3457,18 +3473,25 @@ textarea.inline-text-editor:focus-visible {
     background: #292a2d;
   }
 
-  .phone-command-button:hover,
   .phone-command-button:focus-visible,
   .phone-command-button.active,
-  .phone-command-icon:hover,
   .phone-command-icon:focus-visible,
-  .phone-quick-segmented button:hover,
   .phone-quick-segmented button:focus-visible,
   .phone-quick-segmented button.active,
   .phone-command-icon.trim {
     border-color: #505258;
     background: #36383c;
     color: #fff;
+  }
+
+  @media (hover: hover) {
+    .phone-command-button:hover,
+    .phone-command-icon:hover,
+    .phone-quick-segmented button:hover {
+      border-color: #505258;
+      background: #36383c;
+      color: #fff;
+    }
   }
 
   .header-action {
