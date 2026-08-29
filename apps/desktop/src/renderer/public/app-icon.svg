@@ -40,52 +40,54 @@
       d="M0 0h1v1H0zM4 0h1v1H4zM0 1h1v1H0zM3 1h1v1H3zM0 2h1v1H0zM2 2h1v1H2zM0 3h2v1H0zM0 4h1v1H0zM2 4h1v1H2zM0 5h1v1H0zM3 5h1v1H3zM0 6h1v1H0zM4 6h1v1H4z"
     />
   </defs>
-  <rect width="512" height="512" rx="112" fill="#e4572e" />
-  <path
-    d="M0 382c70 38 153 58 248 58 103 0 191-25 264-72v32c0 62-50 112-112 112H112C50 512 0 462 0 400v-18Z"
-    fill="#cc4425"
-  />
-  <path
-    d="M46 158c0-31 49-56 110-56s110 25 110 56v139c0 31-49 56-110 56S46 328 46 297V158Z"
-    fill="#292925"
-    opacity=".22"
-    transform="translate(0 12)"
-  />
-  <path
-    d="M46 158c0-31 49-56 110-56s110 25 110 56v139c0 31-49 56-110 56S46 328 46 297V158Z"
-    fill="#e2ded5"
-  />
-  <ellipse cx="156" cy="158" rx="110" ry="56" fill="#fffdf8" />
-  <ellipse cx="156" cy="158" rx="51" ry="26" fill="#cbc7be" />
-  <ellipse cx="156" cy="163" rx="31" ry="16" fill="#6b6964" />
-  <path
-    d="M52 176c0 21 47 38 104 38 31 0 51-17 79-17h221v139H235c-28 0-48 17-79 17-57 0-104-17-104-38V176Z"
-    fill="#292925"
-    opacity=".22"
-    transform="translate(0 12)"
-  />
-  <path
-    d="M52 176c0 21 47 38 104 38 31 0 51-17 79-17h221v139H235c-28 0-48 17-79 17-57 0-104-17-104-38V176Z"
-    fill="#fffdf8"
-  />
-  <path
-    d="M52 172c0 21 47 38 104 38 31 0 51-17 79-17v7c-28 0-48 17-79 17-57 0-104-17-104-38v-7Z"
-    fill="#d6d1c7"
-  />
-  <path
-    d="M52 311c0 21 47 38 104 38 31 0 51-17 79-17v7c-28 0-48 17-79 17-57 0-104-17-104-38v-7Z"
-    fill="#e4dfd5"
-  />
-  <g fill="#292925" transform="translate(243 250.75) scale(3.45 4.5)">
-    <use href="#glyph-l" />
-    <use href="#glyph-a" x="6" />
-    <use href="#glyph-b" x="12" />
-    <use href="#glyph-e" x="18" />
-    <use href="#glyph-l" x="24" />
-    <use href="#glyph-m" x="30" />
-    <use href="#glyph-a" x="36" />
-    <use href="#glyph-k" x="42" />
-    <use href="#glyph-e" x="48" />
-    <use href="#glyph-r" x="54" />
+  <g transform="translate(32 32) scale(.875)">
+    <rect width="512" height="512" rx="112" fill="#e4572e" />
+    <path
+      d="M0 382c70 38 153 58 248 58 103 0 191-25 264-72v32c0 62-50 112-112 112H112C50 512 0 462 0 400v-18Z"
+      fill="#cc4425"
+    />
+    <path
+      d="M46 158c0-31 49-56 110-56s110 25 110 56v139c0 31-49 56-110 56S46 328 46 297V158Z"
+      fill="#292925"
+      opacity=".22"
+      transform="translate(0 12)"
+    />
+    <path
+      d="M46 158c0-31 49-56 110-56s110 25 110 56v139c0 31-49 56-110 56S46 328 46 297V158Z"
+      fill="#e2ded5"
+    />
+    <ellipse cx="156" cy="158" rx="110" ry="56" fill="#fffdf8" />
+    <ellipse cx="156" cy="158" rx="51" ry="26" fill="#cbc7be" />
+    <ellipse cx="156" cy="163" rx="31" ry="16" fill="#6b6964" />
+    <path
+      d="M52 176c0 21 47 38 104 38 31 0 51-17 79-17h221v139H235c-28 0-48 17-79 17-57 0-104-17-104-38V176Z"
+      fill="#292925"
+      opacity=".22"
+      transform="translate(0 12)"
+    />
+    <path
+      d="M52 176c0 21 47 38 104 38 31 0 51-17 79-17h221v139H235c-28 0-48 17-79 17-57 0-104-17-104-38V176Z"
+      fill="#fffdf8"
+    />
+    <path
+      d="M52 172c0 21 47 38 104 38 31 0 51-17 79-17v7c-28 0-48 17-79 17-57 0-104-17-104-38v-7Z"
+      fill="#d6d1c7"
+    />
+    <path
+      d="M52 311c0 21 47 38 104 38 31 0 51-17 79-17v7c-28 0-48 17-79 17-57 0-104-17-104-38v-7Z"
+      fill="#e4dfd5"
+    />
+    <g fill="#292925" transform="translate(243 250.75) scale(3.45 4.5)">
+      <use href="#glyph-l" />
+      <use href="#glyph-a" x="6" />
+      <use href="#glyph-b" x="12" />
+      <use href="#glyph-e" x="18" />
+      <use href="#glyph-l" x="24" />
+      <use href="#glyph-m" x="30" />
+      <use href="#glyph-a" x="36" />
+      <use href="#glyph-k" x="42" />
+      <use href="#glyph-e" x="48" />
+      <use href="#glyph-r" x="54" />
+    </g>
   </g>
 </svg>

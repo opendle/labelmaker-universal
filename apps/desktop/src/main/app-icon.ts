@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import { app, BrowserWindow, type NativeImage } from "electron";
+import { BrowserWindow, type NativeImage } from "electron";
 
 let appIconPromise: Promise<NativeImage> | undefined;
 
@@ -40,8 +40,8 @@ async function renderAppIcon(): Promise<NativeImage> {
 }
 
 export async function installAppIcon(window: BrowserWindow): Promise<void> {
+  if (process.platform === "darwin") return;
   appIconPromise ??= renderAppIcon();
   const icon = await appIconPromise;
   if (!window.isDestroyed()) window.setIcon(icon);
-  if (process.platform === "darwin" && app.dock) app.dock.setIcon(icon);
 }

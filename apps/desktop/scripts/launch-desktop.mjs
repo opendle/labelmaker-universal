@@ -18,7 +18,7 @@ const BUNDLE_IDENTIFIER = "io.labelmaker.universal.dev";
 const BUNDLE_ICON_NAME = "labelmaker.icns";
 const BLUETOOTH_USAGE_DESCRIPTION =
   "Labelmaker uses Bluetooth to find and print labels on nearby printers.";
-const RUNTIME_LAYOUT_VERSION = 3;
+const RUNTIME_LAYOUT_VERSION = 4;
 const applicationDirectory = resolve(import.meta.dirname, "..");
 const runtimeRoot = join(applicationDirectory, ".runtime");
 
