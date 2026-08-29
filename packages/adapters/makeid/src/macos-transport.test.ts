@@ -6,6 +6,9 @@ import {
 } from "./macos-transport.js";
 import { MakeIdTransportTimeoutError } from "./transport.js";
 
+const ABF0 = { protocolFamily: "abf0-66" } as const;
+const FF00 = { protocolFamily: "ff00-escpos" } as const;
+
 describe("MacOsMakeIdTransportProvider", () => {
   it("validates paired-device discovery output", () => {
     expect(
@@ -40,7 +43,7 @@ describe("MacOsMakeIdTransportProvider", () => {
     const helper = `
       if (process.argv[1] === "discover") {
         process.stdout.write(JSON.stringify([{ id: ${JSON.stringify(peripheralId)}, name: "YichipFPGA-1308" }]));
-      } else if (process.argv[1] === "connect" && process.argv[2] === ${JSON.stringify(peripheralId)}) {
+      } else if (process.argv[1] === "connect" && process.argv[2] === ${JSON.stringify(peripheralId)} && process.argv[3] === "abf0-66") {
         process.stderr.write("READY\\n");
         process.stdin.resume();
       } else process.exit(8);
@@ -54,7 +57,7 @@ describe("MacOsMakeIdTransportProvider", () => {
     expect(devices).toEqual([{ id: peripheralId, name: "YichipFPGA-1308" }]);
     const device = devices[0];
     if (!device) throw new Error("Expected a discovery result");
-    const transport = await provider.connect(device.id);
+    const transport = await provider.connect(device.id, ABF0);
     await transport.close();
   });
 
@@ -92,7 +95,7 @@ describe("MacOsMakeIdTransportProvider", () => {
     ]);
     const device = devices[0];
     if (!device) throw new Error("Expected a discovery result");
-    const transport = await provider.connect(device.id);
+    const transport = await provider.connect(device.id, ABF0);
     try {
       await transport.write(Uint8Array.of(0x66, 6, 0, 0x10, 0, 0x84));
       await expect(transport.read({ timeoutMs: 1_000 })).resolves.toEqual(
@@ -100,6 +103,30 @@ describe("MacOsMakeIdTransportProvider", () => {
       );
       await expect(transport.read({ timeoutMs: 1_000 })).resolves.toEqual(
         Uint8Array.from(response),
+      );
+    } finally {
+      await transport.close();
+    }
+  });
+
+  it("passes FF00 selection and returns raw command replies", async () => {
+    const savedId = "macos-bt-0123456789abcdef01234567";
+    const helper = `
+      if (process.argv[1] !== "connect" || process.argv[2] !== ${JSON.stringify(savedId)} || process.argv[3] !== "ff00-escpos") process.exit(8);
+      process.stderr.write("READY\\n");
+      process.stdin.once("data", () => process.stdout.write(Buffer.from([0x66, 2, 0])));
+      process.stdin.resume();
+    `;
+    const provider = new MacOsMakeIdTransportProvider({
+      helperPath: process.execPath,
+      helperArguments: ["-e", helper],
+    });
+
+    const transport = await provider.connect(savedId, FF00);
+    try {
+      await transport.write(Uint8Array.of(0x10, 0xff, 0x20, 0xf0));
+      await expect(transport.read({ timeoutMs: 1_000 })).resolves.toEqual(
+        Uint8Array.of(0x66, 2, 0),
       );
     } finally {
       await transport.close();
@@ -135,7 +162,7 @@ describe("MacOsMakeIdTransportProvider", () => {
     const devices = await provider.discover({ timeoutMs: 1_000 });
     const device = devices[0];
     if (!device) throw new Error("Expected a discovery result");
-    const transport = await provider.connect(device.id);
+    const transport = await provider.connect(device.id, ABF0);
 
     try {
       await transport.write(Uint8Array.of(0x66, 6, 0, 0x10, 0, 0x84));
@@ -164,7 +191,7 @@ describe("MacOsMakeIdTransportProvider", () => {
     });
 
     try {
-      const transport = await provider.connect(savedId);
+      const transport = await provider.connect(savedId, ABF0);
       await transport.close();
       await expect(readFile(invocationsPath, "utf8")).resolves.toBe(
         "connect\n",
@@ -196,10 +223,10 @@ describe("MacOsMakeIdTransportProvider", () => {
     });
 
     try {
-      const transport = await provider.connect(savedId.toUpperCase());
+      const transport = await provider.connect(savedId.toUpperCase(), ABF0);
       await transport.close();
       await expect(readFile(invocationsPath, "utf8")).resolves.toBe(
-        `discover --include-unpaired\nconnect ${savedId}\n`,
+        `discover --include-unpaired\nconnect ${savedId} abf0-66\n`,
       );
     } finally {
       await rm(directory, { recursive: true, force: true });
@@ -221,7 +248,7 @@ describe("MacOsMakeIdTransportProvider", () => {
       connectTimeoutMs: 500,
     });
 
-    const transport = await provider.connect(savedId);
+    const transport = await provider.connect(savedId, ABF0);
     await transport.close();
   });
 
@@ -260,7 +287,7 @@ describe("MacOsMakeIdTransportProvider", () => {
     const devices = await boundedProvider.discover({ timeoutMs: 1_000 });
     const device = devices[0];
     if (!device) throw new Error("Expected a discovery result");
-    const transport = await boundedProvider.connect(device.id);
+    const transport = await boundedProvider.connect(device.id, ABF0);
     try {
       await expect(transport.read({ timeoutMs: 10 })).rejects.toBeInstanceOf(
         MakeIdTransportTimeoutError,
@@ -301,7 +328,7 @@ describe("MacOsMakeIdTransportProvider", () => {
       const devices = await provider.discover({ timeoutMs: 1_000 });
       const device = devices[0];
       if (!device) throw new Error("Expected a discovery result");
-      const transport = await provider.connect(device.id);
+      const transport = await provider.connect(device.id, ABF0);
       await transport.close();
       await expect(readFile(counterPath, "utf8")).resolves.toBe("2");
     } finally {
@@ -328,7 +355,7 @@ describe("MacOsMakeIdTransportProvider", () => {
 
     try {
       await expect(
-        provider.connect("macos-bt-0123456789abcdef01234567"),
+        provider.connect("macos-bt-0123456789abcdef01234567", ABF0),
       ).rejects.toThrow("RFCOMM open failed");
       await expect(readFile(counterPath, "utf8")).resolves.toBe("2");
     } finally {
@@ -355,7 +382,7 @@ describe("MacOsMakeIdTransportProvider", () => {
     if (!device) throw new Error("Expected a discovery result");
 
     const startedAt = Date.now();
-    await expect(provider.connect(device.id)).rejects.toBeInstanceOf(
+    await expect(provider.connect(device.id, ABF0)).rejects.toBeInstanceOf(
       MakeIdTransportTimeoutError,
     );
     expect(Date.now() - startedAt).toBeLessThan(1_000);
@@ -382,7 +409,7 @@ describe("MacOsMakeIdTransportProvider", () => {
     });
 
     try {
-      await expect(provider.connect(savedId)).rejects.toThrow(
+      await expect(provider.connect(savedId, ABF0)).rejects.toThrow(
         "MakeID Bluetooth warm-up failed",
       );
       await expect(readFile(invocationsPath, "utf8")).resolves.toBe(
@@ -415,7 +442,7 @@ describe("MacOsMakeIdTransportProvider", () => {
     const reason = new Error("Test warm-up cancellation");
 
     try {
-      const connection = provider.connect(savedId, controller.signal);
+      const connection = provider.connect(savedId, ABF0, controller.signal);
       setTimeout(() => controller.abort(reason), 100);
       await expect(connection).rejects.toBe(reason);
       await expect(readFile(invocationsPath, "utf8")).resolves.toBe(
@@ -448,7 +475,7 @@ describe("MacOsMakeIdTransportProvider", () => {
 
     try {
       const startedAt = Date.now();
-      await expect(provider.connect(savedId)).rejects.toBeInstanceOf(
+      await expect(provider.connect(savedId, ABF0)).rejects.toBeInstanceOf(
         MakeIdTransportTimeoutError,
       );
       expect(Date.now() - startedAt).toBeLessThan(1_000);

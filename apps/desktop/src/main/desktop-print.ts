@@ -11,6 +11,7 @@ import type {
 } from "@labelmaker/printing";
 
 import type { ValidatedPrintRequest } from "./print-request.js";
+import type { SavedPrinterRecord } from "./printer-configuration.js";
 
 export interface PrintRasterTarget {
   readonly dpi: number;
@@ -45,14 +46,28 @@ export function findConfiguredPrintTarget(
 export function configuredPrinterDescriptors(
   discovered: readonly PrinterDescriptor[],
   configuredPrinterIds: ReadonlySet<string>,
+  savedPrinterRecords: Readonly<Record<string, SavedPrinterRecord>> = {},
 ): readonly PrinterDescriptor[] {
-  const descriptors = new Map(
-    discovered
-      .filter((printer) => configuredPrinterIds.has(printer.id))
-      .map((printer) => [printer.id, printer] as const),
-  );
+  const descriptors = new Map<string, PrinterDescriptor>();
   for (const printerId of configuredPrinterIds) {
-    if (descriptors.has(printerId)) continue;
+    const savedPrinter = savedPrinterRecords[printerId];
+    if (savedPrinter) {
+      // A saved MakeID profile is the result of a protocol query. Keep it in
+      // preference to an unresolved discovery result. Android and Windows
+      // shells must apply the same rule when they add persistence later.
+      descriptors.set(printerId, savedPrinter);
+      continue;
+    }
+    const discoveredPrinter = discovered.find(
+      (printer) => printer.id === printerId,
+    );
+    if (discoveredPrinter) {
+      descriptors.set(printerId, discoveredPrinter);
+      continue;
+    }
+
+    // Version 1 saved only an E1 transport key in the printer ID. Keep this
+    // fallback for migration, but do not use it for new model profiles.
     const savedTransport = makeIdSavedTransport(printerId);
     if (!savedTransport) continue;
     descriptors.set(printerId, {

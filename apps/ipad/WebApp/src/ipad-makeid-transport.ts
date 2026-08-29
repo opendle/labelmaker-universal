@@ -1,6 +1,7 @@
 import {
   MakeIdTransportTimeoutError,
   type MakeIdTransport,
+  type MakeIdTransportConnectionOptions,
   type MakeIdTransportDevice,
   type MakeIdTransportProvider,
 } from "@labelmaker/adapter-makeid";
@@ -15,6 +16,7 @@ export class IpadMakeIdTransportProvider implements MakeIdTransportProvider {
     throwIfAborted(options.signal);
     const response = await callNative("bluetoothDiscover", {
       timeoutMs: options.timeoutMs,
+      includeUnpaired: options.includeUnpaired ?? false,
     });
     throwIfAborted(options.signal);
     if (!Array.isArray(response))
@@ -32,11 +34,13 @@ export class IpadMakeIdTransportProvider implements MakeIdTransportProvider {
 
   async connect(
     deviceId: string,
+    options: MakeIdTransportConnectionOptions,
     signal?: AbortSignal,
   ): Promise<MakeIdTransport> {
     throwIfAborted(signal);
     const response = await callNative("bluetoothConnect", {
       deviceId,
+      protocolFamily: options.protocolFamily,
     });
     throwIfAborted(signal);
     if (!isRecord(response) || typeof response.connectionId !== "string") {

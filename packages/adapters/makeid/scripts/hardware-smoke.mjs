@@ -17,12 +17,15 @@ const printers = await adapter.discover(
   { timeoutMs: 5_000, includeUnpaired: true },
   context,
 );
-if (printers.length !== 1) {
+const e1Printers = printers.filter(
+  (candidate) => candidate.connection.profileId === "e1-abf0-203",
+);
+if (e1Printers.length !== 1) {
   throw new Error(
-    `Expected one nearby MakeID E1 printer; found ${printers.length}`,
+    `Expected one nearby MakeID E1 printer; found ${e1Printers.length}`,
   );
 }
-const printer = printers[0];
+const printer = e1Printers[0];
 const session = await adapter.connect(printer, context);
 try {
   const status = await session.status();

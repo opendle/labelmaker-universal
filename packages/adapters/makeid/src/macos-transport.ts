@@ -7,6 +7,7 @@ import type { DiscoveryOptions } from "@labelmaker/printing";
 import {
   MakeIdTransportTimeoutError,
   type MakeIdTransport,
+  type MakeIdTransportConnectionOptions,
   type MakeIdTransportDevice,
   type MakeIdTransportProvider,
   type MakeIdTransportReadOptions,
@@ -22,6 +23,7 @@ const MAKEID_FRAME_MARKER = 0x66;
 const MIN_INBOUND_FRAME_BYTES = 6;
 const MAX_INBOUND_FRAME_BYTES = 4_096;
 const MAX_INBOUND_BUFFER_BYTES = MAX_INBOUND_FRAME_BYTES * 2;
+const MAX_RAW_INBOUND_BUFFER_BYTES = 1024 * 1024;
 
 export interface MacOsMakeIdTransportProviderOptions {
   readonly helperPath?: string;
@@ -102,6 +104,7 @@ export class MacOsMakeIdTransportProvider implements MakeIdTransportProvider {
 
   async connect(
     deviceId: string,
+    options: MakeIdTransportConnectionOptions,
     signal?: AbortSignal,
   ): Promise<MakeIdTransport> {
     const discoveredId = this.#nativeDeviceIds.get(deviceId);
@@ -126,7 +129,8 @@ export class MacOsMakeIdTransportProvider implements MakeIdTransportProvider {
         }
         const remainingMs = this.#remainingConnectTime(deadline);
         transport = new MacOsMakeIdTransport(
-          this.#spawn(["connect", helperDeviceId]),
+          this.#spawn(["connect", helperDeviceId, options.protocolFamily]),
+          options.protocolFamily,
         );
         await transport.waitUntilReady(
           Math.min(this.#connectTimeoutMs, remainingMs),
@@ -197,7 +201,10 @@ class MacOsMakeIdTransport implements MakeIdTransport {
   readonly #readWaiters = new Set<() => void>();
   readonly #stateWaiters = new Set<() => void>();
 
-  constructor(child: ChildProcessWithoutNullStreams) {
+  constructor(
+    child: ChildProcessWithoutNullStreams,
+    private readonly protocolFamily: "abf0-66" | "ff00-escpos",
+  ) {
     this.#child = child;
     child.stdout.on("data", (chunk: Buffer) => {
       this.#buffer = Buffer.concat([this.#buffer, chunk]);
@@ -260,20 +267,34 @@ class MacOsMakeIdTransport implements MakeIdTransport {
   }
 
   async read(options: MakeIdTransportReadOptions): Promise<Uint8Array> {
-    const frame = this.#takeFrame();
-    if (frame) return frame;
+    const payload = this.#takePayload();
+    if (payload) return payload;
     await this.#waitFor(
       this.#readWaiters,
-      () => this.#takeFrameLength() !== undefined || !this.open,
+      () => this.#hasPayload() || !this.open,
       options.timeoutMs,
       options.signal,
     );
-    const completed = this.#takeFrame();
+    const completed = this.#takePayload();
     if (completed) return completed;
     throw new Error(
       cleanHelperError(this.#stderr) ||
         "The MakeID Bluetooth connection closed while reading",
     );
+  }
+
+  #hasPayload(): boolean {
+    return this.protocolFamily === "abf0-66"
+      ? this.#takeFrameLength() !== undefined
+      : this.#buffer.length > 0;
+  }
+
+  #takePayload(): Uint8Array | undefined {
+    if (this.protocolFamily === "abf0-66") return this.#takeFrame();
+    if (this.#buffer.length === 0) return undefined;
+    const payload = this.#buffer;
+    this.#buffer = Buffer.alloc(0);
+    return Uint8Array.from(payload);
   }
 
   async close(): Promise<void> {
@@ -347,6 +368,12 @@ class MacOsMakeIdTransport implements MakeIdTransport {
   }
 
   #boundBuffer(): void {
+    if (this.protocolFamily === "ff00-escpos") {
+      if (this.#buffer.length > MAX_RAW_INBOUND_BUFFER_BYTES) {
+        this.#buffer = this.#buffer.subarray(-MAX_RAW_INBOUND_BUFFER_BYTES);
+      }
+      return;
+    }
     if (this.#buffer.length <= MAX_INBOUND_BUFFER_BYTES) return;
     const usefulStart = this.#buffer.length - MAX_INBOUND_FRAME_BYTES;
     const markerIndex = this.#buffer.indexOf(MAKEID_FRAME_MARKER, usefulStart);

@@ -1,5 +1,6 @@
 import type {
   NumericSettingCapability,
+  PrinterAdapter,
   PrinterCapabilities,
   PrinterDescriptor,
   PrinterSettings,
@@ -45,6 +46,16 @@ interface PrinterSummaryOptions {
   readonly preserveSessionOnFailure?: boolean;
   readonly unprobedState?: PrinterStatus["state"];
   readonly unprobedStatusMessage?: string;
+}
+
+/** Resolve static settings for one detected printer profile. */
+export function offlineCapabilitiesForPrinter(
+  adapter: PrinterAdapter,
+  printer: PrinterDescriptor,
+) {
+  return (
+    adapter.offlineCapabilitiesFor?.(printer) ?? adapter.offlineCapabilities
+  );
 }
 
 /** Keep the exact descriptors from the last explicit nearby-printer search. */

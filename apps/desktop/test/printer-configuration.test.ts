@@ -19,8 +19,28 @@ import {
   readConfiguredPrinterIds,
   readConfiguredPrinterIdsWithLegacy,
   readPrinterSettings,
+  readSavedPrinterRecords,
+  type SavedPrinterRecord,
   writeConfiguredPrinterIds,
 } from "../src/main/printer-configuration.js";
+
+function savedMakeIdPrinter(
+  id: string,
+  profileId = "l1-ff00-300",
+): SavedPrinterRecord {
+  return {
+    id,
+    adapterId: "makeid",
+    displayName: "MAKEID-L1",
+    model: "MakeID L1 300 dpi",
+    transport: "bluetooth-low-energy",
+    connection: {
+      transportDeviceId: id.slice("makeid:".length),
+      profileId,
+      advertisedName: "MAKEID-L1",
+    },
+  };
+}
 
 describe("desktop printer configuration", () => {
   it("does not configure a mock printer during a normal launch", () => {
@@ -64,12 +84,80 @@ describe("desktop printer configuration", () => {
       "configured-printers.json",
     );
     const printerId = "makeid:macos-bt-legacy";
-    await writeConfiguredPrinterIds(legacyFilePath, [printerId]);
+    await mkdir(join(directory, "legacy"), { recursive: true });
+    await writeFile(
+      legacyFilePath,
+      JSON.stringify({
+        version: 1,
+        printerIds: [printerId],
+        activePrinterId: printerId,
+        printerSettings: {
+          [printerId]: { displayName: "Packing desk", darkness: 19 },
+        },
+      }),
+      "utf8",
+    );
 
     expect(
       await readConfiguredPrinterIdsWithLegacy(filePath, legacyFilePath),
     ).toEqual([printerId]);
     expect(await readConfiguredPrinterIds(filePath)).toEqual([printerId]);
+    expect(await readActivePrinterId(filePath)).toBe(printerId);
+    expect(await readPrinterSettings(filePath)).toEqual({
+      [printerId]: { displayName: "Packing desk", darkness: 19 },
+    });
+    expect(await readSavedPrinterRecords(filePath)).toEqual({});
+    expect(JSON.parse(await readFile(filePath, "utf8"))).toMatchObject({
+      version: 2,
+      printerIds: [printerId],
+      activePrinterId: printerId,
+      printerSettings: {
+        [printerId]: { displayName: "Packing desk", darkness: 19 },
+      },
+      savedPrinterRecords: {},
+    });
+  });
+
+  it("migrates a current version-1 file without losing its settings", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const filePath = join(directory, "current", "configured-printers.json");
+    const legacyFilePath = join(
+      directory,
+      "legacy",
+      "configured-printers.json",
+    );
+    const printerId = "makeid:macos-bt-existing-e1";
+    await mkdir(join(directory, "current"), { recursive: true });
+    await writeFile(
+      filePath,
+      JSON.stringify({
+        version: 1,
+        printerIds: [printerId],
+        activePrinterId: printerId,
+        printerSettings: {
+          [printerId]: { darkness: 22, printHeadSizeMm: 11.8 },
+        },
+      }),
+      "utf8",
+    );
+
+    expect(
+      await readConfiguredPrinterIdsWithLegacy(filePath, legacyFilePath),
+    ).toEqual([printerId]);
+    expect(await readActivePrinterId(filePath)).toBe(printerId);
+    expect(await readPrinterSettings(filePath)).toEqual({
+      [printerId]: { darkness: 22, printHeadSizeMm: 11.8 },
+    });
+    expect(await readSavedPrinterRecords(filePath)).toEqual({});
+    expect(JSON.parse(await readFile(filePath, "utf8"))).toMatchObject({
+      version: 2,
+      printerIds: [printerId],
+      activePrinterId: printerId,
+      printerSettings: {
+        [printerId]: { darkness: 22, printHeadSizeMm: 11.8 },
+      },
+      savedPrinterRecords: {},
+    });
   });
 
   it("does not restore removed printers when the current file is empty", async () => {
@@ -152,6 +240,69 @@ describe("desktop printer configuration", () => {
     });
   });
 
+  it("stores a validated descriptor without changing printer identity", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const filePath = join(directory, "configured-printers.json");
+    const printerId = "makeid:macos-ble-opaque-device-key";
+    const descriptor = savedMakeIdPrinter(printerId);
+
+    await writeConfiguredPrinterIds(
+      filePath,
+      [printerId],
+      printerId,
+      { [printerId]: { darkness: 21 } },
+      { [printerId]: descriptor },
+    );
+
+    expect(await readConfiguredPrinterIds(filePath)).toEqual([printerId]);
+    expect(await readSavedPrinterRecords(filePath)).toEqual({
+      [printerId]: descriptor,
+    });
+    const stored = JSON.parse(await readFile(filePath, "utf8"));
+    expect(stored.printerIds).toEqual([printerId]);
+    expect(stored.savedPrinterRecords[printerId].connection.profileId).toBe(
+      "l1-ff00-300",
+    );
+    expect(printerId).not.toContain("300");
+    expect(printerId.toLowerCase()).not.toContain("l1");
+  });
+
+  it("preserves an unknown stable profile ID without guessing an L1 profile", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const filePath = join(directory, "configured-printers.json");
+    const printerId = "makeid:macos-ble-future-device";
+    const descriptor = savedMakeIdPrinter(printerId, "future-protocol-406");
+
+    await writeConfiguredPrinterIds(
+      filePath,
+      [printerId],
+      undefined,
+      {},
+      {
+        [printerId]: descriptor,
+      },
+    );
+
+    expect(
+      (await readSavedPrinterRecords(filePath))[printerId]?.connection
+        .profileId,
+    ).toBe("future-protocol-406");
+  });
+
+  it("does not require a saved descriptor for a migrated E1-only ID", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const filePath = join(directory, "configured-printers.json");
+    const printerId = "makeid:macos-bt-old-e1";
+    await writeFile(
+      filePath,
+      JSON.stringify({ version: 1, printerIds: [printerId] }),
+      "utf8",
+    );
+
+    expect(await readConfiguredPrinterIds(filePath)).toEqual([printerId]);
+    expect(await readSavedPrinterRecords(filePath)).toEqual({});
+  });
+
   it("normalizes a custom printer display name", () => {
     expect(normalizePrinterDisplayName("  Shipping desk  ")).toBe(
       "Shipping desk",
@@ -222,6 +373,133 @@ describe("desktop printer configuration", () => {
     await expect(readConfiguredPrinterIds(invalid)).rejects.toThrow(
       "saved printer configuration is invalid",
     );
+  });
+
+  it.each([
+    [
+      "a record for a printer that is not configured",
+      (printerId: string) => ({
+        printerIds: [printerId],
+        savedPrinterRecords: {
+          "makeid:different": savedMakeIdPrinter("makeid:different"),
+        },
+      }),
+    ],
+    [
+      "a record key that does not match its descriptor ID",
+      (printerId: string) => ({
+        printerIds: [printerId],
+        savedPrinterRecords: {
+          [printerId]: savedMakeIdPrinter("makeid:different"),
+        },
+      }),
+    ],
+    [
+      "an unsupported adapter",
+      (printerId: string) => ({
+        printerIds: [printerId],
+        savedPrinterRecords: {
+          [printerId]: {
+            ...savedMakeIdPrinter(printerId),
+            adapterId: "other",
+          },
+        },
+      }),
+    ],
+    [
+      "an unsupported transport",
+      (printerId: string) => ({
+        printerIds: [printerId],
+        savedPrinterRecords: {
+          [printerId]: {
+            ...savedMakeIdPrinter(printerId),
+            transport: "network",
+          },
+        },
+      }),
+    ],
+    [
+      "a missing transport device ID",
+      (printerId: string) => ({
+        printerIds: [printerId],
+        savedPrinterRecords: {
+          [printerId]: {
+            ...savedMakeIdPrinter(printerId),
+            connection: { profileId: "l1-ff00-300" },
+          },
+        },
+      }),
+    ],
+    [
+      "a transport device ID that does not match its printer ID",
+      (printerId: string) => ({
+        printerIds: [printerId],
+        savedPrinterRecords: {
+          [printerId]: {
+            ...savedMakeIdPrinter(printerId),
+            connection: {
+              ...savedMakeIdPrinter(printerId).connection,
+              transportDeviceId: "ipad-ble-different-printer",
+            },
+          },
+        },
+      }),
+    ],
+    [
+      "a transient unresolved profile",
+      (printerId: string) => ({
+        printerIds: [printerId],
+        savedPrinterRecords: {
+          [printerId]: savedMakeIdPrinter(printerId, "unresolved-l1"),
+        },
+      }),
+    ],
+    [
+      "an extra MakeID connection field",
+      (printerId: string) => ({
+        printerIds: [printerId],
+        savedPrinterRecords: {
+          [printerId]: {
+            ...savedMakeIdPrinter(printerId),
+            connection: {
+              ...savedMakeIdPrinter(printerId).connection,
+              commands: [1, 2, 3],
+            },
+          },
+        },
+      }),
+    ],
+  ])("rejects saved printer data with %s", async (_label, configuration) => {
+    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const filePath = join(directory, "configured-printers.json");
+    const printerId = "makeid:valid";
+    await writeFile(
+      filePath,
+      JSON.stringify({ version: 2, ...configuration(printerId) }),
+      "utf8",
+    );
+
+    await expect(readSavedPrinterRecords(filePath)).rejects.toThrow(
+      "saved printer configuration is invalid",
+    );
+  });
+
+  it("rejects a transient profile before it writes the record", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const filePath = join(directory, "configured-printers.json");
+    const printerId = "makeid:valid";
+
+    await expect(
+      writeConfiguredPrinterIds(
+        filePath,
+        [printerId],
+        undefined,
+        {},
+        {
+          [printerId]: savedMakeIdPrinter(printerId, "unresolved-p31"),
+        },
+      ),
+    ).rejects.toThrow(`Saved printer record is invalid: ${printerId}`);
   });
 
   it("rejects malformed stored printer data", async () => {

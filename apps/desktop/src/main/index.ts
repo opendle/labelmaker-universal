@@ -52,6 +52,8 @@ import {
   readConfiguredPrinterIds,
   readConfiguredPrinterIdsWithLegacy,
   readPrinterSettings,
+  readSavedPrinterRecords,
+  type SavedPrinterRecord,
   writeConfiguredPrinterIds,
 } from "./printer-configuration.js";
 import { readWorkspaceFile, writeWorkspaceFile } from "./workspace-files.js";
@@ -69,6 +71,7 @@ import {
   PrinterSessionManager,
 } from "./printer-session.js";
 import {
+  offlineCapabilitiesForPrinter,
   PrinterDiscoveryCache,
   shouldProbePrinterStatus,
   summarizePrinter,
@@ -100,6 +103,7 @@ let configuredPrinterIds = initialConfiguredPrinterIds(
 );
 let activePrinterId: string | undefined;
 const printerSettings = new Map<string, PrinterSettings>();
+const savedPrinterRecords = new Map<string, SavedPrinterRecord>();
 const printerSessions = new PrinterSessionManager((printer) =>
   registry.get(printer.adapterId).connect(printer, context),
 );
@@ -288,6 +292,7 @@ async function allDescriptors(
 
 async function summarize(printer: PrinterDescriptor) {
   const adapter = registry.get(printer.adapterId);
+  const offlineCapabilities = offlineCapabilitiesForPrinter(adapter, printer);
   const hasActiveJob = activePrinterJobs.has(printer.id);
   const statusIsDeferred = deferredPrinterStatusIds.has(printer.id);
   const shouldProbe =
@@ -311,9 +316,7 @@ async function summarize(printer: PrinterDescriptor) {
       preserveSessionOnFailure: printer.adapterId === "makeid",
       unprobedState: hasActiveJob ? "busy" : "disconnected",
       unprobedStatusMessage: hasActiveJob ? "Printing" : "Connects on print",
-      ...(adapter.offlineCapabilities === undefined
-        ? {}
-        : { offlineCapabilities: adapter.offlineCapabilities }),
+      ...(offlineCapabilities === undefined ? {} : { offlineCapabilities }),
       ...(printerSettings.has(printer.id)
         ? { settings: printerSettings.get(printer.id)! }
         : {}),
@@ -352,6 +355,7 @@ async function readyPrinterSession(
 
 function discoveredSummary(printer: PrinterDescriptor) {
   const adapter = registry.get(printer.adapterId);
+  const offlineCapabilities = offlineCapabilitiesForPrinter(adapter, printer);
   return {
     id: printer.id,
     adapterId: printer.adapterId,
@@ -361,15 +365,15 @@ function discoveredSummary(printer: PrinterDescriptor) {
     transport: printer.transport,
     state: "connecting" as const,
     statusMessage: "Found nearby",
-    ...(adapter.offlineCapabilities ?? {}),
-    ...(adapter.offlineCapabilities?.darkness === undefined
+    ...(offlineCapabilities ?? {}),
+    ...(offlineCapabilities?.darkness === undefined
       ? {}
       : {
           darkness: {
-            ...adapter.offlineCapabilities.darkness,
+            ...offlineCapabilities.darkness,
             value:
               printerSettings.get(printer.id)?.darkness ??
-              adapter.offlineCapabilities.darkness.defaultValue,
+              offlineCapabilities.darkness.defaultValue,
           },
         }),
   };
@@ -379,7 +383,12 @@ function printerModel(
   adapter: PrinterAdapter,
   printer: PrinterDescriptor,
 ): string {
-  if (printer.adapterId === "makeid") return "MakeID E1";
+  if (printer.adapterId === "makeid") {
+    return (
+      printer.model ??
+      (printer.connection["model"] === "E1" ? "MakeID E1" : "MakeID printer")
+    );
+  }
   return printer.id === "mock-studio"
     ? "MakeID E1 · Mock adapter"
     : `${adapter.manifest.displayName} · Mock adapter`;
@@ -430,13 +439,14 @@ function registerIpc(): void {
         throw new TypeError(
           "Active printer ID must identify a configured printer",
         );
-      activePrinterId = printerId;
       await writeConfiguredPrinterIds(
         configuredPrintersPath(),
         configuredPrinterIds,
-        activePrinterId,
+        printerId,
         Object.fromEntries(printerSettings),
+        Object.fromEntries(savedPrinterRecords),
       );
+      activePrinterId = printerId;
     },
   );
 
@@ -444,6 +454,7 @@ function registerIpc(): void {
     const descriptors = configuredPrinterDescriptors(
       await allDescriptors(false),
       configuredPrinterIds,
+      Object.fromEntries(savedPrinterRecords),
     );
     return Promise.all(descriptors.map(summarize));
   });
@@ -478,23 +489,35 @@ function registerIpc(): void {
           () => allDescriptors(true),
           printerSession,
         );
+      const resolvedPrinter = connectedSession.printer;
+      if (resolvedPrinter.id !== printerId) {
+        await printerSessions.discard(printerId, connectedSession);
+        throw new Error("The connected printer identity changed");
+      }
       const nextPrinterIds = new Set(configuredPrinterIds).add(printerId);
+      const nextSavedPrinterRecords = new Map(savedPrinterRecords).set(
+        printerId,
+        resolvedPrinter,
+      );
       try {
         await writeConfiguredPrinterIds(
           configuredPrintersPath(),
           nextPrinterIds,
           activePrinterId,
           Object.fromEntries(printerSettings),
+          Object.fromEntries(nextSavedPrinterRecords),
         );
       } catch (error) {
         await printerSessions.discard(printerId, connectedSession);
         throw error;
       }
       configuredPrinterIds.add(printerId);
+      savedPrinterRecords.set(printerId, resolvedPrinter);
       discoveredPrinters.delete(printerId);
       const descriptors = configuredPrinterDescriptors(
-        [descriptor, ...(await allDescriptors(false))],
+        [resolvedPrinter, descriptor, ...(await allDescriptors(false))],
         nextPrinterIds,
+        Object.fromEntries(nextSavedPrinterRecords),
       );
       return Promise.all(descriptors.map(summarize));
     },
@@ -514,18 +537,22 @@ function registerIpc(): void {
       nextPrinterIds.delete(printerId);
       const nextPrinterSettings = new Map(printerSettings);
       nextPrinterSettings.delete(printerId);
-      if (activePrinterId === printerId) {
-        activePrinterId = [...nextPrinterIds].find((id) =>
-          id.startsWith("makeid:"),
-        );
-      }
+      const nextSavedPrinterRecords = new Map(savedPrinterRecords);
+      nextSavedPrinterRecords.delete(printerId);
+      const nextActivePrinterId =
+        activePrinterId === printerId
+          ? [...nextPrinterIds].find((id) => id.startsWith("makeid:"))
+          : activePrinterId;
       await writeConfiguredPrinterIds(
         configuredPrintersPath(),
         nextPrinterIds,
-        activePrinterId,
+        nextActivePrinterId,
         Object.fromEntries(nextPrinterSettings),
+        Object.fromEntries(nextSavedPrinterRecords),
       );
+      activePrinterId = nextActivePrinterId;
       printerSettings.delete(printerId);
+      savedPrinterRecords.delete(printerId);
       deferredPrinterStatusIds.delete(printerId);
       configuredPrinterIds = nextPrinterIds;
       await discardPrinterSession(printerId);
@@ -533,6 +560,7 @@ function registerIpc(): void {
       const descriptors = configuredPrinterDescriptors(
         await allDescriptors(false),
         configuredPrinterIds,
+        Object.fromEntries(savedPrinterRecords),
       );
       return Promise.all(descriptors.map(summarize));
     },
@@ -546,11 +574,15 @@ function registerIpc(): void {
       const descriptors = configuredPrinterDescriptors(
         await allDescriptors(false),
         configuredPrinterIds,
+        Object.fromEntries(savedPrinterRecords),
       );
       const descriptor = descriptors.find((item) => item.id === printerId);
       if (!descriptor) throw new Error("Configured printer was not found");
       const adapter = registry.get(descriptor.adapterId);
-      const darknessCapability = adapter.offlineCapabilities?.darkness;
+      const darknessCapability = offlineCapabilitiesForPrinter(
+        adapter,
+        descriptor,
+      )?.darkness;
       if (
         typeof value !== "object" ||
         value === null ||
@@ -616,6 +648,7 @@ function registerIpc(): void {
         configuredPrinterIds,
         activePrinterId,
         Object.fromEntries(nextPrinterSettings),
+        Object.fromEntries(savedPrinterRecords),
       );
       printerSettings.set(printerId, updatedSettings);
       return Promise.all(descriptors.map(summarize));
@@ -699,6 +732,7 @@ function registerIpc(): void {
       configuredPrinterDescriptors(
         await allDescriptors(false),
         configuredPrinterIds,
+        Object.fromEntries(savedPrinterRecords),
       ),
       configuredPrinterIds,
       validatedRequest.printerId,
@@ -759,6 +793,14 @@ async function restoreConfiguredPrinters(): Promise<void> {
       configureMockPrinterFixture,
     );
     activePrinterId = await readActivePrinterId(configuredPrintersPath());
+    savedPrinterRecords.clear();
+    for (const [printerId, record] of Object.entries(
+      await readSavedPrinterRecords(configuredPrintersPath()),
+    )) {
+      if (configuredPrinterIds.has(printerId)) {
+        savedPrinterRecords.set(printerId, record);
+      }
+    }
     printerSettings.clear();
     for (const [printerId, settings] of Object.entries(
       await readPrinterSettings(configuredPrintersPath()),
@@ -780,6 +822,7 @@ async function restoreConfiguredPrinters(): Promise<void> {
     );
     activePrinterId = undefined;
     printerSettings.clear();
+    savedPrinterRecords.clear();
   }
 }
 

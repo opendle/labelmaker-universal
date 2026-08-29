@@ -31,9 +31,12 @@ mock printers.
 
 - The macOS desktop app can discover and print to a MakeID E1 through Bluetooth
   Low Energy. The physical print path is verified on 16 mm tape.
+- The shared MakeID adapter also detects L1 203-DPI, L1 300-DPI, and P31-family
+  profiles from printer replies. These profiles need physical tests on the
+  ordered L1 300-DPI and P31S printers.
 - The iPad app has Files integration, workspace recovery, touch controls, and a
-  native CoreBluetooth transport for MakeID E1. The iPad printer path still
-  needs a physical hardware test.
+  native CoreBluetooth transport for supported MakeID profiles. The iPad
+  printer path still needs a physical hardware test.
 - The editor can run on Windows and Linux, but these systems do not yet have a
   physical printer transport.
 - Signed install packages are not available. Run the apps from source.
@@ -126,7 +129,7 @@ packages/documents       Workspace validation and gzip YAML serialization
 packages/printing        Printer adapter contracts, sessions, and jobs
 packages/rendering       Shared SVG and one-bit raster rendering
 packages/adapters/mock   Test-only printer adapter
-packages/adapters/makeid MakeID E1 protocol and platform transports
+packages/adapters/makeid MakeID model profiles, protocols, and transports
 packages/ui              Shared React editor and application UI
 docs                     Product, architecture, format, and test documents
 ```

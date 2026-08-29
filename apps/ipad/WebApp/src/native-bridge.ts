@@ -80,11 +80,17 @@ interface NativeMethodMap {
     readonly response: unknown;
   };
   bluetoothDiscover: {
-    readonly request: { readonly timeoutMs: number };
+    readonly request: {
+      readonly timeoutMs: number;
+      readonly includeUnpaired: boolean;
+    };
     readonly response: unknown;
   };
   bluetoothConnect: {
-    readonly request: { readonly deviceId: string };
+    readonly request: {
+      readonly deviceId: string;
+      readonly protocolFamily: "abf0-66" | "ff00-escpos";
+    };
     readonly response: unknown;
   };
   bluetoothWrite: {

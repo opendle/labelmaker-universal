@@ -6,6 +6,7 @@ import {
   calculateMakeIdChecksum,
   encodeLzo1xLiteralStream,
   MakeIdControlState,
+  parseMakeIdAbf0Profile,
   parseMakeIdResponse,
 } from "./protocol.js";
 
@@ -82,6 +83,141 @@ describe("MakeID protocol primitives", () => {
     bytes[1] = 35;
 
     expect(() => parseMakeIdResponse(bytes)).toThrow(/length field/);
+  });
+
+  it("detects the old 203- and 300-DPI L1 profiles from status bytes", () => {
+    const dpi203 = response({});
+    dpi203[6] = 0;
+    const dpi300 = response({});
+    dpi300[6] = 1;
+
+    expect(parseMakeIdAbf0Profile(dpi203, "l1", "L1C25E01553")).toMatchObject({
+      profileId: "l1-abf0-203",
+      model: "MakeID L1 203 DPI",
+      dpi: 203,
+      rasterWidthPixels: 96,
+      maxRowsPerPacket: 85,
+      swapRasterBytePairs: true,
+    });
+    expect(parseMakeIdAbf0Profile(dpi300, "l1", "MakeID L1")).toMatchObject({
+      profileId: "l1-abf0-300",
+      model: "MakeID L1 300 DPI",
+      dpi: 300,
+      rasterWidthPixels: 144,
+      maxRowsPerPacket: 56,
+      swapRasterBytePairs: true,
+    });
+  });
+
+  it("uses protocol 1.3 head width, row limit, and byte order", () => {
+    const bytes = new Uint8Array(44);
+    bytes[0] = 0x66;
+    bytes[1] = bytes.length;
+    bytes[3] = 0x10;
+    bytes[6] = 1;
+    bytes[36] = 1;
+    bytes[37] = 3;
+    bytes[38] = 0x04;
+    bytes[39] = 38;
+    bytes[41] = 64;
+
+    expect(parseMakeIdAbf0Profile(bytes, "p31", "P31S-Office")).toEqual({
+      profileId: "p31-abf0-300",
+      model: "P31S-Office",
+      protocolFamily: "abf0-66",
+      dpi: 300,
+      rasterWidthPixels: 304,
+      printableWidthMm: 25.7,
+      maxRowsPerPacket: 64,
+      swapRasterBytePairs: true,
+      protocolVersion: "1.3",
+    });
+  });
+
+  it("uses a clear protocol 1.3 byte-order flag without swapping", () => {
+    const bytes = new Uint8Array(44);
+    bytes[0] = 0x66;
+    bytes[1] = bytes.length;
+    bytes[3] = 0x10;
+    bytes[6] = 1;
+    bytes[36] = 1;
+    bytes[37] = 3;
+    bytes[39] = 18;
+    bytes[41] = 56;
+
+    expect(parseMakeIdAbf0Profile(bytes, "l1")).toMatchObject({
+      profileId: "l1-abf0-300",
+      rasterWidthPixels: 144,
+      swapRasterBytePairs: false,
+    });
+  });
+
+  it("rejects status model evidence from a different family", () => {
+    const bytes = response({});
+    bytes[6] = 4;
+    bytes.set(new TextEncoder().encode("L1-30"), 10);
+
+    expect(() => parseMakeIdAbf0Profile(bytes, "p31", "P31S")).toThrow(
+      /does not match/,
+    );
+  });
+
+  it("rejects a 300-DPI P31-family reply without an explicit row width", () => {
+    const bytes = response({});
+    bytes[6] = 1;
+
+    expect(() => parseMakeIdAbf0Profile(bytes, "p31", "P31S")).toThrow(
+      /does not report its raster width/,
+    );
+  });
+
+  it("rejects different horizontal and vertical DPI values", () => {
+    const bytes = response({});
+    bytes[6] = 1;
+    bytes[15] = 1;
+
+    expect(() => parseMakeIdAbf0Profile(bytes, "l1")).toThrow(
+      /different horizontal and vertical DPI/,
+    );
+  });
+
+  it("rejects an unknown DPI code instead of selecting a model fallback", () => {
+    const bytes = response({});
+    bytes[6] = 7;
+
+    expect(() => parseMakeIdAbf0Profile(bytes, "p31", "P31S")).toThrow(
+      /unsupported DPI code/,
+    );
+  });
+
+  it("rejects unsupported protocol 1.3 head widths and unsafe row limits", () => {
+    const unsupportedWidth = new Uint8Array(44);
+    unsupportedWidth[0] = 0x66;
+    unsupportedWidth[1] = unsupportedWidth.length;
+    unsupportedWidth[3] = 0x10;
+    unsupportedWidth[6] = 1;
+    unsupportedWidth[36] = 1;
+    unsupportedWidth[37] = 3;
+    unsupportedWidth[39] = 17;
+    unsupportedWidth[41] = 56;
+    expect(() => parseMakeIdAbf0Profile(unsupportedWidth, "l1")).toThrow(
+      /unsupported raster width/,
+    );
+
+    const unsafeRows = unsupportedWidth.slice();
+    unsafeRows[39] = 18;
+    unsafeRows[41] = 0xff;
+    unsafeRows[42] = 0xff;
+    expect(() => parseMakeIdAbf0Profile(unsafeRows, "l1")).toThrow(
+      /invalid raster row limit/,
+    );
+  });
+
+  it("removes the optional BLE notification wrapper before parsing", () => {
+    const wrapped = new Uint8Array(40);
+    wrapped.set([0x23, 0x23, 1, 0, 0x66, 36, 0, 0x10]);
+
+    expect(parseMakeIdResponse(wrapped)).toMatchObject({ kind: "success" });
   });
 });
 

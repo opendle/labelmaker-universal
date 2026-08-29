@@ -44,6 +44,23 @@ public struct MakeIDBluetoothError: Codable, Equatable, Error, LocalizedError, S
   public var errorDescription: String? { message }
 }
 
+public enum MakeIDBluetoothProtocolFamily: String, CaseIterable, Sendable {
+  case abf0 = "abf0-66"
+  case ff00 = "ff00-escpos"
+
+  var serviceUUID: CBUUID {
+    CBUUID(string: self == .abf0 ? "ABF0" : "FF00")
+  }
+
+  var writeUUID: CBUUID {
+    CBUUID(string: self == .abf0 ? "ABF1" : "FF02")
+  }
+
+  var notifyUUID: CBUUID {
+    CBUUID(string: self == .abf0 ? "ABF2" : "FF01")
+  }
+}
+
 /// Pure identity and discovery rules shared by the transport and its tests.
 enum MakeIDBluetoothIdentity {
   static let devicePrefix = "ipad-ble-"
@@ -80,6 +97,15 @@ enum MakeIDBluetoothIdentity {
       return true
     }
 
+    let modelName = normalized.hasPrefix("MAKEID ")
+      ? String(normalized.dropFirst("MAKEID ".count))
+      : normalized
+    if modelName.hasPrefix("L1") || modelName.hasPrefix("P31")
+      || modelName.hasPrefix("Q31") || modelName.hasPrefix("GP31")
+    {
+      return true
+    }
+
     // Known E1 serial names use E1, two digits, one letter, and five digits.
     guard normalized.count == 10, normalized.hasPrefix("E1") else {
       return false
@@ -104,7 +130,7 @@ enum MakeIDBluetoothIdentity {
         return value
       }
     }
-    return "MakeID E1"
+    return "MakeID printer"
   }
 
   static func sortedRecords(_ records: [String: MakeIDBluetoothDeviceRecord])
@@ -119,18 +145,17 @@ enum MakeIDBluetoothIdentity {
   }
 }
 
-/// A raw MakeID E1 CoreBluetooth byte transport for an Apple mobile application shell.
+/// A raw MakeID CoreBluetooth byte transport for an Apple mobile application shell.
 ///
 /// The class owns discovery and the GATT connection only. It does not parse
 /// MakeID packets and it does not know about workspaces, plates, or rasters.
+/// The shared TypeScript adapter probes the model and selects one of the GATT
+/// endpoint sets above. This native layer does not select DPI from a name.
 /// Create and call it on the main actor, as a WKScriptMessageHandler normally
 /// does. Calls can arrive together: writes and reads use independent FIFO
 /// queues, and CoreBluetooth work stays serialized on the main queue.
 @MainActor
 public final class MakeIDBluetoothTransport: NSObject {
-  private static let serviceUUID = CBUUID(string: "ABF0")
-  private static let writeUUID = CBUUID(string: "ABF1")
-  private static let notifyUUID = CBUUID(string: "ABF2")
   private static let maximumBufferedReplyBytes = 1_048_576
 
   private enum Phase: Equatable {
@@ -166,6 +191,7 @@ public final class MakeIDBluetoothTransport: NSObject {
   }
 
   private var central: CBCentralManager!
+  private var protocolFamily = MakeIDBluetoothProtocolFamily.abf0
   private var phase = Phase.idle
   private var peripheral: CBPeripheral?
   private var writeCharacteristic: CBCharacteristic?
@@ -203,10 +229,9 @@ public final class MakeIDBluetoothTransport: NSObject {
     )
   }
 
-  /// Find MakeID E1 printers. CoreBluetooth has no public paired-device list.
-  /// With `includeUnpaired` false, this returns connected ABF0 peripherals.
-  /// With it true, this scans nearby advertisements and applies the strict E1
-  /// name filter. A connection still validates ABF0, ABF1, and ABF2.
+  /// Find known MakeID printer families. CoreBluetooth has no public
+  /// paired-device list. A connection validates the service selected by the
+  /// shared adapter after discovery.
   public func discover(timeoutMs: Int, includeUnpaired: Bool)
     async throws -> [MakeIDBluetoothDeviceRecord]
   {
@@ -225,9 +250,13 @@ public final class MakeIDBluetoothTransport: NSObject {
     }
     discoveredRecords.removeAll(keepingCapacity: true)
 
-    for connected in central.retrieveConnectedPeripherals(withServices: [Self.serviceUUID]) {
-      if MakeIDBluetoothIdentity.isCompatibleName(connected.name) {
-        record(connected, advertisedName: nil)
+    let serviceUUIDs = MakeIDBluetoothProtocolFamily.allCases.map(\.serviceUUID)
+    for serviceUUID in serviceUUIDs {
+      for connected in central.retrieveConnectedPeripherals(withServices: [serviceUUID]) {
+        if MakeIDBluetoothIdentity.isCompatibleName(connected.name) {
+          // The record dictionary de-duplicates a printer that exposes both services.
+          record(connected, advertisedName: nil)
+        }
       }
     }
 
@@ -252,7 +281,11 @@ public final class MakeIDBluetoothTransport: NSObject {
   }
 
   /// Restore and prepare a saved CoreBluetooth peripheral.
-  public func connect(deviceId: String, timeoutMs: Int) async throws {
+  public func connect(
+    deviceId: String,
+    protocolFamily: MakeIDBluetoothProtocolFamily,
+    timeoutMs: Int
+  ) async throws {
     guard phase == .idle else {
       throw error(.invalidState, "Finish the current Bluetooth operation, then try again.")
     }
@@ -263,6 +296,7 @@ public final class MakeIDBluetoothTransport: NSObject {
     // Reserve this operation before waiting for the initial central-manager
     // state callback. Discovery and connection are mutually exclusive.
     phase = .findingSavedPeripheral
+    self.protocolFamily = protocolFamily
     terminalError = nil
     clearBuffers()
     let boundedTimeout = bounded(timeoutMs)
@@ -298,9 +332,9 @@ public final class MakeIDBluetoothTransport: NSObject {
     }
   }
 
-  /// Queue raw bytes for ABF1. The promise completes when CoreBluetooth has
-  /// accepted all chunks, or acknowledged all chunks on a write-with-response
-  /// fallback characteristic.
+  /// Queue raw bytes for the selected write characteristic. The promise
+  /// completes when CoreBluetooth accepts all chunks, or acknowledges all
+  /// chunks on a write-with-response fallback characteristic.
   public func write(_ data: Data) async throws {
     try requireReady()
     guard !data.isEmpty else { return }
@@ -318,7 +352,7 @@ public final class MakeIDBluetoothTransport: NSObject {
     try await write(data)
   }
 
-  /// Return one notification chunk from ABF2. Packet framing stays in the
+  /// Return one notification chunk. Packet framing stays in the
   /// shared TypeScript adapter because one packet can use several chunks and
   /// one chunk can contain several packets.
   public func read(timeoutMs: Int) async throws -> Data {
@@ -342,6 +376,21 @@ public final class MakeIDBluetoothTransport: NSObject {
   /// A JSON bridge convenience method.
   public func readBase64(timeoutMs: Int) async throws -> String {
     try await read(timeoutMs: timeoutMs).base64EncodedString()
+  }
+
+  /// Reject a stale bridge handle before it can operate on the singleton
+  /// CoreBluetooth session. Protocol and model logic stays in TypeScript.
+  func requireConnectionID(_ connectionID: String) throws {
+    guard
+      let identifier = MakeIDBluetoothIdentity.uuid(fromDeviceID: connectionID),
+      identifier == peripheral?.identifier
+    else {
+      throw error(
+        .invalidDeviceID,
+        "The Bluetooth connection ID does not match the active printer."
+      )
+    }
+    try requireReady()
   }
 
   /// Stop discovery or close the active connection. The same transport
@@ -711,7 +760,7 @@ extension MakeIDBluetoothTransport: @preconcurrency CBCentralManagerDelegate {
       return
     }
     phase = .discoveringServices
-    peripheral.discoverServices([Self.serviceUUID])
+    peripheral.discoverServices([protocolFamily.serviceUUID])
   }
 
   public func centralManager(
@@ -754,14 +803,21 @@ extension MakeIDBluetoothTransport: @preconcurrency CBPeripheralDelegate {
       )
       return
     }
-    guard let service = peripheral.services?.first(where: { $0.uuid == Self.serviceUUID }) else {
+    guard
+      let service = peripheral.services?.first(where: {
+        $0.uuid == protocolFamily.serviceUUID
+      })
+    else {
       failConnectionSetup(
         self.error(.serviceNotFound, "The selected device does not provide the MakeID service.")
       )
       return
     }
     phase = .discoveringCharacteristics
-    peripheral.discoverCharacteristics([Self.writeUUID, Self.notifyUUID], for: service)
+    peripheral.discoverCharacteristics(
+      [protocolFamily.writeUUID, protocolFamily.notifyUUID],
+      for: service
+    )
   }
 
   public func peripheral(
@@ -777,8 +833,8 @@ extension MakeIDBluetoothTransport: @preconcurrency CBPeripheralDelegate {
       return
     }
 
-    writeCharacteristic = service.characteristics?.first { $0.uuid == Self.writeUUID }
-    notifyCharacteristic = service.characteristics?.first { $0.uuid == Self.notifyUUID }
+    writeCharacteristic = service.characteristics?.first { $0.uuid == protocolFamily.writeUUID }
+    notifyCharacteristic = service.characteristics?.first { $0.uuid == protocolFamily.notifyUUID }
     guard let writeCharacteristic, let notifyCharacteristic else {
       failConnectionSetup(
         self.error(.characteristicsMissing, "The printer Bluetooth service is incomplete.")

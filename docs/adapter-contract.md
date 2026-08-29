@@ -37,10 +37,12 @@ controls, color modes, and copy limits from `PrinterCapabilities`. It calculates
 non-printable label areas from the label dimension across the print head, the
 physical printable head width, and the adapter's default top and bottom head
 offsets. A narrower label that fits under the head has no non-printable area. A
-missing capability stays hidden or disabled. An adapter can expose static
-offline capabilities when the UI must show physical limits without opening a
-printer session. Manufacturer-specific settings can use namespaced advanced
-options after the common controls are insufficient.
+missing capability stays hidden or disabled. An adapter can expose one set of
+static offline capabilities when all supported printers are identical. A
+multi-model adapter uses `offlineCapabilitiesFor` after it detects and stores a
+stable model profile. It must not guess a resolution for an ambiguous model.
+Manufacturer-specific settings can use namespaced advanced options after the
+common controls are insufficient.
 
 Common numeric settings report a minimum, maximum, step, and default value.
 Printer settings are outside the workspace document and belong to one
@@ -80,9 +82,16 @@ must not scan unpaired devices.
 
 ## MakeID note
 
-The first physical target is MakeID E1. It uses a 96-pixel, 203-DPI head and a
-Bluetooth Low Energy print path on macOS. New macOS configurations use the
-`ABF0` service, write to `ABF1`, and receive notifications from `ABF2`.
-Bluetooth Classic remains a migration path for saved legacy configurations.
-The implementation belongs in `packages/adapters/makeid`; E1 assumptions must
-not enter the shared UI.
+The MakeID adapter uses one stable `makeid` adapter ID and stores a resolved
+model profile in each configured printer descriptor. E1, L1, and the P31
+family can use the `ABF0` service, `ABF1` write characteristic, and `ABF2`
+notification characteristic. Some L1 firmware uses the separate `FF00`
+service. Bluetooth Classic remains a migration path for old E1 records.
+
+An L1 name does not identify the 203-DPI or 300-DPI version. The adapter must
+connect and read the printer response before it stores the DPI. The P31 family
+must use the same rule because public evidence contains both 288-DPI and
+300-DPI values. An unresolved descriptor has no offline DPI and cannot print.
+These rules apply to macOS, iPadOS, and future Android and Windows transports.
+The implementation belongs in `packages/adapters/makeid`; model assumptions
+must not enter the shared UI.

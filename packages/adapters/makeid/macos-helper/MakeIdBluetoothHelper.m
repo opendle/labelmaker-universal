@@ -124,16 +124,12 @@ static BOOL IsOpaqueDeviceId(NSString *value) {
 
 static NSString *const MakeIdBLEDevicePrefix = @"macos-ble-";
 
-static CBUUID *MakeIdServiceUUID(void) {
+static CBUUID *MakeIdABF0ServiceUUID(void) {
   return [CBUUID UUIDWithString:@"ABF0"];
 }
 
-static CBUUID *MakeIdWriteUUID(void) {
-  return [CBUUID UUIDWithString:@"ABF1"];
-}
-
-static CBUUID *MakeIdNotifyUUID(void) {
-  return [CBUUID UUIDWithString:@"ABF2"];
+static CBUUID *MakeIdFF00ServiceUUID(void) {
+  return [CBUUID UUIDWithString:@"FF00"];
 }
 
 static NSString *BLEIdentifier(CBPeripheral *peripheral) {
@@ -158,6 +154,16 @@ static BOOL IsMakeIdBLEName(NSString *name) {
   if ([normalized hasPrefix:@"YICHIPFPGA-"] ||
       [normalized isEqualToString:@"MAKEID E1"] ||
       [normalized hasPrefix:@"MAKEID E1-"]) {
+    return YES;
+  }
+  NSString *withoutManufacturer = normalized;
+  if ([withoutManufacturer hasPrefix:@"MAKEID "]) {
+    withoutManufacturer = [withoutManufacturer substringFromIndex:7];
+  }
+  if ([withoutManufacturer hasPrefix:@"L1"] ||
+      [withoutManufacturer hasPrefix:@"P31"] ||
+      [withoutManufacturer hasPrefix:@"Q31"] ||
+      [withoutManufacturer hasPrefix:@"GP31"]) {
     return YES;
   }
   if (normalized.length != 10 || ![normalized hasPrefix:@"E1"]) return NO;
@@ -191,6 +197,9 @@ typedef NS_ENUM(NSUInteger, MakeIdBLEPhase) {
 @property(nonatomic, strong) CBPeripheral *peripheral;
 @property(nonatomic, strong) CBCharacteristic *writeCharacteristic;
 @property(nonatomic, strong) CBCharacteristic *notifyCharacteristic;
+@property(nonatomic, strong) CBUUID *serviceUUID;
+@property(nonatomic, strong) CBUUID *writeUUID;
+@property(nonatomic, strong) CBUUID *notifyUUID;
 @property(nonatomic, strong)
     NSMutableDictionary<NSString *, NSMutableDictionary *> *devices;
 @property(nonatomic, strong) NSMutableData *pendingWriteData;
@@ -208,6 +217,8 @@ typedef NS_ENUM(NSUInteger, MakeIdBLEPhase) {
 @property(nonatomic) BOOL inputEnded;
 @property(nonatomic) BOOL writeInFlight;
 @property(nonatomic) NSUInteger writeInFlightLength;
+@property(nonatomic) BOOL forwardNotifications;
+@property(nonatomic) BOOL requireWriteWithoutResponse;
 @property(nonatomic) BOOL closeScheduled;
 @property(nonatomic) BOOL reconnectEnabled;
 @property(nonatomic) BOOL reconnecting;
@@ -414,7 +425,7 @@ typedef NS_ENUM(NSUInteger, MakeIdBLEPhase) {
   peripheral.delegate = self;
   [self resetConnectionState];
   self.phase = MakeIdBLEPhaseDiscoveringServices;
-  [peripheral discoverServices:@[ MakeIdServiceUUID() ]];
+  [peripheral discoverServices:@[ self.serviceUUID ]];
 }
 
 - (void)centralManager:(CBCentralManager *)central
@@ -463,7 +474,7 @@ typedef NS_ENUM(NSUInteger, MakeIdBLEPhase) {
   }
   CBService *makeIdService = nil;
   for (CBService *service in peripheral.services ?: @[]) {
-    if ([service.UUID isEqual:MakeIdServiceUUID()]) {
+    if ([service.UUID isEqual:self.serviceUUID]) {
       makeIdService = service;
       break;
     }
@@ -474,7 +485,7 @@ typedef NS_ENUM(NSUInteger, MakeIdBLEPhase) {
     return;
   }
   [peripheral discoverCharacteristics:
-                  @[ MakeIdWriteUUID(), MakeIdNotifyUUID() ]
+                  @[ self.writeUUID, self.notifyUUID ]
                               forService:makeIdService];
   self.phase = MakeIdBLEPhaseDiscoveringCharacteristics;
 }
@@ -493,10 +504,10 @@ typedef NS_ENUM(NSUInteger, MakeIdBLEPhase) {
     return;
   }
   for (CBCharacteristic *characteristic in service.characteristics ?: @[]) {
-    if ([characteristic.UUID isEqual:MakeIdWriteUUID()]) {
+    if ([characteristic.UUID isEqual:self.writeUUID]) {
       self.writeCharacteristic = characteristic;
     }
-    if ([characteristic.UUID isEqual:MakeIdNotifyUUID()]) {
+    if ([characteristic.UUID isEqual:self.notifyUUID]) {
       self.notifyCharacteristic = characteristic;
     }
   }
@@ -512,6 +523,11 @@ typedef NS_ENUM(NSUInteger, MakeIdBLEPhase) {
       (writeProperties & CBCharacteristicPropertyWriteWithoutResponse) != 0;
   BOOL canWriteWithResponse =
       (writeProperties & CBCharacteristicPropertyWrite) != 0;
+  if (self.requireWriteWithoutResponse && !canWriteWithoutResponse) {
+    [self recoverOrFailWithMessage:
+              @"The printer Bluetooth write channel does not support the required write mode."];
+    return;
+  }
   if (!canWriteWithoutResponse && !canWriteWithResponse) {
     [self recoverOrFailWithMessage:
               @"The printer Bluetooth write channel is not usable."];
@@ -572,7 +588,7 @@ typedef NS_ENUM(NSUInteger, MakeIdBLEPhase) {
     return;
   }
   NSData *value = characteristic.value;
-  if (value.length > 0) {
+  if (value.length > 0 && self.forwardNotifications) {
     [[NSFileHandle fileHandleWithStandardOutput] writeData:value];
   }
 }
@@ -760,9 +776,10 @@ static void WaitForBLEPower(MakeIdBLEBridge *bridge,
 
 static void DiscoverBLE(BOOL includeUnpaired) {
   // CoreBluetooth does not expose a public paired-device list. Default
-  // discovery returns connected ABF0 peripherals only. Add Printer scans all
-  // BLE advertisements because the E1 does not advertise ABF0, then accepts
-  // only strict MakeID E1 names. Connection still validates ABF0.
+  // discovery returns connected ABF0 or FF00 peripherals. Add Printer scans
+  // all BLE advertisements because some models do not advertise the service,
+  // then accepts only the supported MakeID name families. Connect validates
+  // the selected service and characteristics.
   MakeIdBLEBridge *bridge = [MakeIdBLEBridge new];
   bridge.central = [[CBCentralManager alloc]
       initWithDelegate:bridge
@@ -775,11 +792,16 @@ static void DiscoverBLE(BOOL includeUnpaired) {
     Fail(message, 2);
   }
 
-  for (CBPeripheral *peripheral in
-       [bridge.central retrieveConnectedPeripheralsWithServices:
-                           @[ MakeIdServiceUUID() ]]) {
-    if (IsMakeIdBLEName(peripheral.name)) {
-      [bridge recordPeripheral:peripheral advertisementData:@{}];
+  for (CBUUID *serviceUUID in
+       @[ MakeIdABF0ServiceUUID(), MakeIdFF00ServiceUUID() ]) {
+    for (CBPeripheral *peripheral in
+         [bridge.central retrieveConnectedPeripheralsWithServices:
+                             @[ serviceUUID ]]) {
+      if (IsMakeIdBLEName(peripheral.name)) {
+        // The device dictionary de-duplicates a printer that exposes both
+        // services. Do not depend on combined CoreBluetooth filter semantics.
+        [bridge recordPeripheral:peripheral advertisementData:@{}];
+      }
     }
   }
 
@@ -855,11 +877,28 @@ static void TearDownBLE(MakeIdBLEBridge *bridge, NSFileHandle *input) {
   bridge.central.delegate = nil;
 }
 
-static void ConnectBLE(NSString *deviceId) {
+static void ConnectBLE(NSString *deviceId, NSString *protocolFamily) {
   NSUUID *uuid = ParseBLEIdentifier(deviceId);
   if (uuid == nil) Fail(@"The saved Bluetooth printer ID is invalid.", 3);
 
   MakeIdBLEBridge *bridge = [MakeIdBLEBridge new];
+  // Keep endpoint selection in this OS boundary. A future Android or Windows
+  // transport must use the same protocol-family IDs and must not infer L1 DPI
+  // from the advertised name.
+  if ([protocolFamily isEqualToString:@"abf0-66"]) {
+    bridge.serviceUUID = MakeIdABF0ServiceUUID();
+    bridge.writeUUID = [CBUUID UUIDWithString:@"ABF1"];
+    bridge.notifyUUID = [CBUUID UUIDWithString:@"ABF2"];
+  } else if ([protocolFamily isEqualToString:@"ff00-escpos"]) {
+    bridge.serviceUUID = MakeIdFF00ServiceUUID();
+    bridge.writeUUID = [CBUUID UUIDWithString:@"FF02"];
+    // FF03 provides informational flow acknowledgements. The TypeScript
+    // protocol waits only for command replies on FF01.
+    bridge.notifyUUID = [CBUUID UUIDWithString:@"FF01"];
+    bridge.requireWriteWithoutResponse = YES;
+  } else {
+    Fail(@"The MakeID protocol family is invalid.", 3);
+  }
   bridge.targetIdentifier = uuid.UUIDString.lowercaseString;
   bridge.central = [[CBCentralManager alloc]
       initWithDelegate:bridge
@@ -916,6 +955,23 @@ static void ConnectBLE(NSString *deviceId) {
     TearDownBLE(bridge, [NSFileHandle fileHandleWithStandardInput]);
     Fail(message, 9);
   }
+
+  // The public FF00 capture waits 400 ms after notification setup so startup
+  // notifications cannot become the reply to the first model query. Apply the
+  // same one-time drain to both families. Reconnect keeps forwarding enabled,
+  // because an active TypeScript session can already have a pending command.
+  NSDate *startupDrainDeadline =
+      [NSDate dateWithTimeIntervalSinceNow:0.4];
+  while (!bridge.failed && [startupDrainDeadline timeIntervalSinceNow] > 0) {
+    [[NSRunLoop currentRunLoop]
+        runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+  }
+  if (bridge.failed) {
+    NSString *message = bridge.errorMessage ?: @"Bluetooth connection failed.";
+    TearDownBLE(bridge, [NSFileHandle fileHandleWithStandardInput]);
+    Fail(message, 9);
+  }
+  bridge.forwardNotifications = YES;
 
   [[NSFileHandle fileHandleWithStandardError]
       writeData:[@"READY\n" dataUsingEncoding:NSUTF8StringEncoding]];
@@ -1089,10 +1145,15 @@ int main(int argc, const char *argv[]) {
       DiscoverBLE(includeUnpaired);
       return 0;
     }
-    if (argc == 3 && strcmp(argv[1], "connect") == 0) {
+    if (argc == 4 && strcmp(argv[1], "connect") == 0) {
       NSString *deviceId = [NSString stringWithUTF8String:argv[2]];
+      NSString *protocolFamily = [NSString stringWithUTF8String:argv[3]];
+      if (![protocolFamily isEqualToString:@"abf0-66"] &&
+          ![protocolFamily isEqualToString:@"ff00-escpos"]) {
+        Fail(@"The MakeID protocol family is invalid.", 64);
+      }
       if ([deviceId hasPrefix:MakeIdBLEDevicePrefix]) {
-        ConnectBLE(deviceId);
+        ConnectBLE(deviceId, protocolFamily);
       } else if (IsOpaqueDeviceId(deviceId)) {
         ConnectClassic(deviceId);
       } else {
@@ -1100,6 +1161,6 @@ int main(int argc, const char *argv[]) {
       }
       return 0;
     }
-    Fail(@"Usage: makeid-bluetooth-helper discover | connect DEVICE_ID", 64);
+    Fail(@"Usage: makeid-bluetooth-helper discover | connect DEVICE_ID PROTOCOL_FAMILY", 64);
   }
 }

@@ -103,14 +103,22 @@ final class NativeBridge: NSObject, WKScriptMessageHandlerWithReply {
         case "bluetoothDiscover":
             do {
                 let timeout = try requiredPositiveInteger(payload, "timeoutMs")
-                bluetooth.discover(timeoutMilliseconds: timeout) { result in
+                let includeUnpaired = try requiredBool(payload, "includeUnpaired")
+                bluetooth.discover(
+                    timeoutMilliseconds: timeout,
+                    includeUnpaired: includeUnpaired
+                ) { result in
                     self.reply(result.map { $0 as Any }, to: replyHandler)
                 }
             } catch { replyFailure(error, to: replyHandler) }
         case "bluetoothConnect":
             do {
                 let deviceID = try requiredString(payload, "deviceId")
-                bluetooth.connect(deviceID: deviceID) { result in
+                let protocolFamily = try requiredMakeIDProtocolFamily(payload, "protocolFamily")
+                bluetooth.connect(
+                    deviceID: deviceID,
+                    protocolFamily: protocolFamily
+                ) { result in
                     self.reply(result.map { ["connectionId": $0] as Any }, to: replyHandler)
                 }
             } catch { replyFailure(error, to: replyHandler) }
@@ -211,4 +219,18 @@ private func requiredPositiveInteger(_ payload: [String: Any], _ key: String) th
         throw NativeBridgeFailure(code: "INVALID_REQUEST", message: "The native request has an invalid \(key).")
     }
     return value
+}
+
+private func requiredMakeIDProtocolFamily(
+    _ payload: [String: Any],
+    _ key: String
+) throws -> MakeIDBluetoothProtocolFamily {
+    let value = try requiredString(payload, key)
+    guard let family = MakeIDBluetoothProtocolFamily(rawValue: value) else {
+        throw NativeBridgeFailure(
+            code: "INVALID_REQUEST",
+            message: "The native request has an invalid \(key)."
+        )
+    }
+    return family
 }

@@ -258,11 +258,7 @@ export function PrinterSettingsDialog({
                 darker
               </small>
             </label>
-          ) : (
-            <p className="printer-setting-unavailable">
-              This printer does not report an adjustable darkness setting.
-            </p>
-          )}
+          ) : null}
         </div>
         <div className="dialog-footer end">
           <button

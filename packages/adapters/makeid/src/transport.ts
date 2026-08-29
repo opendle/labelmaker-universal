@@ -1,5 +1,7 @@
 import type { DiscoveryOptions } from "@labelmaker/printing";
 
+import type { MakeIdProtocolFamily } from "./models.js";
+
 export interface MakeIdTransportDevice {
   /** An opaque device key which the platform transport can use to reconnect. */
   readonly id: string;
@@ -23,7 +25,15 @@ export interface MakeIdTransportProvider {
   discover(
     options: DiscoveryOptions,
   ): Promise<readonly MakeIdTransportDevice[]>;
-  connect(deviceId: string, signal?: AbortSignal): Promise<MakeIdTransport>;
+  connect(
+    deviceId: string,
+    options: MakeIdTransportConnectionOptions,
+    signal?: AbortSignal,
+  ): Promise<MakeIdTransport>;
+}
+
+export interface MakeIdTransportConnectionOptions {
+  readonly protocolFamily: MakeIdProtocolFamily;
 }
 
 /** Deterministic transport for adapter tests and protocol capture tooling. */

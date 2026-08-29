@@ -1,7 +1,12 @@
 import type { PrinterDescriptor, PrinterSession } from "@labelmaker/printing";
+import {
+  MakeIdE1Adapter,
+  type MakeIdTransportProvider,
+} from "@labelmaker/adapter-makeid";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  offlineCapabilitiesForPrinter,
   PrinterDiscoveryCache,
   shouldProbePrinterStatus,
   summarizePrinter,
@@ -16,6 +21,38 @@ const printer: PrinterDescriptor = {
 };
 
 describe("desktop printer summaries", () => {
+  it("keeps the darkness control for a migrated E1 printer", async () => {
+    const provider: MakeIdTransportProvider = {
+      discover: async () => [],
+      connect: async () => {
+        throw new Error("This test does not connect");
+      },
+    };
+    const adapter = new MakeIdE1Adapter(provider);
+    const offlineCapabilities = offlineCapabilitiesForPrinter(adapter, printer);
+    if (!offlineCapabilities) throw new Error("Expected E1 capabilities");
+
+    expect(offlineCapabilities.darkness).toEqual({
+      minimum: 0,
+      maximum: 31,
+      step: 1,
+      defaultValue: 20,
+    });
+    await expect(
+      summarizePrinter(
+        printer,
+        "MakeID E1",
+        async () => fakeSession(),
+        async () => undefined,
+        {
+          probe: false,
+          offlineCapabilities,
+          settings: { darkness: 23 },
+        },
+      ),
+    ).resolves.toMatchObject({ darkness: { value: 23 } });
+  });
+
   it("keeps the exact descriptor from the last explicit search", () => {
     const cache = new PrinterDiscoveryCache();
     const replacement = { ...printer, displayName: "Replacement" };

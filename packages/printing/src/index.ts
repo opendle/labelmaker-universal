@@ -21,6 +21,8 @@ export interface PrinterDescriptor {
   readonly id: PrinterId;
   readonly adapterId: AdapterId;
   readonly displayName: string;
+  /** Adapter-confirmed hardware model. Discovery can omit it until probing. */
+  readonly model?: string;
   readonly transport: PrinterTransport;
   readonly connection: Readonly<Record<string, unknown>>;
 }
@@ -56,6 +58,17 @@ export interface PrinterCapabilities {
   readonly supportsCut: boolean;
   readonly supportsStatus: boolean;
 }
+
+export type OfflinePrinterCapabilities = Pick<
+  PrinterCapabilities,
+  "dpi" | "rasterWidthPixels" | "printableWidthMm"
+> &
+  Partial<
+    Pick<
+      PrinterCapabilities,
+      "darkness" | "printHeadMarginTopMm" | "printHeadMarginBottomMm"
+    >
+  >;
 
 export type PrinterState =
   | "disconnected"
@@ -163,16 +176,12 @@ export interface AdapterContext {
 
 export interface PrinterAdapter {
   readonly manifest: AdapterManifest;
-  readonly offlineCapabilities?: Pick<
-    PrinterCapabilities,
-    "dpi" | "rasterWidthPixels" | "printableWidthMm"
-  > &
-    Partial<
-      Pick<
-        PrinterCapabilities,
-        "darkness" | "printHeadMarginTopMm" | "printHeadMarginBottomMm"
-      >
-    >;
+  /** One fallback value for adapters whose supported printers are identical. */
+  readonly offlineCapabilities?: OfflinePrinterCapabilities;
+  /** Return offline values for a detected model in a multi-model adapter. */
+  offlineCapabilitiesFor?(
+    printer: PrinterDescriptor,
+  ): OfflinePrinterCapabilities | undefined;
   discover(
     options: DiscoveryOptions,
     context: AdapterContext,

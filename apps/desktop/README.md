@@ -4,10 +4,11 @@ This directory is the Electron composition root. It owns the main process, the
 secure preload bridge, the application window, and adapter registration. The
 React interface belongs in `packages/ui`.
 
-The current shell connects the interface to a paired MakeID E1 on macOS. It
-saves added printer IDs in the application data folder, saves workspace files,
-and converts selected plates to monochrome printer rasters before it sends a
-print job.
+The current shell connects the interface to supported paired MakeID printers on
+macOS. It saves the protocol-confirmed model profile in the application data
+folder, saves workspace files, and converts selected plates to monochrome
+printer rasters before it sends a print job. The physical path is verified on
+E1. L1 and P31-family profiles still need the planned hardware tests.
 
 Run the application from the repository root:
 
@@ -35,9 +36,9 @@ The command builds once and captures all desktop images in one hidden app
 session. It reloads a clean editor state between images and does not use the
 normal workspace recovery file.
 
-After you pair a MakeID E1 on macOS, you can run one opt-in desktop hardware
-print. The command sets both horizontal margins to zero and trims the current
-plate before it prints:
+After you pair a supported MakeID printer on macOS, you can run one opt-in
+desktop hardware print. The command sets both horizontal margins to zero and
+trims the current plate before it prints:
 
 ```bash
 npm run hardware:print --workspace @labelmaker/desktop -- --confirm-print

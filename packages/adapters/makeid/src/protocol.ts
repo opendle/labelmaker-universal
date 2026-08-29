@@ -6,6 +6,13 @@
  * verify them with a captured job before treating them as hardware-safe.
  */
 
+import type {
+  MakeIdDiscoveryKind,
+  MakeIdProfileId,
+  MakeIdResolvedProfile,
+} from "./models.js";
+import { classifyMakeIdName } from "./models.js";
+
 export const MAKEID_FRAME_MARKER = 0x66;
 export const MAKEID_PRINT_HEAD_PIXELS = 96;
 export const MAKEID_BYTES_PER_LINE = MAKEID_PRINT_HEAD_PIXELS / 8;
@@ -37,6 +44,16 @@ export interface MakeIdResponse {
   readonly errorCode: number;
   readonly printing: boolean;
 }
+
+const DPI_BY_DEVICE_CODE = [203, 300, 600, 180, 288] as const;
+const VERTICAL_DPI_BY_DEVICE_CODE = [
+  undefined,
+  203,
+  300,
+  600,
+  180,
+  288,
+] as const;
 
 export interface MakeIdRasterFrameOptions {
   readonly darkness: number;
@@ -158,6 +175,7 @@ export function buildMakeIdRasterFrame(
 
 /** Parse the status fields which current E1 reports expose in 36-byte replies. */
 export function parseMakeIdResponse(bytes: Uint8Array): MakeIdResponse {
+  bytes = stripMakeIdNotificationWrapper(bytes);
   if (bytes[0] !== MAKEID_FRAME_MARKER) {
     throw new MakeIdProtocolError("A MakeID response has an invalid marker");
   }
@@ -203,11 +221,201 @@ export function parseMakeIdResponse(bytes: Uint8Array): MakeIdResponse {
   return { kind, errorCode, printing: (finalState & 0x80) !== 0 };
 }
 
+/**
+ * Read model capabilities from the safe 0x10 status response.
+ *
+ * The official MakeID Android application uses these response fields for L1,
+ * P31, Q31, and GP31 printers. This probe is important for every future host:
+ * L1 advertisements do not distinguish the 203- and 300-DPI models. Protocol
+ * 1.3 added the explicit head width, row-block limit, and byte-order flag.
+ */
+export function parseMakeIdAbf0Profile(
+  bytes: Uint8Array,
+  kind: MakeIdDiscoveryKind,
+  advertisedName?: string,
+): MakeIdResolvedProfile {
+  bytes = stripMakeIdNotificationWrapper(bytes);
+  parseMakeIdResponse(bytes);
+  if (bytes[3] !== MakeIdCommand.Control) {
+    throw new MakeIdProtocolError(
+      "A MakeID capability response has an invalid command",
+    );
+  }
+
+  const horizontalDpi = DPI_BY_DEVICE_CODE[(bytes[6] ?? 0) & 0x07];
+  const verticalDpi = VERTICAL_DPI_BY_DEVICE_CODE[(bytes[15] ?? 0) & 0x0f];
+  if (
+    horizontalDpi !== undefined &&
+    verticalDpi !== undefined &&
+    horizontalDpi !== verticalDpi
+  ) {
+    throw new MakeIdProtocolError(
+      `The MakeID ${kind.toUpperCase()} reported different horizontal and vertical DPI values`,
+    );
+  }
+  const dpi = verticalDpi ?? horizontalDpi;
+  if (dpi === undefined) {
+    throw new MakeIdProtocolError(
+      `The MakeID ${kind.toUpperCase()} reported an unsupported DPI code`,
+    );
+  }
+  if (
+    (kind === "e1" && dpi !== 203) ||
+    (kind === "l1" && dpi !== 203 && dpi !== 300) ||
+    (kind === "p31" && dpi !== 288 && dpi !== 300)
+  ) {
+    throw new MakeIdProtocolError(
+      `The MakeID ${kind.toUpperCase()} reported unsupported ${dpi} DPI`,
+    );
+  }
+  const reportedModel = new TextDecoder("ascii")
+    .decode(bytes.subarray(10, Math.min(15, bytes.length)))
+    .replaceAll("\0", "")
+    .trim();
+  const reportedKind = classifyReportedModel(reportedModel);
+  if (reportedModel.length > 0 && reportedKind === undefined) {
+    throw new MakeIdProtocolError(
+      `The MakeID status reported unsupported model ${reportedModel}`,
+    );
+  }
+  if (reportedKind !== undefined && reportedKind !== kind) {
+    throw new MakeIdProtocolError(
+      `The MakeID status model ${reportedModel} does not match the ${kind.toUpperCase()} advertisement`,
+    );
+  }
+  const profileId: MakeIdProfileId =
+    kind === "e1"
+      ? "e1-abf0-203"
+      : kind === "l1"
+        ? dpi === 300
+          ? "l1-abf0-300"
+          : "l1-abf0-203"
+        : dpi === 300
+          ? "p31-abf0-300"
+          : "p31-abf0-288";
+
+  const protocolMajor = bytes.length >= 43 ? (bytes[36] ?? 0) : 0;
+  const protocolMinor = bytes.length >= 43 ? (bytes[37] ?? 0) : 0;
+  const hasExtendedCapabilities =
+    protocolMajor > 1 || (protocolMajor === 1 && protocolMinor >= 3);
+  // Label Pro 1.8.2 calls bytes 39-40 the number of raster bytes in one
+  // head line. Convert it to the transport-neutral pixel width here.
+  const reportedBytesPerRow = hasExtendedCapabilities
+    ? readUint16LittleEndian(bytes, 39)
+    : 0;
+  const reportedRows = hasExtendedCapabilities
+    ? readUint16LittleEndian(bytes, 41)
+    : 0;
+  if (kind === "p31" && dpi === 300 && reportedBytesPerRow === 0) {
+    throw new MakeIdProtocolError(
+      "A 300-DPI MakeID P31-family response does not report its raster width",
+    );
+  }
+  const oldWidth =
+    kind === "p31" ? 288 : kind === "l1" && dpi === 300 ? 144 : 96;
+  const rasterWidthPixels =
+    reportedBytesPerRow > 0 ? reportedBytesPerRow * 8 : oldWidth;
+  const supportedBytesPerRow =
+    kind === "e1"
+      ? 12
+      : kind === "l1"
+        ? dpi === 300
+          ? 18
+          : 12
+        : dpi === 300
+          ? 38
+          : 36;
+  if (rasterWidthPixels !== supportedBytesPerRow * 8) {
+    throw new MakeIdProtocolError(
+      `The MakeID ${kind.toUpperCase()} reported unsupported raster width ${rasterWidthPixels}`,
+    );
+  }
+  const oldRows =
+    kind === "e1"
+      ? 170
+      : kind === "l1"
+        ? dpi === 300
+          ? 56
+          : 85
+        : Math.floor(2048 / Math.ceil(rasterWidthPixels / 8));
+  const maxRowsPerPacket = reportedRows > 0 ? reportedRows : oldRows;
+  const rasterBytesPerPacket = supportedBytesPerRow * maxRowsPerPacket;
+  if (
+    maxRowsPerPacket < 1 ||
+    makeIdLiteralStreamLength(rasterBytesPerPacket) + 18 > 0xffff
+  ) {
+    throw new MakeIdProtocolError(
+      `The MakeID ${kind.toUpperCase()} reported an invalid raster row limit`,
+    );
+  }
+  const normalizedName = advertisedName?.trim();
+  const model =
+    kind === "e1"
+      ? "MakeID E1"
+      : kind === "l1"
+        ? `MakeID L1 ${dpi} DPI`
+        : normalizedName &&
+            /^(?:MAKEID\s+)?(?:P31|Q31|GP31)/i.test(normalizedName)
+          ? normalizedName
+          : "MakeID P31 family";
+
+  return {
+    profileId,
+    model,
+    protocolFamily: "abf0-66",
+    dpi,
+    rasterWidthPixels,
+    printableWidthMm: roundTenth((rasterWidthPixels * 25.4) / dpi),
+    maxRowsPerPacket,
+    // The official application swaps each byte pair for old L1/P31 paths.
+    // Protocol 1.3 reports the required order in bit 2 instead. E1 hardware
+    // uses canonical order and is kept separate from that application rule.
+    swapRasterBytePairs:
+      kind === "e1"
+        ? false
+        : hasExtendedCapabilities
+          ? ((bytes[38] ?? 0) & 0x04) !== 0
+          : true,
+    ...(hasExtendedCapabilities
+      ? { protocolVersion: `${protocolMajor}.${protocolMinor}` }
+      : {}),
+  };
+}
+
+/** Remove the optional four-byte `23 23 xx xx` BLE notification envelope. */
+export function stripMakeIdNotificationWrapper(bytes: Uint8Array): Uint8Array {
+  return bytes.length >= 4 && bytes[0] === 0x23 && bytes[1] === 0x23
+    ? bytes.subarray(4)
+    : bytes;
+}
+
 function appendChecksum(bytes: Uint8Array): Uint8Array {
   const output = new Uint8Array(bytes.length + 1);
   output.set(bytes);
   output[output.length - 1] = calculateMakeIdChecksum(bytes);
   return output;
+}
+
+function readUint16LittleEndian(bytes: Uint8Array, offset: number): number {
+  return (bytes[offset] ?? 0) | ((bytes[offset + 1] ?? 0) << 8);
+}
+
+function roundTenth(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+function classifyReportedModel(model: string): MakeIdDiscoveryKind | undefined {
+  if (/^E1/i.test(model)) return "e1";
+  if (/^L1(?:\b|[-_])/i.test(model)) return "l1";
+  if (/^(?:P31|Q31|GP31)(?:\b|[-_])/i.test(model)) return "p31";
+  return classifyMakeIdName(model);
+}
+
+function makeIdLiteralStreamLength(inputLength: number): number {
+  if (inputLength <= 238) return inputLength + 4;
+  const extension = inputLength - 18;
+  const extensionBytes = Math.floor((extension - 1) / 255) + 1;
+  return inputLength + extensionBytes + 4;
 }
 
 function assertUnsigned(value: number, bitCount: number, field: string): void {

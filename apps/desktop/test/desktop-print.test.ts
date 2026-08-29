@@ -20,6 +20,18 @@ const makeIdPrinter: PrinterDescriptor = {
   transport: "bluetooth-classic",
   connection: { model: "E1", transportDeviceId: "opaque-test-id" },
 };
+const savedL1Printer: PrinterDescriptor = {
+  id: "makeid:macos-ble-opaque-l1",
+  adapterId: "makeid",
+  displayName: "MAKEID-L1",
+  model: "MakeID L1 300 dpi",
+  transport: "bluetooth-low-energy",
+  connection: {
+    transportDeviceId: "macos-ble-opaque-l1",
+    profileId: "l1-abf0-300",
+    advertisedName: "MAKEID-L1",
+  },
+};
 const mockPrinter: PrinterDescriptor = {
   id: "mock-studio",
   adapterId: "mock",
@@ -95,6 +107,32 @@ describe("desktop physical print dispatch", () => {
     const printerId = "makeid:macos-ble-not-a-peripheral-uuid";
 
     expect(configuredPrinterDescriptors([], new Set([printerId]))).toEqual([]);
+  });
+
+  it("restores a resolved model profile without nearby discovery", () => {
+    expect(
+      configuredPrinterDescriptors([], new Set([savedL1Printer.id]), {
+        [savedL1Printer.id]: savedL1Printer,
+      }),
+    ).toEqual([savedL1Printer]);
+  });
+
+  it("keeps a saved profile when discovery returns an unresolved model", () => {
+    const { model: _resolvedModel, ...unresolvedBase } = savedL1Printer;
+    const unresolved: PrinterDescriptor = {
+      ...unresolvedBase,
+      connection: {
+        transportDeviceId: "macos-ble-opaque-l1",
+        profileId: "unresolved-l1",
+        advertisedName: "MAKEID-L1",
+      },
+    };
+
+    expect(
+      configuredPrinterDescriptors([unresolved], new Set([savedL1Printer.id]), {
+        [savedL1Printer.id]: savedL1Printer,
+      }),
+    ).toEqual([savedL1Printer]);
   });
 
   it("waits for the MakeID session and sends its exact printer ID", async () => {

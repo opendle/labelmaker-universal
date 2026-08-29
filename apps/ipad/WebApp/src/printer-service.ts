@@ -1,11 +1,11 @@
-import { MakeIdE1Adapter } from "@labelmaker/adapter-makeid";
+import { makeIdProfileId, MakeIdAdapter } from "@labelmaker/adapter-makeid";
 import { validateLabelDocument } from "@labelmaker/documents";
 import type { LabelPlate } from "@labelmaker/domain";
 import {
   addInterLabelSpacing,
+  type OfflinePrinterCapabilities,
   PrinterAdapterRegistry,
   type AdapterContext,
-  type PrinterAdapter,
   type PrinterDescriptor,
   type PrinterSession,
 } from "@labelmaker/printing";
@@ -24,7 +24,7 @@ import {
 
 const CONFIGURATION_KEY = "labelmaker.ipados.printers.v1";
 const registry = new PrinterAdapterRegistry();
-registry.register(new MakeIdE1Adapter(new IpadMakeIdTransportProvider()));
+registry.register(new MakeIdAdapter(new IpadMakeIdTransportProvider()));
 
 const context: AdapterContext = {
   log: {
@@ -36,9 +36,12 @@ const context: AdapterContext = {
 };
 
 interface StoredConfiguration {
+  readonly version: 2;
   readonly printerIds: readonly string[];
   readonly activePrinterId: string | null;
   readonly settings: Readonly<Record<string, PrinterSettings>>;
+  /** Keep the adapter-confirmed profile. An L1 name does not identify its DPI. */
+  readonly printerRecords: Readonly<Record<string, PrinterDescriptor>>;
 }
 
 export class IpadPrinterService {
@@ -86,18 +89,39 @@ export class IpadPrinterService {
     const descriptor = this.#discovered.get(printerId);
     if (!descriptor)
       throw new Error("The selected printer is no longer available.");
+    let configuredDescriptor = descriptor;
     if (descriptor.adapterId === "makeid") {
-      const session = await this.session(descriptor);
-      const status = await session.status();
-      if (status.state !== "ready") {
+      try {
+        const session = await this.session(descriptor);
+        const status = await session.status();
+        if (status.state !== "ready") {
+          throw new Error(status.message ?? "The printer is not ready.");
+        }
+        configuredDescriptor = session.printer;
+        this.#discovered.set(printerId, configuredDescriptor);
+      } finally {
+        // The native iPad transport owns one CoreBluetooth connection. Close
+        // the probe so another Add Printer scan can start. Android and Windows
+        // transports can use the same short probe-and-store model.
         await this.discardSession(descriptor.id);
-        throw new Error(status.message ?? "The printer is not ready.");
       }
+    }
+    const storedDescriptor = readStoredMakeIdDescriptor(
+      configuredDescriptor,
+      printerId,
+    );
+    if (!storedDescriptor) {
+      await this.discardSession(printerId);
+      throw new Error("The MakeID printer model could not be identified.");
     }
     this.#configuration = {
       ...this.#configuration,
       printerIds: [...new Set([...this.#configuration.printerIds, printerId])],
       activePrinterId: printerId,
+      printerRecords: {
+        ...this.#configuration.printerRecords,
+        [printerId]: storedDescriptor,
+      },
     };
     this.storeConfiguration();
     return this.listPrinters();
@@ -112,13 +136,17 @@ export class IpadPrinterService {
       (id) => id !== printerId,
     );
     const { [printerId]: _removed, ...settings } = this.#configuration.settings;
+    const { [printerId]: _removedRecord, ...printerRecords } =
+      this.#configuration.printerRecords;
     this.#configuration = {
+      version: 2,
       printerIds,
       activePrinterId:
         this.#configuration.activePrinterId === printerId
           ? (printerIds[0] ?? null)
           : this.#configuration.activePrinterId,
       settings,
+      printerRecords,
     };
     this.storeConfiguration();
     return this.listPrinters();
@@ -147,6 +175,20 @@ export class IpadPrinterService {
       throw new Error("Printer settings need a configured printer.");
     }
     const validatedSettings = validatePrinterSettings(settings);
+    const descriptor = this.configuredDescriptors().find(
+      (candidate) => candidate.id === printerId,
+    );
+    if (!descriptor) throw new Error("The configured printer was not found.");
+    const adapter = registry.get(descriptor.adapterId);
+    const offlineCapabilities =
+      adapter.offlineCapabilitiesFor?.(descriptor) ??
+      adapter.offlineCapabilities;
+    if (
+      validatedSettings.darkness !== undefined &&
+      offlineCapabilities?.darkness === undefined
+    ) {
+      throw new RangeError("This printer does not support a darkness setting.");
+    }
     this.#configuration = {
       ...this.#configuration,
       settings: {
@@ -218,34 +260,28 @@ export class IpadPrinterService {
           capabilities.dpi,
         ),
         copies: 1,
-        ...(settings.darkness === undefined
+        ...(settings.darkness === undefined ||
+        capabilities.darkness === undefined
           ? {}
           : { darkness: settings.darkness }),
       });
       return {
         message: `${pages.length} ${pages.length === 1 ? "label" : "labels"} sent to ${settings.displayName ?? descriptor.displayName}`,
       };
-    } catch (error) {
+    } finally {
+      // The iPad native transport owns one connection. Release it after each
+      // job so printer discovery and another configured printer can connect.
       await this.discardSession(descriptor.id);
-      throw error;
     }
   }
 
   private configuredDescriptors(): readonly PrinterDescriptor[] {
     return this.#configuration.printerIds.flatMap((printerId) => {
+      const stored = this.#configuration.printerRecords[printerId];
+      if (stored) return [stored];
       const discovered = this.#discovered.get(printerId);
       if (discovered) return [discovered];
-      if (!printerId.startsWith("makeid:ipad-ble-")) return [];
-      const deviceId = printerId.slice("makeid:".length);
-      return [
-        {
-          id: printerId,
-          adapterId: "makeid",
-          displayName: "MakeID E1",
-          transport: "bluetooth-low-energy" as const,
-          connection: { model: "E1", transportDeviceId: deviceId },
-        },
-      ];
+      return [];
     });
   }
 
@@ -259,14 +295,18 @@ export class IpadPrinterService {
       adapterId: descriptor.adapterId,
       deviceName: descriptor.displayName,
       name: settings.displayName ?? descriptor.displayName,
-      model: "E1",
+      model: descriptor.model ?? descriptor.displayName,
       transport: descriptor.transport,
     };
     return {
       ...base,
       state: "disconnected",
       statusMessage: "Connects on print",
-      ...capabilityFields(adapter.offlineCapabilities, settings),
+      ...capabilityFields(
+        adapter.offlineCapabilitiesFor?.(descriptor) ??
+          adapter.offlineCapabilities,
+        settings,
+      ),
     };
   }
 
@@ -275,7 +315,13 @@ export class IpadPrinterService {
     if (existing) return existing;
     const pending = registry
       .get(descriptor.adapterId)
-      .connect(descriptor, context);
+      .connect(descriptor, context)
+      .then((session) => {
+        if (this.#configuration.printerIds.includes(descriptor.id)) {
+          this.rememberResolvedPrinter(session.printer);
+        }
+        return session;
+      });
     this.#sessions.set(descriptor.id, pending);
     void pending.catch(() => {
       if (this.#sessions.get(descriptor.id) === pending)
@@ -301,10 +347,26 @@ export class IpadPrinterService {
       JSON.stringify(this.#configuration),
     );
   }
+
+  private rememberResolvedPrinter(descriptor: PrinterDescriptor): void {
+    const storedDescriptor = readStoredMakeIdDescriptor(
+      descriptor,
+      descriptor.id,
+    );
+    if (!storedDescriptor) return;
+    this.#configuration = {
+      ...this.#configuration,
+      printerRecords: {
+        ...this.#configuration.printerRecords,
+        [descriptor.id]: storedDescriptor,
+      },
+    };
+    this.storeConfiguration();
+  }
 }
 
 function capabilityFields(
-  capabilities: PrinterAdapter["offlineCapabilities"],
+  capabilities: OfflinePrinterCapabilities | undefined,
   settings: PrinterSettings,
 ): Partial<PrinterSummary> {
   if (!capabilities) return {};
@@ -364,22 +426,45 @@ async function rasterizeSvg(
 
 function loadConfiguration(): StoredConfiguration {
   const fallback: StoredConfiguration = {
+    version: 2,
     printerIds: [],
     activePrinterId: null,
     settings: {},
+    printerRecords: {},
   };
   try {
     const value: unknown = JSON.parse(
       localStorage.getItem(CONFIGURATION_KEY) ?? "null",
     );
     if (!isRecord(value) || !Array.isArray(value.printerIds)) return fallback;
-    const printerIds = value.printerIds.filter(
+    const candidatePrinterIds = value.printerIds.filter(
       (item): item is string =>
         typeof item === "string" &&
         item.startsWith("makeid:ipad-ble-") &&
         item.length <= 300,
     );
+    const printerRecords: Record<string, PrinterDescriptor> = {};
+    if (value.version === 2) {
+      if (!isRecord(value.printerRecords)) return fallback;
+      for (const printerId of candidatePrinterIds) {
+        const descriptor = readStoredMakeIdDescriptor(
+          value.printerRecords[printerId],
+          printerId,
+        );
+        if (descriptor) printerRecords[printerId] = descriptor;
+      }
+    } else if (value.version === undefined || value.version === 1) {
+      for (const printerId of candidatePrinterIds) {
+        printerRecords[printerId] = legacyE1Descriptor(printerId);
+      }
+    } else {
+      return fallback;
+    }
+    const printerIds = candidatePrinterIds.filter(
+      (printerId) => printerRecords[printerId] !== undefined,
+    );
     return {
+      version: 2,
       printerIds: [...new Set(printerIds)],
       activePrinterId:
         typeof value.activePrinterId === "string" &&
@@ -387,10 +472,66 @@ function loadConfiguration(): StoredConfiguration {
           ? value.activePrinterId
           : null,
       settings: readStoredPrinterSettings(value.settings, printerIds),
+      printerRecords,
     };
   } catch {
     return fallback;
   }
+}
+
+function legacyE1Descriptor(printerId: string): PrinterDescriptor {
+  return {
+    id: printerId,
+    adapterId: "makeid",
+    displayName: "MakeID E1",
+    model: "MakeID E1",
+    transport: "bluetooth-low-energy",
+    connection: {
+      model: "E1",
+      transportDeviceId: printerId.slice("makeid:".length),
+    },
+  };
+}
+
+function readStoredMakeIdDescriptor(
+  value: unknown,
+  printerId: string,
+): PrinterDescriptor | undefined {
+  if (!isRecord(value) || !isRecord(value.connection)) return undefined;
+  const connection = value.connection;
+  if (
+    value.id !== printerId ||
+    value.adapterId !== "makeid" ||
+    typeof value.displayName !== "string" ||
+    value.displayName.length === 0 ||
+    value.displayName.length > 80 ||
+    typeof value.model !== "string" ||
+    value.model.length === 0 ||
+    value.model.length > 80 ||
+    value.transport !== "bluetooth-low-energy" ||
+    typeof connection.transportDeviceId !== "string" ||
+    connection.transportDeviceId !== printerId.slice("makeid:".length) ||
+    !makeIdProfileId(connection.profileId) ||
+    (connection.advertisedName !== undefined &&
+      (typeof connection.advertisedName !== "string" ||
+        connection.advertisedName.length > 80))
+  ) {
+    return undefined;
+  }
+  return {
+    id: printerId,
+    adapterId: "makeid",
+    displayName: value.displayName,
+    model: value.model,
+    transport: "bluetooth-low-energy",
+    connection: {
+      transportDeviceId: connection.transportDeviceId,
+      profileId: connection.profileId,
+      ...(typeof connection.advertisedName === "string"
+        ? { advertisedName: connection.advertisedName }
+        : {}),
+    },
+  };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
