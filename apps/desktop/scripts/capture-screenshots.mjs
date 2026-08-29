@@ -233,7 +233,6 @@ await capture(
       source.y + source.height / 2,
     );
     await page.mouse.down();
-    await page.waitForTimeout(550);
     await page.mouse.move(
       destination.x + destination.width * 0.75,
       destination.y + destination.height / 2,

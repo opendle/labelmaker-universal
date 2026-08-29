@@ -14,7 +14,6 @@ import { LabelArtwork } from "./LabelArtwork.js";
 import { nonPrintableMarginsMm } from "./label-layout.js";
 
 const THUMBNAIL_PIXELS_PER_MM = 3.25;
-const LONG_PRESS_MS = 500;
 const MOVE_TOLERANCE_PX = 8;
 
 interface PressState {
@@ -22,7 +21,6 @@ interface PressState {
   readonly pointerId: number;
   readonly startX: number;
   readonly startY: number;
-  readonly startScrollLeft: number;
   moved: boolean;
 }
 
@@ -165,16 +163,15 @@ export function PlateStrip({
   const stripRef = useRef<HTMLElement>(null);
   const pressRef = useRef<PressState | null>(null);
   const dragRef = useRef<DragState | null>(null);
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pointerListenerCleanupRef = useRef<(() => void) | null>(null);
   const suppressNextClickRef = useRef(false);
   const [draggingPlateId, setDraggingPlateId] = useState<string | null>(null);
   const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
   const [rename, setRename] = useState<RenameState | null>(null);
 
-  const clearLongPressTimer = () => {
-    if (longPressTimerRef.current === null) return;
-    globalThis.clearTimeout(longPressTimerRef.current);
-    longPressTimerRef.current = null;
+  const clearPointerListeners = () => {
+    pointerListenerCleanupRef.current?.();
+    pointerListenerCleanupRef.current = null;
   };
 
   const clearDrag = () => {
@@ -186,7 +183,6 @@ export function PlateStrip({
   const finishPointer = (pointerId: number, commit: boolean) => {
     const press = pressRef.current;
     if (!press || press.pointerId !== pointerId) return;
-    clearLongPressTimer();
     const drag = dragRef.current;
     if (drag?.pointerId === pointerId) {
       if (commit && drag.targetIndex !== drag.sourceIndex) {
@@ -203,73 +199,34 @@ export function PlateStrip({
     pressRef.current = null;
   };
 
-  const handlePointerDown = (
-    event: ReactPointerEvent<HTMLDivElement>,
-    plateId: string,
+  const handlePointerMove = (
+    event: PointerEvent,
+    pointerTarget: HTMLDivElement,
   ) => {
-    if (event.button !== 0 || event.isPrimary === false) return;
-    const target = event.target;
-    if (
-      target instanceof Element &&
-      Boolean(target.closest(".plate-delete, .thumb-name-input"))
-    ) {
-      return;
-    }
-    clearLongPressTimer();
-    suppressNextClickRef.current = false;
-    const thumbnails = stripRef.current?.querySelector(".plate-thumbnails");
-    pressRef.current = {
-      plateId,
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      startScrollLeft:
-        thumbnails instanceof HTMLElement ? thumbnails.scrollLeft : 0,
-      moved: false,
-    };
-    const pointerTarget = event.currentTarget;
-    longPressTimerRef.current = globalThis.setTimeout(() => {
-      const press = pressRef.current;
-      if (!press || press.pointerId !== event.pointerId || press.moved) return;
-      const sourceIndex = workspace.plates.findIndex(
-        (plate) => plate.id === plateId,
-      );
-      if (sourceIndex < 0) return;
-      dragRef.current = {
-        plateId,
-        pointerId: event.pointerId,
-        sourceIndex,
-        targetIndex: sourceIndex,
-      };
-      suppressNextClickRef.current = true;
-      pointerTarget.setPointerCapture?.(event.pointerId);
-      setDraggingPlateId(plateId);
-      setDropTargetIndex(sourceIndex);
-      onSelectPlate(plateId, null);
-    }, LONG_PRESS_MS);
-  };
-
-  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
     const press = pressRef.current;
     if (!press || press.pointerId !== event.pointerId) return;
     const deltaX = event.clientX - press.startX;
     const deltaY = event.clientY - press.startY;
-    const drag = dragRef.current;
+    let drag = dragRef.current;
     if (!drag) {
       if (Math.hypot(deltaX, deltaY) <= MOVE_TOLERANCE_PX) return;
+      const sourceIndex = workspace.plates.findIndex(
+        (plate) => plate.id === press.plateId,
+      );
+      if (sourceIndex < 0) return;
       press.moved = true;
-      clearLongPressTimer();
       suppressNextClickRef.current = true;
-      if (
-        event.pointerType === "touch" &&
-        Math.abs(deltaX) > Math.abs(deltaY)
-      ) {
-        const thumbnails = stripRef.current?.querySelector(".plate-thumbnails");
-        if (thumbnails instanceof HTMLElement) {
-          thumbnails.scrollLeft = press.startScrollLeft - deltaX;
-        }
-      }
-      return;
+      drag = {
+        plateId: press.plateId,
+        pointerId: event.pointerId,
+        sourceIndex,
+        targetIndex: sourceIndex,
+      };
+      dragRef.current = drag;
+      pointerTarget.setPointerCapture?.(event.pointerId);
+      setDraggingPlateId(press.plateId);
+      setDropTargetIndex(sourceIndex);
+      onSelectPlate(press.plateId, null);
     }
     event.preventDefault();
     press.moved = true;
@@ -283,6 +240,53 @@ export function PlateStrip({
     });
     drag.targetIndex = targetIndex < 0 ? thumbnails.length - 1 : targetIndex;
     setDropTargetIndex(drag.targetIndex);
+  };
+
+  const handlePointerDown = (
+    event: ReactPointerEvent<HTMLDivElement>,
+    plateId: string,
+  ) => {
+    if (event.button !== 0 || event.isPrimary === false) return;
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      Boolean(target.closest(".plate-delete, .thumb-name-input"))
+    ) {
+      return;
+    }
+    clearPointerListeners();
+    suppressNextClickRef.current = false;
+    pressRef.current = {
+      plateId,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      moved: false,
+    };
+    const activePointerId = event.pointerId;
+    const pointerTarget = event.currentTarget;
+    const onPointerMove = (pointerEvent: PointerEvent) =>
+      handlePointerMove(pointerEvent, pointerTarget);
+    const onPointerUp = (pointerEvent: PointerEvent) => {
+      if (pointerEvent.pointerId !== activePointerId) return;
+      finishPointer(pointerEvent.pointerId, true);
+      clearPointerListeners();
+    };
+    const onPointerCancel = (pointerEvent: PointerEvent) => {
+      if (pointerEvent.pointerId !== activePointerId) return;
+      finishPointer(pointerEvent.pointerId, false);
+      clearPointerListeners();
+    };
+    globalThis.document.addEventListener("pointermove", onPointerMove, {
+      passive: false,
+    });
+    globalThis.document.addEventListener("pointerup", onPointerUp);
+    globalThis.document.addEventListener("pointercancel", onPointerCancel);
+    pointerListenerCleanupRef.current = () => {
+      globalThis.document.removeEventListener("pointermove", onPointerMove);
+      globalThis.document.removeEventListener("pointerup", onPointerUp);
+      globalThis.document.removeEventListener("pointercancel", onPointerCancel);
+    };
   };
 
   useEffect(() => {
@@ -299,7 +303,7 @@ export function PlateStrip({
         "pointerdown",
         updateKeyboardDelete,
       );
-      clearLongPressTimer();
+      clearPointerListeners();
     };
   }, []);
 
@@ -319,10 +323,7 @@ export function PlateStrip({
               aria-grabbed={draggingPlateId === plate.id}
               className={`plate-thumb${plate.id === activePlateId ? " selected" : ""}${draggingPlateId === plate.id ? " dragging" : ""}`}
               key={plate.id}
-              onPointerCancel={(event) => finishPointer(event.pointerId, false)}
               onPointerDown={(event) => handlePointerDown(event, plate.id)}
-              onPointerMove={handlePointerMove}
-              onPointerUp={(event) => finishPointer(event.pointerId, true)}
               style={
                 {
                   "--label-preview-height": `${plate.size.heightMm * THUMBNAIL_PIXELS_PER_MM}px`,
@@ -370,7 +371,7 @@ export function PlateStrip({
                     onDeletePlate(plate.id);
                   }
                 }}
-                title="Press and hold to reorder"
+                title="Drag to reorder"
                 type="button"
               >
                 <span className="plate-number">{index + 1}</span>

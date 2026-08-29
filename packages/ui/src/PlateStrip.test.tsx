@@ -77,8 +77,7 @@ describe("PlateStrip", () => {
     expect(onRenamePlate).toHaveBeenCalledWith("plate-resistors", "Parts");
   });
 
-  it("moves a plate after a long press and pointer movement", () => {
-    vi.useFakeTimers();
+  it("moves a plate as soon as the pointer starts to drag", () => {
     const onMovePlate = vi.fn();
     const { container } = renderStrip({ onMovePlate });
     const plates = Array.from(
@@ -101,9 +100,6 @@ describe("PlateStrip", () => {
       pointerId: 1,
       pointerType: "touch",
     });
-    act(() => vi.advanceTimersByTime(500));
-    expect(source).toHaveAttribute("aria-grabbed", "true");
-
     act(() => {
       dispatchPointer(source, "pointermove", {
         clientX: 275,
@@ -112,6 +108,7 @@ describe("PlateStrip", () => {
         pointerType: "touch",
       });
     });
+    expect(source).toHaveAttribute("aria-grabbed", "true");
     expect(
       Array.from(container.querySelectorAll(".thumb-name"), (name) =>
         name.textContent?.trim(),
@@ -123,6 +120,13 @@ describe("PlateStrip", () => {
     dispatchPointer(source, "pointerup", {
       clientX: 275,
       clientY: 25,
+      pointerId: 2,
+      pointerType: "touch",
+    });
+    expect(source).toHaveAttribute("aria-grabbed", "true");
+    dispatchPointer(source, "pointerup", {
+      clientX: 275,
+      clientY: 25,
       pointerId: 1,
       pointerType: "touch",
     });
@@ -130,29 +134,28 @@ describe("PlateStrip", () => {
     expect(onMovePlate).toHaveBeenCalledWith("plate-resistors", 2);
   });
 
-  it("scrolls from the current strip position when touch moves before the hold delay", () => {
-    const { container } = renderStrip();
-    const thumbnails =
-      container.querySelector<HTMLElement>(".plate-thumbnails")!;
+  it("does not move a plate when the pointer does not travel", () => {
+    const onMovePlate = vi.fn();
+    const { container } = renderStrip({ onMovePlate });
     const source = container.querySelector<HTMLElement>(".plate-thumb")!;
-    thumbnails.scrollLeft = 120;
 
     dispatchPointer(source, "pointerdown", {
       button: 0,
-      clientX: 50,
+      clientX: 25,
       clientY: 25,
       isPrimary: true,
       pointerId: 1,
       pointerType: "touch",
     });
-    dispatchPointer(source, "pointermove", {
-      clientX: 20,
+    dispatchPointer(source, "pointerup", {
+      clientX: 25,
       clientY: 25,
       pointerId: 1,
       pointerType: "touch",
     });
 
-    expect(thumbnails.scrollLeft).toBe(150);
+    expect(onMovePlate).not.toHaveBeenCalled();
+    expect(source).toHaveAttribute("aria-grabbed", "false");
   });
 
   it("moves a focused plate with Alt and an arrow key", () => {

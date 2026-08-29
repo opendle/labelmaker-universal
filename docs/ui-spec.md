@@ -56,8 +56,8 @@ appearances so that they show the physical label and printed result accurately.
 - Select plate thumbnails.
 - Double-click a plate name in the plate strip to rename it. Keep the rename
   action available from the keyboard.
-- Press and hold a plate in the plate strip, then move it to change the plate
-  order. Show the moved plate as a translucent ghost in its proposed final
+- Drag a plate in the plate strip to change the plate order without a hold
+  delay. Show the moved plate as a translucent ghost in its proposed final
   position, and shift the other plates to show the resulting order. Keep an
   equivalent keyboard action available.
 - Delete a plate from its thumbnail. Keep at least one plate in the workspace.
