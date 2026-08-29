@@ -30,7 +30,10 @@ import {
 import { TYPEFACES } from "./typefaces.js";
 import { MonochromeImage } from "./MonochromeImage.js";
 import { NumberInput } from "./NumberInput.js";
-import { ROTATION_SNAP_DEGREES, snapRotationDegrees } from "./rotation.js";
+import {
+  ROTATION_INPUT_STEP_DEGREES,
+  snapRotationDegrees,
+} from "./rotation.js";
 
 function NumberField({
   label,
@@ -212,7 +215,7 @@ function FrameControls<T extends FramedElement>({
           label={`${elementName} rotation`}
           normalizeValue={snapRotationDegrees}
           shortLabel="ROTATION"
-          step={ROTATION_SNAP_DEGREES}
+          step={ROTATION_INPUT_STEP_DEGREES}
           unit="°"
           value={element.rotationDeg}
           onChange={(rotationDeg) => onChange({ ...element, rotationDeg })}

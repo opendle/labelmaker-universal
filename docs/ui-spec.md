@@ -89,8 +89,9 @@ appearances so that they show the physical label and printed result accurately.
   print-head width.
 - Resize text, image, and shape elements from corner handles and rotate them
   from a separate rotation handle. Hold Shift during a resize to preserve the
-  frame's current proportions. Snap rotation to 45-degree increments. Elements
-  can extend outside the plate bounds.
+  frame's current proportions. Rotate freely, but snap to each 45-degree angle
+  when the pointer is within 3 degrees of it. Elements can extend outside the
+  plate bounds.
 - Show a rotation cursor on the rotation handle.
 - Snap moved text and image frames to the absolute label limits and to the
   left, horizontal center, right, top, vertical middle, and bottom of the
@@ -152,7 +153,8 @@ appearances so that they show the physical label and printed result accurately.
 - Keep width, height, X, Y, and rotation controls implemented for text and image
   frames, but hide them from the inspector. Keep these geometry controls visible
   for shapes. Use 0.1 mm keyboard steps for shape geometry and stroke controls,
-  and use 45-degree steps for visible rotation controls.
+  and use 1-degree steps for visible rotation controls. Apply the same 3-degree
+  snap zone around each 45-degree angle.
 - Set left and right plate margins, with zero as the default.
 - Adjust the plate width, larger or smaller, to the first and last black
   pixels of the final monochrome raster plus the selected margins. Apply

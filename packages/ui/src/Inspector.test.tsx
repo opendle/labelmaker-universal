@@ -119,7 +119,7 @@ describe("inspector controls", () => {
     }
   });
 
-  it("keeps shape geometry visible and snaps its rotation", () => {
+  it("keeps shape geometry visible and snaps rotation near 45-degree angles", () => {
     const onUpdateShape = vi.fn();
     const shape = {
       id: "shape",
@@ -151,11 +151,18 @@ describe("inspector controls", () => {
     expect(screen.getByLabelText("Shape width")).toBeVisible();
     const rotation = screen.getByLabelText("Shape rotation");
     expect(rotation).toBeVisible();
-    expect(rotation).toHaveAttribute("step", "45");
+    expect(rotation).toHaveAttribute("step", "1");
 
     fireEvent.change(rotation, { target: { value: "68" } });
 
     expect(onUpdateShape).toHaveBeenCalledWith({
+      ...shape,
+      rotationDeg: 68,
+    });
+
+    fireEvent.change(rotation, { target: { value: "88" } });
+
+    expect(onUpdateShape).toHaveBeenLastCalledWith({
       ...shape,
       rotationDeg: 90,
     });
