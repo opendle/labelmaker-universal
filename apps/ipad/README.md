@@ -21,6 +21,15 @@ transport. The shared TypeScript adapter owns the printer protocol.
    signing and the `com.opendle.labelmaker` development bundle identifier.
 5. Press Run.
 
+After signing and device trust are configured, set `IPAD_ID` to the connected
+iPad identifier and run this command from the repository root:
+
+```sh
+npm run ipad:deploy
+```
+
+The command builds the app, installs it on the iPad, and starts it.
+
 The Xcode target runs the iPad web build before each native build. You can also
 check it separately with:
 
