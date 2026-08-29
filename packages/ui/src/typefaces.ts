@@ -9,7 +9,6 @@ export const TYPEFACES = [
     label: "Baskerville",
     value: 'Baskerville, "Times New Roman", serif',
   },
-  { label: "Consolas", value: "Consolas, monospace" },
   { label: "Courier New", value: '"Courier New", monospace' },
   { label: "Futura", value: 'Futura, "Century Gothic", sans-serif' },
   { label: "Georgia", value: "Georgia, serif" },
