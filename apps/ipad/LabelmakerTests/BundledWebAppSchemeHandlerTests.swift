@@ -2,6 +2,14 @@ import XCTest
 @testable import Labelmaker
 
 final class BundledWebAppSchemeHandlerTests: XCTestCase {
+    func testAppDeclaresCameraUseForImageImport() throws {
+        let description = try XCTUnwrap(
+            Bundle.main.object(forInfoDictionaryKey: "NSCameraUsageDescription") as? String
+        )
+
+        XCTAssertFalse(description.isEmpty)
+    }
+
     func testAcceptsBundledAppResourcePaths() throws {
         let url = try XCTUnwrap(URL(string: "labelmaker://app/assets/index.js"))
 

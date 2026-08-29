@@ -36,6 +36,149 @@ function frameWithScale<T extends FramedElement>(
   };
 }
 
+function rotateVector(x: number, y: number, rotationDeg: number) {
+  const radians = (rotationDeg * Math.PI) / 180;
+  const cosine = Math.cos(radians);
+  const sine = Math.sin(radians);
+  const rotatedX = x * cosine - y * sine;
+  const rotatedY = x * sine + y * cosine;
+  return {
+    x: Math.abs(rotatedX) < 1e-12 ? 0 : rotatedX,
+    y: Math.abs(rotatedY) < 1e-12 ? 0 : rotatedY,
+  };
+}
+
+function anchorRotatedResize<T extends FramedElement>(
+  element: T,
+  resized: T,
+  edges: { readonly left: boolean; readonly top: boolean },
+): T {
+  if (element.rotationDeg % 360 === 0) return resized;
+
+  const horizontalDirection = edges.left ? -1 : 1;
+  const verticalDirection = edges.top ? -1 : 1;
+  const originalCenter = {
+    x: element.xMm + element.widthMm / 2,
+    y: element.yMm + element.heightMm / 2,
+  };
+  const oppositeCornerOffset = rotateVector(
+    (-horizontalDirection * element.widthMm) / 2,
+    (-verticalDirection * element.heightMm) / 2,
+    element.rotationDeg,
+  );
+  const oppositeCorner = {
+    x: originalCenter.x + oppositeCornerOffset.x,
+    y: originalCenter.y + oppositeCornerOffset.y,
+  };
+  const resizedCenterOffset = rotateVector(
+    (horizontalDirection * resized.widthMm) / 2,
+    (verticalDirection * resized.heightMm) / 2,
+    element.rotationDeg,
+  );
+  const resizedCenter = {
+    x: oppositeCorner.x + resizedCenterOffset.x,
+    y: oppositeCorner.y + resizedCenterOffset.y,
+  };
+
+  return {
+    ...resized,
+    xMm: resizedCenter.x - resized.widthMm / 2,
+    yMm: resizedCenter.y - resized.heightMm / 2,
+  };
+}
+
+function rotatedFrameBounds(frame: FramedElement) {
+  const center = {
+    x: frame.xMm + frame.widthMm / 2,
+    y: frame.yMm + frame.heightMm / 2,
+  };
+  const corners = [-1, 1].flatMap((horizontalDirection) =>
+    [-1, 1].map((verticalDirection) => {
+      const offset = rotateVector(
+        (horizontalDirection * frame.widthMm) / 2,
+        (verticalDirection * frame.heightMm) / 2,
+        frame.rotationDeg,
+      );
+      return { x: center.x + offset.x, y: center.y + offset.y };
+    }),
+  );
+  const xValues = corners.map(({ x }) => x);
+  const yValues = corners.map(({ y }) => y);
+  const left = Math.min(...xValues);
+  const top = Math.min(...yValues);
+  return {
+    xMm: left,
+    yMm: top,
+    widthMm: Math.max(...xValues) - left,
+    heightMm: Math.max(...yValues) - top,
+    rotationDeg: 0,
+  };
+}
+
+function snapResizeCandidate<T extends FramedElement>(
+  element: T,
+  resized: T,
+  edges: { readonly left: boolean; readonly top: boolean },
+  plateSize: LabelPlate["size"],
+  printableMargins: PrintableMargins,
+  thresholds: SnapThresholds,
+): T {
+  const normalizedRotation = ((element.rotationDeg % 360) + 360) % 360;
+  if (normalizedRotation === 0) {
+    return snapResizedFrame(
+      resized,
+      plateSize,
+      printableMargins,
+      thresholds,
+      edges,
+    );
+  }
+
+  if (
+    normalizedRotation === 90 ||
+    normalizedRotation === 180 ||
+    normalizedRotation === 270
+  ) {
+    const anchored = anchorRotatedResize(element, resized, edges);
+    const draggedCornerDirection = rotateVector(
+      edges.left ? -1 : 1,
+      edges.top ? -1 : 1,
+      normalizedRotation,
+    );
+    const snappedBounds = snapResizedFrame(
+      rotatedFrameBounds(anchored),
+      plateSize,
+      printableMargins,
+      thresholds,
+      {
+        left: draggedCornerDirection.x < 0,
+        top: draggedCornerDirection.y < 0,
+      },
+    );
+    const swapsDimensions =
+      normalizedRotation === 90 || normalizedRotation === 270;
+    return anchorRotatedResize(
+      element,
+      {
+        ...resized,
+        widthMm: swapsDimensions
+          ? snappedBounds.heightMm
+          : snappedBounds.widthMm,
+        heightMm: swapsDimensions
+          ? snappedBounds.widthMm
+          : snappedBounds.heightMm,
+      },
+      edges,
+    );
+  }
+
+  return anchorRotatedResize(
+    element,
+    snapResizedFrame(resized, plateSize, printableMargins, thresholds, edges),
+    edges,
+  );
+}
+
 export function resizeFrameFromDrag<T extends FramedElement>(
   element: T,
   corner: ResizeCorner,
@@ -49,11 +192,19 @@ export function resizeFrameFromDrag<T extends FramedElement>(
   const left = corner.includes("w");
   const top = corner.includes("n");
   const edges = { left, top };
-  const widthMm = Math.max(0.5, element.widthMm + (left ? -dx : dx));
-  const heightMm = Math.max(0.5, element.heightMm + (top ? -dy : dy));
+  const localDrag = rotateVector(dx, dy, -element.rotationDeg);
+  const widthMm = Math.max(
+    0.5,
+    element.widthMm + (left ? -localDrag.x : localDrag.x),
+  );
+  const heightMm = Math.max(
+    0.5,
+    element.heightMm + (top ? -localDrag.y : localDrag.y),
+  );
 
   if (!preserveAspectRatio) {
-    return snapResizedFrame(
+    return snapResizeCandidate(
+      element,
       {
         ...element,
         xMm: left ? element.xMm + element.widthMm - widthMm : element.xMm,
@@ -61,10 +212,10 @@ export function resizeFrameFromDrag<T extends FramedElement>(
         widthMm,
         heightMm,
       },
+      edges,
       plateSize,
       printableMargins,
       thresholds,
-      edges,
     );
   }
 
@@ -77,19 +228,22 @@ export function resizeFrameFromDrag<T extends FramedElement>(
       : heightScale;
   const intendedScale = Math.max(minimumScale, dragScale);
   const proportionalFrame = frameWithScale(element, intendedScale, edges);
-  const snappedFrame = snapResizedFrame(
+  const snappedFrame = snapResizeCandidate(
+    element,
     proportionalFrame,
+    edges,
     plateSize,
     printableMargins,
     thresholds,
-    edges,
   );
   const widthWasSnapped =
     Math.abs(snappedFrame.widthMm - proportionalFrame.widthMm) > 1e-9;
   const heightWasSnapped =
     Math.abs(snappedFrame.heightMm - proportionalFrame.heightMm) > 1e-9;
 
-  if (!widthWasSnapped && !heightWasSnapped) return snappedFrame;
+  if (!widthWasSnapped && !heightWasSnapped) {
+    return anchorRotatedResize(element, snappedFrame, edges);
+  }
 
   const snappedWidthScale = snappedFrame.widthMm / element.widthMm;
   const snappedHeightScale = snappedFrame.heightMm / element.heightMm;
@@ -101,7 +255,11 @@ export function resizeFrameFromDrag<T extends FramedElement>(
       ? snappedWidthScale
       : snappedHeightScale;
 
-  return frameWithScale(element, Math.max(minimumScale, snappedScale), edges);
+  return anchorRotatedResize(
+    element,
+    frameWithScale(element, Math.max(minimumScale, snappedScale), edges),
+    edges,
+  );
 }
 
 export function useCanvasInteractions({

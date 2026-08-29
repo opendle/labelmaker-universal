@@ -29,6 +29,32 @@ const oppositeCorner = (corner: ResizeCorner, frame: TextElement) => ({
   y: corner.includes("n") ? frame.yMm + frame.heightMm : frame.yMm,
 });
 
+const rotatedCorner = (
+  corner: ResizeCorner,
+  frame: TextElement,
+  opposite = false,
+) => {
+  const horizontalDirection =
+    (corner.includes("w") ? -1 : 1) * (opposite ? -1 : 1);
+  const verticalDirection =
+    (corner.includes("n") ? -1 : 1) * (opposite ? -1 : 1);
+  const radians = (frame.rotationDeg * Math.PI) / 180;
+  const x = (horizontalDirection * frame.widthMm) / 2;
+  const y = (verticalDirection * frame.heightMm) / 2;
+  return {
+    x:
+      frame.xMm +
+      frame.widthMm / 2 +
+      x * Math.cos(radians) -
+      y * Math.sin(radians),
+    y:
+      frame.yMm +
+      frame.heightMm / 2 +
+      x * Math.sin(radians) +
+      y * Math.cos(radians),
+  };
+};
+
 describe("proportional canvas resize", () => {
   it.each([
     ["nw", -6, -1],
@@ -116,5 +142,81 @@ describe("proportional canvas resize", () => {
     );
 
     expect(resized).toMatchObject({ widthMm: 18, heightMm: 5 });
+  });
+
+  it.each(["nw", "ne", "sw", "se"] as const)(
+    "resizes a 90-degree frame in its visible axes from the %s handle",
+    (corner) => {
+      const rotated = { ...element, rotationDeg: 90 };
+      const beforeDraggedCorner = rotatedCorner(corner, rotated);
+      const beforeOppositeCorner = rotatedCorner(corner, rotated, true);
+      const resized = resizeFrameFromDrag(
+        rotated,
+        corner,
+        0,
+        corner.includes("w") ? -6 : 6,
+        plateSize,
+        margins,
+        noSnap,
+        false,
+      );
+      const afterDraggedCorner = rotatedCorner(corner, resized);
+      const afterOppositeCorner = rotatedCorner(corner, resized, true);
+
+      expect(resized.widthMm).toBe(18);
+      expect(resized.heightMm).toBe(4);
+      expect(afterDraggedCorner.x).toBeCloseTo(beforeDraggedCorner.x);
+      expect(afterDraggedCorner.y).toBeCloseTo(
+        beforeDraggedCorner.y + (corner.includes("w") ? -6 : 6),
+      );
+      expect(afterOppositeCorner.x).toBeCloseTo(beforeOppositeCorner.x);
+      expect(afterOppositeCorner.y).toBeCloseTo(beforeOppositeCorner.y);
+    },
+  );
+
+  it("preserves proportions in the visible axes of a rotated frame", () => {
+    const rotated = { ...element, rotationDeg: 90 };
+    const beforeOppositeCorner = rotatedCorner("se", rotated, true);
+    const resized = resizeFrameFromDrag(
+      rotated,
+      "se",
+      -1,
+      6,
+      plateSize,
+      margins,
+      noSnap,
+      true,
+    );
+
+    expect(resized.widthMm / resized.heightMm).toBeCloseTo(3);
+    expect(rotatedCorner("se", resized, true).x).toBeCloseTo(
+      beforeOppositeCorner.x,
+    );
+    expect(rotatedCorner("se", resized, true).y).toBeCloseTo(
+      beforeOppositeCorner.y,
+    );
+  });
+
+  it("snaps the visible edge of a 90-degree frame to the printable limit", () => {
+    const rotated = { ...element, rotationDeg: 90 };
+    const beforeOppositeCorner = rotatedCorner("se", rotated, true);
+    const resized = resizeFrameFromDrag(
+      rotated,
+      "se",
+      0,
+      1.6,
+      plateSize,
+      margins,
+      { xMm: 0.5, yMm: 0.5 },
+      false,
+    );
+
+    expect(rotatedCorner("se", resized).y).toBe(13);
+    expect(rotatedCorner("se", resized, true).x).toBeCloseTo(
+      beforeOppositeCorner.x,
+    );
+    expect(rotatedCorner("se", resized, true).y).toBeCloseTo(
+      beforeOppositeCorner.y,
+    );
   });
 });

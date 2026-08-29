@@ -285,6 +285,7 @@
 				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.opendle.labelmaker;
+				PRODUCT_MODULE_NAME = Labelmaker;
 				PRODUCT_NAME = "LabelMaker for MakeID";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -311,6 +312,7 @@
 				);
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.opendle.labelmaker;
+				PRODUCT_MODULE_NAME = Labelmaker;
 				PRODUCT_NAME = "LabelMaker for MakeID";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -333,7 +335,7 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 2;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Labelmaker.app/Labelmaker";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LabelMaker for MakeID.app/LabelMaker for MakeID";
 			};
 			name = Debug;
 		};
@@ -350,7 +352,7 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 2;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Labelmaker.app/Labelmaker";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LabelMaker for MakeID.app/LabelMaker for MakeID";
 			};
 			name = Release;
 		};

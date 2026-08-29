@@ -41,6 +41,8 @@
   <true/>
   <key>NSBluetoothAlwaysUsageDescription</key>
   <string>Labelmaker uses Bluetooth to find and print to your label printer.</string>
+  <key>NSCameraUsageDescription</key>
+  <string>Labelmaker uses the camera to take photos for labels.</string>
   <key>UIApplicationSupportsIndirectInputEvents</key>
   <true/>
   <key>UILaunchScreen</key>
