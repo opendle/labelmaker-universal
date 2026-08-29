@@ -168,6 +168,7 @@ export function CanvasElementView({
         !editing && (
           <SelectionHandles
             elementLabel={element.kind === "rectangle" ? "shape" : element.kind}
+            rotationDeg={element.rotationDeg}
             onResizeStart={(corner, event) =>
               onResizeStart(event, element, corner)
             }

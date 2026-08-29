@@ -1,5 +1,7 @@
 import type { PointerEvent, ReactNode } from "react";
 
+import { resizeCursor, type ResizeCorner } from "./resize-cursor.js";
+
 export function IconButton({
   label,
   children,
@@ -30,12 +32,14 @@ export function IconButton({
 
 export function SelectionHandles({
   elementLabel,
+  rotationDeg,
   onResizeStart,
   onRotateStart,
 }: {
   readonly elementLabel: "text" | "image" | "shape";
+  readonly rotationDeg: number;
   readonly onResizeStart: (
-    corner: "nw" | "ne" | "sw" | "se",
+    corner: ResizeCorner,
     event: PointerEvent<HTMLButtonElement>,
   ) => void;
   readonly onRotateStart: (event: PointerEvent<HTMLButtonElement>) => void;
@@ -55,6 +59,7 @@ export function SelectionHandles({
           className={`handle ${corner}`}
           key={corner}
           onPointerDown={(event) => onResizeStart(corner, event)}
+          style={{ cursor: resizeCursor(corner, rotationDeg) }}
           type="button"
         />
       ))}
