@@ -23,6 +23,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { createPortal } from "react-dom";
 
 import { CanvasElementView } from "./CanvasElementView.js";
 import { CanvasGrid, CanvasRulers } from "./CanvasGuides.js";
@@ -86,6 +87,7 @@ function CanvasToolbar({
   onAddSpecial,
   onUpdatePlate,
   onTrim,
+  platform,
 }: {
   readonly plate: LabelPlate;
   readonly onAddText: () => void;
@@ -96,15 +98,24 @@ function CanvasToolbar({
   readonly onAddSpecial: (kind: "flag") => void;
   readonly onUpdatePlate: (plate: LabelPlate) => void;
   readonly onTrim: () => void;
+  readonly platform: HostPlatform;
 }) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const shapeControlRef = useRef<HTMLDivElement>(null);
   const shapeMenuRef = useRef<HTMLDivElement>(null);
   const shapeTriggerRef = useRef<HTMLButtonElement>(null);
   const [shapeMenuOpen, setShapeMenuOpen] = useState(false);
+  const [shapeMenuPosition, setShapeMenuPosition] = useState({
+    left: 0,
+    top: 0,
+  });
   useEffect(() => {
     const onDocumentPointerDown = (event: PointerEvent) => {
-      if (!shapeControlRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        !shapeControlRef.current?.contains(target) &&
+        !shapeMenuRef.current?.contains(target)
+      ) {
         setShapeMenuOpen(false);
       }
     };
@@ -210,6 +221,20 @@ function CanvasToolbar({
             onBlur={clearPointerFocusRingSuppression}
             onClick={(event) => {
               const nextOpen = !shapeMenuOpen;
+              if (nextOpen) {
+                const bounds = event.currentTarget.getBoundingClientRect();
+                const menuWidth = platform === "ipados" ? 160 : 132;
+                setShapeMenuPosition({
+                  left: Math.max(
+                    8,
+                    Math.min(
+                      bounds.left,
+                      globalThis.innerWidth - menuWidth - 8,
+                    ),
+                  ),
+                  top: bounds.bottom + 2,
+                });
+              }
               setShapeMenuOpen(nextOpen);
               if (nextOpen) {
                 const showFocusRing = event.detail === 0;
@@ -233,33 +258,36 @@ function CanvasToolbar({
           >
             <Square size={16} /> Shapes <ChevronDown size={13} />
           </button>
-          {shapeMenuOpen && (
-            <div
-              aria-label="Add shape"
-              className="shape-menu"
-              onKeyDown={onShapeMenuKeyDown}
-              ref={shapeMenuRef}
-              role="menu"
-              tabIndex={-1}
-            >
-              {shapeOptions.map(([shape, label, Icon]) => (
-                <button
-                  key={shape}
-                  onBlur={clearPointerFocusRingSuppression}
-                  onClick={() => {
-                    onAddShape(shape);
-                    setShapeMenuOpen(false);
-                  }}
-                  onKeyDown={clearPointerFocusRingSuppression}
-                  onPointerDown={suppressPointerFocusRing}
-                  role="menuitem"
-                  type="button"
-                >
-                  <Icon size={15} /> {label}
-                </button>
-              ))}
-            </div>
-          )}
+          {shapeMenuOpen &&
+            createPortal(
+              <div
+                aria-label="Add shape"
+                className={`shape-menu${platform === "ipados" ? " shape-menu-ipados" : ""}`}
+                onKeyDown={onShapeMenuKeyDown}
+                ref={shapeMenuRef}
+                role="menu"
+                style={shapeMenuPosition}
+                tabIndex={-1}
+              >
+                {shapeOptions.map(([shape, label, Icon]) => (
+                  <button
+                    key={shape}
+                    onBlur={clearPointerFocusRingSuppression}
+                    onClick={() => {
+                      onAddShape(shape);
+                      setShapeMenuOpen(false);
+                    }}
+                    onKeyDown={clearPointerFocusRingSuppression}
+                    onPointerDown={suppressPointerFocusRing}
+                    role="menuitem"
+                    type="button"
+                  >
+                    <Icon size={15} /> {label}
+                  </button>
+                ))}
+              </div>,
+              globalThis.document.body,
+            )}
         </div>
         <span className="toolbar-separator" />
         <button
@@ -428,6 +456,7 @@ export function EditorCanvas({
         onTrim={onTrim}
         onUpdatePlate={onUpdatePlate}
         plate={plate}
+        platform={platform}
       />
       <div
         className="work-surface"

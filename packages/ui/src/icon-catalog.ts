@@ -1,3 +1,5 @@
+import catalogFile from "./lucide-icon-catalog.json" with { type: "json" };
+
 type IconElementName =
   | "circle"
   | "ellipse"
@@ -23,19 +25,12 @@ interface IconCatalogFile {
   readonly icons: readonly IconCatalogEntry[];
 }
 
-const catalogUrl = new URL("./lucide-icon-catalog.json", import.meta.url).href;
 let catalogPromise: Promise<readonly IconCatalogEntry[]> | undefined;
 
 export function loadIconCatalog(): Promise<readonly IconCatalogEntry[]> {
-  catalogPromise ??= fetch(catalogUrl)
-    .then(async (response) => {
-      if (!response.ok) throw new Error("The icon catalog could not open.");
-      const value = (await response.json()) as IconCatalogFile;
-      if (!Array.isArray(value.icons) || value.icons.length === 0) {
-        throw new Error("The icon catalog is empty.");
-      }
-      return value.icons;
-    })
-    .catch(() => []);
+  const value = catalogFile as unknown as IconCatalogFile;
+  catalogPromise ??= Promise.resolve(
+    Array.isArray(value.icons) && value.icons.length > 0 ? value.icons : [],
+  );
   return catalogPromise;
 }

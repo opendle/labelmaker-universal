@@ -1235,6 +1235,18 @@ describe("LabelmakerApp", () => {
     expect(trigger).toHaveFocus();
   });
 
+  it("shows the shape menu outside the scrolling editor toolbar", async () => {
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost({ platform: "ipados" })} />);
+
+    await user.click(screen.getByRole("button", { name: "Shapes" }));
+
+    const menu = screen.getByRole("menu", { name: "Add shape" });
+    expect(menu.closest(".editor-toolbar")).toBeNull();
+    expect(menu.parentElement).toBe(document.body);
+    expect(menu).toHaveClass("shape-menu-ipados");
+  });
+
   it("hides pointer-only focus rings on the element actions", async () => {
     const user = userEvent.setup();
     render(<LabelmakerApp host={createHost()} />);
