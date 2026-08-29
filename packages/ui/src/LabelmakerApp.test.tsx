@@ -1296,7 +1296,7 @@ describe("LabelmakerApp", () => {
 
     const shapes = screen.getByRole("button", { name: "Shapes" });
     expect(
-      draw.compareDocumentPosition(icons) & Node.DOCUMENT_POSITION_FOLLOWING,
+      icons.compareDocumentPosition(draw) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
       icons.compareDocumentPosition(shapes) & Node.DOCUMENT_POSITION_FOLLOWING,

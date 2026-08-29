@@ -1363,11 +1363,6 @@ textarea.inline-text-editor:focus-visible {
   justify-content: flex-end;
   gap: 5px;
 }
-.plate-toolbar-settings > .toolbar-separator {
-  align-self: flex-end;
-  margin: 0 3px;
-  height: 27px;
-}
 .toolbar-trim-button {
   align-self: flex-end;
   height: var(--field-control-height);
@@ -2507,7 +2502,7 @@ textarea.inline-text-editor:focus-visible {
 .platform-ipados .printer-readonly-setting > span,
 .platform-ipados .printer-number-setting > span:first-child,
 .platform-ipados .darkness-setting > span {
-  margin-bottom: -2px;
+  margin-bottom: -1px;
 }
 
 .platform-ipados input,

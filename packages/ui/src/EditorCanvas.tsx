@@ -196,22 +196,22 @@ function CanvasToolbar({
         <button
           className="tool-button"
           onBlur={clearPointerFocusRingSuppression}
-          onClick={onDraw}
-          onKeyDown={clearPointerFocusRingSuppression}
-          onPointerDown={suppressPointerFocusRing}
-          type="button"
-        >
-          <Pencil size={17} /> Draw
-        </button>
-        <button
-          className="tool-button"
-          onBlur={clearPointerFocusRingSuppression}
           onClick={onOpenIcons}
           onKeyDown={clearPointerFocusRingSuppression}
           onPointerDown={suppressPointerFocusRing}
           type="button"
         >
           <Smile size={17} /> Icons
+        </button>
+        <button
+          className="tool-button"
+          onBlur={clearPointerFocusRingSuppression}
+          onClick={onDraw}
+          onKeyDown={clearPointerFocusRingSuppression}
+          onPointerDown={suppressPointerFocusRing}
+          type="button"
+        >
+          <Pencil size={17} /> Draw
         </button>
         <div className="shape-control" ref={shapeControlRef}>
           <button

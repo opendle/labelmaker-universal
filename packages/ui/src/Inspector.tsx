@@ -596,7 +596,6 @@ export function PlateToolbarSettings({
           </div>
         </label>
       ))}
-      <span aria-hidden="true" className="toolbar-separator" />
       <button
         aria-label="Trim plate to content"
         className="tool-button toolbar-trim-button"
