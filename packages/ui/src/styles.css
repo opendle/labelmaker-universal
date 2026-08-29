@@ -373,15 +373,27 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
 }
 .popup-menu button {
   width: 100%;
+  min-height: 36px;
   border: 0;
   background: transparent;
   padding: 8px 9px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
   border-radius: 5px;
   text-align: left;
   font-size: 12px;
   cursor: pointer;
 }
-.popup-menu button:hover {
+.popup-menu button > svg {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+.popup-menu button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.popup-menu button:hover:not(:disabled) {
   background: #f2f0eb;
 }
 
@@ -2921,6 +2933,10 @@ textarea.inline-text-editor:focus-visible {
   top: 48px;
 }
 
+.phone-titlebar .printer-menu {
+  right: -92px;
+}
+
 .phone-titlebar .print-control > .button {
   width: 44px;
   height: 44px;
@@ -3075,12 +3091,6 @@ textarea.inline-text-editor:focus-visible {
   color: #9a5f52;
 }
 
-.phone-command-icon.trim {
-  border-color: #d4d0c7;
-  background: white;
-  color: #5b5851;
-}
-
 .phone-quick-fixed {
   border-left: 1px solid var(--line);
 }
@@ -3215,7 +3225,8 @@ textarea.inline-text-editor:focus-visible {
   grid-template-rows: minmax(0, 1fr);
 }
 
-.phone-property-modal.modal-backdrop {
+:is(.layout-phone, .layout-phone-short)
+  :is(.phone-property-modal, .phone-form-modal).modal-backdrop {
   --phone-sheet-top-gap: max(8px, env(safe-area-inset-top));
   --phone-sheet-bottom-gap: calc(
     var(--phone-strip-height) + env(safe-area-inset-bottom)
@@ -3225,7 +3236,9 @@ textarea.inline-text-editor:focus-visible {
     var(--phone-sheet-bottom-gap) max(8px, env(safe-area-inset-left));
 }
 
-.phone-property-modal .dialog {
+:is(.layout-phone, .layout-phone-short)
+  :is(.phone-property-modal, .phone-form-modal)
+  .dialog {
   width: 100%;
   max-width: 600px;
   max-height: min(
@@ -3240,7 +3253,7 @@ textarea.inline-text-editor:focus-visible {
   border-radius: 14px;
 }
 
-.layout-phone-short .phone-property-modal .dialog {
+.layout-phone-short :is(.phone-property-modal, .phone-form-modal) .dialog {
   max-height: calc(
     var(--visual-viewport-height, 100vh) - var(--phone-sheet-top-gap) -
       var(--phone-sheet-bottom-gap)
@@ -3311,6 +3324,35 @@ textarea.inline-text-editor:focus-visible {
   min-height: 44px;
 }
 
+.phone-special-settings {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.phone-special-toggle {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid var(--field-control-border);
+  border-radius: 7px;
+  background: var(--field-control-background);
+  color: #5f5b53;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.phone-special-toggle.active {
+  border-color: var(--accent);
+  background: var(--soft-accent);
+  color: var(--accent-dark);
+}
+
 .phone-plate-settings-footer {
   flex: 0 0 auto;
   gap: 8px;
@@ -3320,8 +3362,16 @@ textarea.inline-text-editor:focus-visible {
   color: #9a4f43;
 }
 
-.layout-phone .modal-backdrop:not(.phone-property-modal),
-.layout-phone-short .modal-backdrop:not(.phone-property-modal) {
+:is(.layout-phone, .layout-phone-short)
+  .phone-form-modal
+  .printer-settings-form {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.layout-phone .modal-backdrop:not(.phone-property-modal):not(.phone-form-modal),
+.layout-phone-short
+  .modal-backdrop:not(.phone-property-modal):not(.phone-form-modal) {
   align-items: stretch;
   justify-content: stretch;
   padding: env(safe-area-inset-top) env(safe-area-inset-right)
@@ -3329,8 +3379,12 @@ textarea.inline-text-editor:focus-visible {
   backdrop-filter: none;
 }
 
-.layout-phone .modal-backdrop:not(.phone-property-modal) .dialog,
-.layout-phone-short .modal-backdrop:not(.phone-property-modal) .dialog {
+.layout-phone
+  .modal-backdrop:not(.phone-property-modal):not(.phone-form-modal)
+  .dialog,
+.layout-phone-short
+  .modal-backdrop:not(.phone-property-modal):not(.phone-form-modal)
+  .dialog {
   width: 100%;
   height: var(--visual-viewport-height, 100vh);
   max-width: none;
@@ -3369,7 +3423,7 @@ textarea.inline-text-editor:focus-visible {
 
 .layout-phone .printer-geometry-grid,
 .layout-phone-short .printer-geometry-grid {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .layout-phone .dialog-footer,
@@ -3395,14 +3449,26 @@ textarea.inline-text-editor:focus-visible {
   display: none;
 }
 
+.platform-ipados.layout-phone .toast,
+.platform-ipados.layout-phone-short .toast {
+  right: max(20px, env(safe-area-inset-right));
+  left: max(20px, env(safe-area-inset-left));
+  width: auto;
+  min-height: 44px;
+  height: auto;
+  justify-content: center;
+  transform: none;
+  text-align: center;
+}
+
 .platform-ipados[data-software-keyboard="open"] .zoom-control {
   display: none;
 }
 
 .layout-phone[data-software-keyboard="open"]
-  .phone-property-modal.modal-backdrop,
+  :is(.phone-property-modal, .phone-form-modal).modal-backdrop,
 .layout-phone-short[data-software-keyboard="open"]
-  .phone-property-modal.modal-backdrop {
+  :is(.phone-property-modal, .phone-form-modal).modal-backdrop {
   --phone-sheet-bottom-gap: 8px;
 }
 
@@ -3477,8 +3543,7 @@ textarea.inline-text-editor:focus-visible {
   .phone-command-button.active,
   .phone-command-icon:focus-visible,
   .phone-quick-segmented button:focus-visible,
-  .phone-quick-segmented button.active,
-  .phone-command-icon.trim {
+  .phone-quick-segmented button.active {
     border-color: #505258;
     background: #36383c;
     color: #fff;
@@ -3521,7 +3586,7 @@ textarea.inline-text-editor:focus-visible {
   }
 
   .header-printer-option:hover,
-  .popup-menu button:hover,
+  .popup-menu button:hover:not(:disabled),
   .shape-menu button:hover,
   .shape-menu button:focus-visible {
     background: #3a3c40;
@@ -3869,6 +3934,16 @@ textarea.inline-text-editor:focus-visible {
     border-color: #5a5c61;
     background: #292a2d;
     color: #d6d3cc;
+  }
+
+  .phone-special-toggle {
+    color: #c4c1ba;
+  }
+
+  .phone-special-toggle.active {
+    border-color: var(--accent);
+    background: var(--soft-accent);
+    color: #ff9a7c;
   }
 
   .darkness-setting output {

@@ -975,14 +975,22 @@ describe("LabelmakerApp", () => {
   });
 
   it("edits multiline text on the label and applies visible text styles", async () => {
+    let scrollHeight = 32;
+    vi.spyOn(
+      HTMLTextAreaElement.prototype,
+      "scrollHeight",
+      "get",
+    ).mockImplementation(() => scrollHeight);
     const user = userEvent.setup();
-    render(<LabelmakerApp host={createHost()} />);
+    const { container } = render(<LabelmakerApp host={createHost()} />);
+    const appShell = container.querySelector<HTMLElement>(".app-shell")!;
+    appShell.classList.add("layout-phone");
 
     await user.click(
       screen.getByRole("button", { name: "Text element: RESISTORS" }),
     );
     const editor = screen.getByRole("textbox", { name: "Edit text on label" });
-    expect(editor.style.getPropertyValue("--editor-line-count")).toBe("1");
+    expect(editor).toHaveStyle({ height: "32px" });
     const elementFrame = editor.closest<HTMLElement>(".canvas-element")!;
     const originalStyle = {
       family: elementFrame.style.getPropertyValue("--element-font-family"),
@@ -991,12 +999,14 @@ describe("LabelmakerApp", () => {
       justify: elementFrame.style.getPropertyValue("--element-justify"),
       rotation: elementFrame.style.getPropertyValue("--element-rotation"),
     };
+    scrollHeight = 64;
     fireEvent.change(editor, { target: { value: "LINE 1\nLINE 2" } });
-    expect(editor.style.getPropertyValue("--editor-line-count")).toBe("2");
+    expect(editor).toHaveStyle({ height: "64px" });
     fireEvent.pointerDown(document.body);
     expect(
       screen.queryByRole("textbox", { name: "Edit text on label" }),
     ).not.toBeInTheDocument();
+    appShell.classList.remove("layout-phone");
 
     const element = screen.getByRole("button", {
       name: "Text element: LINE 1\nLINE 2",
@@ -1954,6 +1964,8 @@ describe("LabelmakerApp", () => {
       name: "Print current label",
     });
     const all = screen.getByRole("menuitem", { name: "Print all 3 labels" });
+    expect(current.querySelector("svg")).not.toBeNull();
+    expect(all.querySelector("svg")).not.toBeNull();
     await waitFor(() => expect(current).toHaveFocus());
     await user.keyboard("{ArrowDown}");
     expect(all).toHaveFocus();
@@ -2220,9 +2232,11 @@ describe("LabelmakerApp", () => {
     expect(quickRow).toContainElement(
       screen.getByRole("spinbutton", { name: "Font size" }),
     );
-    for (const name of ["Text", "Image", "Draw", "Icons", "Flag", "Mirror"]) {
+    for (const name of ["Text", "Image", "Draw", "Icons"]) {
       expect(screen.getByRole("button", { name })).toHaveTextContent("");
     }
+    expect(screen.queryByRole("button", { name: "Flag" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Mirror" })).toBeNull();
     expect(screen.getByRole("spinbutton", { name: "Font size" })).toHaveValue(
       18,
     );
@@ -2347,16 +2361,50 @@ describe("LabelmakerApp", () => {
     const options = screen.getByRole("button", { name: "Print options" });
     expect(options).toBeEnabled();
     await user.click(options);
-    expect(
-      screen.getByRole("menuitem", { name: "Preview label" }),
-    ).toBeEnabled();
+    const preview = screen.getByRole("menuitem", { name: "Preview label" });
+    expect(preview).toBeEnabled();
+    expect(preview.querySelector("svg")).not.toBeNull();
     expect(
       screen.getByRole("menuitem", { name: "Print current label" }),
     ).toBeDisabled();
-    await user.click(screen.getByRole("menuitem", { name: "Preview label" }));
+    await user.click(preview);
     expect(
       screen.getByRole("dialog", { name: "Print preview" }),
     ).toBeInTheDocument();
+  });
+
+  it("uses Phone sheets for printer setup and settings", async () => {
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 852);
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Selected printer: Studio Labeler",
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Settings for Studio Labeler" }),
+    );
+    const settings = screen.getByRole("dialog", { name: "Printer settings" });
+    expect(settings.closest(".modal-backdrop")).toHaveClass(
+      "phone-form-modal",
+      "printer-settings-modal",
+    );
+    expect(
+      settings.querySelector(".printer-geometry-primary-grid"),
+    ).toHaveTextContent("RESOLUTION");
+    await user.click(
+      within(settings).getByRole("button", { name: "Close printer settings" }),
+    );
+
+    await openAddPrinterDialog(user);
+    const addPrinter = screen.getByRole("dialog", { name: "Add a printer" });
+    expect(addPrinter.closest(".modal-backdrop")).toHaveClass(
+      "phone-form-modal",
+      "add-printer-modal",
+    );
   });
 
   it("opens complete element and label property sheets in Phone mode", async () => {
@@ -2390,10 +2438,10 @@ describe("LabelmakerApp", () => {
     ).toBeNull();
     expect(
       within(labelSheet).queryByRole("button", { name: "Flag" }),
-    ).toBeNull();
+    ).toHaveAttribute("aria-pressed", "false");
     expect(
       within(labelSheet).queryByRole("button", { name: "Mirror" }),
-    ).toBeNull();
+    ).toHaveAttribute("aria-pressed", "false");
     expect(
       within(labelSheet).getByRole("button", { name: "Delete label" }),
     ).toBeInTheDocument();
@@ -2469,29 +2517,25 @@ describe("LabelmakerApp", () => {
     expect(width).toHaveValue(71);
   });
 
-  it("uses numeric keyboards and turns Phone mirroring off again", async () => {
+  it("uses numeric keyboards and keeps special toggles in Phone label settings", async () => {
     vi.stubGlobal("innerWidth", 393);
     vi.stubGlobal("innerHeight", 852);
     const user = userEvent.setup();
     const { container } = render(<LabelmakerApp host={createHost()} />);
 
-    const mirror = screen.getByRole("button", { name: "Mirror" });
-    expect(mirror).toHaveAttribute("aria-pressed", "false");
-    await user.click(mirror);
-    expect(mirror).toHaveAttribute("aria-pressed", "true");
-    await user.click(mirror);
-    expect(mirror).toHaveAttribute("aria-pressed", "false");
-    expect(mirror).not.toHaveClass("active");
+    expect(screen.queryByRole("button", { name: "Flag" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Mirror" })).toBeNull();
 
-    await user.click(
-      screen.getByRole("button", { name: "More element properties" }),
-    );
-
-    for (const input of container.querySelectorAll('input[type="number"]')) {
-      expect(["decimal", "numeric"]).toContain(input.getAttribute("inputmode"));
-    }
-    await user.click(screen.getByRole("button", { name: "Close properties" }));
     await user.click(screen.getByRole("button", { name: "Label settings" }));
+    const labelSheet = screen.getByRole("dialog", { name: "Label settings" });
+    const flag = within(labelSheet).getByRole("button", { name: "Flag" });
+    const mirror = within(labelSheet).getByRole("button", { name: "Mirror" });
+    expect(flag).toHaveAttribute("aria-pressed", "false");
+    expect(mirror).toHaveAttribute("aria-pressed", "false");
+    await user.click(flag);
+    await user.click(mirror);
+    expect(flag).toHaveAttribute("aria-pressed", "true");
+    expect(mirror).toHaveAttribute("aria-pressed", "true");
 
     for (const input of container.querySelectorAll('input[type="number"]')) {
       expect(["decimal", "numeric"]).toContain(input.getAttribute("inputmode"));
@@ -2500,6 +2544,29 @@ describe("LabelmakerApp", () => {
       "inputmode",
       "numeric",
     );
+    await user.click(
+      within(labelSheet).getByRole("button", { name: "Save settings" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Rename label 1: Flag Resistors" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Label settings" }));
+    const reopened = screen.getByRole("dialog", { name: "Label settings" });
+    const reopenedFlag = within(reopened).getByRole("button", { name: "Flag" });
+    const reopenedMirror = within(reopened).getByRole("button", {
+      name: "Mirror",
+    });
+    expect(reopenedFlag).toHaveAttribute("aria-pressed", "true");
+    expect(reopenedMirror).toHaveAttribute("aria-pressed", "true");
+    await user.click(reopenedFlag);
+    await user.click(reopenedMirror);
+    await user.click(
+      within(reopened).getByRole("button", { name: "Save settings" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "Rename label 1: Resistors" }),
+    ).toBeInTheDocument();
   });
 
   it("keeps an element sheet current through undo and redo", async () => {
@@ -2573,18 +2640,12 @@ describe("LabelmakerApp", () => {
       "Draw",
       "Icons",
       "Shapes",
-      "Flag",
-      "Mirror",
       "Label settings",
       "Trim label to content",
     ]) {
       const action = screen.getByRole("button", { name });
       expect(primaryRow).toContainElement(action);
-      if (
-        ["Text", "Image", "Draw", "Icons", "Shapes", "Flag", "Mirror"].includes(
-          name,
-        )
-      ) {
+      if (["Text", "Image", "Draw", "Icons", "Shapes"].includes(name)) {
         expect(action).toHaveTextContent("");
       }
     }

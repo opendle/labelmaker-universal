@@ -39,7 +39,11 @@ export function AddPrinterDialog({
   };
   if (!open) return null;
   return (
-    <Modal labelId="add-printer-title" onClose={guardedClose}>
+    <Modal
+      className="phone-form-modal add-printer-modal"
+      labelId="add-printer-title"
+      onClose={guardedClose}
+    >
       <div className="dialog-header">
         <div>
           <h2 id="add-printer-title">Add a printer</h2>
@@ -124,7 +128,7 @@ export function AddPrinterDialog({
           </>
         )}
       </div>
-      <div className="dialog-footer">
+      <div className="dialog-footer end">
         <button
           className="button secondary"
           disabled={discovering || adding}

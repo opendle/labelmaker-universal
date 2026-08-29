@@ -1,7 +1,6 @@
 import type {
   ImageElement,
   LabelElement,
-  LabelPlate,
   ShapeElement,
   TextElement,
 } from "@labelmaker/domain";
@@ -12,8 +11,6 @@ import {
   ChevronDown,
   Circle,
   Crop,
-  Flag,
-  FlipHorizontal2,
   Image as ImageIcon,
   Minus,
   MoreHorizontal,
@@ -34,12 +31,9 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-import { isFlagPlate } from "./editor-operations.js";
-
 type PhoneMenu = "shapes" | null;
 
 export function PhoneEditorToolbar({
-  plate,
   selectedText,
   selectedImage,
   selectedShape,
@@ -48,15 +42,12 @@ export function PhoneEditorToolbar({
   onDraw,
   onOpenIcons,
   onAddShape,
-  onAddSpecial,
-  onUpdatePlate,
   onChangeElement,
   onDeleteSelection,
   onOpenElementProperties,
   onOpenPlateSettings,
   onTrim,
 }: {
-  readonly plate: LabelPlate;
   readonly selectedText: TextElement | undefined;
   readonly selectedImage: ImageElement | undefined;
   readonly selectedShape: ShapeElement | undefined;
@@ -65,8 +56,6 @@ export function PhoneEditorToolbar({
   readonly onDraw: () => void;
   readonly onOpenIcons: () => void;
   readonly onAddShape: (shape: "line" | "rectangle" | "circle") => void;
-  readonly onAddSpecial: (kind: "flag") => void;
-  readonly onUpdatePlate: (plate: LabelPlate) => void;
   readonly onChangeElement: (element: LabelElement) => void;
   readonly onDeleteSelection: () => void;
   readonly onOpenElementProperties: () => void;
@@ -144,28 +133,6 @@ export function PhoneEditorToolbar({
             type="button"
           >
             <Square size={19} /> <ChevronDown size={11} />
-          </button>
-          <button
-            aria-label="Flag"
-            aria-pressed={isFlagPlate(plate)}
-            className={`phone-command-button${isFlagPlate(plate) ? " active" : ""}`}
-            onClick={() => onAddSpecial("flag")}
-            title="Flag"
-            type="button"
-          >
-            <Flag size={19} />
-          </button>
-          <button
-            aria-label="Mirror"
-            aria-pressed={plate.mirrorPrint === true}
-            className={`phone-command-button${plate.mirrorPrint ? " active" : ""}`}
-            onClick={() =>
-              onUpdatePlate({ ...plate, mirrorPrint: !plate.mirrorPrint })
-            }
-            title="Mirror"
-            type="button"
-          >
-            <FlipHorizontal2 size={19} />
           </button>
         </div>
         <div className="phone-command-fixed">

@@ -101,7 +101,11 @@ export function PrinterSettingsDialog({
     },
   ];
   return (
-    <Modal labelId="printer-settings-title" onClose={onClose}>
+    <Modal
+      className="phone-form-modal printer-settings-modal"
+      labelId="printer-settings-title"
+      onClose={onClose}
+    >
       <div className="dialog-header">
         <div>
           <h2 id="printer-settings-title">Printer settings</h2>

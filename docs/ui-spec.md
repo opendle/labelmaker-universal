@@ -44,6 +44,8 @@ appearances so that they show the physical label and printed result accurately.
   menu. Put a full-width `+ Add a printer` action at the end of the menu. Restore
   the last selected printer on the next launch. When there is no configured
   printer, replace the menu with a direct `Add printer` action.
+- Align the Phone printer menu and Print menu to the same right edge. Show an
+  icon for each Preview and Print menu action on all platforms.
 - Restore the last editor session on launch. Restore the workspace, unsaved
   state, active label, selected element, zoom, last save time, and saved `.lbl`
   file association. Store recovery state outside the `.lbl` file. If recovery
@@ -66,6 +68,8 @@ appearances so that they show the physical label and printed result accurately.
 - Select, move, and edit a text element.
 - Edit text directly on the plate. Double-click an unselected text element, or
   single-click a selected text element, to enter text-edit mode.
+- Let text remain visible outside its frame while it is edited, as it is on the
+  canvas and in the print preview. Resize the edit control to show wrapped text.
 - Preserve text line breaks on the canvas and in printed output.
 - Scale text in the canvas, print preview, and plate strip from the same
   physical point size.
@@ -266,9 +270,9 @@ Phone mode.
   when the workspace needs its first save or has edits. Put Preview in the
   Print menu.
 - Use a 48-pixel editor command row with icon-only Text, Image, Draw, Icons,
-  Shapes, Flag, and Mirror actions. Keep this row visible when an element is
-  selected. Keep Label settings and Trim fixed. Scroll the other controls in
-  the horizontal direction.
+  and Shapes actions. Keep this row visible when an element is selected. Keep
+  Label settings and Trim fixed. Scroll the other controls in the horizontal
+  direction. Style Trim as an action, not as an enabled toggle.
 - When an element is selected, add a second 48-pixel row below the command
   row. For selected text, show font size and horizontal alignment. For a
   selected image, show Contrast. For a selected shape, show stroke width. Keep
@@ -277,9 +281,14 @@ Phone mode.
 - Open complete element properties and label settings in modal sheets that
   stay at the top of the visual viewport.
   Keep all element properties available. The label-settings sheet contains
-  width, height, margins, Delete label, and a Save settings footer. Keep Flag,
-  Mirror, and Trim in the Phone command controls instead of repeating them in
-  the sheet. Do not show label delete buttons in the Phone label strip.
+  width, height, margins, Flag, Mirror, Delete label, and a Save settings
+  footer. Keep Flag and Mirror only in this Phone sheet. Keep Trim in the Phone
+  command controls. Do not show label delete buttons in the Phone label strip.
+- Show printer settings and Add printer as top sheets that use the same shape,
+  spacing, field style, and footer style as the other Phone property sheets.
+  Put two printer fields in each row when the fields fit.
+- Make Phone toasts fill the screen width with 20 CSS pixels of space on each
+  side.
 - Fit the label and rulers to the Phone work area at 100% when possible.
 - Use safe-area-aware full-screen dialogs. Make dialog content scroll in a
   short landscape viewport.

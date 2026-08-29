@@ -532,7 +532,6 @@ export function EditorCanvas({
         <PhoneEditorToolbar
           onAddImage={onAddImage}
           onAddShape={onAddShape}
-          onAddSpecial={onAddSpecial}
           onAddText={onAddText}
           onChangeElement={onChangeElement}
           onDeleteSelection={onDeleteSelection}
@@ -541,8 +540,6 @@ export function EditorCanvas({
           onOpenIcons={onOpenIcons}
           onOpenPlateSettings={onOpenPlateSettings}
           onTrim={onTrim}
-          onUpdatePlate={onUpdatePlate}
-          plate={plate}
           selectedImage={selectedImage}
           selectedShape={selectedShape}
           selectedText={selectedText}

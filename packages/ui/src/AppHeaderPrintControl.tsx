@@ -1,4 +1,4 @@
-import { ChevronDown, Printer } from "lucide-react";
+import { ChevronDown, Eye, Files, Printer } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 export function AppHeaderPrintControl({
@@ -108,25 +108,35 @@ export function AppHeaderPrintControl({
           tabIndex={-1}
         >
           {onPreview && (
-            <button onClick={onPreview} role="menuitem" type="button">
-              Preview label
+            <button
+              className="popup-menu-item"
+              onClick={onPreview}
+              role="menuitem"
+              type="button"
+            >
+              <Eye aria-hidden="true" size={16} />
+              <span>Preview label</span>
             </button>
           )}
           <button
+            className="popup-menu-item"
             disabled={!canPrint}
             onClick={() => onPrint(false)}
             role="menuitem"
             type="button"
           >
-            Print current label
+            <Printer aria-hidden="true" size={16} />
+            <span>Print current label</span>
           </button>
           <button
+            className="popup-menu-item"
             disabled={!canPrint}
             onClick={() => onPrint(true)}
             role="menuitem"
             type="button"
           >
-            Print all {plateCount} labels
+            <Files aria-hidden="true" size={16} />
+            <span>Print all {plateCount} labels</span>
           </button>
         </div>
       )}

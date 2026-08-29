@@ -1,5 +1,5 @@
 import type { LabelPlate } from "@labelmaker/domain";
-import { Trash2, X } from "lucide-react";
+import { Flag, FlipHorizontal2, Trash2, X } from "lucide-react";
 
 import { IconButton } from "./controls.js";
 import {
@@ -8,6 +8,7 @@ import {
   type InspectorContentProps,
 } from "./Inspector.js";
 import { Modal } from "./Modal.js";
+import { isFlagPlate, toggleFlagPlate } from "./editor-operations.js";
 
 export function PhoneElementPropertySheet({
   selectedText,
@@ -104,6 +105,33 @@ export function PhonePlatePropertySheet({
             plate={draft}
             showTrim={false}
           />
+          <div
+            aria-label="Special label settings"
+            className="phone-special-settings"
+          >
+            <button
+              aria-label="Flag"
+              aria-pressed={isFlagPlate(draft)}
+              className={`phone-special-toggle${isFlagPlate(draft) ? " active" : ""}`}
+              onClick={() => onChange(toggleFlagPlate(draft))}
+              type="button"
+            >
+              <Flag size={18} />
+              <span>Flag</span>
+            </button>
+            <button
+              aria-label="Mirror"
+              aria-pressed={draft.mirrorPrint === true}
+              className={`phone-special-toggle${draft.mirrorPrint ? " active" : ""}`}
+              onClick={() =>
+                onChange({ ...draft, mirrorPrint: !draft.mirrorPrint })
+              }
+              type="button"
+            >
+              <FlipHorizontal2 size={18} />
+              <span>Mirror</span>
+            </button>
+          </div>
         </div>
         <div className="dialog-footer phone-plate-settings-footer">
           <button

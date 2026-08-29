@@ -5,10 +5,12 @@ import type {
   ShapeElement,
   TextElement,
 } from "@labelmaker/domain";
-import type {
-  CSSProperties,
-  KeyboardEvent,
-  PointerEvent as ReactPointerEvent,
+import {
+  useLayoutEffect,
+  useRef,
+  type CSSProperties,
+  type KeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
 
 import { SelectionHandles } from "./controls.js";
@@ -65,6 +67,14 @@ export function CanvasElementView({
     element: FramedElement,
   ) => void;
 }) {
+  const inlineEditorRef = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const editor = inlineEditorRef.current;
+    if (!editing || element.kind !== "text" || !editor) return;
+    if (!editor.closest(".layout-phone, .layout-phone-short")) return;
+    editor.style.height = "0";
+    editor.style.height = `${editor.scrollHeight}px`;
+  }, [canvasScale, editing, element]);
   const frameStyle: ElementStyle = {
     "--element-left": `${(element.xMm / plate.size.widthMm) * 100}%`,
     "--element-top": `${(element.yMm / plate.size.heightMm) * 100}%`,
@@ -123,6 +133,7 @@ export function CanvasElementView({
             aria-label="Edit text on label"
             className="inline-text-editor"
             data-element-id={element.id}
+            ref={inlineEditorRef}
             onBlur={onEndEdit}
             onChange={(event) =>
               onTextInput(element, event.currentTarget.value)
