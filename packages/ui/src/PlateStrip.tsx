@@ -22,6 +22,7 @@ interface PressState {
   readonly pointerId: number;
   readonly startX: number;
   readonly startY: number;
+  readonly startScrollLeft: number;
   readonly pointerType: string;
   moved: boolean;
   touchDragReady: boolean;
@@ -262,6 +263,10 @@ function usePlateReorder({
       press.moved = true;
       if (press.pointerType === "touch" && !press.touchDragReady) {
         clearLongPressTimer();
+        event.preventDefault();
+        const scroller =
+          stripRef.current?.querySelector<HTMLElement>(".plate-thumbnails");
+        if (scroller) scroller.scrollLeft = press.startScrollLeft - deltaX;
         return;
       }
       suppressNextClickRef.current = true;
@@ -302,6 +307,9 @@ function usePlateReorder({
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
+      startScrollLeft:
+        stripRef.current?.querySelector<HTMLElement>(".plate-thumbnails")
+          ?.scrollLeft ?? 0,
       pointerType: event.pointerType,
       moved: false,
       touchDragReady: event.pointerType !== "touch",

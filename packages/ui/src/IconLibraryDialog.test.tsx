@@ -86,6 +86,33 @@ describe("IconLibraryDialog", () => {
     ).toBeEnabled();
   });
 
+  it("keeps search focused and selects the first icon after loading", () => {
+    const onAdd = vi.fn();
+    const view = render(
+      <>
+        <div className="application-content" />
+        <IconLibraryDialog icons={[]} loading onAdd={onAdd} onClose={vi.fn()} />
+      </>,
+    );
+    const search = screen.getByRole("searchbox", { name: "Search icons" });
+    expect(search).toHaveFocus();
+    expect(screen.getByText("Loading icons…")).toBeVisible();
+
+    view.rerender(
+      <>
+        <div className="application-content" />
+        <IconLibraryDialog icons={testIcons} onAdd={onAdd} onClose={vi.fn()} />
+      </>,
+    );
+
+    expect(search).toHaveFocus();
+    expect(
+      screen.getByRole("button", { name: "A Arrow Down" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Add icon" }));
+    expect(onAdd).toHaveBeenCalledWith("AArrowDown");
+  });
+
   it("moves between search and results and adds the selected result with Enter", async () => {
     const user = userEvent.setup();
     const onAdd = renderDialog();

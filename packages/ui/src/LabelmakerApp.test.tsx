@@ -1303,6 +1303,9 @@ describe("LabelmakerApp", () => {
     const icons = screen.getByRole("button", { name: "Icons" });
     await user.click(icons);
     await screen.findByRole("dialog", { name: "Icon library" });
+    expect(
+      screen.getByRole("searchbox", { name: "Search icons" }),
+    ).toHaveFocus();
     await user.keyboard("{Escape}");
     expect(icons).toHaveAttribute("data-focus-ring-suppressed", "true");
 
@@ -2209,6 +2212,17 @@ describe("LabelmakerApp", () => {
         name: "Selected printer: Studio Labeler",
       }),
     ).toBeInTheDocument();
+    const primaryRow = container.querySelector(".phone-primary-command-row");
+    const quickRow = container.querySelector(".phone-quick-command-row");
+    expect(primaryRow).toContainElement(
+      screen.getByRole("button", { name: "Text" }),
+    );
+    expect(quickRow).toContainElement(
+      screen.getByRole("spinbutton", { name: "Font size" }),
+    );
+    for (const name of ["Text", "Image", "Draw", "Icons", "Flag", "Mirror"]) {
+      expect(screen.getByRole("button", { name })).toHaveTextContent("");
+    }
     expect(screen.getByRole("spinbutton", { name: "Font size" })).toHaveValue(
       18,
     );
@@ -2509,46 +2523,64 @@ describe("LabelmakerApp", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("exposes all insertion commands from the selected-element Tools menu", async () => {
+  it("keeps icon-only insertion commands above selected-element shortcuts", async () => {
     vi.stubGlobal("innerWidth", 393);
     vi.stubGlobal("innerHeight", 852);
     const user = userEvent.setup();
     render(<LabelmakerApp host={createHost()} />);
 
-    const tools = screen.getByRole("button", { name: "Tools" });
-    await user.click(tools);
-    await waitFor(() =>
-      expect(screen.getByRole("menuitem", { name: "Text" })).toHaveFocus(),
-    );
+    const toolbar = screen
+      .getByRole("button", { name: "Text" })
+      .closest(".phone-editor-toolbar");
+    const primaryRow = toolbar?.querySelector(".phone-primary-command-row");
+    const quickRow = toolbar?.querySelector(".phone-quick-command-row");
     for (const name of [
       "Text",
       "Image",
       "Draw",
       "Icons",
-      "Line",
-      "Rectangle",
-      "Circle",
+      "Shapes",
+      "Flag",
+      "Mirror",
       "Label settings",
+      "Trim label to content",
     ]) {
+      const action = screen.getByRole("button", { name });
+      expect(primaryRow).toContainElement(action);
+      if (
+        ["Text", "Image", "Draw", "Icons", "Shapes", "Flag", "Mirror"].includes(
+          name,
+        )
+      ) {
+        expect(action).toHaveTextContent("");
+      }
+    }
+    expect(quickRow).toContainElement(
+      screen.getByRole("spinbutton", { name: "Font size" }),
+    );
+    expect(quickRow).toContainElement(
+      screen.getByRole("button", { name: "More element properties" }),
+    );
+
+    const shapes = screen.getByRole("button", { name: "Shapes" });
+    await user.click(shapes);
+    await waitFor(() =>
+      expect(screen.getByRole("menuitem", { name: "Line" })).toHaveFocus(),
+    );
+    for (const name of ["Line", "Rectangle", "Circle"]) {
       expect(screen.getByRole("menuitem", { name })).toBeInTheDocument();
     }
-    expect(
-      screen.getByRole("menuitemcheckbox", { name: "Flag" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitemcheckbox", { name: "Mirror" }),
-    ).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
     expect(
-      screen.queryByRole("menu", { name: "Editor tools" }),
+      screen.queryByRole("menu", { name: "Add shape" }),
     ).not.toBeInTheDocument();
-    expect(tools).toHaveFocus();
+    expect(shapes).toHaveFocus();
 
-    await user.click(tools);
-    await user.click(tools);
+    await user.click(shapes);
+    await user.click(shapes);
     expect(
-      screen.queryByRole("menu", { name: "Editor tools" }),
+      screen.queryByRole("menu", { name: "Add shape" }),
     ).not.toBeInTheDocument();
   });
 
@@ -2600,7 +2632,7 @@ describe("LabelmakerApp", () => {
     expect(screen.queryByRole("combobox", { name: "Image fit" })).toBeNull();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "Tools" }));
+    await user.click(screen.getByRole("button", { name: "Shapes" }));
     await user.click(screen.getByRole("menuitem", { name: "Rectangle" }));
     expect(
       screen.getByRole("spinbutton", { name: "Shape stroke width" }),

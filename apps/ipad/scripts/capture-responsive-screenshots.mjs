@@ -118,6 +118,9 @@ async function capture(viewport) {
         header.querySelectorAll("button"),
       ).filter((target) => target.getBoundingClientRect().width > 0);
       const headerActions = header.querySelector(".phone-header-actions");
+      const phoneCommandButtons = Array.from(
+        document.querySelectorAll(".phone-command-scroll button"),
+      );
       const undersizedTargets = Array.from(
         document.querySelectorAll(
           ".phone-titlebar button, .phone-editor-toolbar button, .phone-plate-strip .plate-thumb-select, .phone-plate-strip .add-plate",
@@ -159,6 +162,13 @@ async function capture(viewport) {
             bounds.right <= headerBounds.right + 0.5
           );
         }),
+        phoneCommandsHaveVisibleText: phoneCommandButtons.some((target) =>
+          target.textContent?.trim(),
+        ),
+        quickRowVisible:
+          document
+            .querySelector(".phone-quick-command-row")
+            ?.getBoundingClientRect().height === 48,
         overflow:
           client.scrollWidth > client.clientWidth ||
           client.scrollHeight > client.clientHeight,
@@ -196,6 +206,16 @@ async function capture(viewport) {
         `${viewport.width}x${viewport.height} does not fit the label canvas.`,
       );
     }
+    if (inspection.phoneCommandsHaveVisibleText) {
+      throw new Error(
+        `${viewport.width}x${viewport.height} shows text in the Phone command row.`,
+      );
+    }
+    if (!inspection.quickRowVisible) {
+      throw new Error(
+        `${viewport.width}x${viewport.height} does not show the selected-element row.`,
+      );
+    }
     const expectedStripHeight = expectedLayout === "phone-short" ? 54 : 68;
     if (Math.abs(inspection.stripHeight - expectedStripHeight) > 0.5) {
       throw new Error(
@@ -218,6 +238,20 @@ async function capture(viewport) {
       });
     }
     if (viewport.width === 393 && viewport.height === 852) {
+      await page.getByRole("button", { name: "Icons" }).click();
+      const iconSearch = page.getByRole("searchbox", { name: "Search icons" });
+      await iconSearch.waitFor();
+      if (
+        !(await iconSearch.evaluate(
+          (input) => input === document.activeElement,
+        ))
+      ) {
+        throw new Error("The Phone icon search does not receive focus.");
+      }
+      await page.keyboard.press("Escape");
+      await page.getByRole("dialog", { name: "Icon library" }).waitFor({
+        state: "hidden",
+      });
       await page.locator(".canvas-element-control").first().dblclick();
       await page.getByRole("textbox", { name: "Edit text on label" }).waitFor();
       const phoneChromeVisible = await page.evaluate(() => {

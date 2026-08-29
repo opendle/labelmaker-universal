@@ -22,6 +22,15 @@ export function Modal({
 }) {
   const dialogRef = useRef<HTMLElement>(null);
   const onCloseRef = useRef(onClose);
+  const previousFocusRef = useRef<HTMLElement | null>(
+    globalThis.document.activeElement instanceof HTMLElement
+      ? globalThis.document.activeElement
+      : null,
+  );
+  const previousFocusWasVisibleRef = useRef(
+    previousFocusRef.current?.dataset.focusRingSuppressed !== "true" &&
+      previousFocusRef.current?.matches(":focus-visible") === true,
+  );
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -30,11 +39,8 @@ export function Modal({
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
-    const previousFocus = globalThis.document.activeElement;
-    const previousFocusWasVisible =
-      previousFocus instanceof HTMLElement &&
-      previousFocus.dataset.focusRingSuppressed !== "true" &&
-      previousFocus.matches(":focus-visible");
+    const previousFocus = previousFocusRef.current;
+    const previousFocusWasVisible = previousFocusWasVisibleRef.current;
     const background = globalThis.document.querySelector<HTMLElement>(
       ".application-content",
     );
@@ -79,7 +85,7 @@ export function Modal({
       globalThis.document.removeEventListener("keydown", handleKeyDown);
       background?.removeAttribute("inert");
       background?.removeAttribute("aria-hidden");
-      if (previousFocus instanceof HTMLElement) {
+      if (previousFocus) {
         if (!previousFocusWasVisible) {
           previousFocus.dataset.focusRingSuppressed = "true";
         }

@@ -1,5 +1,6 @@
 import { Search, X } from "lucide-react";
 import {
+  useCallback,
   useMemo,
   useRef,
   useState,
@@ -40,10 +41,12 @@ function iconColumnCount(list: HTMLUListElement): number {
 
 export function IconLibraryDialog({
   icons,
+  loading = false,
   onAdd,
   onClose,
 }: {
   readonly icons: readonly IconCatalogEntry[];
+  readonly loading?: boolean;
   readonly onAdd: (name: string) => void;
   readonly onClose: () => void;
 }) {
@@ -57,9 +60,14 @@ export function IconLibraryDialog({
   const [selectedName, setSelectedName] = useState<string | null>(
     icons[0]?.name ?? null,
   );
+  const effectiveSelectedName = selectedName ?? filteredIcons[0]?.name ?? null;
   const selectedIndex = filteredIcons.findIndex(
-    ({ name }) => name === selectedName,
+    ({ name }) => name === effectiveSelectedName,
   );
+  const focusSearchOnMount = useCallback((input: HTMLInputElement | null) => {
+    searchRef.current = input;
+    input?.focus();
+  }, []);
 
   const focusIcon = (index: number) => {
     listRef.current
@@ -72,9 +80,11 @@ export function IconLibraryDialog({
     if (name) onAdd(name);
   };
 
-  const iconCountLabel = `${filteredIcons.length.toLocaleString()} ${
-    filteredIcons.length === 1 ? "icon" : "icons"
-  }`;
+  const iconCountLabel = loading
+    ? "Loading icons…"
+    : `${filteredIcons.length.toLocaleString()} ${
+        filteredIcons.length === 1 ? "icon" : "icons"
+      }`;
 
   const updateFilter = (event: ChangeEvent<HTMLInputElement>) => {
     const nextQuery = event.target.value;
@@ -86,7 +96,7 @@ export function IconLibraryDialog({
   const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
       event.preventDefault();
-      addIcon(selectedName);
+      addIcon(effectiveSelectedName);
     } else if (event.key === "ArrowDown" && selectedIndex >= 0) {
       event.preventDefault();
       focusIcon(selectedIndex);
@@ -154,22 +164,27 @@ export function IconLibraryDialog({
           onChange={updateFilter}
           onKeyDown={onSearchKeyDown}
           placeholder="Search icons"
-          ref={searchRef}
+          ref={focusSearchOnMount}
           type="search"
           value={query}
         />
       </div>
-      <ul aria-label="Icons" className="icon-library-list" ref={listRef}>
+      <ul
+        aria-busy={loading}
+        aria-label="Icons"
+        className="icon-library-list"
+        ref={listRef}
+      >
         {filteredIcons.map((icon, index) => (
           <li key={icon.name}>
             <button
-              aria-pressed={icon.name === selectedName}
+              aria-pressed={icon.name === effectiveSelectedName}
               className="icon-library-item"
               onClick={() => setSelectedName(icon.name)}
               onDoubleClick={() => addIcon(icon.name)}
               onFocus={() => setSelectedName(icon.name)}
               onKeyDown={(event) => onIconKeyDown(event, index)}
-              tabIndex={icon.name === selectedName ? 0 : -1}
+              tabIndex={icon.name === effectiveSelectedName ? 0 : -1}
               title={icon.label}
               type="button"
             >
@@ -178,7 +193,7 @@ export function IconLibraryDialog({
             </button>
           </li>
         ))}
-        {filteredIcons.length === 0 && (
+        {!loading && filteredIcons.length === 0 && (
           <li className="icon-library-empty">
             {icons.length === 0
               ? "The icon library could not open."
@@ -190,8 +205,8 @@ export function IconLibraryDialog({
         <span aria-live="polite">{iconCountLabel}</span>
         <button
           className="button primary"
-          disabled={!selectedName}
-          onClick={() => addIcon(selectedName)}
+          disabled={!effectiveSelectedName}
+          onClick={() => addIcon(effectiveSelectedName)}
           type="button"
         >
           Add icon

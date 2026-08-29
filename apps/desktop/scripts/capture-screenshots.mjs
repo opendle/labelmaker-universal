@@ -494,6 +494,11 @@ await capture(1440, 960, "labelmaker-icons-1440x960.png", async (page) => {
     throw new Error("Icon search did not receive focus");
   }
   await search.fill("accessibility");
+  await dialog
+    .getByRole("list", { name: "Icons" })
+    .getByRole("button")
+    .first()
+    .waitFor();
   await search.press("Enter");
   await dialog.waitFor({ state: "detached" });
   await page.getByLabel("Image brightness").waitFor();
@@ -509,6 +514,7 @@ await capture(1440, 960, "labelmaker-icons-1440x960.png", async (page) => {
     .getByRole("list", { name: "Icons" })
     .getByRole("button")
     .first();
+  await firstIcon.waitFor();
   if ((await firstIcon.getAttribute("aria-pressed")) !== "true") {
     throw new Error("The first filtered icon is not selected");
   }
@@ -552,6 +558,11 @@ await capture(1440, 960, "labelmaker-icons-dark-1440x960.png", async (page) => {
   await dialog.waitFor();
   const search = page.getByRole("searchbox", { name: "Search icons" });
   await search.fill("star");
+  await dialog
+    .getByRole("list", { name: "Icons" })
+    .getByRole("button")
+    .first()
+    .waitFor();
   await search.press("ArrowDown");
   if (
     !(await dialog
@@ -571,6 +582,11 @@ await capture(
     await page.getByRole("button", { name: "Icons" }).click();
     const search = page.getByRole("searchbox", { name: "Search icons" });
     await search.fill("accessibility");
+    await page
+      .getByRole("list", { name: "Icons" })
+      .getByRole("button")
+      .first()
+      .waitFor();
     await search.press("Enter");
     await page.getByLabel("Image brightness").waitFor();
     await page.getByLabel("Image contrast").waitFor();

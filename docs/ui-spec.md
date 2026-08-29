@@ -262,12 +262,15 @@ Phone mode.
   printer actions right. Do not show the workspace name. Mark the Save icon
   when the workspace needs its first save or has edits. Put Preview in the
   Print menu.
-- Use one 48-pixel editor command row. Keep Label settings and Trim fixed.
-  Scroll the other controls in the horizontal direction.
-- When no element is selected, show the element, Flag, and Mirror actions.
-- For selected text, show font size and horizontal alignment. For a selected
-  image, show Contrast. For a selected shape, show stroke width. Keep Tools,
-  More, and Delete available.
+- Use a 48-pixel editor command row with icon-only Text, Image, Draw, Icons,
+  Shapes, Flag, and Mirror actions. Keep this row visible when an element is
+  selected. Keep Label settings and Trim fixed. Scroll the other controls in
+  the horizontal direction.
+- When an element is selected, add a second 48-pixel row below the command
+  row. For selected text, show font size and horizontal alignment. For a
+  selected image, show Contrast. For a selected shape, show stroke width. Keep
+  More and Delete fixed in this row. Use the same label and input alignment as
+  the complete element-property sheet.
 - Open complete element properties and label settings in modal sheets that
   stay at the top of the visual viewport.
   Keep all element properties available. The label-settings sheet contains

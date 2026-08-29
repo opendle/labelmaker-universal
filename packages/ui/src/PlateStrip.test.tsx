@@ -41,10 +41,15 @@ function renderStrip(
   overrides: {
     readonly onMovePlate?: (plateId: string, targetIndex: number) => void;
     readonly onRenamePlate?: (plateId: string, name: string) => void;
+    readonly onSelectPlate?: (
+      plateId: string,
+      elementId: string | null,
+    ) => void;
   } = {},
 ) {
   const onMovePlate = overrides.onMovePlate ?? vi.fn();
   const onRenamePlate = overrides.onRenamePlate ?? vi.fn();
+  const onSelectPlate = overrides.onSelectPlate ?? vi.fn();
   const result = render(
     <PlateStrip
       activePlateId="plate-resistors"
@@ -54,12 +59,12 @@ function renderStrip(
       onDeletePlate={vi.fn()}
       onMovePlate={onMovePlate}
       onRenamePlate={onRenamePlate}
-      onSelectPlate={vi.fn()}
+      onSelectPlate={onSelectPlate}
       printHeadSizeMm={undefined}
       workspace={sampleDocument}
     />,
   );
-  return { ...result, onMovePlate, onRenamePlate };
+  return { ...result, onMovePlate, onRenamePlate, onSelectPlate };
 }
 
 describe("PlateStrip", () => {
@@ -137,8 +142,9 @@ describe("PlateStrip", () => {
   it("lets a touch movement scroll before the reorder delay", () => {
     vi.useFakeTimers();
     const onMovePlate = vi.fn();
-    const { container } = renderStrip({ onMovePlate });
+    const { container, onSelectPlate } = renderStrip({ onMovePlate });
     const source = container.querySelector<HTMLElement>(".plate-thumb")!;
+    const scroller = container.querySelector<HTMLElement>(".plate-thumbnails")!;
 
     dispatchPointer(source, "pointerdown", {
       button: 0,
@@ -149,27 +155,29 @@ describe("PlateStrip", () => {
       pointerType: "touch",
     });
     dispatchPointer(source, "pointermove", {
-      clientX: 75,
+      clientX: -25,
       clientY: 25,
       pointerId: 1,
       pointerType: "touch",
     });
     act(() => vi.advanceTimersByTime(425));
     dispatchPointer(source, "pointerup", {
-      clientX: 75,
+      clientX: -25,
       clientY: 25,
       pointerId: 1,
       pointerType: "touch",
     });
 
     expect(source).toHaveAttribute("aria-grabbed", "false");
+    expect(scroller.scrollLeft).toBe(50);
     expect(onMovePlate).not.toHaveBeenCalled();
+    expect(onSelectPlate).not.toHaveBeenCalled();
   });
 
   it("reorders with touch after a long press", () => {
     vi.useFakeTimers();
     const onMovePlate = vi.fn();
-    const { container } = renderStrip({ onMovePlate });
+    const { container, onSelectPlate } = renderStrip({ onMovePlate });
     const plates = Array.from(
       container.querySelectorAll<HTMLElement>(".plate-thumb"),
     );
@@ -189,6 +197,7 @@ describe("PlateStrip", () => {
     });
     act(() => vi.advanceTimersByTime(425));
     expect(source).toHaveAttribute("aria-grabbed", "true");
+    expect(onSelectPlate).toHaveBeenCalledWith("plate-resistors", null);
     act(() => {
       dispatchPointer(source, "pointermove", {
         clientX: 275,

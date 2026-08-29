@@ -1,11 +1,8 @@
-import { use } from "react";
+import { useEffect, useState } from "react";
 
 import type { DrawingImageResult } from "./drawing-image.js";
-import { loadIconCatalog } from "./icon-catalog.js";
-import { drawingResultFromIcon } from "./icon-image.js";
+import type { IconCatalogEntry } from "./icon-catalog.js";
 import { IconLibraryDialog } from "./IconLibraryDialog.js";
-
-const catalogPromise = loadIconCatalog();
 
 export function IconLibraryControl({
   onAdd,
@@ -16,13 +13,33 @@ export function IconLibraryControl({
   readonly onClose: () => void;
   readonly onError: () => void;
 }) {
-  const icons = use(catalogPromise);
+  const [icons, setIcons] = useState<readonly IconCatalogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    void import("./icon-catalog.js")
+      .then(({ loadIconCatalog }) => loadIconCatalog())
+      .then((loadedIcons) => {
+        if (active) setIcons(loadedIcons);
+      })
+      .catch(() => {
+        if (active) setIcons([]);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   return (
     <IconLibraryDialog
       icons={icons}
+      loading={loading}
       onAdd={(name) => {
         onClose();
-        void drawingResultFromIcon(name)
+        void import("./icon-image.js")
+          .then(({ drawingResultFromIcon }) => drawingResultFromIcon(name))
           .then((result) => {
             if (!result) throw new Error("The icon has no visible pixels.");
             onAdd(result);

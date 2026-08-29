@@ -1,13 +1,6 @@
 import type { LabelDocument, LabelPlate } from "@labelmaker/domain";
 import { Check, CircleAlert, Info } from "lucide-react";
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AddPrinterDialog } from "./AppDialogs.js";
 import { AppHeader, type AppHeaderProps } from "./AppHeader.js";
@@ -20,6 +13,7 @@ import {
   updateElementAndFlagPeer,
 } from "./editor-operations.js";
 import type { LabelmakerHost } from "./host.js";
+import { IconLibraryControl } from "./IconLibraryControl.js";
 import { Inspector } from "./Inspector.js";
 import { nonPrintableMarginsMm } from "./label-layout.js";
 import { PlateStrip } from "./PlateStrip.js";
@@ -36,12 +30,6 @@ import {
   useResponsiveLayout,
   type ResponsiveLayout,
 } from "./useResponsiveLayout.js";
-
-const IconLibraryControl = lazy(() =>
-  import("./IconLibraryControl.js").then(({ IconLibraryControl: Control }) => ({
-    default: Control,
-  })),
-);
 
 function AppPlateStrip({
   controller,
@@ -400,21 +388,19 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
       />
       {drawingEditor.dialog}
       {iconLibraryOpen && (
-        <Suspense fallback={null}>
-          <IconLibraryControl
-            onAdd={controller.addDrawing}
-            onClose={() => setIconLibraryOpen(false)}
-            onError={() =>
-              dispatch({
-                type: "set-toast",
-                toast: {
-                  tone: "error",
-                  message: "The icon could not be added.",
-                },
-              })
-            }
-          />
-        </Suspense>
+        <IconLibraryControl
+          onAdd={controller.addDrawing}
+          onClose={() => setIconLibraryOpen(false)}
+          onError={() =>
+            dispatch({
+              type: "set-toast",
+              toast: {
+                tone: "error",
+                message: "The icon could not be added.",
+              },
+            })
+          }
+        />
       )}
       <AppToast toast={state.toast} />
     </div>
