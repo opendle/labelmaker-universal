@@ -133,6 +133,7 @@ describe("desktop printer configuration", () => {
         printHeadSizeMm: 11.8,
         marginTopMm: 1.4,
         marginBottomMm: 2.6,
+        interLabelSpacingMm: 1.5,
       },
       [second]: { darkness: 18 },
       "makeid:not-configured": { darkness: 31 },
@@ -145,6 +146,7 @@ describe("desktop printer configuration", () => {
         printHeadSizeMm: 11.8,
         marginTopMm: 1.4,
         marginBottomMm: 2.6,
+        interLabelSpacingMm: 1.5,
       },
       [second]: { darkness: 18 },
     });
@@ -240,6 +242,7 @@ describe("desktop printer configuration", () => {
     ["a zero print-head size", { printHeadSizeMm: 0 }],
     ["a negative top margin", { marginTopMm: -0.1 }],
     ["a margin outside 0.1 mm steps", { marginBottomMm: 1.25 }],
+    ["spacing outside 0.1 mm steps", { interLabelSpacingMm: 1.25 }],
     ["a blank display name", { displayName: "   " }],
     ["an untrimmed display name", { displayName: " Studio printer " }],
     ["a display name above its limit", { displayName: "x".repeat(81) }],

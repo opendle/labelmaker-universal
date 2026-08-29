@@ -190,7 +190,7 @@ describe("LabelmakerApp", () => {
       />,
     );
 
-    expect(await screen.findByText("Workshop labels")).toBeInTheDocument();
+    expect(await screen.findByText("Labels")).toBeInTheDocument();
     await waitFor(() =>
       expect(storeWorkspaceRecovery).toHaveBeenCalledWith(
         expect.objectContaining({ document: sampleDocument }),
@@ -267,6 +267,41 @@ describe("LabelmakerApp", () => {
     ).toBeDisabled();
   });
 
+  it("deletes a selected label by keyboard until the user clicks elsewhere", async () => {
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+    await screen.findByText("Studio Labeler");
+
+    await user.click(
+      screen.getByRole("button", { name: "Select label 2: Capacitors" }),
+    );
+    await user.click(
+      screen.getByRole("region", { name: "Capacitors label canvas" }),
+    );
+    await user.keyboard("{Delete}");
+    expectLabelCount(3);
+
+    await user.click(
+      screen.getByRole("button", { name: "Select label 2: Capacitors" }),
+    );
+    await user.keyboard("{Delete}");
+    expectLabelCount(2);
+    expect(
+      screen.queryByRole("button", { name: /Select label \d+: Capacitors/ }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Select label 1: Resistors" }),
+    );
+    await user.keyboard("{Backspace}");
+    expectLabelCount(1);
+    await user.click(
+      screen.getByRole("button", { name: "Select label 1: Connectors" }),
+    );
+    await user.keyboard("{Delete}");
+    expectLabelCount(1);
+  });
+
   it("scales label previews from physical text size and marks the printable area", async () => {
     render(<LabelmakerApp host={createHost()} />);
     await screen.findByText("Studio Labeler");
@@ -283,7 +318,12 @@ describe("LabelmakerApp", () => {
       ".mini-label .label-artwork-text",
     )!;
     expect(miniText.style.fontSize).toContain("cqi");
-    expect(screen.getByText(/Printable area 62 ×\s*12 mm/)).toBeInTheDocument();
+    expect(document.querySelector(".dimension-ruler-width")).toHaveTextContent(
+      "62 mm",
+    );
+    expect(
+      document.querySelector(".dimension-ruler-printable-height"),
+    ).toHaveTextContent("12 mm");
     const zones = screen
       .getByRole("region", { name: "Resistors label canvas" })
       .querySelectorAll<HTMLElement>(".nonprintable-zone");
@@ -304,12 +344,20 @@ describe("LabelmakerApp", () => {
     );
   });
 
-  it("removes non-printable margins when the label fits the print head", async () => {
+  it("merges equal total and printable height rulers", async () => {
     render(<LabelmakerApp host={createHost()} />);
     const height = screen.getByLabelText("Plate height");
     fireEvent.change(height, { target: { value: "10" } });
 
-    expect(screen.getByText(/Printable area 62 ×\s*10 mm/)).toBeInTheDocument();
+    expect(
+      document.querySelector(".dimension-ruler-printable-height"),
+    ).not.toBeInTheDocument();
+    expect(document.querySelector(".dimension-ruler-height")).toHaveTextContent(
+      "10 mm",
+    );
+    expect(document.querySelector(".dimension-ruler-height")).toHaveClass(
+      "dimension-ruler-height-merged",
+    );
     const zones = screen
       .getByRole("region", { name: "Resistors label canvas" })
       .querySelectorAll<HTMLElement>(".nonprintable-zone");
@@ -344,16 +392,22 @@ describe("LabelmakerApp", () => {
         })}
       />,
     );
+    await screen.findByText("Narrow head");
     expect(
-      await screen.findByText(/Printable area 62 ×\s*12 mm/),
-    ).toBeInTheDocument();
+      document.querySelector(".dimension-ruler-printable-height"),
+    ).toHaveTextContent("12 mm");
 
     await user.click(
       screen.getByRole("button", { name: "Selected printer: Narrow head" }),
     );
     await user.click(screen.getByRole("menuitemradio", { name: /Full head/ }));
 
-    expect(screen.getByText(/Printable area 62 ×\s*16 mm/)).toBeInTheDocument();
+    expect(
+      document.querySelector(".dimension-ruler-printable-height"),
+    ).not.toBeInTheDocument();
+    expect(document.querySelector(".dimension-ruler-height")).toHaveTextContent(
+      "16 mm",
+    );
   });
 
   it("scales the label and its text by the same zoom ratio", async () => {
@@ -432,8 +486,16 @@ describe("LabelmakerApp", () => {
     ).toBe("90px");
   });
 
-  it("puts Preview beside Print and offers twelve typefaces", async () => {
+  it("uses concise editor actions, puts Preview beside Print, and offers twelve typefaces", async () => {
     render(<LabelmakerApp host={createHost()} />);
+    expect(screen.getByRole("button", { name: "Text" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Image" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Add text" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Add image" }),
+    ).not.toBeInTheDocument();
     const preview = screen.getByRole("button", { name: "Preview" });
     const print = screen.getByRole("button", { name: /^Print$/ });
     expect(
@@ -500,6 +562,11 @@ describe("LabelmakerApp", () => {
       name: "Selected printer: Second printer",
     });
     await user.click(trigger);
+    const selectedOption = screen.getByRole("menuitemradio", {
+      name: /Second printer/,
+    });
+    expect(selectedOption).toHaveAttribute("aria-checked", "true");
+    expect(selectedOption.querySelector(".lucide-check")).toBeNull();
     await user.click(
       screen.getByRole("menuitemradio", { name: /First printer/ }),
     );
@@ -626,6 +693,7 @@ describe("LabelmakerApp", () => {
           printHeadSizeMm?: number;
           marginTopMm?: number;
           marginBottomMm?: number;
+          interLabelSpacingMm?: number;
         },
       ) => [
         {
@@ -641,6 +709,7 @@ describe("LabelmakerApp", () => {
           printableWidthMm: settings.printHeadSizeMm ?? 12,
           marginTopMm: settings.marginTopMm ?? 2,
           marginBottomMm: settings.marginBottomMm ?? 2,
+          interLabelSpacingMm: settings.interLabelSpacingMm ?? 1,
           darkness: {
             minimum: 0,
             maximum: 31,
@@ -663,6 +732,13 @@ describe("LabelmakerApp", () => {
     );
 
     expect(screen.getByRole("dialog")).toHaveTextContent("203 dpi");
+    expect(screen.getByRole("dialog")).not.toHaveTextContent("Raster width");
+    expect(screen.getByRole("dialog")).not.toHaveTextContent(
+      "This changes only the name",
+    );
+    expect(screen.getByRole("dialog")).not.toHaveTextContent(
+      "Studio Labeler · MakeID E1",
+    );
     expect(screen.getByRole("dialog")).not.toHaveTextContent("Current label");
     expect(screen.getByRole("dialog")).not.toHaveTextContent("Print output");
     expect(screen.getByRole("dialog")).not.toHaveTextContent(
@@ -674,6 +750,7 @@ describe("LabelmakerApp", () => {
     expect(screen.getByLabelText("Print head size")).toHaveValue(12);
     expect(screen.getByLabelText("Top margin")).toHaveValue(2);
     expect(screen.getByLabelText("Bottom margin")).toHaveValue(2);
+    expect(screen.getByLabelText("Margin between labels")).toHaveValue(1);
     fireEvent.change(screen.getByLabelText("Print head size"), {
       target: { value: "11.8" },
     });
@@ -682,6 +759,9 @@ describe("LabelmakerApp", () => {
     });
     fireEvent.change(screen.getByLabelText("Bottom margin"), {
       target: { value: "2.6" },
+    });
+    fireEvent.change(screen.getByLabelText("Margin between labels"), {
+      target: { value: "1.5" },
     });
     const darkness = screen.getByLabelText("Print darkness");
     fireEvent.change(darkness, { target: { value: "24" } });
@@ -693,8 +773,35 @@ describe("LabelmakerApp", () => {
         printHeadSizeMm: 11.8,
         marginTopMm: 1.4,
         marginBottomMm: 2.6,
+        interLabelSpacingMm: 1.5,
       }),
     );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    "Printer name",
+    "Print head size",
+    "Top margin",
+    "Bottom margin",
+    "Margin between labels",
+  ])("saves printer settings with Enter from %s", async (fieldLabel) => {
+    const updatePrinterSettings = vi.fn().mockResolvedValue([]);
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost({ updatePrinterSettings })} />);
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Selected printer: Studio Labeler",
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Settings for Studio Labeler" }),
+    );
+
+    await user.click(screen.getByLabelText(fieldLabel));
+    await user.keyboard("{Enter}");
+
+    await waitFor(() => expect(updatePrinterSettings).toHaveBeenCalledOnce());
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
@@ -723,6 +830,7 @@ describe("LabelmakerApp", () => {
         printHeadSizeMm: 12,
         marginTopMm: 2,
         marginBottomMm: 2,
+        interLabelSpacingMm: 1,
       }),
     );
   });
@@ -744,6 +852,7 @@ describe("LabelmakerApp", () => {
         printableWidthMm: 12,
         marginTopMm: 2,
         marginBottomMm: 2,
+        interLabelSpacingMm: 1,
       },
     ]);
     const user = userEvent.setup();
@@ -768,6 +877,7 @@ describe("LabelmakerApp", () => {
         printHeadSizeMm: 12,
         marginTopMm: 2,
         marginBottomMm: 2,
+        interLabelSpacingMm: 1,
       }),
     );
   });
@@ -1244,9 +1354,14 @@ describe("LabelmakerApp", () => {
         .getByRole("dialog", { name: "Print preview" })
         .querySelector(".preview-label"),
     ).toHaveStyle({ transform: "scaleX(-1)" });
-    await user.click(
-      screen.getAllByRole("button", { name: "Close preview" }).at(-1)!,
-    );
+    const previewDialog = screen.getByRole("dialog", {
+      name: "Print preview",
+    });
+    expect(
+      screen.getAllByRole("button", { name: "Close preview" }),
+    ).toHaveLength(1);
+    expect(previewDialog.querySelector(".dialog-header p")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Close preview" }));
 
     await screen.findByText("Studio Labeler");
     await user.click(screen.getByRole("button", { name: /^Print$/ }));
@@ -1750,6 +1865,24 @@ describe("LabelmakerApp", () => {
   it("keeps dialogs usable after add and print host failures", async () => {
     const user = userEvent.setup();
     const host = createHost({
+      listPrinters: vi.fn().mockResolvedValue([
+        {
+          id: "mock-studio",
+          adapterId: "mock",
+          deviceName: "Studio Labeler",
+          name: "Workbench printer",
+          model: "MakeID E1 · Mock adapter",
+          transport: "mock" as const,
+          state: "ready" as const,
+          statusMessage: "Ready",
+          dpi: 203,
+          rasterWidthPixels: 96,
+          printableWidthMm: 12,
+          marginTopMm: 2,
+          marginBottomMm: 2,
+          interLabelSpacingMm: 1,
+        },
+      ]),
       addPrinter: vi.fn().mockRejectedValue(new Error("pairing")),
       print: vi
         .fn()
@@ -1760,10 +1893,10 @@ describe("LabelmakerApp", () => {
         ),
     });
     render(<LabelmakerApp host={host} />);
-    await screen.findByText("Studio Labeler");
+    await screen.findByText("Workbench printer");
     await user.click(screen.getByRole("button", { name: /^Print$/ }));
     expect(
-      await screen.findByText("Printer needs attention"),
+      await screen.findByText("Workbench printer: Printer needs attention"),
     ).toBeInTheDocument();
     await openAddPrinterDialog(user);
     await user.click(await screen.findByRole("button", { name: "Add" }));

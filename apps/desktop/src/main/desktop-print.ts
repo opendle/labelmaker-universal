@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import type { LabelPlate } from "@labelmaker/domain";
+import { addInterLabelSpacing } from "@labelmaker/printing";
 import type {
   PrinterCapabilities,
   PrinterDescriptor,
@@ -111,7 +112,11 @@ export async function printToSession(
   await session.print({
     id: createJobId(),
     printerId: descriptor.id,
-    pages,
+    pages: addInterLabelSpacing(
+      pages,
+      settings.interLabelSpacingMm ?? 1,
+      capabilities.dpi,
+    ),
     copies: 1,
     ...(mediaId === undefined ? {} : { mediaId }),
     ...(settings.darkness === undefined ? {} : { darkness: settings.darkness }),

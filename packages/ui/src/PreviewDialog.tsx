@@ -31,10 +31,7 @@ export function PreviewDialog({
       onClose={onClose}
     >
       <div className="dialog-header">
-        <div>
-          <h2 id="preview-title">Print preview</h2>
-          <p>{plate.name} · 1 label</p>
-        </div>
+        <h2 id="preview-title">Print preview</h2>
         <IconButton initialFocus label="Close preview" onClick={onClose}>
           <X size={18} />
         </IconButton>
@@ -57,9 +54,6 @@ export function PreviewDialog({
         </span>
       </div>
       <div className="dialog-footer end">
-        <button className="button secondary" onClick={onClose} type="button">
-          Close preview
-        </button>
         <button
           className="button primary"
           disabled={!canPrint}

@@ -1,6 +1,11 @@
 import type { CSSProperties } from "react";
 
+import { displayMillimeters, type PrintableMargins } from "./label-layout.js";
+
 type GridStyle = CSSProperties & Record<`--${string}`, string | number>;
+type RulerStyle = CSSProperties & Record<`--${string}`, string | number>;
+
+const DIMENSION_MERGE_TOLERANCE_MM = 0.05;
 
 export function CanvasGrid({
   widthMm,
@@ -57,10 +62,14 @@ export function CanvasRulers({
   widthMm,
   heightMm,
   canvasScale,
+  zoom,
+  printableMargins,
 }: {
   readonly widthMm: number;
   readonly heightMm: number;
   readonly canvasScale: number;
+  readonly zoom: number;
+  readonly printableMargins: PrintableMargins;
 }) {
   const horizontal = Array.from(
     { length: Math.floor(widthMm / 5) + 1 },
@@ -70,9 +79,30 @@ export function CanvasRulers({
     { length: Math.floor(heightMm / 5) + 1 },
     (_, index) => index * 5,
   );
+  const printableHeightMm = Math.max(
+    0,
+    heightMm - printableMargins.topMm - printableMargins.bottomMm,
+  );
+  const hasSeparatePrintableHeight =
+    Math.abs(heightMm - printableHeightMm) > DIMENSION_MERGE_TOLERANCE_MM;
+  const dimensionFontSize = Math.max(10, 10 * (zoom / 100));
+  const intervalFontSize = Math.max(8.5, 8.5 * (zoom / 100));
+  const dimensionStyle = {
+    "--dimension-ruler-font-size": `${dimensionFontSize}px`,
+  } as RulerStyle;
+  const intervalStyle = {
+    "--interval-ruler-font-size": `${intervalFontSize}px`,
+  } as RulerStyle;
   return (
     <>
-      <div aria-hidden="true" className="ruler ruler-top">
+      <div
+        aria-hidden="true"
+        className="dimension-ruler dimension-ruler-width"
+        style={dimensionStyle}
+      >
+        <span>{displayMillimeters(widthMm)} mm</span>
+      </div>
+      <div aria-hidden="true" className="ruler ruler-top" style={intervalStyle}>
         {horizontal.map((mark) => (
           <span
             className={mark === 0 ? "origin" : undefined}
@@ -83,7 +113,11 @@ export function CanvasRulers({
           </span>
         ))}
       </div>
-      <div aria-hidden="true" className="ruler ruler-left">
+      <div
+        aria-hidden="true"
+        className="ruler ruler-left"
+        style={intervalStyle}
+      >
         {vertical.map((mark) => (
           <span
             className={mark === 0 ? "origin" : undefined}
@@ -94,6 +128,26 @@ export function CanvasRulers({
           </span>
         ))}
       </div>
+      <div
+        aria-hidden="true"
+        className={`dimension-ruler dimension-ruler-height${hasSeparatePrintableHeight ? "" : " dimension-ruler-height-merged"}`}
+        style={dimensionStyle}
+      >
+        <span>{displayMillimeters(heightMm)} mm</span>
+      </div>
+      {hasSeparatePrintableHeight ? (
+        <div
+          aria-hidden="true"
+          className="dimension-ruler dimension-ruler-printable-height"
+          style={{
+            ...dimensionStyle,
+            height: `${printableHeightMm * canvasScale}px`,
+            top: `${printableMargins.topMm * canvasScale}px`,
+          }}
+        >
+          <span>{displayMillimeters(printableHeightMm)} mm</span>
+        </div>
+      ) : null}
     </>
   );
 }

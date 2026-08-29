@@ -82,6 +82,7 @@ export function createImage(plate: LabelPlate, source: string): ImageElement {
     source,
     fit: "contain",
     threshold: 128,
+    transparentBackground: true,
   };
 }
 
@@ -90,26 +91,30 @@ export function createShape(
   shapeType: NonNullable<ShapeElement["shapeType"]>,
 ): ShapeElement {
   const circleDiameterMm = Math.max(
-    0.5,
-    Math.min(10, plate.size.widthMm * 0.6, plate.size.heightMm * 0.6),
+    1,
+    Math.round(
+      Math.min(10, plate.size.widthMm * 0.6, plate.size.heightMm * 0.6),
+    ),
   );
   const widthMm =
     shapeType === "circle"
       ? circleDiameterMm
-      : Math.max(0.5, Math.min(18, plate.size.widthMm * 0.6));
+      : Math.max(1, Math.round(Math.min(18, plate.size.widthMm * 0.6)));
   const heightMm =
     shapeType === "circle"
       ? circleDiameterMm
       : Math.max(
-          0.5,
-          Math.min(shapeType === "line" ? 2 : 8, plate.size.heightMm * 0.6),
+          1,
+          Math.round(
+            Math.min(shapeType === "line" ? 2 : 8, plate.size.heightMm * 0.6),
+          ),
         );
   return {
     id: makeId("element"),
     kind: "rectangle",
     shapeType,
-    xMm: Math.max(0, (plate.size.widthMm - widthMm) / 2),
-    yMm: Math.max(0, (plate.size.heightMm - heightMm) / 2),
+    xMm: Math.max(0, Math.round((plate.size.widthMm - widthMm) / 2)),
+    yMm: Math.max(0, Math.round((plate.size.heightMm - heightMm) / 2)),
     widthMm,
     heightMm,
     rotationDeg: 0,
@@ -285,6 +290,33 @@ export function updatePlateEditorWidth(
     },
     elements: buildFlagElements(plate, sourceElements, nextWidthMm),
   };
+}
+
+/** Resize the label equally from its top and bottom edges. */
+export function updatePlateEditorHeight(
+  plate: LabelPlate,
+  heightMm: number,
+): LabelPlate {
+  const nextHeightMm = Math.max(1, heightMm);
+  const offsetMm = (nextHeightMm - plate.size.heightMm) / 2;
+  const resizedPlate = {
+    ...plate,
+    size: { ...plate.size, heightMm: nextHeightMm },
+  };
+  const movedElements = (
+    isFlagPlate(plate) ? flagSourceElements(plate) : plate.elements
+  ).map((element) => ({ ...element, yMm: element.yMm + offsetMm }));
+
+  return isFlagPlate(plate)
+    ? {
+        ...resizedPlate,
+        elements: buildFlagElements(
+          resizedPlate,
+          movedElements,
+          plateEditorWidthMm(plate),
+        ),
+      }
+    : { ...resizedPlate, elements: movedElements };
 }
 
 /** Convert the active label to a reversible, two-sided flag. */

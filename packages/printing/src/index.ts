@@ -94,6 +94,37 @@ export interface PrinterSettings {
   readonly printHeadSizeMm?: number;
   readonly marginTopMm?: number;
   readonly marginBottomMm?: number;
+  readonly interLabelSpacingMm?: number;
+}
+
+/** Add white feed rows between raster pages without changing their width. */
+export function addInterLabelSpacing(
+  pages: readonly RasterPage[],
+  spacingMm: number,
+  dpi: number,
+): readonly RasterPage[] {
+  if (
+    !Number.isFinite(spacingMm) ||
+    spacingMm < 0 ||
+    !Number.isFinite(dpi) ||
+    dpi <= 0
+  ) {
+    throw new RangeError("Inter-label spacing and printer DPI must be valid");
+  }
+  const spacingRows = Math.round((spacingMm * dpi) / 25.4);
+  if (spacingRows === 0 || pages.length < 2) return pages;
+  return pages.map((page, index) => {
+    if (index === pages.length - 1) return page;
+    const data = new Uint8Array(
+      page.data.length + spacingRows * page.bytesPerRow,
+    );
+    data.set(page.data);
+    return {
+      ...page,
+      heightPixels: page.heightPixels + spacingRows,
+      data,
+    };
+  });
 }
 
 export interface PrintProgress {

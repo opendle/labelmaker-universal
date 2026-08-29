@@ -5,7 +5,7 @@ import { DEFAULT_TYPEFACE } from "./typefaces.js";
 export const sampleDocument: LabelDocument = {
   schemaVersion: 1,
   id: "workspace-workshop",
-  name: "Workshop labels",
+  name: "Labels",
   defaultPlateSize: { widthMm: 62, heightMm: 16 },
   plates: [
     {

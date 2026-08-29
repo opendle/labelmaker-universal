@@ -13,6 +13,7 @@ describe("iPad printer settings", () => {
       printHeadSizeMm: 12.5,
       marginTopMm: 0,
       marginBottomMm: 1.2,
+      interLabelSpacingMm: 1.5,
     };
 
     expect(validatePrinterSettings(settings)).toEqual(settings);
@@ -24,6 +25,7 @@ describe("iPad printer settings", () => {
     { printHeadSizeMm: 0 },
     { marginTopMm: -0.1 },
     { marginBottomMm: 0.15 },
+    { interLabelSpacingMm: 0.15 },
     { extra: true },
   ])("rejects invalid settings: $settings", (settings) => {
     expect(() => validatePrinterSettings(settings)).toThrow(

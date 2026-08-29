@@ -190,7 +190,7 @@ describe("desktop plate rasterization", () => {
     expect(page.data[0]).toBe(0);
   });
 
-  it("applies each image black level before it covers earlier artwork", async () => {
+  it("applies each image black level before it composites the artwork", async () => {
     const base = createBlankLabelDocument(() => "id").plates[0];
     if (!base) throw new Error("Expected a plate");
     const image = {
@@ -238,10 +238,21 @@ describe("desktop plate rasterization", () => {
     const embeddedPixel = (svg: string) => {
       const encoded = svg.match(/data:image\/bmp;base64,([^&"]+)/)?.[1];
       if (!encoded) throw new Error("Expected an embedded BMP image");
-      return Buffer.from(encoded, "base64")[54];
+      const bitmap = Buffer.from(encoded, "base64");
+      const pixelOffset = bitmap.readUInt32LE(10);
+      return {
+        blue: bitmap[pixelOffset],
+        alpha: bitmap[pixelOffset + 3],
+      };
     };
-    expect(embeddedPixel(finalSvgs[0] ?? "")).toBe(255);
-    expect(embeddedPixel(finalSvgs[1] ?? "")).toBe(0);
+    expect(embeddedPixel(finalSvgs[0] ?? "")).toEqual({
+      blue: 255,
+      alpha: 0,
+    });
+    expect(embeddedPixel(finalSvgs[1] ?? "")).toEqual({
+      blue: 0,
+      alpha: 255,
+    });
     expect(finalSvgs[0]).toMatch(/<text[\s\S]*<image/);
   });
 });

@@ -87,6 +87,98 @@ describe("workspace documents", () => {
     );
   });
 
+  it("defaults image backgrounds to transparent and preserves an opaque setting", () => {
+    const changed = structuredClone(document) as unknown as {
+      plates: Array<{ elements: Array<Record<string, unknown>> }>;
+    };
+    changed.plates[0]!.elements.push({
+      id: "image",
+      kind: "image",
+      xMm: 1,
+      yMm: 1,
+      widthMm: 5,
+      heightMm: 5,
+      rotationDeg: 0,
+      source: "data:image/png;base64,image",
+      fit: "contain",
+      threshold: 128,
+    });
+
+    expect(validateLabelDocument(changed).plates[0]!.elements[1]).toMatchObject(
+      { transparentBackground: true },
+    );
+    changed.plates[0]!.elements[1]!.transparentBackground = false;
+    changed.plates[0]!.elements[1]!.editorSource = {
+      source: "data:image/png;base64,full-image",
+      widthPixels: 100,
+      heightPixels: 50,
+      bounds: { left: 10, top: 5, right: 89, bottom: 44 },
+    };
+    expect(
+      parseLabelDocument(serializeLabelDocument(changed as never)).plates[0]!
+        .elements[1],
+    ).toMatchObject({
+      transparentBackground: false,
+      editorSource: {
+        source: "data:image/png;base64,full-image",
+        widthPixels: 100,
+        heightPixels: 50,
+        bounds: { left: 10, top: 5, right: 89, bottom: 44 },
+      },
+    });
+  });
+
+  it("rejects an invalid image background setting", () => {
+    const changed = structuredClone(document) as unknown as {
+      plates: Array<{ elements: Array<Record<string, unknown>> }>;
+    };
+    changed.plates[0]!.elements.push({
+      id: "image",
+      kind: "image",
+      xMm: 1,
+      yMm: 1,
+      widthMm: 5,
+      heightMm: 5,
+      rotationDeg: 0,
+      source: "data:image/png;base64,image",
+      fit: "contain",
+      threshold: 128,
+      transparentBackground: "yes",
+    });
+
+    expect(() => validateLabelDocument(changed)).toThrow(
+      "transparentBackground must be a boolean",
+    );
+  });
+
+  it("rejects invalid full image editor bounds", () => {
+    const changed = structuredClone(document) as unknown as {
+      plates: Array<{ elements: Array<Record<string, unknown>> }>;
+    };
+    changed.plates[0]!.elements.push({
+      id: "image",
+      kind: "image",
+      xMm: 1,
+      yMm: 1,
+      widthMm: 5,
+      heightMm: 5,
+      rotationDeg: 0,
+      source: "data:image/png;base64,image",
+      fit: "contain",
+      threshold: 128,
+      editorSource: {
+        source: "data:image/png;base64,full-image",
+        widthPixels: 10,
+        heightPixels: 10,
+        bounds: { left: 0, top: 0, right: 10, bottom: 9 },
+      },
+    });
+
+    expect(() => validateLabelDocument(changed)).toThrow(
+      "editorSource.bounds.right must be between 0 and 9",
+    );
+  });
+
   it("preserves shape types and treats an omitted type as a rectangle", () => {
     const changed = structuredClone(document) as unknown as {
       plates: Array<{ elements: Array<Record<string, unknown>> }>;

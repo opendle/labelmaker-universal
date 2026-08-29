@@ -1,5 +1,8 @@
 # Labelmaker — agent instructions
 
+Use ASD-STE100 Simplified Technical English for user reports, pull requests,
+comments, and other written project communication.
+
 ## Start here
 
 Read these files before you change behavior:
@@ -9,9 +12,9 @@ Read these files before you change behavior:
 3. The specification for the area that you will change
 
 Use the `labelmaker-desktop-ui` skill for editor or desktop UI work. Use the
-`printer-adapter-development` skill for printer support.
-Use the `selfreview` skill in automode at the end of each task that changes the
-repository, after the first checks and before the commit.
+`printer-adapter-development` skill for printer support. Use the `selfreview`
+skill in automode at the end of each task that changes the repository, after
+the first checks and before the commit.
 
 ## Product rules
 
@@ -50,9 +53,14 @@ repository, after the first checks and before the commit.
   protocols.
 - Validate untrusted files, IPC payloads, adapter results, and server requests.
 - Keep Electron `contextIsolation` enabled and `nodeIntegration` disabled.
-- Run `npm run check` before handoff. React Doctor must score 100 with zero
-  diagnostics. Run `npm run ui:screenshot` and inspect current screenshots only
-  after a material UI change. Do not run it for small UI changes.
+- Run `npm run check` before handoff. React Doctor must report zero diagnostics.
+  Its score must be 100 when the score service returns a score. If the scan
+  completes with zero diagnostics but the score is unavailable because the
+  score service cannot be reached, report that condition and continue with the
+  signed commit and push. Never ignore React Doctor diagnostics or a returned
+  score below 100.
+- Run `npm run ui:screenshot` and inspect current screenshots only after a
+  material UI change. Do not run it for small UI changes.
 - Review the complete diff after tests. Do not commit generated build output,
   dependencies, local secrets, or temporary screenshots.
 

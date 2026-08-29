@@ -20,13 +20,6 @@ export function printableMarginPercent(
   return Math.min(100, Math.max(0, (marginMm / plateHeightMm) * 100));
 }
 
-export function printableHeightMm(
-  plateHeightMm: number,
-  margins: PrintableMargins,
-): number {
-  return Math.max(0, plateHeightMm - margins.topMm - margins.bottomMm);
-}
-
 export interface PrintableMargins {
   readonly topMm: number;
   readonly bottomMm: number;

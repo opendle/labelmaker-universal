@@ -1,6 +1,6 @@
 import type { LabelDocument } from "@labelmaker/domain";
 import { Plus, Trash2 } from "lucide-react";
-import type { CSSProperties } from "react";
+import { type CSSProperties, useEffect, useRef } from "react";
 
 import { LabelArtwork } from "./LabelArtwork.js";
 import { nonPrintableMarginsMm } from "./label-layout.js";
@@ -26,8 +26,27 @@ export function PlateStrip({
   readonly marginTopMm: number | undefined;
   readonly marginBottomMm: number | undefined;
 }) {
+  const keyboardDeleteEnabledRef = useRef(false);
+  const stripRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const updateKeyboardDelete = (event: PointerEvent) => {
+      const target = event.target;
+      keyboardDeleteEnabledRef.current =
+        target instanceof Element &&
+        Boolean(target.closest(".plate-thumb-select")) &&
+        Boolean(stripRef.current?.contains(target));
+    };
+    globalThis.document.addEventListener("pointerdown", updateKeyboardDelete);
+    return () =>
+      globalThis.document.removeEventListener(
+        "pointerdown",
+        updateKeyboardDelete,
+      );
+  }, []);
+
   return (
-    <footer aria-label="Labels" className="plate-strip">
+    <footer aria-label="Labels" className="plate-strip" ref={stripRef}>
       <div className="plate-thumbnails">
         {workspace.plates.map((plate, index) => {
           return (
@@ -43,8 +62,25 @@ export function PlateStrip({
             >
               <button
                 aria-label={`Select label ${index + 1}: ${plate.name}`}
+                aria-keyshortcuts="Delete Backspace"
                 className="plate-thumb-select"
-                onClick={() => onSelectPlate(plate.id, null)}
+                onClick={() => {
+                  keyboardDeleteEnabledRef.current = true;
+                  onSelectPlate(plate.id, null);
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    (event.key !== "Delete" && event.key !== "Backspace") ||
+                    !keyboardDeleteEnabledRef.current
+                  ) {
+                    return;
+                  }
+                  event.preventDefault();
+                  if (workspace.plates.length > 1) {
+                    keyboardDeleteEnabledRef.current = false;
+                    onDeletePlate(plate.id);
+                  }
+                }}
                 type="button"
               >
                 <span className="plate-number">{index + 1}</span>

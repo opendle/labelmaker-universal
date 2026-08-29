@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   appendElementAndFlagPeer,
+  createImage,
   createShape,
   deleteElementAndFlagPeer,
   editableElementCount,
@@ -11,6 +12,7 @@ import {
   toggleFlagPlate,
   trimPlate,
   updateElementAndFlagPeer,
+  updatePlateEditorHeight,
   updatePlateEditorWidth,
 } from "./editor-operations.js";
 
@@ -57,6 +59,17 @@ const document: LabelDocument = {
     },
   ],
 };
+
+describe("createImage", () => {
+  it("uses a transparent background for imported images and drawings", () => {
+    const image = createImage(
+      document.plates[0]!,
+      "data:image/png;base64,image",
+    );
+
+    expect(image.transparentBackground).toBe(true);
+  });
+});
 
 describe("trimPlate", () => {
   it("uses the first and last black raster pixels instead of element frames", async () => {
@@ -153,6 +166,24 @@ describe("shapes and layers", () => {
     },
   );
 
+  it.each(["line", "rectangle", "circle"] as const)(
+    "uses whole-millimeter defaults for a %s shape",
+    (shapeType) => {
+      const shape = createShape(
+        {
+          ...document.plates[0]!,
+          size: { widthMm: 19.4, heightMm: 11.7 },
+        },
+        shapeType,
+      );
+
+      expect(Number.isInteger(shape.xMm)).toBe(true);
+      expect(Number.isInteger(shape.yMm)).toBe(true);
+      expect(Number.isInteger(shape.widthMm)).toBe(true);
+      expect(Number.isInteger(shape.heightMm)).toBe(true);
+    },
+  );
+
   it("moves an element to the back or front", () => {
     const plate = document.plates[0]!;
     expect(
@@ -199,6 +230,31 @@ describe("shapes and layers", () => {
       "image--flag-peer",
       `flag-guide-${flag.id}`,
     ]);
+  });
+});
+
+describe("updatePlateEditorHeight", () => {
+  it("keeps the label center fixed when its height changes", () => {
+    const plate = document.plates[0]!;
+
+    const taller = updatePlateEditorHeight(plate, 20);
+    expect(taller.size.heightMm).toBe(20);
+    expect(taller.elements.map(({ yMm }) => yMm)).toEqual([4, 2]);
+
+    const shorter = updatePlateEditorHeight(taller, 12);
+    expect(shorter.size.heightMm).toBe(12);
+    expect(shorter.elements.map(({ yMm }) => yMm)).toEqual([0, -2]);
+  });
+
+  it("moves flag sources and peers and rebuilds its full-height guide", () => {
+    const flag = toggleFlagPlate(document.plates[0]!);
+    const taller = updatePlateEditorHeight(flag, 20);
+
+    expect(taller.elements.find(({ id }) => id === "text")?.yMm).toBe(4);
+    expect(
+      taller.elements.find(({ id }) => id === "text--flag-peer")?.yMm,
+    ).toBe(4);
+    expect(taller.elements.at(-1)).toMatchObject({ yMm: 1, heightMm: 18 });
   });
 });
 

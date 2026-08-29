@@ -13,8 +13,14 @@ and excessive decoration.
   undo, redo, preview, a printer menu with an add-printer action, and print.
 - **Center:** one WYSIWYG label canvas with a neutral work surface.
 - **Editor toolbar:** element actions on the left and always-visible plate name,
-  width, height, margins, and trim controls on the right. It spans the center
-  and inspector columns.
+  width, height, and margin controls on the right. Put a separated Trim action
+  at the far right. It spans the center and inspector columns.
+- Use one shared field style for the editor toolbar, selected-element inspector,
+  and printer settings. Keep label text, label spacing, control height, input
+  text, borders, and units consistent in all three areas. Right-align values in
+  controls that show a unit, and keep the unit only as wide as its text. Keep
+  the label-to-control gap compact. Make the editor toolbar tall enough for its
+  field labels and controls, and vertically center its element actions.
 - **Right inspector:** selected-element properties only. Remove it from the
   layout when no element is selected. Overlay it on the canvas when shown so
   that the canvas keeps its full size and does not move. Plate settings do not
@@ -40,7 +46,7 @@ appearances so that they show the physical label and printed result accurately.
 - Restore the last editor session on launch. Restore the workspace, unsaved
   state, active label, selected element, zoom, last save time, and saved `.lbl`
   file association. Store recovery state outside the `.lbl` file. If recovery
-  data is missing or invalid, start with the default workspace.
+  data is missing or invalid, start with the default workspace named `Labels`.
 - Open an add-printer dialog with physical discovery results. Do not show mock
   or virtual printers in the user interface.
 - While a printer is added, show progress and disable conflicting dialog
@@ -80,12 +86,22 @@ appearances so that they show the physical label and printed result accurately.
 - Offer twelve useful system typefaces and use Avenir Next, with a Segoe UI
   fallback, for new text.
 - Change plate width and height.
+- Resize label height equally from the top and bottom, so existing elements keep
+  the same position relative to the label center.
 - Add a text element.
 - Add an image element. Text and image are separate actions, and both element
   types can move and resize on the plate.
-- Add line, rectangle, and circle shapes from a menu next to Add image. Let the
+- Put a Draw action next to Image. It opens a basic monochrome drawing
+  editor. Saving adds the exact non-white drawing bounds as an image. A double
+  click on any image opens the same editor and saves the changed image in the
+  same frame position. Reopen the full source canvas that existed before the
+  image was trimmed, including after a saved workspace is reopened, so repeated
+  edits do not reduce the drawing area. White pixels do not add to the image
+  bounds. Keep the drawing canvas flush with its dialog. Enter saves and closes
+  the drawing editor.
+- Add line, rectangle, and circle shapes from a menu next to Image. Let the
   user select, move, resize, and rotate each shape. A resized circle can become
-  an ellipse.
+  an ellipse. Use whole-millimeter geometry when a shape is first inserted.
 - When a label contains more than one user element, show Send to back and Bring
   to front below Rotation in the selected-element inspector.
 - Accept only PNG, JPEG, GIF, WebP, and BMP images that the print renderer can
@@ -94,8 +110,13 @@ appearances so that they show the physical label and printed result accurately.
   black-level control in the image inspector. Apply it to image midtones before
   dithering, and use the result in previews, trim, and print. A value of 128 is
   neutral, a higher value is darker, and pure white stays white.
+- Put a Transparent control on the same inspector row as image Fit. Enable it
+  for new images and drawings. When it is enabled, exact white pixels reveal
+  the label and earlier elements. When it is disabled, white pixels stay
+  opaque and use the label paper color on screen.
 - Show width and height above X and Y for text and image frames. Do not show
-  separate Position or Size section titles.
+  separate Position or Size section titles. Use 0.1 mm keyboard steps for
+  element width, height, X, Y, and shape stroke controls.
 - Set left and right plate margins, with zero as the default.
 - Adjust the plate width, larger or smaller, to the first and last black
   pixels of the final monochrome raster plus the selected margins. Apply
@@ -110,12 +131,20 @@ appearances so that they show the physical label and printed result accurately.
 - Align the work-surface dots to the label grid at 1 mm intervals. Fade the
   5 mm grid in all directions over 10 mm outside the label.
 - Open printer settings from each configured printer. Keep the current label
-  out of this dialog. Show resolution and raster width as fixed capabilities.
+  out of this dialog. Show resolution as a fixed capability. Do not show the
+  raster width.
   Let the user set a display-only printer name and restore the device name.
-  This setting must not change the printer ID or connection data.
+  This setting must not change the printer ID or connection data. Keep this
+  display name while a print job runs. Use it in print success and failure
+  messages.
   Let the user change print-head size and independent top and bottom margins in
-  0.1 mm steps. Let the user change other capabilities that the printer reports
-  as adjustable, such as darkness. Store all values for that printer.
+  0.1 mm steps. Let the user set the space between labels, with 1 mm as the
+  default. Let the user change other capabilities that the printer reports
+  as adjustable, such as darkness. Put print-head size and both margins on one
+  row, with only the margin between labels on the next row. Do not put a frame
+  or group title around these controls or around darkness. Enter in any printer
+  setting saves the settings and closes the dialog. Store all values for that
+  printer.
 - Add a flag or cable-wrap plate from the special-label actions.
 - Put a Mirror toggle next to Flag. Mirror the printed output and the main print
   preview. Keep the editor canvas and plate-strip artwork unchanged.
@@ -133,6 +162,18 @@ appearances so that they show the physical label and printed result accurately.
 - Clear text editing and element selection when the user clicks an empty part
   of the label or work surface. Selecting another element replaces the current
   selection.
+- Delete the selected plate with Delete or Backspace while its strip control
+  keeps the keyboard focus. A click outside the strip clears this delete target.
+- Label the main element actions Text, Image, Draw, and Shapes. Do not keep a
+  pointer-only focus ring on the action that opened a dialog after it closes.
+- Keep the five-millimeter rulers. Above the horizontal ruler, show the total
+  label width from edge to edge. To the left of the vertical ruler, show the
+  printable height and the total label height as two dimension rulers. Rotate
+  the vertical dimension text 90 degrees counterclockwise. Merge the vertical
+  rulers when printable height and total height are equal. Scale ruler label
+  text with the label zoom, but keep a readable minimum size. Keep the 5 mm
+  labels smaller than the total dimensions at every zoom. Do not show printer
+  resolution or printable-area metadata at the lower-left corner.
 
 On macOS, use the native window controls from Electron. Do not draw a second
 set of traffic-light controls in the application header.

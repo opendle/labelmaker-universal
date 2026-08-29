@@ -306,11 +306,7 @@ async function summarize(printer: PrinterDescriptor) {
       probe: shouldProbe,
       preserveSessionOnFailure: printer.adapterId === "makeid",
       unprobedState: hasActiveJob ? "busy" : "disconnected",
-      unprobedStatusMessage: hasActiveJob
-        ? "Printing"
-        : statusIsDeferred
-          ? "Reconnects on print"
-          : "Connects on print",
+      unprobedStatusMessage: hasActiveJob ? "Printing" : "Connects on print",
       ...(adapter.offlineCapabilities === undefined
         ? {}
         : { offlineCapabilities: adapter.offlineCapabilities }),
@@ -561,6 +557,7 @@ function registerIpc(): void {
               "printHeadSizeMm",
               "marginTopMm",
               "marginBottomMm",
+              "interLabelSpacingMm",
             ].includes(key),
         )
       ) {
@@ -585,10 +582,12 @@ function registerIpc(): void {
       const printHeadSizeMm = settings.printHeadSizeMm;
       const marginTopMm = settings.marginTopMm;
       const marginBottomMm = settings.marginBottomMm;
+      const interLabelSpacingMm = settings.interLabelSpacingMm;
       if (
         !isTenthMillimeter(printHeadSizeMm, 0.1) ||
         !isTenthMillimeter(marginTopMm, 0) ||
-        !isTenthMillimeter(marginBottomMm, 0)
+        !isTenthMillimeter(marginBottomMm, 0) ||
+        !isTenthMillimeter(interLabelSpacingMm, 0)
       ) {
         throw new RangeError(
           "Printer geometry must use 0.1 mm steps from 0 to 100 mm",
@@ -600,6 +599,7 @@ function registerIpc(): void {
         printHeadSizeMm,
         marginTopMm,
         marginBottomMm,
+        interLabelSpacingMm,
       };
       const nextPrinterSettings = new Map(printerSettings).set(
         printerId,

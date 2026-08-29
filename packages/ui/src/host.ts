@@ -16,6 +16,7 @@ export interface PrinterSummary {
   readonly printableWidthMm?: number;
   readonly marginTopMm?: number;
   readonly marginBottomMm?: number;
+  readonly interLabelSpacingMm?: number;
   readonly darkness?: {
     readonly minimum: number;
     readonly maximum: number;
@@ -33,6 +34,7 @@ export interface PrinterSettings {
   readonly printHeadSizeMm?: number;
   readonly marginTopMm?: number;
   readonly marginBottomMm?: number;
+  readonly interLabelSpacingMm?: number;
 }
 
 export interface PrintRequest {

@@ -29,6 +29,7 @@ export interface DesktopPrinterSummary {
   readonly printableWidthMm?: number;
   readonly marginTopMm?: number;
   readonly marginBottomMm?: number;
+  readonly interLabelSpacingMm?: number;
   readonly darkness?: DesktopNumericSetting;
   readonly batteryPercent?: number;
 }
@@ -87,6 +88,7 @@ function capabilitySummary(
       settings?.marginTopMm ?? capabilities.printHeadMarginTopMm ?? 0,
     marginBottomMm:
       settings?.marginBottomMm ?? capabilities.printHeadMarginBottomMm ?? 0,
+    interLabelSpacingMm: settings?.interLabelSpacingMm ?? 1,
     ...(capabilities.darkness === undefined
       ? {}
       : {

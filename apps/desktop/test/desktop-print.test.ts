@@ -109,12 +109,13 @@ describe("desktop physical print dispatch", () => {
         }),
     );
     const session = fakeSession(makeIdPrinter, print);
-    const renderPlate = vi.fn(async () => ({
+    const rasterPage = {
       widthPixels: 96,
       heightPixels: 8,
       bytesPerRow: 12,
       data: new Uint8Array(96),
-    }));
+    };
+    const renderPlate = vi.fn(async () => rasterPage);
     let settled = false;
 
     const resultPromise = printToSession(
@@ -147,6 +148,7 @@ describe("desktop physical print dispatch", () => {
       darkness: 24,
       mediaId: "makeid-e1-16mm-continuous",
     });
+    expect(print.mock.calls[0]?.[0].pages[0]).toBe(rasterPage);
     expect(renderPlate).toHaveBeenCalledWith(plate, {
       dpi: 203,
       rasterWidthPixels: 96,
@@ -160,6 +162,59 @@ describe("desktop physical print dispatch", () => {
       message: "1 label sent to Shipping desk",
     });
     expect(makeIdPrinter.displayName).toBe("YichipFPGA-test");
+  });
+
+  it("adds the configured blank spacing only after a nonfinal page", async () => {
+    const firstDocument = createBlankLabelDocument(() => "first");
+    const firstPlate = firstDocument.plates[0];
+    if (!firstPlate) throw new Error("Expected one plate");
+    const secondPlate = { ...firstPlate, id: "second" };
+    const document = {
+      ...firstDocument,
+      plates: [firstPlate, secondPlate],
+    };
+    const print = vi.fn(async (_job: PrintJob) => undefined);
+    const session = fakeSession(makeIdPrinter, print);
+    const firstPage = {
+      widthPixels: 96,
+      heightPixels: 2,
+      bytesPerRow: 12,
+      data: Uint8Array.from({ length: 24 }, () => 0xa5),
+    };
+    const secondPage = {
+      widthPixels: 96,
+      heightPixels: 3,
+      bytesPerRow: 12,
+      data: Uint8Array.from({ length: 36 }, () => 0x5a),
+    };
+    const renderPlate = vi
+      .fn()
+      .mockResolvedValueOnce(firstPage)
+      .mockResolvedValueOnce(secondPage);
+
+    await printToSession(
+      {
+        document,
+        printerId: makeIdPrinter.id,
+        plateIds: [firstPlate.id, secondPlate.id],
+      },
+      makeIdPrinter,
+      session,
+      renderPlate,
+      () => "fixed-job-id",
+      { interLabelSpacingMm: 1.5 },
+    );
+
+    const pages = print.mock.calls[0]?.[0].pages;
+    expect(pages).toHaveLength(2);
+    expect(pages?.[0]).toMatchObject({
+      widthPixels: 96,
+      bytesPerRow: 12,
+      heightPixels: 14,
+    });
+    expect(pages?.[0]?.data.subarray(0, 24)).toEqual(firstPage.data);
+    expect(pages?.[0]?.data.subarray(24)).toEqual(new Uint8Array(12 * 12));
+    expect(pages?.[1]).toBe(secondPage);
   });
 
   it("rejects a session for a different printer before it can print", async () => {

@@ -42,13 +42,21 @@ export function MonochromeImage({
         if (!active || !canvasRef.current) return;
         const context = canvasRef.current.getContext("2d");
         if (!context) return;
-        context.fillStyle = "white";
-        context.fillRect(
+        context.clearRect(
           0,
           0,
           canvasRef.current.width,
           canvasRef.current.height,
         );
+        if (element.transparentBackground === false) {
+          context.fillStyle = "#fffefa";
+          context.fillRect(
+            0,
+            0,
+            canvasRef.current.width,
+            canvasRef.current.height,
+          );
+        }
       });
     return () => {
       active = false;

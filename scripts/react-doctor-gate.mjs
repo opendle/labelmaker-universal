@@ -45,10 +45,12 @@ const diagnostics = Array.isArray(project?.diagnostics)
   : [];
 const diagnosticCount = report.summary?.totalDiagnosticCount;
 const score = project?.score?.score;
+const scoreIsUnavailable =
+  score == null && result.stderr.includes("Score API unreachable");
 
 if (
   projects.length !== 1 ||
-  score !== 100 ||
+  (score !== 100 && !scoreIsUnavailable) ||
   diagnostics.length !== 0 ||
   diagnosticCount !== 0
 ) {
@@ -66,4 +68,8 @@ if (
   process.exit(1);
 }
 
-process.stdout.write("score: 100; diagnostics: 0\n");
+process.stdout.write(
+  scoreIsUnavailable
+    ? "score: unavailable; diagnostics: 0\n"
+    : "score: 100; diagnostics: 0\n",
+);

@@ -19,6 +19,7 @@ import { PlateStrip } from "./PlateStrip.js";
 import { PreviewDialog } from "./PreviewDialog.js";
 import { PrinterSettingsDialog } from "./PrinterSettingsDialog.js";
 import { useLabelmakerController } from "./useLabelmakerController.js";
+import { useDrawingEditor } from "./useDrawingEditor.js";
 
 async function trimLatestWorkspace(
   plateId: string,
@@ -59,6 +60,12 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   } = controller;
   const workspaceRef = useRef(state.workspace);
   const shellRef = useRef<HTMLDivElement>(null);
+  const drawingEditor = useDrawingEditor({
+    activePlate,
+    workspace: state.workspace,
+    addDrawing: controller.addDrawing,
+    editWorkspace: controller.editWorkspace,
+  });
   useEffect(() => {
     workspaceRef.current = state.workspace;
   }, [state.workspace]);
@@ -184,6 +191,8 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
         <div className="desktop-body">
           <EditorCanvas
             onAddImage={controller.addImage}
+            onDraw={drawingEditor.openNew}
+            onEditImage={drawingEditor.openImage}
             onAddShape={controller.addShape}
             onAddSpecial={controller.addSpecial}
             onAddText={controller.addText}
@@ -220,7 +229,6 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             onZoom={(zoom) => dispatch({ type: "set-zoom", zoom })}
             platform={host.platform}
             plate={activePlate}
-            printerDpi={controller.activePrinter?.dpi}
             selectedElementId={state.selectedElementId}
             printableMargins={printableMargins}
             zoom={state.zoom}
@@ -303,6 +311,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
         open={state.printerSettingsId !== null}
         printer={settingsPrinter}
       />
+      {drawingEditor.dialog}
       {state.toast && (
         <output aria-live="polite" className={`toast ${state.toast.tone}`}>
           {state.toast.busy ? (

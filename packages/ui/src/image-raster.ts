@@ -1,5 +1,33 @@
 import type { ImageElement } from "@labelmaker/domain";
-import { rgbaToMonochrome } from "@labelmaker/rendering";
+import { rgbaToMonochrome, type MonochromeBitmap } from "@labelmaker/rendering";
+
+const LABEL_PAPER_RED = 255;
+const LABEL_PAPER_GREEN = 254;
+const LABEL_PAPER_BLUE = 250;
+
+export function monochromeImagePixels(
+  monochrome: MonochromeBitmap,
+  transparentBackground: boolean,
+): Uint8ClampedArray {
+  const output = new Uint8ClampedArray(
+    monochrome.widthPixels * monochrome.heightPixels * 4,
+  );
+  monochrome.pixels.forEach((pixel, index) => {
+    const offset = index * 4;
+    if (pixel === 1) {
+      output[offset] = 0;
+      output[offset + 1] = 0;
+      output[offset + 2] = 0;
+      output[offset + 3] = 255;
+      return;
+    }
+    output[offset] = LABEL_PAPER_RED;
+    output[offset + 1] = LABEL_PAPER_GREEN;
+    output[offset + 2] = LABEL_PAPER_BLUE;
+    output[offset + 3] = transparentBackground ? 0 : 255;
+  });
+  return output;
+}
 
 function loadRasterImage(source: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -40,7 +68,10 @@ function drawFittedImage(
 }
 
 export async function renderMonochromeImageFrame(
-  element: Pick<ImageElement, "source" | "fit" | "threshold">,
+  element: Pick<
+    ImageElement,
+    "source" | "fit" | "threshold" | "transparentBackground"
+  >,
   widthPixels: number,
   heightPixels: number,
 ): Promise<HTMLCanvasElement> {
@@ -65,14 +96,9 @@ export async function renderMonochromeImageFrame(
     },
   );
   const output = context.createImageData(width, height);
-  monochrome.pixels.forEach((pixel, index) => {
-    const value = pixel === 1 ? 0 : 255;
-    const offset = index * 4;
-    output.data[offset] = value;
-    output.data[offset + 1] = value;
-    output.data[offset + 2] = value;
-    output.data[offset + 3] = 255;
-  });
+  output.data.set(
+    monochromeImagePixels(monochrome, element.transparentBackground !== false),
+  );
   context.putImageData(output, 0, 0);
   return canvas;
 }

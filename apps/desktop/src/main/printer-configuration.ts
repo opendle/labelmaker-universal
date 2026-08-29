@@ -199,6 +199,7 @@ function isPrinterSettings(value: unknown): value is PrinterSettings {
     "printHeadSizeMm",
     "marginTopMm",
     "marginBottomMm",
+    "interLabelSpacingMm",
   ]);
   return (
     isRecord(value) &&
@@ -216,7 +217,10 @@ function isPrinterSettings(value: unknown): value is PrinterSettings {
     (!("printHeadSizeMm" in value) ||
       isTenthMillimeter(value.printHeadSizeMm, 0.1)) &&
     (!("marginTopMm" in value) || isTenthMillimeter(value.marginTopMm, 0)) &&
-    (!("marginBottomMm" in value) || isTenthMillimeter(value.marginBottomMm, 0))
+    (!("marginBottomMm" in value) ||
+      isTenthMillimeter(value.marginBottomMm, 0)) &&
+    (!("interLabelSpacingMm" in value) ||
+      isTenthMillimeter(value.interLabelSpacingMm, 0))
   );
 }
 

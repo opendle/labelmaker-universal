@@ -110,7 +110,13 @@ async function preparePlateImages(
       mode: "floyd-steinberg",
       threshold: 128,
     });
-    elements.push({ ...element, source: monochromeBmpDataUrl(bitmap) });
+    elements.push({
+      ...element,
+      source: monochromeBmpDataUrl(
+        bitmap,
+        element.transparentBackground !== false,
+      ),
+    });
   }
   return { ...plate, elements };
 }
@@ -124,7 +130,11 @@ function buildImageFrameSvg(
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPixels}" height="${heightPixels}" viewBox="0 0 ${widthPixels} ${heightPixels}"><rect width="${widthPixels}" height="${heightPixels}" fill="white"/><image x="0" y="0" width="${widthPixels}" height="${heightPixels}" href="${attribute(element.source)}" preserveAspectRatio="${aspect}"/></svg>`;
 }
 
-function monochromeBmpDataUrl(bitmap: MonochromeBitmap): string {
+function monochromeBmpDataUrl(
+  bitmap: MonochromeBitmap,
+  transparentBackground: boolean,
+): string {
+  if (transparentBackground) return transparentMonochromeBmpDataUrl(bitmap);
   const rowBytes = Math.ceil((bitmap.widthPixels * 3) / 4) * 4;
   const pixelBytes = rowBytes * bitmap.heightPixels;
   const bytes = new Uint8Array(54 + pixelBytes);
@@ -148,6 +158,44 @@ function monochromeBmpDataUrl(bitmap: MonochromeBitmap): string {
       bytes[offset] = value;
       bytes[offset + 1] = value;
       bytes[offset + 2] = value;
+    }
+  }
+  return `data:image/bmp;base64,${encodeBase64(bytes)}`;
+}
+
+function transparentMonochromeBmpDataUrl(bitmap: MonochromeBitmap): string {
+  const dibHeaderBytes = 108;
+  const pixelOffset = 14 + dibHeaderBytes;
+  const rowBytes = bitmap.widthPixels * 4;
+  const pixelBytes = rowBytes * bitmap.heightPixels;
+  const bytes = new Uint8Array(pixelOffset + pixelBytes);
+  const view = new DataView(bytes.buffer);
+  bytes[0] = 0x42;
+  bytes[1] = 0x4d;
+  view.setUint32(2, bytes.length, true);
+  view.setUint32(10, pixelOffset, true);
+  view.setUint32(14, dibHeaderBytes, true);
+  view.setInt32(18, bitmap.widthPixels, true);
+  view.setInt32(22, bitmap.heightPixels, true);
+  view.setUint16(26, 1, true);
+  view.setUint16(28, 32, true);
+  view.setUint32(30, 3, true);
+  view.setUint32(34, pixelBytes, true);
+  view.setUint32(54, 0x00ff0000, true);
+  view.setUint32(58, 0x0000ff00, true);
+  view.setUint32(62, 0x000000ff, true);
+  view.setUint32(66, 0xff000000, true);
+  view.setUint32(70, 0x73524742, true);
+  for (let y = 0; y < bitmap.heightPixels; y += 1) {
+    const sourceY = bitmap.heightPixels - y - 1;
+    for (let x = 0; x < bitmap.widthPixels; x += 1) {
+      const black = bitmap.pixels[sourceY * bitmap.widthPixels + x] === 1;
+      const offset = pixelOffset + y * rowBytes + x * 4;
+      const value = black ? 0 : 255;
+      bytes[offset] = value;
+      bytes[offset + 1] = value;
+      bytes[offset + 2] = value;
+      bytes[offset + 3] = black ? 255 : 0;
     }
   }
   return `data:image/bmp;base64,${encodeBase64(bytes)}`;

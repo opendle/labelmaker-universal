@@ -33,6 +33,13 @@ import {
   MIN_ZOOM,
   toggleFlagPlate,
 } from "./editor-operations.js";
+import {
+  type DrawingEditorSource,
+  type DrawingImageResult,
+  drawingResultFromImageSource,
+  fitNewImageFrame,
+  rememberDrawingEditorSource,
+} from "./drawing-image.js";
 import type { LabelmakerHost, PrinterSettings } from "./host.js";
 import {
   printerFailureMessage,
@@ -44,6 +51,8 @@ export function useLabelmakerController(host: LabelmakerHost) {
   const [isPrinting, setIsPrinting] = useState(false);
   const printInProgress = useRef(false);
   const printerMutationGeneration = useRef(0);
+  const workspaceRef = useRef(state.workspace);
+  workspaceRef.current = state.workspace;
   const activePlate = useMemo(
     () =>
       state.workspace.plates.find((plate) => plate.id === state.activePlateId),
@@ -488,7 +497,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
           type: "set-toast",
           toast: {
             tone: "error",
-            message: printFailureMessage(error),
+            message: `${activePrinter.name}: ${printFailureMessage(error)}`,
           },
         });
       } finally {
@@ -571,6 +580,60 @@ export function useLabelmakerController(host: LabelmakerHost) {
     [activePlate, updatePlate],
   );
 
+  const appendImage = useCallback(
+    (
+      plateId: string,
+      source: string,
+      dimensions?: { readonly width: number; readonly height: number },
+      editorSource?: DrawingEditorSource,
+    ) => {
+      const workspace = workspaceRef.current;
+      const currentPlate = workspace.plates.find(
+        (plate) => plate.id === plateId,
+      );
+      if (!currentPlate) return;
+      const sourcePlate = isFlagPlate(currentPlate)
+        ? toggleFlagPlate(currentPlate)
+        : currentPlate;
+      const baseElement = {
+        ...createImage(sourcePlate, source),
+        ...(editorSource ? { editorSource } : {}),
+      };
+      const element = dimensions
+        ? fitNewImageFrame(
+            baseElement,
+            sourcePlate,
+            dimensions.width,
+            dimensions.height,
+          )
+        : baseElement;
+      editWorkspace(
+        replacePlate(workspace, plateId, (plate) =>
+          appendElementAndFlagPeer(plate, element),
+        ),
+      );
+      dispatch({ type: "select-element", elementId: element.id });
+      return element.id;
+    },
+    [editWorkspace],
+  );
+
+  const addDrawing = useCallback(
+    (result: DrawingImageResult) => {
+      if (!activePlate) return;
+      return appendImage(
+        activePlate.id,
+        result.source,
+        {
+          width: result.widthPixels,
+          height: result.heightPixels,
+        },
+        result.editorSource,
+      );
+    },
+    [activePlate, appendImage],
+  );
+
   const addImage = useCallback(
     (file: File) => {
       if (!activePlate) return;
@@ -597,20 +660,46 @@ export function useLabelmakerController(host: LabelmakerHost) {
         "load",
         () => {
           if (typeof reader.result !== "string") return;
-          const currentPlate = state.workspace.plates.find(
-            (plate) => plate.id === plateId,
-          );
-          if (!currentPlate) return;
-          const sourcePlate = isFlagPlate(currentPlate)
-            ? toggleFlagPlate(currentPlate)
-            : currentPlate;
-          const element = createImage(sourcePlate, reader.result);
-          editWorkspace(
-            replacePlate(state.workspace, plateId, (plate) =>
-              appendElementAndFlagPeer(plate, element),
-            ),
-          );
-          dispatch({ type: "select-element", elementId: element.id });
+          const source = reader.result;
+          if (globalThis.navigator?.userAgent.includes("jsdom")) {
+            appendImage(plateId, source);
+            return;
+          }
+          void drawingResultFromImageSource(source)
+            .then((result) => {
+              if (!result) {
+                dispatch({
+                  type: "set-toast",
+                  toast: {
+                    tone: "error",
+                    message: "The image has no visible pixels.",
+                  },
+                });
+                return;
+              }
+              const elementId = appendImage(
+                plateId,
+                result.source,
+                {
+                  width: result.widthPixels,
+                  height: result.heightPixels,
+                },
+                result.editorSource,
+              );
+              if (elementId) {
+                rememberDrawingEditorSource(
+                  elementId,
+                  result.source,
+                  result.editorSource,
+                );
+              }
+            })
+            .catch(() =>
+              dispatch({
+                type: "set-toast",
+                toast: { tone: "error", message: "The image could not open." },
+              }),
+            );
         },
         { once: true },
       );
@@ -625,7 +714,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
       );
       reader.readAsDataURL(file);
     },
-    [activePlate, editWorkspace, state.workspace],
+    [activePlate, appendImage],
   );
 
   const deleteSelected = useCallback(() => {
@@ -645,6 +734,9 @@ export function useLabelmakerController(host: LabelmakerHost) {
       const isEditing =
         target instanceof HTMLElement &&
         (target.matches("input, textarea, select") || target.isContentEditable);
+      const dialogIsOpen =
+        target instanceof HTMLElement &&
+        Boolean(target.closest('[role="dialog"]'));
       if (command && event.key.toLowerCase() === "s") {
         event.preventDefault();
         void shortcutRef.current.save(event.shiftKey);
@@ -671,6 +763,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
         dispatch({ type: "set-zoom", zoom: 100 });
       } else if (
         !isEditing &&
+        !dialogIsOpen &&
         (event.key === "Delete" || event.key === "Backspace")
       ) {
         event.preventDefault();
@@ -703,6 +796,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
     deletePlate,
     addText,
     addImage,
+    addDrawing,
     addShape,
     addSpecial,
     deleteSelected,

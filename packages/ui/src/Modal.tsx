@@ -26,6 +26,9 @@ export function Modal({
     const dialog = dialogRef.current;
     if (!dialog) return;
     const previousFocus = globalThis.document.activeElement;
+    const previousFocusWasVisible =
+      previousFocus instanceof HTMLElement &&
+      previousFocus.matches(":focus-visible");
     const background = globalThis.document.querySelector<HTMLElement>(
       ".application-content",
     );
@@ -70,7 +73,44 @@ export function Modal({
       globalThis.document.removeEventListener("keydown", handleKeyDown);
       background?.removeAttribute("inert");
       background?.removeAttribute("aria-hidden");
-      if (previousFocus instanceof HTMLElement) previousFocus.focus();
+      if (previousFocus instanceof HTMLElement) {
+        if (!previousFocusWasVisible) {
+          previousFocus.dataset.focusRingSuppressed = "true";
+        }
+        previousFocus.focus();
+        if (!previousFocusWasVisible) {
+          const clearSuppression = () => {
+            delete previousFocus.dataset.focusRingSuppressed;
+            previousFocus.removeEventListener("blur", clearSuppression);
+            globalThis.document.removeEventListener(
+              "keydown",
+              clearSuppression,
+              true,
+            );
+            globalThis.document.removeEventListener(
+              "pointerdown",
+              clearSuppression,
+              true,
+            );
+          };
+          previousFocus.addEventListener("blur", clearSuppression, {
+            once: true,
+          });
+          globalThis.queueMicrotask(() => {
+            if (previousFocus.dataset.focusRingSuppressed !== "true") return;
+            globalThis.document.addEventListener(
+              "keydown",
+              clearSuppression,
+              true,
+            );
+            globalThis.document.addEventListener(
+              "pointerdown",
+              clearSuppression,
+              true,
+            );
+          });
+        }
+      }
     };
   }, [onClose]);
 

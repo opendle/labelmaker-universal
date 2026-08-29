@@ -23,6 +23,7 @@ import { useState } from "react";
 import { IconButton } from "./controls.js";
 import {
   plateEditorWidthMm,
+  updatePlateEditorHeight,
   updatePlateEditorWidth,
 } from "./editor-operations.js";
 import { TYPEFACES } from "./typefaces.js";
@@ -163,6 +164,7 @@ function FrameControls<T extends FramedElement>({
           label={`${elementName} width`}
           min={minSize}
           shortLabel="WIDTH"
+          step={0.1}
           value={element.widthMm}
           onChange={(widthMm) =>
             onChange({ ...element, widthMm: Math.max(minSize, widthMm) })
@@ -172,6 +174,7 @@ function FrameControls<T extends FramedElement>({
           label={`${elementName} height`}
           min={minSize}
           shortLabel="HEIGHT"
+          step={0.1}
           value={element.heightMm}
           onChange={(heightMm) =>
             onChange({ ...element, heightMm: Math.max(minSize, heightMm) })
@@ -182,12 +185,14 @@ function FrameControls<T extends FramedElement>({
         <NumberField
           label={`${positionName ? `${positionName} ` : ""}X position`}
           shortLabel="X"
+          step={0.1}
           value={element.xMm}
           onChange={(xMm) => onChange({ ...element, xMm })}
         />
         <NumberField
           label={`${positionName ? `${positionName} ` : ""}Y position`}
           shortLabel="Y"
+          step={0.1}
           value={element.yMm}
           onChange={(yMm) => onChange({ ...element, yMm })}
         />
@@ -387,23 +392,39 @@ function ImageInspector({
       <div className="image-inspector-preview">
         <MonochromeImage element={element} label="Selected image" />
       </div>
-      <label className="field full">
-        <span>FIT</span>
-        <select
-          aria-label="Image fit"
-          onChange={(event) =>
-            onChange({
-              ...element,
-              fit: event.target.value as ImageElement["fit"],
-            })
-          }
-          value={element.fit}
-        >
-          <option value="contain">Contain</option>
-          <option value="cover">Cover</option>
-          <option value="stretch">Stretch</option>
-        </select>
-      </label>
+      <div className="image-fit-row">
+        <label className="field full">
+          <span>FIT</span>
+          <select
+            aria-label="Image fit"
+            onChange={(event) =>
+              onChange({
+                ...element,
+                fit: event.target.value as ImageElement["fit"],
+              })
+            }
+            value={element.fit}
+          >
+            <option value="contain">Contain</option>
+            <option value="cover">Cover</option>
+            <option value="stretch">Stretch</option>
+          </select>
+        </label>
+        <label className="image-background-toggle">
+          <input
+            aria-label="Transparent image background"
+            checked={element.transparentBackground !== false}
+            onChange={(event) =>
+              onChange({
+                ...element,
+                transparentBackground: event.target.checked,
+              })
+            }
+            type="checkbox"
+          />
+          <span>TRANSPARENT</span>
+        </label>
+      </div>
       <label className="field threshold-field">
         <span>
           BLACK LEVEL <b>{element.threshold}</b>
@@ -467,6 +488,7 @@ function ShapeInspector({
         label="Shape stroke width"
         min={0.1}
         shortLabel="STROKE"
+        step={0.1}
         value={element.strokeWidthMm}
         onChange={(strokeWidthMm) =>
           onChange({ ...element, strokeWidthMm: Math.max(0.1, strokeWidthMm) })
@@ -540,15 +562,6 @@ export function PlateToolbarSettings({
             value={plateEditorWidthMm(plate)}
           />
           <b>mm</b>
-          <button
-            aria-label="Trim plate to content"
-            className="inline-trim-button"
-            onClick={onTrim}
-            title="Adjust width to printed content and margins"
-            type="button"
-          >
-            <Crop size={14} />
-          </button>
         </div>
       </label>
       {[
@@ -568,10 +581,7 @@ export function PlateToolbarSettings({
                   Number(event.target.value),
                 );
                 if (label === "Plate height") {
-                  onChange({
-                    ...plate,
-                    size: { ...plate.size, heightMm: next },
-                  });
+                  onChange(updatePlateEditorHeight(plate, next));
                 } else {
                   onChange({
                     ...plate,
@@ -594,6 +604,16 @@ export function PlateToolbarSettings({
           </div>
         </label>
       ))}
+      <span aria-hidden="true" className="toolbar-separator" />
+      <button
+        aria-label="Trim plate to content"
+        className="tool-button toolbar-trim-button"
+        onClick={onTrim}
+        title="Adjust the width to the printed content and margins"
+        type="button"
+      >
+        <Crop size={15} /> Trim
+      </button>
     </div>
   );
 }

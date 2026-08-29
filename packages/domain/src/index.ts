@@ -40,11 +40,27 @@ export interface TextElement extends LabelElementBase {
   readonly verticalAlign?: "top" | "middle" | "bottom";
 }
 
+export interface ImageEditorSource {
+  readonly source: string;
+  readonly widthPixels: number;
+  readonly heightPixels: number;
+  readonly bounds: {
+    readonly left: number;
+    readonly top: number;
+    readonly right: number;
+    readonly bottom: number;
+  };
+}
+
 export interface ImageElement extends LabelElementBase {
   readonly kind: "image";
   readonly source: string;
   readonly fit: "contain" | "cover" | "stretch";
   readonly threshold: number;
+  /** Exact white pixels reveal the label and earlier elements by default. */
+  readonly transparentBackground?: boolean;
+  /** Full pre-crop pixels and the visible bounds used by the drawing editor. */
+  readonly editorSource?: ImageEditorSource;
 }
 
 export interface ShapeElement extends LabelElementBase {

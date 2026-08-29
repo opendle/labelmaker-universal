@@ -17,6 +17,18 @@
   --accent-dark: #c94723;
   --soft-accent: #fff0e9;
   --green: #2d9a68;
+  --field-control-height: 30px;
+  --field-control-font-size: 11px;
+  --field-control-background: white;
+  --field-control-border: #d5d1c8;
+  --field-control-color: #37342e;
+  --field-control-padding-inline: 8px;
+  --field-control-radius: 5px;
+  --field-label-color: #88847b;
+  --field-label-font-size: 8.5px;
+  --field-label-font-weight: 700;
+  --field-label-gap: 2px;
+  --field-label-letter-spacing: 0.09em;
 }
 
 * {
@@ -48,6 +60,9 @@ select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid #4f8acb;
   outline-offset: 1px;
+}
+button[data-focus-ring-suppressed="true"]:focus-visible {
+  outline: 0;
 }
 
 .app-shell {
@@ -374,7 +389,7 @@ textarea:focus-visible {
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 44px minmax(0, 1fr);
+  grid-template-rows: 48px minmax(0, 1fr);
   min-height: 0;
   background: #e6e5df;
 }
@@ -402,7 +417,7 @@ textarea:focus-visible {
   justify-content: space-between;
   color: #8a867c;
   font-size: 9.5px;
-  font-weight: 700;
+  font-weight: var(--field-label-font-weight);
   letter-spacing: 0.1em;
   padding: 0 5px;
 }
@@ -506,9 +521,6 @@ textarea:focus-visible {
 .status-error {
   background: #e1553c;
 }
-.selected-check {
-  color: var(--accent);
-}
 .add-printer {
   width: 100%;
   height: 34px;
@@ -584,13 +596,17 @@ textarea:focus-visible {
   align-items: center;
   flex: 0 0 auto;
 }
+.editor-tools > .tool-button,
+.editor-tools > .shape-control > .tool-button {
+  height: 40px;
+}
 .shape-control {
   position: relative;
 }
 .shape-menu {
   position: absolute;
   z-index: 12;
-  top: 33px;
+  top: calc(100% + 2px);
   left: 0;
   width: 132px;
   padding: 5px;
@@ -725,8 +741,49 @@ textarea:focus-visible {
   border-bottom: 1px solid #a8a49a;
   color: #77736a;
   font-family: "DM Mono", monospace;
-  font-size: 7px;
+  font-size: var(--interval-ruler-font-size, 8.5px);
   pointer-events: none;
+}
+.dimension-ruler {
+  position: absolute;
+  color: #68645c;
+  font-family: "DM Mono", monospace;
+  font-size: var(--dimension-ruler-font-size, 10px);
+  pointer-events: none;
+}
+.dimension-ruler::before,
+.dimension-ruler::after {
+  content: "";
+  position: absolute;
+  background: #817e75;
+}
+.dimension-ruler-width {
+  left: 0;
+  top: -45px;
+  width: 100%;
+  height: 13px;
+  border-top: 1px solid #817e75;
+}
+.dimension-ruler-width::before,
+.dimension-ruler-width::after {
+  top: -3px;
+  width: 1px;
+  height: 7px;
+}
+.dimension-ruler-width::before {
+  left: 0;
+}
+.dimension-ruler-width::after {
+  right: 0;
+}
+.dimension-ruler-width span {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  padding: 0 5px;
+  background: #e6e5df;
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
 }
 .ruler-top span {
   position: absolute;
@@ -759,7 +816,7 @@ textarea:focus-visible {
   border-right: 1px solid #a8a49a;
   color: #77736a;
   font-family: "DM Mono", monospace;
-  font-size: 7px;
+  font-size: var(--interval-ruler-font-size, 8.5px);
   pointer-events: none;
 }
 .ruler-left span {
@@ -784,6 +841,48 @@ textarea:focus-visible {
   height: 3px;
   transform: translateY(-1px);
   background: #817e75;
+}
+.dimension-ruler-height,
+.dimension-ruler-printable-height {
+  top: 0;
+  height: 100%;
+  width: 13px;
+  border-left: 1px solid #817e75;
+}
+.dimension-ruler-height {
+  left: -91px;
+}
+.dimension-ruler-height-merged {
+  left: -70px;
+}
+.dimension-ruler-printable-height {
+  left: -70px;
+}
+.dimension-ruler-height::before,
+.dimension-ruler-height::after,
+.dimension-ruler-printable-height::before,
+.dimension-ruler-printable-height::after {
+  left: -3px;
+  width: 7px;
+  height: 1px;
+}
+.dimension-ruler-height::before,
+.dimension-ruler-printable-height::before {
+  top: 0;
+}
+.dimension-ruler-height::after,
+.dimension-ruler-printable-height::after {
+  bottom: 0;
+}
+.dimension-ruler-height span,
+.dimension-ruler-printable-height span {
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  padding: 5px 0;
+  background: #e6e5df;
+  white-space: nowrap;
+  transform: translate(-50%, -50%) rotate(-90deg);
 }
 .label-canvas {
   position: relative;
@@ -1003,14 +1102,6 @@ textarea.inline-text-editor:focus-visible {
       12 12,
     crosshair;
 }
-.canvas-meta {
-  position: absolute;
-  bottom: 16px;
-  left: 17px;
-  color: #77746c;
-  font-family: "DM Mono", monospace;
-  font-size: 9px;
-}
 .zoom-control {
   position: absolute;
   top: 12px;
@@ -1077,27 +1168,27 @@ textarea.inline-text-editor:focus-visible {
 .field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: var(--field-label-gap);
   min-width: 0;
 }
 .field > span,
 .property-label {
-  color: #88847b;
-  font-size: 8.5px;
+  color: var(--field-label-color);
+  font-size: var(--field-label-font-size);
   font-weight: 700;
-  letter-spacing: 0.09em;
+  letter-spacing: var(--field-label-letter-spacing);
 }
 .field input,
 .field select,
 .field textarea {
   width: 100%;
-  height: 30px;
-  padding: 0 8px;
-  border: 1px solid #d5d1c8;
-  border-radius: 5px;
-  background: white;
-  color: #37342e;
-  font-size: 11px;
+  height: var(--field-control-height);
+  padding: 0 var(--field-control-padding-inline);
+  border: 1px solid var(--field-control-border);
+  border-radius: var(--field-control-radius);
+  background: var(--field-control-background);
+  color: var(--field-control-color);
+  font-size: var(--field-control-font-size);
 }
 .field textarea {
   height: 55px;
@@ -1273,30 +1364,45 @@ textarea.inline-text-editor:focus-visible {
   justify-content: flex-end;
   gap: 5px;
 }
+.plate-toolbar-settings > .toolbar-separator {
+  align-self: flex-end;
+  margin: 0 3px;
+  height: 27px;
+}
+.toolbar-trim-button {
+  align-self: flex-end;
+  height: var(--field-control-height);
+  border-color: #df9b84;
+  background: var(--soft-accent);
+  color: var(--accent-dark);
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(90, 44, 27, 0.08);
+}
 .toolbar-field {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 2px;
+  gap: var(--field-label-gap);
   min-width: 0;
 }
 .toolbar-field > span {
-  color: #8a867c;
-  font-size: 7px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  color: var(--field-label-color);
+  font-size: var(--field-label-font-size);
+  font-weight: var(--field-label-font-weight);
+  letter-spacing: var(--field-label-letter-spacing);
 }
 .toolbar-field > input,
 .toolbar-unit-input {
-  height: 27px;
-  border: 1px solid #d5d1c8;
-  border-radius: 5px;
-  background: white;
+  height: var(--field-control-height);
+  border: 1px solid var(--field-control-border);
+  border-radius: var(--field-control-radius);
+  background: var(--field-control-background);
+  color: var(--field-control-color);
 }
 .toolbar-field > input {
   width: 82px;
-  padding: 0 6px;
-  font-size: 9.5px;
+  padding: 0 var(--field-control-padding-inline);
+  font-size: var(--field-control-font-size);
 }
 .plate-name-field > input {
   width: 164px;
@@ -1304,43 +1410,31 @@ textarea.inline-text-editor:focus-visible {
 .toolbar-unit-input {
   display: flex;
   align-items: center;
-  padding-left: 5px;
+  gap: 4px;
+  padding: 0 7px;
 }
 .toolbar-unit-input input {
   width: 32px;
+  flex: 1 1 auto;
   min-width: 0;
-  height: 24px;
+  height: calc(var(--field-control-height) - 3px);
   padding: 0;
   border: 0;
   background: transparent;
-  font-size: 9px;
+  color: var(--field-control-color);
+  font-size: var(--field-control-font-size);
+  text-align: right;
 }
 .toolbar-unit-input input:focus {
   outline: 0;
 }
 .toolbar-unit-input b {
-  padding-right: 4px;
+  flex: 0 0 auto;
   color: #969187;
   font-family: "DM Mono", monospace;
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 500;
-}
-.inline-trim-button {
-  width: 26px;
-  height: 25px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-left: 1px solid #d5d1c8;
-  background: transparent;
-  color: #68645c;
-  cursor: pointer;
-}
-.inline-trim-button:hover {
-  color: var(--accent);
-  background: var(--soft-accent);
+  white-space: nowrap;
 }
 .plate-size-row {
   display: grid;
@@ -1404,30 +1498,62 @@ textarea.inline-text-editor:focus-visible {
   max-width: 100%;
   max-height: 100%;
 }
+.image-fit-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: end;
+}
+.image-background-toggle {
+  height: var(--field-control-height);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--field-label-color);
+  font-size: var(--field-label-font-size);
+  font-weight: var(--field-label-font-weight);
+  letter-spacing: var(--field-label-letter-spacing);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.image-background-toggle input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: var(--accent);
+}
 .unit-input {
-  height: 30px;
+  height: var(--field-control-height);
   display: flex;
   align-items: center;
   gap: 4px;
-  border: 1px solid #d5d1c8;
-  border-radius: 5px;
-  background: white;
+  border: 1px solid var(--field-control-border);
+  border-radius: var(--field-control-radius);
+  background: var(--field-control-background);
+  color: var(--field-control-color);
   padding: 0 7px;
 }
 .unit-input input {
-  height: 27px;
+  height: calc(var(--field-control-height) - 3px);
+  flex: 1 1 auto;
   min-width: 0;
   padding: 0;
   border: 0;
+  background: transparent;
+  color: var(--field-control-color);
+  font-size: var(--field-control-font-size);
+  text-align: right;
 }
 .unit-input input:focus {
   outline: 0;
 }
 .unit-input b {
+  flex: 0 0 auto;
   color: #969187;
   font-family: "DM Mono", monospace;
   font-size: 8px;
   font-weight: 500;
+  white-space: nowrap;
 }
 .segmented {
   height: 30px;
@@ -1693,6 +1819,60 @@ textarea.inline-text-editor:focus-visible {
   color: var(--muted);
   font-size: 10.5px;
 }
+.drawing-modal .dialog {
+  width: min(760px, calc(100vw - 32px));
+}
+.drawing-header {
+  min-height: 0;
+  padding: 12px 14px;
+  align-items: center;
+}
+.drawing-header h2 {
+  margin: 0;
+}
+.drawing-tools {
+  min-height: 48px;
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.drawing-tools .tool-button.active {
+  border-color: var(--accent);
+  background: var(--soft-accent);
+  color: var(--accent-dark);
+}
+.drawing-tools .drawing-clear {
+  margin-left: auto;
+}
+.drawing-surface {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  background: var(--paper);
+}
+.drawing-canvas {
+  display: block;
+  width: 100%;
+  max-height: 430px;
+  border: 0;
+  background: var(--paper);
+  cursor: crosshair;
+  image-rendering: pixelated;
+  touch-action: none;
+}
+.drawing-canvas:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.drawing-message {
+  margin: 0;
+  padding: 7px 16px;
+  color: #9b3e35;
+  font-size: 10.5px;
+}
 .discovery-banner {
   margin: 15px 16px 10px;
   min-height: 56px;
@@ -1775,16 +1955,30 @@ textarea.inline-text-editor:focus-visible {
   width: 78%;
 }
 .printer-settings-content {
-  padding: 16px;
-}
-.printer-name-setting {
+  padding: 15px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 13px;
 }
-.printer-name-setting > span {
-  font-size: 10px;
-  font-weight: 700;
+.printer-settings-form {
+  display: flex;
+  flex-direction: column;
+}
+.printer-name-setting,
+.printer-readonly-setting,
+.printer-number-setting {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--field-label-gap);
+}
+.printer-name-setting > span,
+.printer-readonly-setting > span,
+.printer-number-setting > span:first-child {
+  color: var(--field-label-color);
+  font-size: var(--field-label-font-size);
+  font-weight: var(--field-label-font-weight);
+  letter-spacing: var(--field-label-letter-spacing);
 }
 .printer-name-control {
   display: grid;
@@ -1794,15 +1988,18 @@ textarea.inline-text-editor:focus-visible {
 }
 .printer-name-setting input {
   width: 100%;
-  height: 32px;
+  height: var(--field-control-height);
   min-width: 0;
-  padding: 0 9px;
-  border: 1px solid #d5d1c8;
-  border-radius: 6px;
-  background: white;
-  color: #37342e;
-  font-size: 11px;
+  padding: 0 var(--field-control-padding-inline);
+  border: 1px solid var(--field-control-border);
+  border-radius: var(--field-control-radius);
+  background: var(--field-control-background);
+  color: var(--field-control-color);
+  font-size: var(--field-control-font-size);
   user-select: text;
+}
+.printer-name-control .button.small {
+  height: var(--field-control-height);
 }
 .printer-name-setting input:focus-visible {
   border-color: #78a4d5;
@@ -1811,76 +2008,37 @@ textarea.inline-text-editor:focus-visible {
   opacity: 0.45;
   cursor: default;
 }
-.printer-name-setting small {
-  color: var(--muted);
-  font-size: 9.5px;
-}
 .darkness-setting strong {
-  font-size: 11px;
+  color: var(--field-label-color);
+  font-size: var(--field-label-font-size);
+  font-weight: var(--field-label-font-weight);
+  letter-spacing: var(--field-label-letter-spacing);
 }
 .darkness-setting small,
 .printer-setting-unavailable {
   color: var(--muted);
   font-size: 9.5px;
 }
-.printer-capabilities {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1px;
-  margin: 12px 0;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--line);
-}
-.printer-capabilities > div {
-  min-height: 51px;
-  padding: 9px 11px;
+.printer-readonly-setting output {
+  width: 100%;
+  height: var(--field-control-height);
+  padding: 0 var(--field-control-padding-inline);
   display: flex;
-  flex-direction: column;
-  gap: 5px;
-  background: #fbfaf7;
-}
-.printer-capabilities dt {
-  color: var(--muted);
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-}
-.printer-capabilities dd {
-  margin: 0;
-  font-size: 11px;
-  font-weight: 650;
+  align-items: center;
+  border: 1px solid var(--field-control-border);
+  border-radius: var(--field-control-radius);
+  background: #f6f4ef;
+  color: #68645c;
+  font-size: var(--field-control-font-size);
 }
 .printer-geometry-settings {
-  margin: 12px 0;
-  padding: 10px 11px 11px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-.printer-geometry-settings legend {
-  padding: 0 4px;
-  color: #77736b;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  margin: 0;
+  padding: 0;
 }
 .printer-geometry-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-.printer-number-setting {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 5px;
-}
-.printer-number-setting > span:first-child {
-  color: var(--muted);
-  font-size: 9px;
+  gap: 9px;
 }
 .printer-number-setting .unit-input {
   width: 100%;
@@ -1888,10 +2046,9 @@ textarea.inline-text-editor:focus-visible {
 .darkness-setting {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  padding: 11px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  gap: var(--field-label-gap);
+  padding: 0;
+  border: 0;
 }
 .darkness-setting > span {
   display: flex;
@@ -2183,10 +2340,13 @@ textarea.inline-text-editor:focus-visible {
 
 .platform-ipados .toolbar-field > input,
 .platform-ipados .toolbar-unit-input,
-.platform-ipados .inline-trim-button,
+.platform-ipados .toolbar-trim-button,
 .platform-ipados .field input:not([type="checkbox"]):not([type="range"]),
 .platform-ipados .field select,
 .platform-ipados .unit-input,
+.platform-ipados .printer-name-setting input,
+.platform-ipados .printer-readonly-setting output,
+.platform-ipados .printer-name-control .button.small,
 .platform-ipados .trim-button,
 .platform-ipados .layer-buttons button,
 .platform-ipados .segmented,
@@ -2396,10 +2556,6 @@ textarea.inline-text-editor:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .platform-ipados .canvas-meta {
-    display: none;
-  }
-
   .platform-ipados[data-software-keyboard="open"]
     .application-content:has(.inline-text-editor:focus)
     .titlebar,
@@ -2439,6 +2595,10 @@ textarea.inline-text-editor:focus-visible {
     --accent-dark: #d85632;
     --soft-accent: #492b23;
     --green: #55c98e;
+    --field-control-background: #303236;
+    --field-control-border: #55575c;
+    --field-control-color: #efede7;
+    --field-label-color: #b8b4ac;
   }
 
   button:focus-visible,
@@ -2643,18 +2803,21 @@ textarea.inline-text-editor:focus-visible {
   }
 
   .ruler-top,
-  .ruler-left {
+  .ruler-left,
+  .dimension-ruler {
     border-color: #6e7075;
     color: #bbb8b0;
   }
 
   .ruler-top span::before,
-  .ruler-left span::after {
+  .ruler-left span::after,
+  .dimension-ruler::before,
+  .dimension-ruler::after {
     background: #8f9196;
   }
 
-  .canvas-meta {
-    color: #b6b2aa;
+  .dimension-ruler span {
+    background: #191a1c;
   }
 
   .zoom-control {
@@ -2669,7 +2832,11 @@ textarea.inline-text-editor:focus-visible {
 
   .field > span,
   .property-label,
-  .margin-fieldset legend {
+  .margin-fieldset legend,
+  .printer-name-setting > span,
+  .printer-readonly-setting > span,
+  .printer-number-setting > span:first-child,
+  .darkness-setting strong {
     color: #b8b4ac;
   }
 
@@ -2677,6 +2844,7 @@ textarea.inline-text-editor:focus-visible {
   .field select,
   .field textarea,
   .printer-name-setting input,
+  .printer-readonly-setting output,
   .toolbar-field > input,
   .toolbar-unit-input,
   .unit-input,
@@ -2734,12 +2902,6 @@ textarea.inline-text-editor:focus-visible {
     background: var(--soft-accent);
   }
 
-  .inline-trim-button {
-    border-left-color: #55575c;
-    color: #d1cec7;
-  }
-
-  .inline-trim-button:hover,
   .trim-button:hover {
     border-color: #a9604e;
     color: #ff9a7c;
@@ -2747,7 +2909,6 @@ textarea.inline-text-editor:focus-visible {
   }
 
   .margin-fieldset,
-  .printer-geometry-settings,
   .image-inspector-preview {
     border-color: #484a4e;
   }
@@ -2758,10 +2919,6 @@ textarea.inline-text-editor:focus-visible {
 
   .inspector-note {
     background: #303236;
-    color: #c3c0b8;
-  }
-
-  .printer-geometry-settings legend {
     color: #c3c0b8;
   }
 
@@ -2835,16 +2992,10 @@ textarea.inline-text-editor:focus-visible {
     background-size: 200%;
   }
 
-  .printer-capabilities {
-    background: #44464a;
-  }
-
-  .printer-capabilities > div {
-    background: #292a2d;
-  }
-
-  .darkness-setting {
-    border-color: #46484c;
+  .toolbar-trim-button {
+    border-color: #805346;
+    background: var(--soft-accent);
+    color: #ff9a7c;
   }
 
   .darkness-setting output {

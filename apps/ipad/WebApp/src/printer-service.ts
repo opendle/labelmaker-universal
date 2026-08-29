@@ -2,6 +2,7 @@ import { MakeIdE1Adapter } from "@labelmaker/adapter-makeid";
 import { validateLabelDocument } from "@labelmaker/documents";
 import type { LabelPlate } from "@labelmaker/domain";
 import {
+  addInterLabelSpacing,
   PrinterAdapterRegistry,
   type AdapterContext,
   type PrinterAdapter,
@@ -211,7 +212,11 @@ export class IpadPrinterService {
       await session.print({
         id: `ipados-${crypto.randomUUID()}`,
         printerId: descriptor.id,
-        pages,
+        pages: addInterLabelSpacing(
+          pages,
+          settings.interLabelSpacingMm ?? 1,
+          capabilities.dpi,
+        ),
         copies: 1,
         ...(settings.darkness === undefined
           ? {}
@@ -310,6 +315,7 @@ function capabilityFields(
     marginTopMm: settings.marginTopMm ?? capabilities.printHeadMarginTopMm ?? 0,
     marginBottomMm:
       settings.marginBottomMm ?? capabilities.printHeadMarginBottomMm ?? 0,
+    interLabelSpacingMm: settings.interLabelSpacingMm ?? 1,
     ...(capabilities.darkness
       ? {
           darkness: {

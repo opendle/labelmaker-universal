@@ -1,11 +1,4 @@
-import {
-  Check,
-  ChevronDown,
-  Plus,
-  Printer,
-  Settings,
-  Trash2,
-} from "lucide-react";
+import { ChevronDown, Plus, Printer, Settings, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { IconButton } from "./controls.js";
@@ -122,7 +115,6 @@ export function AppHeaderPrinterPicker({
                     {printer.statusMessage}
                   </small>
                 </span>
-                {printer.id === activePrinterId && <Check size={16} />}
               </button>
               <IconButton
                 label={`Settings for ${printer.name}`}

@@ -6,6 +6,7 @@ import {
   FlipHorizontal2,
   Image as ImageIcon,
   Minus,
+  Pencil,
   Square,
   Type,
   ZoomIn,
@@ -25,8 +26,6 @@ import { IconButton } from "./controls.js";
 import { clamp, isFlagPlate, MAX_ZOOM, MIN_ZOOM } from "./editor-operations.js";
 import { PlateToolbarSettings } from "./Inspector.js";
 import {
-  displayMillimeters,
-  printableHeightMm,
   printableMarginPercent,
   type PrintableMargins,
 } from "./label-layout.js";
@@ -65,6 +64,7 @@ function CanvasToolbar({
   plate,
   onAddText,
   onAddImage,
+  onDraw,
   onAddShape,
   onAddSpecial,
   onUpdatePlate,
@@ -73,6 +73,7 @@ function CanvasToolbar({
   readonly plate: LabelPlate;
   readonly onAddText: () => void;
   readonly onAddImage: (file: File) => void;
+  readonly onDraw: () => void;
   readonly onAddShape: (shape: "line" | "rectangle" | "circle") => void;
   readonly onAddSpecial: (kind: "flag") => void;
   readonly onUpdatePlate: (plate: LabelPlate) => void;
@@ -132,14 +133,14 @@ function CanvasToolbar({
     <div className="editor-toolbar">
       <div className="editor-tools">
         <button className="tool-button" onClick={onAddText} type="button">
-          <Type size={17} /> Add text
+          <Type size={17} /> Text
         </button>
         <button
           className="tool-button"
           onClick={() => imageInputRef.current?.click()}
           type="button"
         >
-          <ImageIcon size={17} /> Add image
+          <ImageIcon size={17} /> Image
         </button>
         <input
           ref={imageInputRef}
@@ -153,6 +154,9 @@ function CanvasToolbar({
           }}
           type="file"
         />
+        <button className="tool-button" onClick={onDraw} type="button">
+          <Pencil size={17} /> Draw
+        </button>
         <div className="shape-control" ref={shapeControlRef}>
           <button
             aria-expanded={shapeMenuOpen}
@@ -281,15 +285,16 @@ export function EditorCanvas({
   zoom,
   onAddText,
   onAddImage,
+  onDraw,
   onAddShape,
   onAddSpecial,
   onSelectElement,
+  onEditImage,
   onChangeElement,
   onUpdatePlate,
   onTrim,
   onZoom,
   printableMargins,
-  printerDpi,
   platform,
 }: {
   readonly plate: LabelPlate;
@@ -297,15 +302,18 @@ export function EditorCanvas({
   readonly zoom: number;
   readonly onAddText: () => void;
   readonly onAddImage: (file: File) => void;
+  readonly onDraw: () => void;
   readonly onAddShape: (shape: "line" | "rectangle" | "circle") => void;
   readonly onAddSpecial: (kind: "flag") => void;
   readonly onSelectElement: (id: string | null) => void;
+  readonly onEditImage: (
+    image: Extract<LabelElement, { kind: "image" }>,
+  ) => void;
   readonly onChangeElement: (element: LabelElement) => void;
   readonly onUpdatePlate: (plate: LabelPlate) => void;
   readonly onTrim: () => void;
   readonly onZoom: (zoom: number) => void;
   readonly printableMargins: PrintableMargins;
-  readonly printerDpi: number | undefined;
   readonly platform: HostPlatform;
 }) {
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
@@ -352,6 +360,7 @@ export function EditorCanvas({
     <main className="editor-area">
       <CanvasToolbar
         onAddImage={onAddImage}
+        onDraw={onDraw}
         onAddShape={onAddShape}
         onAddSpecial={onAddSpecial}
         onAddText={onAddText}
@@ -399,7 +408,9 @@ export function EditorCanvas({
           <CanvasRulers
             canvasScale={canvasScale}
             heightMm={plate.size.heightMm}
+            printableMargins={printableMargins}
             widthMm={plate.size.widthMm}
+            zoom={zoom}
           />
           <section
             aria-label={`${plate.name} label canvas`}
@@ -435,6 +446,7 @@ export function EditorCanvas({
                 }}
                 onDoubleClick={(target) => {
                   if (target.kind === "text") setEditingElementId(target.id);
+                  if (target.kind === "image") onEditImage(target);
                 }}
                 onEndEdit={() => setEditingElementId(null)}
                 onFocus={(target) => onSelectElement(target.id)}
@@ -454,16 +466,6 @@ export function EditorCanvas({
               topMarginPercent={topMarginPercent}
             />
           </section>
-        </div>
-        <div className="canvas-meta">
-          {printerDpi === undefined
-            ? "Printer dpi not reported"
-            : `${printerDpi} dpi`}{" "}
-          · Printable area {displayMillimeters(plate.size.widthMm)} ×{" "}
-          {displayMillimeters(
-            printableHeightMm(plate.size.heightMm, printableMargins),
-          )}{" "}
-          mm
         </div>
         <CanvasZoomControl onZoom={onZoom} zoom={zoom} />
       </div>

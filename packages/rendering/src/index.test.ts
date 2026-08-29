@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import type { LabelPlate } from "@labelmaker/domain";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   MAX_RASTER_BYTES,
@@ -6,6 +7,7 @@ import {
   createPlateRasterPlan,
   millimetersToPixels,
   packMonochromeRows,
+  renderPlateForPrinter,
   renderPlateRgba,
   renderRgbaToRasterPage,
   rgbaToMonochrome,
@@ -238,5 +240,101 @@ describe("RGBA conversion", () => {
         data: new Uint8Array(7 * 8 * 4),
       }),
     ).toThrow(/must match the plate plan/);
+  });
+});
+
+describe("image backgrounds in print output", () => {
+  const plate = (transparentBackground: boolean): LabelPlate => ({
+    id: "plate",
+    name: "Plate",
+    size: { widthMm: 2, heightMm: 1 },
+    margins: { leftMm: 0, rightMm: 0 },
+    elements: [
+      {
+        id: "image",
+        kind: "image",
+        xMm: 0,
+        yMm: 0,
+        widthMm: 2,
+        heightMm: 1,
+        rotationDeg: 0,
+        source: "data:image/png;base64,image",
+        fit: "stretch",
+        threshold: 128,
+        transparentBackground,
+      },
+    ],
+  });
+
+  it("keeps white image pixels transparent in the prepared print image", async () => {
+    const rasterize = vi
+      .fn()
+      .mockResolvedValueOnce({
+        widthPixels: 2,
+        heightPixels: 1,
+        data: Uint8Array.from([
+          ...rgbaPixel(0, 0, 0),
+          ...rgbaPixel(255, 255, 255),
+        ]),
+      })
+      .mockImplementationOnce((svg: string) => {
+        const encoded = /data:image\/bmp;base64,([^&"]+)/.exec(svg)?.[1];
+        expect(encoded).toBeDefined();
+        const bytes = Buffer.from(encoded!, "base64");
+        const pixelOffset = bytes.readUInt32LE(10);
+        expect(bytes.readUInt16LE(28)).toBe(32);
+        expect([...bytes.subarray(pixelOffset, pixelOffset + 8)]).toEqual([
+          0, 0, 0, 255, 255, 255, 255, 0,
+        ]);
+        return {
+          widthPixels: 2,
+          heightPixels: 1,
+          data: Uint8Array.from([
+            ...rgbaPixel(255, 255, 255),
+            ...rgbaPixel(255, 255, 255),
+          ]),
+        };
+      });
+
+    await renderPlateForPrinter(
+      plate(true),
+      { dpi: 25.4, rasterWidthPixels: 1, printableWidthMm: 1 },
+      rasterize,
+    );
+
+    expect(rasterize).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps white image pixels opaque when transparency is disabled", async () => {
+    const rasterize = vi
+      .fn()
+      .mockResolvedValueOnce({
+        widthPixels: 2,
+        heightPixels: 1,
+        data: Uint8Array.from([
+          ...rgbaPixel(0, 0, 0),
+          ...rgbaPixel(255, 255, 255),
+        ]),
+      })
+      .mockImplementationOnce((svg: string) => {
+        const encoded = /data:image\/bmp;base64,([^&"]+)/.exec(svg)?.[1];
+        expect(encoded).toBeDefined();
+        const bytes = Buffer.from(encoded!, "base64");
+        expect(bytes.readUInt16LE(28)).toBe(24);
+        return {
+          widthPixels: 2,
+          heightPixels: 1,
+          data: Uint8Array.from([
+            ...rgbaPixel(255, 255, 255),
+            ...rgbaPixel(255, 255, 255),
+          ]),
+        };
+      });
+
+    await renderPlateForPrinter(
+      plate(false),
+      { dpi: 25.4, rasterWidthPixels: 1, printableWidthMm: 1 },
+      rasterize,
+    );
   });
 });

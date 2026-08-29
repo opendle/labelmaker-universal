@@ -1,6 +1,7 @@
 import {
   DEFAULT_TEXT_TYPEFACE,
   type CodeElement,
+  type ImageEditorSource,
   type ImageElement,
   type LabelDocument,
   type LabelElement,
@@ -19,6 +20,7 @@ const MAX_ELEMENTS_PER_PLATE = 10_000;
 const MAX_SHORT_TEXT_LENGTH = 1_000;
 const MAX_CONTENT_LENGTH = 20 * 1024 * 1024;
 const MAX_MEASUREMENT_MM = 10_000;
+const MAX_IMAGE_DIMENSION_PIXELS = 100_000;
 
 export type DocumentErrorCode =
   | "INVALID_YAML"
@@ -181,6 +183,14 @@ function imageElement(
   if (fit !== "contain" && fit !== "cover" && fit !== "stretch") {
     fail(`${path}.fit must be contain, cover, or stretch`);
   }
+  const transparentBackground = value.transparentBackground;
+  if (
+    transparentBackground !== undefined &&
+    typeof transparentBackground !== "boolean"
+  ) {
+    fail(`${path}.transparentBackground must be a boolean`);
+  }
+  const editorSource = value.editorSource;
   return {
     ...baseElement(value, path),
     kind: "image",
@@ -192,6 +202,64 @@ function imageElement(
     ),
     fit,
     threshold: integerValue(value.threshold, `${path}.threshold`, 0, 255),
+    transparentBackground: transparentBackground ?? true,
+    ...(editorSource === undefined
+      ? {}
+      : {
+          editorSource: imageEditorSource(editorSource, `${path}.editorSource`),
+        }),
+  };
+}
+
+function imageEditorSource(value: unknown, path: string): ImageEditorSource {
+  const item = record(value, path);
+  const widthPixels = integerValue(
+    item.widthPixels,
+    `${path}.widthPixels`,
+    1,
+    MAX_IMAGE_DIMENSION_PIXELS,
+  );
+  const heightPixels = integerValue(
+    item.heightPixels,
+    `${path}.heightPixels`,
+    1,
+    MAX_IMAGE_DIMENSION_PIXELS,
+  );
+  const bounds = record(item.bounds, `${path}.bounds`);
+  const left = integerValue(
+    bounds.left,
+    `${path}.bounds.left`,
+    0,
+    widthPixels - 1,
+  );
+  const top = integerValue(
+    bounds.top,
+    `${path}.bounds.top`,
+    0,
+    heightPixels - 1,
+  );
+  const right = integerValue(
+    bounds.right,
+    `${path}.bounds.right`,
+    left,
+    widthPixels - 1,
+  );
+  const bottom = integerValue(
+    bounds.bottom,
+    `${path}.bounds.bottom`,
+    top,
+    heightPixels - 1,
+  );
+  return {
+    source: stringValue(
+      item.source,
+      `${path}.source`,
+      MAX_CONTENT_LENGTH,
+      false,
+    ),
+    widthPixels,
+    heightPixels,
+    bounds: { left, top, right, bottom },
   };
 }
 

@@ -62,6 +62,7 @@ describe("desktop printer summaries", () => {
           printHeadSizeMm: 11.8,
           marginTopMm: 1.4,
           marginBottomMm: 2.6,
+          interLabelSpacingMm: 1.5,
         },
       },
     );
@@ -76,6 +77,7 @@ describe("desktop printer summaries", () => {
       printableWidthMm: 11.8,
       marginTopMm: 1.4,
       marginBottomMm: 2.6,
+      interLabelSpacingMm: 1.5,
       darkness: { value: 24 },
     });
     expect(printer.displayName).toBe("YichipFPGA-test");

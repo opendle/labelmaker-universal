@@ -23,7 +23,7 @@ renderer.
 ```yaml
 schemaVersion: 1
 id: workspace-id
-name: Workshop labels
+name: Labels
 defaultPlateSize:
   widthMm: 40
   heightMm: 16
@@ -85,3 +85,13 @@ Rectangle-kind elements can include an optional `shapeType` value of `line`,
 `rectangle`, or `circle`. An omitted value means `rectangle` for compatibility
 with older workspace files. Circle frames can have different width and height;
 the renderer prints them as ellipses.
+
+Image elements can include a `transparentBackground` boolean. An omitted value
+means `true`. When it is `true`, exact white image pixels reveal the label and
+elements below the image. When it is `false`, white pixels stay opaque.
+
+An image edited in the drawing editor can include `editorSource`. This object
+stores the full pre-crop PNG, its pixel dimensions, and the visible pixel
+bounds. Label rendering continues to use the cropped `source`. The drawing
+editor uses `editorSource` so reopening a saved workspace restores the complete
+drawing canvas.
