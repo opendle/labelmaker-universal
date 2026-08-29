@@ -32,7 +32,8 @@ if (process.platform === "darwin") {
   for (const [key, expected] of [
     ["CFBundleDisplayName", "Labelmaker"],
     ["CFBundleExecutable", "Labelmaker"],
-    ["CFBundleIconFile", "labelmaker.icns"],
+    ["CFBundleIconFile", "Labelmaker.icns"],
+    ["CFBundleIconName", "Labelmaker"],
     ["CFBundleIdentifier", "io.labelmaker.universal.dev"],
     [
       "NSBluetoothAlwaysUsageDescription",

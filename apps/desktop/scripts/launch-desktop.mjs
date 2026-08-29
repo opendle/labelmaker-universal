@@ -1,4 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   access,
   cp,
@@ -15,12 +16,19 @@ import electronExecutable from "electron";
 
 const APPLICATION_NAME = "Labelmaker";
 const BUNDLE_IDENTIFIER = "io.labelmaker.universal.dev";
-const BUNDLE_ICON_NAME = "labelmaker.icns";
+const BUNDLE_ICON_BASENAME = "Labelmaker";
+const BUNDLE_ICON_NAME = `${BUNDLE_ICON_BASENAME}.icns`;
+const BUNDLE_ICON_ASSET_CATALOG = "Assets.car";
 const DEVELOPMENT_ENVIRONMENT_KEY = "LABELMAKER_DEVELOPMENT";
 const BLUETOOTH_USAGE_DESCRIPTION =
   "Labelmaker uses Bluetooth to find and print labels on nearby printers.";
-const RUNTIME_LAYOUT_VERSION = 4;
+const RUNTIME_LAYOUT_VERSION = 5;
 const applicationDirectory = resolve(import.meta.dirname, "..");
+const bundleIconSource = join(
+  applicationDirectory,
+  "resources",
+  `${BUNDLE_ICON_BASENAME}.icon`,
+);
 const runtimeRoot = join(applicationDirectory, ".runtime");
 
 function run(command, args) {
@@ -72,60 +80,33 @@ function bundleExecutables(bundle) {
 
 async function installBundleIcon(bundle) {
   const resources = join(bundle, "Contents", "Resources");
-  const previewDirectory = join(resources, ".labelmaker-icon-preview");
-  const iconsetDirectory = join(resources, ".labelmaker.iconset");
-  const sourceIcon = join(
-    applicationDirectory,
-    "src",
-    "renderer",
-    "public",
-    "app-icon.svg",
-  );
-  const previewIcon = join(previewDirectory, "app-icon.svg.png");
-  await mkdir(previewDirectory, { recursive: true });
-  await mkdir(iconsetDirectory, { recursive: true });
+  const partialInfo = join(resources, ".labelmaker-icon-info.plist");
   try {
-    run("/usr/bin/qlmanage", [
-      "-t",
-      "-s",
-      "1024",
-      "-o",
-      previewDirectory,
-      sourceIcon,
-    ]);
-    const iconSizes = [
-      [16, "icon_16x16.png"],
-      [32, "icon_16x16@2x.png"],
-      [32, "icon_32x32.png"],
-      [64, "icon_32x32@2x.png"],
-      [128, "icon_128x128.png"],
-      [256, "icon_128x128@2x.png"],
-      [256, "icon_256x256.png"],
-      [512, "icon_256x256@2x.png"],
-      [512, "icon_512x512.png"],
-      [1024, "icon_512x512@2x.png"],
-    ];
-    for (const [size, fileName] of iconSizes) {
-      run("/usr/bin/sips", [
-        "-z",
-        String(size),
-        String(size),
-        previewIcon,
-        "--out",
-        join(iconsetDirectory, String(fileName)),
-      ]);
-    }
-    run("/usr/bin/iconutil", [
-      "-c",
-      "icns",
-      "-o",
-      join(resources, BUNDLE_ICON_NAME),
-      iconsetDirectory,
+    run("/usr/bin/xcrun", [
+      "actool",
+      "--compile",
+      resources,
+      "--platform",
+      "macosx",
+      "--minimum-deployment-target",
+      "13.0",
+      "--app-icon",
+      BUNDLE_ICON_BASENAME,
+      "--output-partial-info-plist",
+      partialInfo,
+      bundleIconSource,
     ]);
   } finally {
-    await rm(previewDirectory, { recursive: true, force: true });
-    await rm(iconsetDirectory, { recursive: true, force: true });
+    await rm(partialInfo, { force: true });
   }
+}
+
+async function bundleIconSourceHash() {
+  const hash = createHash("sha256");
+  for (const fileName of ["icon.json", join("Assets", "artwork.svg")]) {
+    hash.update(await readFile(join(bundleIconSource, fileName)));
+  }
+  return hash.digest("hex");
 }
 
 async function hasCurrentRuntime(runtimeMarker, runtimeBundle, expectedMarker) {
@@ -136,6 +117,7 @@ async function hasCurrentRuntime(runtimeMarker, runtimeBundle, expectedMarker) {
       [
         ...bundleExecutables(runtimeBundle),
         join(runtimeBundle, "Contents", "Resources", BUNDLE_ICON_NAME),
+        join(runtimeBundle, "Contents", "Resources", BUNDLE_ICON_ASSET_CATALOG),
       ].map((file) => access(file)),
     );
     const bluetoothUsage = spawnSync(
@@ -192,6 +174,7 @@ async function prepareMacOsRuntime() {
     bluetoothUsageDescription: BLUETOOTH_USAGE_DESCRIPTION,
     bundleIdentifier: BUNDLE_IDENTIFIER,
     electronVersion,
+    iconSourceHash: await bundleIconSourceHash(),
     layoutVersion: RUNTIME_LAYOUT_VERSION,
   };
   const runtimeDirectory = join(
@@ -232,6 +215,7 @@ async function prepareMacOsRuntime() {
     replacePlistString(plist, "CFBundleName", APPLICATION_NAME);
     replacePlistString(plist, "CFBundleIdentifier", BUNDLE_IDENTIFIER);
     replacePlistString(plist, "CFBundleIconFile", BUNDLE_ICON_NAME);
+    replacePlistString(plist, "CFBundleIconName", BUNDLE_ICON_BASENAME);
     replacePlistString(
       plist,
       "NSBluetoothAlwaysUsageDescription",

@@ -18,6 +18,8 @@ npm run dev
 On macOS, this command prepares a local development app bundle so that the
 Dock, Force Quit window, and process list use the `Labelmaker` name.
 The generated bundle stays in the ignored `apps/desktop/.runtime` folder.
+Xcode 26 or a newer version must be active because the bundle uses its app icon
+compiler.
 
 The normal application does not show mock printers. Set
 `LABELMAKER_ENABLE_MOCK_PRINTER=1` only when you need the desktop mock fixture.
