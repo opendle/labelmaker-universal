@@ -55,7 +55,8 @@ appearances so that they show the physical label and printed result accurately.
 - Do not show controls that have no action.
 - Select plate thumbnails.
 - Delete a plate from its thumbnail. Keep at least one plate in the workspace.
-- Add a plate with the large `+` control.
+- Add a plate with the large `+` control. Name each new plate `Label N`, where
+  `N` is its position when it is added.
 - Select, move, and edit a text element.
 - Edit text directly on the plate. Double-click an unselected text element, or
   single-click a selected text element, to enter text-edit mode.

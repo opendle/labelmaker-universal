@@ -87,7 +87,7 @@ try {
   await pause(page, 900);
 
   await page.getByRole("button", { name: "Add label" }).click();
-  await page.getByRole("button", { name: "Select label 4: Plate 4" }).waitFor();
+  await page.getByRole("button", { name: "Select label 4: Label 4" }).waitFor();
   await pause(page);
 
   await page.getByRole("button", { name: "Text element: NEW LABEL" }).click();

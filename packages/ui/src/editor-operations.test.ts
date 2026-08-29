@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendElementAndFlagPeer,
   createImage,
+  createPlate,
   createShape,
   deleteElementAndFlagPeer,
   editableElementCount,
@@ -59,6 +60,12 @@ const document: LabelDocument = {
     },
   ],
 };
+
+describe("createPlate", () => {
+  it("names a new label by its position", () => {
+    expect(createPlate(document).name).toBe("Label 2");
+  });
+});
 
 describe("createImage", () => {
   it("uses a transparent background for imported images and drawings", () => {

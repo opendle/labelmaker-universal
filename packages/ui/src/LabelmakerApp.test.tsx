@@ -208,8 +208,8 @@ describe("LabelmakerApp", () => {
     await user.click(screen.getByRole("button", { name: "Add label" }));
 
     expectLabelCount(4);
-    expect(screen.getByLabelText("Label name")).toHaveValue("Plate 4");
-    expect(screen.getByText("Plate 4")).toBeInTheDocument();
+    expect(screen.getByLabelText("Label name")).toHaveValue("Label 4");
+    expect(screen.getByText("Label 4")).toBeInTheDocument();
     expect(screen.getByText("Edited")).toBeInTheDocument();
   });
 
@@ -1446,7 +1446,7 @@ describe("LabelmakerApp", () => {
     fireEvent.keyDown(window, { key: "z", ctrlKey: true, shiftKey: true });
     expectLabelCount(4);
     await user.click(
-      screen.getByRole("button", { name: "Select label 4: Plate 4" }),
+      screen.getByRole("button", { name: "Select label 4: Label 4" }),
     );
 
     fireEvent.keyDown(window, { key: "+", ctrlKey: true });

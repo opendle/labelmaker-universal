@@ -440,7 +440,7 @@ export function createBlankLabelDocument(
     plates: [
       {
         id: createId(),
-        name: "Plate 1",
+        name: "Label 1",
         size: { ...size },
         margins: { leftMm: 0, rightMm: 0 },
         elements: [

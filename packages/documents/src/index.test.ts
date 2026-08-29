@@ -12,6 +12,10 @@ const ids = ["workspace-1", "plate-1", "element-1"];
 const document = createBlankLabelDocument(() => ids.shift() ?? "extra-id");
 
 describe("workspace documents", () => {
+  it("names the first label by its position", () => {
+    expect(document.plates[0]?.name).toBe("Label 1");
+  });
+
   it("serializes and parses a version 1 workspace", () => {
     const serialized = serializeLabelDocument(document);
 

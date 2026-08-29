@@ -29,7 +29,7 @@ export function createPlate(workspace: LabelDocument): LabelPlate {
   const size = workspace.defaultPlateSize;
   return {
     id: makeId("plate"),
-    name: `Plate ${number}`,
+    name: `Label ${number}`,
     size,
     margins: { leftMm: 0, rightMm: 0 },
     elements: [
