@@ -15,7 +15,7 @@ must hide printer protocol details behind adapters.
 5. Edit the plate on a direct-manipulation canvas.
 6. Add another plate with a large `+` control when needed.
 7. Save the complete workspace as one file.
-8. Preview and print one plate or all plates.
+8. Print one plate or all plates.
 
 ## Main concepts
 
@@ -33,7 +33,7 @@ must hide printer protocol details behind adapters.
 - The center contains the WYSIWYG plate canvas.
 - A plate strip gives each plate a thumbnail and a large add button.
 - A compact inspector contains plate size and selected-element settings.
-- Save, preview, and print are always easy to find.
+- Save and print are always easy to find.
 - Empty states teach one action. They do not show large explanations.
 
 ## First-release scope
@@ -50,7 +50,7 @@ must hide printer protocol details behind adapters.
 - Label width and height settings.
 - Text elements with position, size, alignment, weight, and rotation.
 - Image import and basic placement.
-- Zoomed WYSIWYG canvas and monochrome print preview.
+- Zoomed WYSIWYG canvas.
 - Capability-driven non-printable area guides.
 - Print one plate or all plates through the selected adapter.
 - Optional print-only mirroring for each plate.
@@ -65,7 +65,7 @@ must hide printer protocol details behind adapters.
 ## Quality goals
 
 - A new user can create and print a text label without documentation.
-- The on-screen preview matches the generated raster within one printer pixel.
+- The editor canvas matches the generated raster within one printer pixel.
 - A printer failure cannot corrupt the open workspace.
 - Unsupported printer capabilities are disabled or explained before printing.
 - A user can complete the first-release flow on an iPhone or iPad without a physical

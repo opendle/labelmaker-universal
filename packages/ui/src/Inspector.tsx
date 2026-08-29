@@ -19,7 +19,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { IconButton } from "./controls.js";
 import {
@@ -29,6 +29,7 @@ import {
 } from "./editor-operations.js";
 import { TYPEFACES } from "./typefaces.js";
 import { MonochromeImage } from "./MonochromeImage.js";
+import { NumberInput } from "./NumberInput.js";
 
 function NumberField({
   label,
@@ -51,22 +52,21 @@ function NumberField({
   readonly step?: number;
   readonly integer?: boolean;
 }) {
+  const inputId = useId();
   return (
-    <label className="field">
+    <label className="field" htmlFor={inputId}>
       <span>{shortLabel}</span>
       <div className="unit-input">
         {icon && <RotateCcw size={14} />}
-        <input
+        <NumberInput
           aria-label={label}
+          id={inputId}
           inputMode={integer ? "numeric" : "decimal"}
           min={min}
-          onChange={(event) => {
-            const next = Number(event.target.value);
-            if (!Number.isFinite(next)) return;
+          onValueChange={(next) => {
             onChange(integer ? Math.round(next) : next);
           }}
           step={step}
-          type="number"
           value={integer ? Math.round(value) : Math.round(value * 10) / 10}
         />
         <b>{unit}</b>
@@ -542,21 +542,23 @@ export function PlateToolbarSettings({
   readonly onEnter?: () => void;
   readonly showTrim?: boolean;
 }) {
+  const inputIdPrefix = useId();
   return (
     <div className="plate-toolbar-settings">
-      <label className="toolbar-field width-field">
+      <label
+        className="toolbar-field width-field"
+        htmlFor={`${inputIdPrefix}-width`}
+      >
         <span>WIDTH</span>
         <div className="toolbar-unit-input">
-          <input
+          <NumberInput
             aria-label="Plate width"
+            id={`${inputIdPrefix}-width`}
             inputMode="numeric"
             min={1}
-            onChange={(event) =>
+            onValueChange={(value) =>
               onChange(
-                updatePlateEditorWidth(
-                  plate,
-                  Math.max(1, Math.round(Number(event.target.value))),
-                ),
+                updatePlateEditorWidth(plate, Math.max(1, Math.round(value))),
               )
             }
             onKeyDown={(event) => {
@@ -565,7 +567,6 @@ export function PlateToolbarSettings({
               onEnter();
             }}
             step={1}
-            type="number"
             value={plateEditorWidthMm(plate)}
           />
           <b>mm</b>
@@ -576,18 +577,20 @@ export function PlateToolbarSettings({
         ["Left margin", "LEFT", plate.margins.leftMm],
         ["Right margin", "RIGHT", plate.margins.rightMm],
       ].map(([label, shortLabel, value]) => (
-        <label className="toolbar-field" key={label}>
+        <label
+          className="toolbar-field"
+          htmlFor={`${inputIdPrefix}-${String(label).replaceAll(" ", "-")}`}
+          key={label}
+        >
           <span>{shortLabel}</span>
           <div className="toolbar-unit-input">
-            <input
+            <NumberInput
               aria-label={label as string}
+              id={`${inputIdPrefix}-${String(label).replaceAll(" ", "-")}`}
               inputMode="decimal"
               min={label === "Plate height" ? 1 : 0}
-              onChange={(event) => {
-                const next = Math.max(
-                  label === "Plate height" ? 1 : 0,
-                  Number(event.target.value),
-                );
+              onValueChange={(value) => {
+                const next = Math.max(label === "Plate height" ? 1 : 0, value);
                 if (label === "Plate height") {
                   onChange(updatePlateEditorHeight(plate, next));
                 } else {
@@ -605,7 +608,6 @@ export function PlateToolbarSettings({
                 event.preventDefault();
                 onEnter();
               }}
-              type="number"
               value={Math.round((value as number) * 10) / 10}
             />
             <b>mm</b>

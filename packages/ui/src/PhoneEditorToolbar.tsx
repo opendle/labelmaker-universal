@@ -24,12 +24,15 @@ import {
 } from "lucide-react";
 import {
   useEffect,
+  useId,
   useRef,
   useState,
   type ChangeEvent,
   type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
+
+import { NumberInput } from "./NumberInput.js";
 
 type PhoneMenu = "shapes" | null;
 
@@ -351,23 +354,24 @@ function TextQuickControls({
   readonly element: TextElement;
   readonly onChange: (element: LabelElement) => void;
 }) {
+  const inputId = useId();
   return (
     <>
-      <label className="field phone-quick-number">
+      <label className="field phone-quick-number" htmlFor={inputId}>
         <span>SIZE</span>
         <div className="unit-input">
-          <input
+          <NumberInput
             aria-label="Font size"
+            id={inputId}
             inputMode="numeric"
             min={1}
-            onChange={(event) =>
+            onValueChange={(value) =>
               onChange({
                 ...element,
-                fontSizePt: Math.max(1, Math.round(Number(event.target.value))),
+                fontSizePt: Math.max(1, Math.round(value)),
               })
             }
             step={1}
-            type="number"
             value={Math.round(element.fontSizePt)}
           />
           <b>pt</b>
@@ -433,22 +437,26 @@ function ShapeQuickControls({
   readonly element: ShapeElement;
   readonly onChange: (element: LabelElement) => void;
 }) {
+  const inputId = useId();
   return (
-    <label className="field phone-quick-number phone-stroke-control">
+    <label
+      className="field phone-quick-number phone-stroke-control"
+      htmlFor={inputId}
+    >
       <span>STROKE</span>
       <div className="unit-input">
-        <input
+        <NumberInput
           aria-label="Shape stroke width"
+          id={inputId}
           inputMode="decimal"
           min={0.1}
-          onChange={(event) =>
+          onValueChange={(value) =>
             onChange({
               ...element,
-              strokeWidthMm: Math.max(0.1, Number(event.target.value)),
+              strokeWidthMm: Math.max(0.1, value),
             })
           }
           step={0.1}
-          type="number"
           value={Math.round(element.strokeWidthMm * 10) / 10}
         />
         <b>mm</b>

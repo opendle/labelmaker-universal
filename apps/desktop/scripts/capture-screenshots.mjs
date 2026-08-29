@@ -212,7 +212,6 @@ await capture(1440, 960, "labelmaker-primary-1440x960.png", async (page) => {
   const headerHeights = await page.evaluate(() => {
     const selectors = [
       ".printer-trigger",
-      ".header-output-actions > .button.secondary",
       ".print-control > .button:first-child",
       ".print-control > .button.split",
     ];

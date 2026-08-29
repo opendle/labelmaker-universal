@@ -3,7 +3,7 @@
 Labelmaker is an open-source label editor for desktop and iPad. One `.lbl`
 workspace can contain many labels. The editor can create text, image, and shape
 elements. It can also set label size and margins, trim a label to its printed
-content, make cable flags, preview output, and print through a printer adapter.
+content, make cable flags, and print through a printer adapter.
 
 The desktop app uses Electron. The iPad app uses the same React editor in a
 native Swift shell. Printer adapters keep Bluetooth and printer protocols out

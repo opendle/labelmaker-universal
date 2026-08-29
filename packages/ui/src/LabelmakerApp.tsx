@@ -1,6 +1,12 @@
 import type { LabelDocument, LabelPlate } from "@labelmaker/domain";
 import { Check, CircleAlert, Info } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FocusEvent,
+} from "react";
 
 import { AddPrinterDialog } from "./AppDialogs.js";
 import { AppHeader, type AppHeaderProps } from "./AppHeader.js";
@@ -22,7 +28,6 @@ import {
   PhoneElementPropertySheet,
   PhonePlatePropertySheet,
 } from "./PhonePropertySheets.js";
-import { PreviewDialog } from "./PreviewDialog.js";
 import { PrinterSettingsDialog } from "./PrinterSettingsDialog.js";
 import { useLabelmakerController } from "./useLabelmakerController.js";
 import { useDrawingEditor } from "./useDrawingEditor.js";
@@ -159,10 +164,6 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
     () => dispatch({ type: "close-add-printer" }),
     [dispatch],
   );
-  const closePreview = useCallback(
-    () => dispatch({ type: "close-preview" }),
-    [dispatch],
-  );
   const closePrinterSettings = useCallback(
     () => dispatch({ type: "close-printer-settings" }),
     [dispatch],
@@ -236,7 +237,6 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
     onOpen: () => void controller.openWorkspace(),
     onOpenPrinterSettings: (printerId) =>
       dispatch({ type: "open-printer-settings", printerId }),
-    onPreview: () => dispatch({ type: "open-preview" }),
     onPrint: (all) => void controller.print(all),
     onPrintMenuChange: (open) => dispatch({ type: "set-print-menu", open }),
     onRedo: () => dispatch({ type: "redo" }),
@@ -257,6 +257,17 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
       ref={shellRef}
       className={`app-shell platform-${host.platform} layout-${layout}`}
       data-software-keyboard={softwareKeyboardOpen ? "open" : undefined}
+      onFocusCapture={(event: FocusEvent<HTMLDivElement>) => {
+        if (host.platform !== "ipados") return;
+        const input = event.target;
+        if (!(input instanceof HTMLInputElement) || input.type !== "number") {
+          return;
+        }
+        input.select();
+        globalThis.requestAnimationFrame(() => {
+          if (globalThis.document.activeElement === input) input.select();
+        });
+      }}
     >
       <div className="application-content">
         {layout === "standard" ? (
@@ -366,18 +377,6 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
         onClose={closeAddPrinter}
         onSearch={() => void controller.startDiscovery()}
         open={state.addPrinterOpen}
-      />
-      <PreviewDialog
-        canPrint={controller.canPrint}
-        onClose={closePreview}
-        onPrint={() => {
-          closePreview();
-          void controller.print(false);
-        }}
-        open={state.previewOpen}
-        plate={activePlate}
-        printerDpi={controller.activePrinter?.dpi}
-        printableMargins={printableMargins}
       />
       <PrinterSettingsDialog
         key={settingsPrinter?.id ?? "closed-printer-settings"}

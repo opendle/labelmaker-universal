@@ -15,7 +15,7 @@
 - [x] WYSIWYG canvas with movable text and image elements.
 - [x] Multiple plates and large add-plate control.
 - [x] Plate size, margins, trim, flag, and cable-wrap controls.
-- [x] Save-state feedback, preview, and mock print.
+- [x] Save-state feedback and mock print.
 - [x] Automated UI tests and current screenshots.
 
 ## Milestone 2 — local documents and renderer
@@ -25,8 +25,6 @@
 - [x] Deterministic millimeter-to-pixel raster primitives.
 - [x] Image elements.
 - [x] Connect the editor renderer to print jobs.
-- [ ] Connect the editor renderer to the monochrome preview.
-- [ ] Add print-preview raster parity tests.
 
 ## Milestone 3 — MakeID E1 proof
 

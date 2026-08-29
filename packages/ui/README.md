@@ -6,5 +6,5 @@ It does not import Electron, Node file APIs, Bluetooth libraries, or concrete
 adapters.
 
 The current mock supports printer selection and discovery, multiple plates,
-editable and movable text, plate settings, save state, preview, and print
-feedback. Printer actions always go through the injected host interface.
+editable and movable text, plate settings, save state, and print feedback.
+Printer actions always go through the injected host interface.

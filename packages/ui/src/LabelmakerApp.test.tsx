@@ -541,7 +541,7 @@ describe("LabelmakerApp", () => {
     ).toBe("90px");
   });
 
-  it("uses concise editor actions, puts Preview beside Print, and offers twelve typefaces", async () => {
+  it("uses concise editor actions, omits Preview, and offers twelve typefaces", async () => {
     render(<LabelmakerApp host={createHost()} />);
     expect(screen.getByRole("button", { name: "Text" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Image" })).toBeInTheDocument();
@@ -551,11 +551,8 @@ describe("LabelmakerApp", () => {
     expect(
       screen.queryByRole("button", { name: "Add image" }),
     ).not.toBeInTheDocument();
-    const preview = screen.getByRole("button", { name: "Preview" });
-    const print = screen.getByRole("button", { name: /^Print$/ });
-    expect(
-      preview.compareDocumentPosition(print) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Preview" })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Print$/ })).toBeInTheDocument();
     const typeface = screen.getByLabelText("Typeface");
     expect(
       Array.from(
@@ -1072,13 +1069,12 @@ describe("LabelmakerApp", () => {
     );
     expect(frame.style.textAlign).toBe("right");
 
-    await user.click(screen.getByRole("button", { name: "Preview" }));
-    const previewText = screen
-      .getByRole("dialog", { name: "Print preview" })
-      .querySelector<HTMLElement>(".label-artwork-text")!;
-    expect(previewText.style.textAlign).toBe("right");
-    expect(previewText.style.alignItems).toBe("flex-start");
-    expect(Number(previewText.style.lineHeight)).toBeCloseTo(24 / 19, 5);
+    const thumbnailText = document.querySelector<HTMLElement>(
+      ".mini-label .label-artwork-text",
+    )!;
+    expect(thumbnailText.style.textAlign).toBe("right");
+    expect(thumbnailText.style.alignItems).toBe("flex-start");
+    expect(Number(thumbnailText.style.lineHeight)).toBeCloseTo(24 / 19, 5);
   });
 
   it("passes the dirty document to the new-workspace prompt", async () => {
@@ -1501,21 +1497,6 @@ describe("LabelmakerApp", () => {
     expect(artwork).toBeInTheDocument();
     expect(artwork.getAttribute("style")).toBe(artworkStyle);
 
-    await user.click(screen.getByRole("button", { name: "Preview" }));
-    expect(
-      screen
-        .getByRole("dialog", { name: "Print preview" })
-        .querySelector(".preview-label"),
-    ).toHaveStyle({ transform: "scaleX(-1)" });
-    const previewDialog = screen.getByRole("dialog", {
-      name: "Print preview",
-    });
-    expect(
-      screen.getAllByRole("button", { name: "Close preview" }),
-    ).toHaveLength(1);
-    expect(previewDialog.querySelector(".dialog-header p")).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Close preview" }));
-
     await screen.findByText("Studio Labeler");
     await user.click(screen.getByRole("button", { name: /^Print$/ }));
     await waitFor(() => expect(host.print).toHaveBeenCalledTimes(1));
@@ -1562,7 +1543,7 @@ describe("LabelmakerApp", () => {
     );
   });
 
-  it("allows a print retry for an offline printer", async () => {
+  it("allows printing to an offline printer", async () => {
     const host = createHost({
       listPrinters: vi.fn().mockResolvedValue([
         {
@@ -1582,9 +1563,7 @@ describe("LabelmakerApp", () => {
     await screen.findByText("Offline Labeler");
     expect(screen.getByRole("button", { name: /^Print$/ })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Print options" })).toBeEnabled();
-    await user.click(screen.getByRole("button", { name: "Preview" }));
-    expect(screen.getByRole("button", { name: "Print label" })).toBeEnabled();
-    await user.click(screen.getByRole("button", { name: "Print label" }));
+    await user.click(screen.getByRole("button", { name: /^Print$/ }));
     await waitFor(() => expect(host.print).toHaveBeenCalledTimes(1));
   });
 
@@ -1953,19 +1932,6 @@ describe("LabelmakerApp", () => {
       screen.queryByRole("dialog", { name: "Add a printer" }),
     ).not.toBeInTheDocument();
     expect(opener).toHaveFocus();
-
-    const preview = screen.getByRole("button", { name: "Preview" });
-    await user.click(preview);
-    expect(
-      screen
-        .getAllByRole("button", { name: "Close preview" })
-        .some((button) => button === document.activeElement),
-    ).toBe(true);
-    await user.keyboard("{Escape}");
-    expect(
-      screen.queryByRole("dialog", { name: "Print preview" }),
-    ).not.toBeInTheDocument();
-    expect(preview).toHaveFocus();
   });
 
   it("gives the print menu focus, arrow navigation, and Escape behavior", async () => {
@@ -2362,10 +2328,9 @@ describe("LabelmakerApp", () => {
     );
   });
 
-  it("keeps Preview available in Phone mode without a printer", async () => {
+  it("does not offer Preview in Phone mode without a printer", async () => {
     vi.stubGlobal("innerWidth", 375);
     vi.stubGlobal("innerHeight", 667);
-    const user = userEvent.setup();
     render(
       <LabelmakerApp
         host={createHost({ listPrinters: vi.fn().mockResolvedValue([]) })}
@@ -2373,18 +2338,8 @@ describe("LabelmakerApp", () => {
     );
 
     const options = screen.getByRole("button", { name: "Print options" });
-    expect(options).toBeEnabled();
-    await user.click(options);
-    const preview = screen.getByRole("menuitem", { name: "Preview label" });
-    expect(preview).toBeEnabled();
-    expect(preview.querySelector("svg")).not.toBeNull();
-    expect(
-      screen.getByRole("menuitem", { name: "Print current label" }),
-    ).toBeDisabled();
-    await user.click(preview);
-    expect(
-      screen.getByRole("dialog", { name: "Print preview" }),
-    ).toBeInTheDocument();
+    expect(options).toBeDisabled();
+    expect(screen.queryByText("Preview label")).toBeNull();
   });
 
   it("uses Phone sheets for printer setup and settings", async () => {
@@ -2586,6 +2541,18 @@ describe("LabelmakerApp", () => {
     expect(
       screen.getByRole("button", { name: "Rename label 1: Resistors" }),
     ).toBeInTheDocument();
+  });
+
+  it("selects a number when it receives focus on iPad", async () => {
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 852);
+    const select = vi.spyOn(HTMLInputElement.prototype, "select");
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost({ platform: "ipados" })} />);
+
+    await user.click(screen.getByLabelText("Font size"));
+
+    expect(select).toHaveBeenCalled();
   });
 
   it("keeps an element sheet current through undo and redo", async () => {

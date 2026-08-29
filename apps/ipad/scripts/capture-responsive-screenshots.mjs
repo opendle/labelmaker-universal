@@ -126,6 +126,11 @@ async function capture(viewport) {
             `${viewport.width}x${viewport.height} does not center undo and redo: ${JSON.stringify(inspection)}.`,
           );
         }
+        if (!inspection.historyIsVerticallyAligned) {
+          throw new Error(
+            `${viewport.width}x${viewport.height} changes the undo and redo vertical alignment.`,
+          );
+        }
         if (!inspection.outputIsRightAligned) {
           throw new Error(
             `${viewport.width}x${viewport.height} does not right-align printer controls.`,
@@ -146,6 +151,11 @@ async function capture(viewport) {
             `${viewport.width}x${viewport.height} lets the bottom inspector overflow.`,
           );
         }
+      }
+      if (inspection.printerActionGap < 4) {
+        throw new Error(
+          `${viewport.width}x${viewport.height} overlaps the printer settings and delete actions.`,
+        );
       }
       if (failures.length > 0) {
         throw new Error(
@@ -302,6 +312,44 @@ async function capture(viewport) {
       });
     }
     if (viewport.width === 393 && viewport.height === 852) {
+      await page
+        .getByRole("button", { name: "More element properties" })
+        .click();
+      const keyboardSheet = await page.evaluate(() => {
+        const shell = document.querySelector(".app-shell");
+        const dialog = document.querySelector(".phone-property-modal .dialog");
+        if (
+          !(shell instanceof HTMLElement) ||
+          !(dialog instanceof HTMLElement)
+        ) {
+          throw new Error("The Phone property sheet is incomplete.");
+        }
+        document.documentElement.style.setProperty(
+          "--visual-viewport-height",
+          "500px",
+        );
+        shell.dataset.softwareKeyboard = "open";
+        const bounds = dialog.getBoundingClientRect();
+        return { height: bounds.height, top: bounds.top };
+      });
+      if (
+        Math.abs(keyboardSheet.top - 8) > 0.5 ||
+        Math.abs(keyboardSheet.height - 484) > 0.5
+      ) {
+        throw new Error(
+          `The Phone keyboard sheet does not fill the available height: ${JSON.stringify(keyboardSheet)}.`,
+        );
+      }
+      await page.getByRole("button", { name: "Close properties" }).click();
+      await page.evaluate(() => {
+        const shell = document.querySelector(".app-shell");
+        if (shell instanceof HTMLElement) {
+          delete shell.dataset.softwareKeyboard;
+        }
+        document.documentElement.style.removeProperty(
+          "--visual-viewport-height",
+        );
+      });
       await page.getByRole("button", { name: "Icons" }).click();
       const iconSearch = page.getByRole("searchbox", { name: "Search icons" });
       await iconSearch.waitFor();
@@ -345,7 +393,7 @@ function screenshotName(viewport) {
 }
 
 async function inspectStandardIPad(page) {
-  return page.evaluate(() => {
+  const inspection = await page.evaluate(() => {
     const shell = document.querySelector(".app-shell");
     const header = document.querySelector(".titlebar");
     const history = document.querySelector(".title-actions .toolbar-cluster");
@@ -397,6 +445,12 @@ async function inspectStandardIPad(page) {
         Math.abs(
           historyBounds.left + historyBounds.width / 2 - client.clientWidth / 2,
         ) <= 1,
+      historyIsVerticallyAligned:
+        Math.abs(
+          historyBounds.top +
+            historyBounds.height / 2 -
+            (outputBounds.top + outputBounds.height / 2),
+        ) <= 1,
       historyLeft: historyBounds.left,
       historyWidth: historyBounds.width,
       inspectorFits:
@@ -426,6 +480,22 @@ async function inspectStandardIPad(page) {
         client.scrollHeight > client.clientHeight,
     };
   });
+  const printerTrigger = page.getByRole("button", {
+    name: "Selected printer: Workshop printer",
+  });
+  await printerTrigger.click();
+  const printerActionGap = await page.evaluate(() => {
+    const actions = Array.from(
+      document.querySelectorAll(".header-printer-row > .icon-button"),
+    );
+    if (actions.length < 2) return Number.POSITIVE_INFINITY;
+    const settings = actions[0]?.getBoundingClientRect();
+    const remove = actions[1]?.getBoundingClientRect();
+    if (!settings || !remove) return Number.NEGATIVE_INFINITY;
+    return remove.left - settings.right;
+  });
+  await printerTrigger.click();
+  return { ...inspection, printerActionGap };
 }
 
 function installCaptureHost() {

@@ -131,7 +131,7 @@ export function Modal({
       <section
         aria-labelledby={labelId}
         aria-modal="true"
-        className={`dialog ${className.includes("preview") ? "preview-dialog" : ""}`}
+        className="dialog"
         ref={dialogRef}
         role="dialog"
         tabIndex={-1}

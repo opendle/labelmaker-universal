@@ -23,7 +23,6 @@ export function PhoneHeader({
   onOpenPrinterSettings,
   onUndo,
   onRedo,
-  onPreview,
   onPrint,
   onPrintMenuChange,
   platform,
@@ -86,10 +85,6 @@ export function PhoneHeader({
             canPrint={canPrint}
             menuOpen={printMenuOpen}
             onMenuChange={onPrintMenuChange}
-            onPreview={() => {
-              onPrintMenuChange(false);
-              onPreview();
-            }}
             onPrint={(all) => {
               onPrintMenuChange(false);
               onPrint(all);

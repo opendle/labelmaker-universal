@@ -4,13 +4,13 @@
 
 The product is a focused desktop tool. It must feel calm, tactile, and compact.
 Use native desktop conventions, clear hierarchy, modest color, and strong
-preview contrast. Avoid landing-page sections, large hero text, analytics cards,
+canvas contrast. Avoid landing-page sections, large hero text, analytics cards,
 and excessive decoration.
 
 ## Window layout
 
 - **Top bar:** large New, Open, and Save actions; workspace name and save state;
-  undo, redo, preview, a printer menu with an add-printer action, and print.
+  undo, redo, a printer menu with an add-printer action, and print.
 - **Center:** one WYSIWYG label canvas with a neutral work surface.
 - **Editor toolbar:** element actions on the left and always-visible plate
   width, height, and margin controls on the right. Put a separated Trim action
@@ -35,7 +35,7 @@ The center canvas keeps priority when the window becomes narrow. Printer status
 and the plate strip remain reachable.
 
 The application chrome follows the operating system light or dark appearance.
-The label canvas, plate thumbnails, and print previews stay white in both
+The label canvas and plate thumbnails stay white in both
 appearances so that they show the physical label and printed result accurately.
 
 ## Required mock interactions
@@ -46,7 +46,7 @@ appearances so that they show the physical label and printed result accurately.
   the last selected printer on the next launch. When there is no configured
   printer, replace the menu with a direct `Add printer` action.
 - Align the Phone printer menu and Print menu to the same right edge. Show an
-  icon for each Preview and Print menu action on all platforms.
+  icon for each Print menu action on all platforms.
 - Restore the last editor session on launch. Restore the workspace, unsaved
   state, active label, selected element, zoom, last save time, and saved `.lbl`
   file association. Store recovery state outside the `.lbl` file. If recovery
@@ -70,18 +70,18 @@ appearances so that they show the physical label and printed result accurately.
 - Edit text directly on the plate. Double-click an unselected text element, or
   single-click a selected text element, to enter text-edit mode.
 - Let text remain visible outside its frame while it is edited, as it is on the
-  canvas and in the print preview. Resize the edit control to show wrapped text.
+  canvas and in printed output. Resize the edit control to show wrapped text.
 - Preserve text line breaks on the canvas and in printed output.
-- Scale text in the canvas, print preview, and plate strip from the same
+- Scale text in the canvas, printed output, and plate strip from the same
   physical point size.
 - Use the same element frame, horizontal and vertical alignment, line-height,
-  and font rules in the canvas, print preview, plate strip, and printed raster.
+  and font rules in the canvas, plate strip, and printed raster.
 - Scale the canvas and its elements in one update when the user changes zoom.
 - Allow canvas zoom from 60% through 300%. Use wheel or trackpad scroll and
   touch pinch for zoom. Do not show an on-screen zoom control.
 - Align every 5 mm background grid line to the center of its ruler tick.
 - Show capability-reported top and bottom non-printable areas on the canvas and
-  in previews. Calculate each area from the current label height and the
+  plate thumbnails. Calculate each area from the current label height and the
   printer's physical printable width. A label that fits inside the printable
   width has no non-printable label area. Do not scale a narrow label to the full
   print-head width.
@@ -137,10 +137,10 @@ appearances so that they show the physical label and printed result accurately.
   use.
 - Convert imported images to monochrome with Floyd-Steinberg dithering. Show
   Brightness and Contrast controls in the image inspector. Apply both controls
-  to image midtones before dithering. Use the result in previews, trim, and
-  print. A value of 128 is neutral for both controls. A higher Brightness value
-  makes midtones lighter. A higher Contrast value increases separation around
-  the midpoint. Pure white stays white.
+  to image midtones before dithering. A value of 128 is neutral for both
+  controls. A higher Brightness value makes midtones lighter. A higher Contrast
+  value increases separation around the midpoint. Use the result in the editor,
+  plate strip, trim, and print. Pure white stays white.
 - Put a Transparent control on the same inspector row as image Fit. Enable it
   for new images and drawings. When it is enabled, exact white pixels reveal
   the label and earlier elements. When it is disabled, white pixels stay
@@ -179,14 +179,14 @@ appearances so that they show the physical label and printed result accurately.
   dialog. Keep only the Save action in the dialog footer. Store all values for
   that printer.
 - Add a flag or cable-wrap plate from the special-label actions.
-- Put a Mirror toggle next to Flag. Mirror the printed output and the main print
-  preview. Keep the editor canvas and plate-strip artwork unchanged.
+- Put a Mirror toggle next to Flag. Mirror the printed output. Keep the editor
+  canvas and plate-strip artwork unchanged.
 - Keep the two printed sides of a flag identical. Editing either visible side
   updates the other side immediately, or expose only one editable source side.
 - In flag mode, the width field controls one half. The complete output width is
   two halves plus the 2 mm separation. Turning flag mode on and off without an
   edit must restore the original label exactly.
-- Show unsaved state, save state, preview, and a mock print result.
+- Show unsaved state, save state, and a mock print result.
 - Disable all print actions while a print job is active.
 - Show the safe printer or render error from a failed print job.
 - Do not report a paired printer as live until a status query succeeds.
@@ -227,8 +227,8 @@ not add a separate editor.
   Keep its existing field groups inside the screen without horizontal
   overflow.
 - At 850 CSS pixels or less, show only icons for the editor element actions.
-  Keep undo and redo centered in the top bar. Align the printer, preview, and
-  print controls to the right edge.
+  Keep undo and redo centered in the top bar. Align the printer and print
+  controls to the right edge.
 - Keep each main touch target at least 44 CSS pixels wide and high.
 - Keep resize and rotation marks small. Give each mark an invisible 44 CSS
   pixel touch area.
@@ -247,6 +247,9 @@ not add a separate editor.
 - Use the numeric keyboard for each number field. Do not show the unused web
   form assistant row above the iOS keyboard suggestions. A small visual
   viewport change from hardware keyboard controls must not resize the editor.
+- Select the current number when a number field receives focus on iPad. Keep an
+  empty value while the user edits a number, and restore the accepted value
+  when the field loses focus.
 - Support portrait, landscape, Split View, and Stage Manager sizes. Controls
   that do not fit in the editor toolbar can scroll in the horizontal direction.
 
@@ -278,8 +281,7 @@ Phone mode.
 - Use an icon-only header for New, Open, Save, undo, redo, printer, and print.
   Align the file actions left, the history actions in the center, and the
   printer actions right. Do not show the workspace name. Mark the Save icon
-  when the workspace needs its first save or has edits. Put Preview in the
-  Print menu.
+  when the workspace needs its first save or has edits.
 - Use a 48-pixel editor command row with icon-only Text, Image, Draw, Icons,
   and Shapes actions. Keep this row visible when an element is selected. Keep
   Label settings and Trim fixed. Scroll the other controls in the horizontal

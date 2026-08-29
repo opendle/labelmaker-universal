@@ -44,11 +44,7 @@ let browser;
 try {
   browser = await webkit.launch();
   await capture("01-label-editor.png");
-  await capture("02-print-preview.png", async (page) => {
-    await page.getByRole("button", { name: "Preview" }).click();
-    await page.getByRole("dialog", { name: "Print preview" }).waitFor();
-  });
-  await capture("03-printer-settings.png", async (page) => {
+  await capture("02-printer-settings.png", async (page) => {
     await page
       .getByRole("button", { name: "Selected printer: Workshop printer" })
       .click();
@@ -57,14 +53,14 @@ try {
       .click();
     await page.getByRole("dialog", { name: "Printer settings" }).waitFor();
   });
-  await capture("04-add-bluetooth-printer.png", async (page) => {
+  await capture("03-add-bluetooth-printer.png", async (page) => {
     await page
       .getByRole("button", { name: "Selected printer: Workshop printer" })
       .click();
     await page.getByRole("menuitem", { name: "Add a printer" }).click();
     await page.getByText("MakeID E1-Office").waitFor();
   });
-  await capture("05-flag-label.png", async (page) => {
+  await capture("04-flag-label.png", async (page) => {
     await page.getByRole("button", { name: "Flag" }).click();
     await page.getByRole("button", { name: "Flag", pressed: true }).waitFor();
   });

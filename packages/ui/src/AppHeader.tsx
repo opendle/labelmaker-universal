@@ -1,11 +1,4 @@
-import {
-  FilePlus2,
-  FolderOpen,
-  Image as ImageIcon,
-  Redo2,
-  Save,
-  Undo2,
-} from "lucide-react";
+import { FilePlus2, FolderOpen, Redo2, Save, Undo2 } from "lucide-react";
 
 import { AppHeaderPrinterPicker } from "./AppHeaderPrinterPicker.js";
 import { AppHeaderPrintControl } from "./AppHeaderPrintControl.js";
@@ -31,7 +24,6 @@ export interface AppHeaderProps {
   readonly onOpenPrinterSettings: (printerId: string) => void;
   readonly onUndo: () => void;
   readonly onRedo: () => void;
-  readonly onPreview: () => void;
   readonly onPrint: (all: boolean) => void;
   readonly onPrintMenuChange: (open: boolean) => void;
   readonly platform: HostPlatform;
@@ -56,7 +48,6 @@ export function AppHeader({
   onOpenPrinterSettings,
   onUndo,
   onRedo,
-  onPreview,
   onPrint,
   onPrintMenuChange,
   platform,
@@ -109,13 +100,6 @@ export function AppHeader({
             onSelectPrinter={onSelectPrinter}
             printers={printers}
           />
-          <button
-            className="button secondary"
-            onClick={onPreview}
-            type="button"
-          >
-            <ImageIcon size={16} /> Preview
-          </button>
           <AppHeaderPrintControl
             canPrint={canPrint}
             menuOpen={printMenuOpen}
