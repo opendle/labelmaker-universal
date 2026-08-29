@@ -42,8 +42,12 @@ function drawingReducer(
   return { ...state, message: "" };
 }
 
-const NEW_DRAWING_WIDTH = 240;
-const NEW_DRAWING_HEIGHT = 120;
+const DRAWING_RESOLUTION_SCALE = 4;
+const DRAWING_REFERENCE_WIDTH = 240;
+const NEW_DRAWING_WIDTH = DRAWING_REFERENCE_WIDTH * DRAWING_RESOLUTION_SCALE;
+const NEW_DRAWING_HEIGHT = 120 * DRAWING_RESOLUTION_SCALE;
+const PEN_WIDTH = 3;
+const ERASER_WIDTH = 10;
 
 function canvasPoint(
   canvas: HTMLCanvasElement,
@@ -152,7 +156,9 @@ export function DrawingEditorDialog({
       context.moveTo(previous.x, previous.y);
       context.lineTo(point.x, point.y);
       context.strokeStyle = state.tool === "pen" ? "black" : "white";
-      context.lineWidth = state.tool === "pen" ? 3 : 10;
+      context.lineWidth =
+        (state.tool === "pen" ? PEN_WIDTH : ERASER_WIDTH) *
+        (canvas.width / DRAWING_REFERENCE_WIDTH);
       context.lineCap = "round";
       context.lineJoin = "round";
       if (startNewStroke) {

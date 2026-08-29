@@ -16,7 +16,7 @@ afterEach(() => {
 describe("DrawingEditorDialog", () => {
   it("offers pen and eraser tools and saves exact visible bounds", async () => {
     const user = userEvent.setup();
-    let pixels = new Uint8ClampedArray(240 * 120 * 4).fill(255);
+    let pixels = new Uint8ClampedArray(960 * 480 * 4).fill(255);
     const context = {
       arc: vi.fn(),
       beginPath: vi.fn(),
@@ -26,6 +26,7 @@ describe("DrawingEditorDialog", () => {
       fill: vi.fn(),
       fillRect: vi.fn(),
       getImageData: vi.fn(() => ({ data: pixels })),
+      lineWidth: 0,
       lineTo: vi.fn(),
       moveTo: vi.fn(),
       putImageData: vi.fn(),
@@ -36,7 +37,7 @@ describe("DrawingEditorDialog", () => {
     );
     vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockImplementation(
       function (this: HTMLCanvasElement) {
-        return this.width === 240
+        return this.width === 960
           ? "data:image/png;base64,full-drawing"
           : "data:image/png;base64,cropped-drawing";
       },
@@ -55,16 +56,36 @@ describe("DrawingEditorDialog", () => {
     );
     expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
     expect(screen.queryByText(/Use the pointer/)).toBeNull();
+    const canvas = screen.getByLabelText("Drawing canvas");
+    expect(canvas).toHaveAttribute("width", "960");
+    expect(canvas).toHaveAttribute("height", "480");
+    Object.defineProperty(canvas, "setPointerCapture", { value: vi.fn() });
+    fireEvent.pointerDown(canvas, {
+      button: 0,
+      clientX: 10,
+      clientY: 10,
+      pointerId: 1,
+    });
+    expect(context.lineWidth).toBe(12);
+    fireEvent.pointerUp(canvas, { pointerId: 1 });
     await user.click(screen.getByRole("button", { name: "Eraser" }));
     expect(screen.getByRole("button", { name: "Eraser" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
+    fireEvent.pointerDown(canvas, {
+      button: 0,
+      clientX: 10,
+      clientY: 10,
+      pointerId: 2,
+    });
+    expect(context.lineWidth).toBe(40);
+    fireEvent.pointerUp(canvas, { pointerId: 2 });
     await user.click(screen.getByRole("button", { name: "Add drawing" }));
     expect(screen.getByText("Draw something before you save.")).toBeVisible();
 
-    pixels = new Uint8ClampedArray(240 * 120 * 4).fill(255);
-    const offset = (20 * 240 + 10) * 4;
+    pixels = new Uint8ClampedArray(960 * 480 * 4).fill(255);
+    const offset = (20 * 960 + 10) * 4;
     pixels[offset] = 0;
     pixels[offset + 1] = 0;
     pixels[offset + 2] = 0;
@@ -82,8 +103,8 @@ describe("DrawingEditorDialog", () => {
         bounds: { left: 10, top: 20, right: 10, bottom: 20 },
         editorSource: {
           source: "data:image/png;base64,full-drawing",
-          widthPixels: 240,
-          heightPixels: 120,
+          widthPixels: 960,
+          heightPixels: 480,
           bounds: { left: 10, top: 20, right: 10, bottom: 20 },
         },
       }),
