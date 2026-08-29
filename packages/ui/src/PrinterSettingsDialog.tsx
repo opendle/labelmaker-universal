@@ -172,14 +172,14 @@ export function PrinterSettingsDialog({
           </label>
           <div className="printer-geometry-settings">
             <div className="printer-geometry-grid printer-geometry-primary-grid">
-              <label className="printer-readonly-setting">
+              <div aria-disabled="true" className="printer-readonly-setting">
                 <span>RESOLUTION</span>
                 <output>
                   {printer.dpi === undefined
                     ? "Not reported"
                     : `${printer.dpi} dpi`}
                 </output>
-              </label>
+              </div>
               <label className="printer-number-setting">
                 <span>PRINT HEAD SIZE</span>
                 <span className="unit-input">

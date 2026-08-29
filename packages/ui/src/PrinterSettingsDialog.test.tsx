@@ -63,6 +63,9 @@ describe("PrinterSettingsDialog", () => {
     expect(firstRow).toHaveClass("printer-geometry-primary-grid");
     expect(firstRow).toContainElement(screen.getByLabelText("Print head size"));
     expect(firstRow).not.toContainElement(screen.getByLabelText("Top margin"));
+    expect(
+      screen.getByText("203 dpi").closest(".printer-readonly-setting"),
+    ).toHaveAttribute("aria-disabled", "true");
     expect(marginRow).toContainElement(screen.getByLabelText("Bottom margin"));
     expect(marginRow).toContainElement(
       screen.getByLabelText("Margin between labels"),
