@@ -91,12 +91,7 @@ export function PrinterSettingsDialog({
       setForm((current) => ({ ...current, saving: false }));
     }
   };
-  const geometryFields = [
-    {
-      key: "printHeadSizeMm" as const,
-      label: "Print head size",
-      minimum: 0.1,
-    },
+  const marginFields = [
     { key: "marginTopMm" as const, label: "Top margin", minimum: 0 },
     { key: "marginBottomMm" as const, label: "Bottom margin", minimum: 0 },
     {
@@ -160,17 +155,41 @@ export function PrinterSettingsDialog({
               </button>
             </div>
           </label>
-          <label className="printer-readonly-setting">
-            <span>RESOLUTION</span>
-            <output>
-              {printer.dpi === undefined
-                ? "Not reported"
-                : `${printer.dpi} dpi`}
-            </output>
-          </label>
           <div className="printer-geometry-settings">
-            <div className="printer-geometry-grid">
-              {geometryFields.map((field) => (
+            <div className="printer-geometry-grid printer-geometry-primary-grid">
+              <label className="printer-readonly-setting">
+                <span>RESOLUTION</span>
+                <output>
+                  {printer.dpi === undefined
+                    ? "Not reported"
+                    : `${printer.dpi} dpi`}
+                </output>
+              </label>
+              <label className="printer-number-setting">
+                <span>PRINT HEAD SIZE</span>
+                <span className="unit-input">
+                  <input
+                    aria-label="Print head size"
+                    disabled={form.saving}
+                    max={100}
+                    min={0.1}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        printHeadSizeMm: event.target.value,
+                      }))
+                    }
+                    required
+                    step={0.1}
+                    type="number"
+                    value={form.printHeadSizeMm}
+                  />
+                  <b>mm</b>
+                </span>
+              </label>
+            </div>
+            <div className="printer-geometry-grid printer-margin-grid">
+              {marginFields.map((field) => (
                 <label className="printer-number-setting" key={field.key}>
                   <span>{field.label.toUpperCase()}</span>
                   <span className="unit-input">
@@ -229,14 +248,6 @@ export function PrinterSettingsDialog({
           )}
         </div>
         <div className="dialog-footer end">
-          <button
-            className="button secondary"
-            disabled={form.saving}
-            onClick={onClose}
-            type="button"
-          >
-            Cancel
-          </button>
           <button
             className="button primary"
             disabled={!displayNameIsValid || !geometryIsValid || form.saving}

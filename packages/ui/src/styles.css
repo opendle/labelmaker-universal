@@ -735,20 +735,20 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
 .ruler-top {
   position: absolute;
   left: 0;
-  top: -24px;
+  top: calc(0px - var(--interval-ruler-top-offset, 24px));
   width: 100%;
-  height: 22px;
+  height: var(--interval-ruler-top-height, 22px);
   border-bottom: 1px solid #a8a49a;
   color: #77736a;
   font-family: "DM Mono", monospace;
-  font-size: var(--interval-ruler-font-size, 8.5px);
+  font-size: var(--interval-ruler-font-size, 8px);
   pointer-events: none;
 }
 .dimension-ruler {
   position: absolute;
   color: #68645c;
   font-family: "DM Mono", monospace;
-  font-size: var(--dimension-ruler-font-size, 10px);
+  font-size: var(--dimension-ruler-font-size, 9.5px);
   pointer-events: none;
 }
 .dimension-ruler::before,
@@ -759,7 +759,7 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
 }
 .dimension-ruler-width {
   left: 0;
-  top: -45px;
+  top: calc(0px - var(--dimension-ruler-width-offset, 45px));
   width: 100%;
   height: 13px;
   border-top: 1px solid #817e75;
@@ -809,14 +809,14 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
 }
 .ruler-left {
   position: absolute;
-  left: -48px;
+  left: calc(0px - var(--interval-ruler-left-offset, 48px));
   top: 0;
-  width: 46px;
+  width: var(--interval-ruler-left-width, 46px);
   height: 100%;
   border-right: 1px solid #a8a49a;
   color: #77736a;
   font-family: "DM Mono", monospace;
-  font-size: var(--interval-ruler-font-size, 8.5px);
+  font-size: var(--interval-ruler-font-size, 8px);
   pointer-events: none;
 }
 .ruler-left span {
@@ -850,13 +850,13 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   border-left: 1px solid #817e75;
 }
 .dimension-ruler-height {
-  left: -91px;
+  left: calc(0px - var(--dimension-ruler-outer-offset, 91px));
 }
 .dimension-ruler-height-merged {
-  left: -70px;
+  left: calc(0px - var(--dimension-ruler-inner-offset, 70px));
 }
 .dimension-ruler-printable-height {
-  left: -70px;
+  left: calc(0px - var(--dimension-ruler-inner-offset, 70px));
 }
 .dimension-ruler-height::before,
 .dimension-ruler-height::after,
@@ -1372,11 +1372,11 @@ textarea.inline-text-editor:focus-visible {
 .toolbar-trim-button {
   align-self: flex-end;
   height: var(--field-control-height);
-  border-color: #df9b84;
-  background: var(--soft-accent);
-  color: var(--accent-dark);
-  font-weight: 700;
-  box-shadow: 0 1px 2px rgba(90, 44, 27, 0.08);
+  border-color: #cbc7be;
+  background: #f7f6f2;
+  color: #4f4b43;
+  font-weight: 600;
+  box-shadow: none;
 }
 .toolbar-field {
   display: flex;
@@ -2034,11 +2034,17 @@ textarea.inline-text-editor:focus-visible {
 .printer-geometry-settings {
   margin: 0;
   padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
 }
 .printer-geometry-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 9px;
+}
+.printer-geometry-primary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .printer-number-setting .unit-input {
   width: 100%;
@@ -2993,9 +2999,9 @@ textarea.inline-text-editor:focus-visible {
   }
 
   .toolbar-trim-button {
-    border-color: #805346;
-    background: var(--soft-accent);
-    color: #ff9a7c;
+    border-color: #5a5c61;
+    background: #292a2d;
+    color: #d6d3cc;
   }
 
   .darkness-setting output {

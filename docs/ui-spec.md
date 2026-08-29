@@ -71,8 +71,9 @@ appearances so that they show the physical label and printed result accurately.
   printer's physical printable width. A label that fits inside the printable
   width has no non-printable label area. Do not scale a narrow label to the full
   print-head width.
-- Resize text and image elements from corner handles and rotate them from a
-  separate rotation handle. Elements can extend outside the plate bounds.
+- Resize text, image, and shape elements from corner handles and rotate them
+  from a separate rotation handle. Hold Shift during a resize to preserve the
+  frame's current proportions. Elements can extend outside the plate bounds.
 - Show a rotation cursor on the rotation handle.
 - Snap moved text and image frames to the absolute label limits and to the
   left, horizontal center, right, top, vertical middle, and bottom of the
@@ -140,11 +141,12 @@ appearances so that they show the physical label and printed result accurately.
   Let the user change print-head size and independent top and bottom margins in
   0.1 mm steps. Let the user set the space between labels, with 1 mm as the
   default. Let the user change other capabilities that the printer reports
-  as adjustable, such as darkness. Put print-head size and both margins on one
-  row, with only the margin between labels on the next row. Do not put a frame
-  or group title around these controls or around darkness. Enter in any printer
-  setting saves the settings and closes the dialog. Store all values for that
-  printer.
+  as adjustable, such as darkness. Put resolution and print-head size on the
+  first row. Put top margin, bottom margin, and margin between labels on the
+  next row. Do not put a frame or group title around these controls or around
+  darkness. Enter in any printer setting saves the settings and closes the
+  dialog. Keep only the Save action in the dialog footer. Store all values for
+  that printer.
 - Add a flag or cable-wrap plate from the special-label actions.
 - Put a Mirror toggle next to Flag. Mirror the printed output and the main print
   preview. Keep the editor canvas and plate-strip artwork unchanged.
@@ -171,9 +173,10 @@ appearances so that they show the physical label and printed result accurately.
   printable height and the total label height as two dimension rulers. Rotate
   the vertical dimension text 90 degrees counterclockwise. Merge the vertical
   rulers when printable height and total height are equal. Scale ruler label
-  text with the label zoom, but keep a readable minimum size. Keep the 5 mm
-  labels smaller than the total dimensions at every zoom. Do not show printer
-  resolution or printable-area metadata at the lower-left corner.
+  text and the space between rulers with the label zoom, but keep readable
+  minimum sizes and spacing. Keep the 5 mm labels smaller than the total
+  dimensions at every zoom. Do not show printer resolution or printable-area
+  metadata at the lower-left corner.
 
 On macOS, use the native window controls from Electron. Do not draw a second
 set of traffic-light controls in the application header.

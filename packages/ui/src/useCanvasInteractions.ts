@@ -14,10 +14,95 @@ import {
 } from "react";
 
 import { snapMovedElement, snapResizedFrame } from "./canvas-snapping.js";
+import type { SnapThresholds } from "./canvas-snapping.js";
 import type { PrintableMargins } from "./label-layout.js";
 
-type ResizeCorner = "nw" | "ne" | "sw" | "se";
+export type ResizeCorner = "nw" | "ne" | "sw" | "se";
 type FramedElement = TextElement | ImageElement | ShapeElement;
+
+function frameWithScale<T extends FramedElement>(
+  element: T,
+  scale: number,
+  edges: { readonly left: boolean; readonly top: boolean },
+): T {
+  const widthMm = element.widthMm * scale;
+  const heightMm = element.heightMm * scale;
+  return {
+    ...element,
+    xMm: edges.left ? element.xMm + element.widthMm - widthMm : element.xMm,
+    yMm: edges.top ? element.yMm + element.heightMm - heightMm : element.yMm,
+    widthMm,
+    heightMm,
+  };
+}
+
+export function resizeFrameFromDrag<T extends FramedElement>(
+  element: T,
+  corner: ResizeCorner,
+  dx: number,
+  dy: number,
+  plateSize: LabelPlate["size"],
+  printableMargins: PrintableMargins,
+  thresholds: SnapThresholds,
+  preserveAspectRatio: boolean,
+): T {
+  const left = corner.includes("w");
+  const top = corner.includes("n");
+  const edges = { left, top };
+  const widthMm = Math.max(0.5, element.widthMm + (left ? -dx : dx));
+  const heightMm = Math.max(0.5, element.heightMm + (top ? -dy : dy));
+
+  if (!preserveAspectRatio) {
+    return snapResizedFrame(
+      {
+        ...element,
+        xMm: left ? element.xMm + element.widthMm - widthMm : element.xMm,
+        yMm: top ? element.yMm + element.heightMm - heightMm : element.yMm,
+        widthMm,
+        heightMm,
+      },
+      plateSize,
+      printableMargins,
+      thresholds,
+      edges,
+    );
+  }
+
+  const widthScale = widthMm / element.widthMm;
+  const heightScale = heightMm / element.heightMm;
+  const minimumScale = Math.max(0.5 / element.widthMm, 0.5 / element.heightMm);
+  const dragScale =
+    Math.abs(widthScale - 1) >= Math.abs(heightScale - 1)
+      ? widthScale
+      : heightScale;
+  const intendedScale = Math.max(minimumScale, dragScale);
+  const proportionalFrame = frameWithScale(element, intendedScale, edges);
+  const snappedFrame = snapResizedFrame(
+    proportionalFrame,
+    plateSize,
+    printableMargins,
+    thresholds,
+    edges,
+  );
+  const widthWasSnapped =
+    Math.abs(snappedFrame.widthMm - proportionalFrame.widthMm) > 1e-9;
+  const heightWasSnapped =
+    Math.abs(snappedFrame.heightMm - proportionalFrame.heightMm) > 1e-9;
+
+  if (!widthWasSnapped && !heightWasSnapped) return snappedFrame;
+
+  const snappedWidthScale = snappedFrame.widthMm / element.widthMm;
+  const snappedHeightScale = snappedFrame.heightMm / element.heightMm;
+  const snappedScale =
+    widthWasSnapped &&
+    (!heightWasSnapped ||
+      Math.abs(snappedWidthScale - intendedScale) <=
+        Math.abs(snappedHeightScale - intendedScale))
+      ? snappedWidthScale
+      : snappedHeightScale;
+
+  return frameWithScale(element, Math.max(minimumScale, snappedScale), edges);
+}
 
 export function useCanvasInteractions({
   plate,
@@ -231,23 +316,16 @@ export function useCanvasInteractions({
         ((moveEvent.clientX - startX) / bounds.width) * plate.size.widthMm;
       const dy =
         ((moveEvent.clientY - startY) / bounds.height) * plate.size.heightMm;
-      const left = corner.includes("w");
-      const top = corner.includes("n");
-      const widthMm = Math.max(0.5, element.widthMm + (left ? -dx : dx));
-      const heightMm = Math.max(0.5, element.heightMm + (top ? -dy : dy));
       onChangeElement(
-        snapResizedFrame(
-          {
-            ...element,
-            xMm: left ? element.xMm + element.widthMm - widthMm : element.xMm,
-            yMm: top ? element.yMm + element.heightMm - heightMm : element.yMm,
-            widthMm,
-            heightMm,
-          },
+        resizeFrameFromDrag(
+          element,
+          corner,
+          dx,
+          dy,
           plate.size,
           printableMargins,
           thresholds,
-          { left, top },
+          moveEvent.shiftKey,
         ),
       );
     };

@@ -85,12 +85,24 @@ export function CanvasRulers({
   );
   const hasSeparatePrintableHeight =
     Math.abs(heightMm - printableHeightMm) > DIMENSION_MERGE_TOLERANCE_MM;
-  const dimensionFontSize = Math.max(10, 10 * (zoom / 100));
-  const intervalFontSize = Math.max(8.5, 8.5 * (zoom / 100));
+  const dimensionFontSize = Math.max(9.5, 9.5 * (zoom / 100));
+  const intervalFontSize = Math.max(8, 8 * (zoom / 100));
+  const rulerLayoutScale = Math.max(1, zoom / 100);
+  const layoutStyle = {
+    "--dimension-ruler-outer-offset": `${91 * rulerLayoutScale}px`,
+    "--dimension-ruler-width-offset": `${45 * rulerLayoutScale}px`,
+    "--dimension-ruler-inner-offset": `${70 * rulerLayoutScale}px`,
+    "--interval-ruler-left-offset": `${48 * rulerLayoutScale}px`,
+    "--interval-ruler-left-width": `${46 * rulerLayoutScale}px`,
+    "--interval-ruler-top-height": `${22 * rulerLayoutScale}px`,
+    "--interval-ruler-top-offset": `${24 * rulerLayoutScale}px`,
+  } as RulerStyle;
   const dimensionStyle = {
+    ...layoutStyle,
     "--dimension-ruler-font-size": `${dimensionFontSize}px`,
   } as RulerStyle;
   const intervalStyle = {
+    ...layoutStyle,
     "--interval-ruler-font-size": `${intervalFontSize}px`,
   } as RulerStyle;
   return (

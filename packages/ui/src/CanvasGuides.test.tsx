@@ -48,7 +48,7 @@ describe("CanvasRulers", () => {
     );
   });
 
-  it("scales both ruler label sizes with zoom and keeps readable minimums", () => {
+  it("scales ruler labels and spacing with zoom and keeps readable minimums", () => {
     const { container, rerender } = render(
       <CanvasRulers
         canvasScale={16}
@@ -63,12 +63,27 @@ describe("CanvasRulers", () => {
       container
         .querySelector<HTMLElement>(".dimension-ruler")
         ?.style.getPropertyValue("--dimension-ruler-font-size"),
-    ).toBe("20px");
+    ).toBe("19px");
     expect(
       container
         .querySelector<HTMLElement>(".ruler-top")
         ?.style.getPropertyValue("--interval-ruler-font-size"),
-    ).toBe("17px");
+    ).toBe("16px");
+    expect(
+      container
+        .querySelector<HTMLElement>(".ruler-top")
+        ?.style.getPropertyValue("--interval-ruler-top-offset"),
+    ).toBe("48px");
+    expect(
+      container
+        .querySelector<HTMLElement>(".dimension-ruler-width")
+        ?.style.getPropertyValue("--dimension-ruler-width-offset"),
+    ).toBe("90px");
+    expect(
+      container
+        .querySelector<HTMLElement>(".dimension-ruler-height")
+        ?.style.getPropertyValue("--dimension-ruler-outer-offset"),
+    ).toBe("182px");
 
     rerender(
       <CanvasRulers
@@ -84,11 +99,26 @@ describe("CanvasRulers", () => {
       container
         .querySelector<HTMLElement>(".dimension-ruler")
         ?.style.getPropertyValue("--dimension-ruler-font-size"),
-    ).toBe("10px");
+    ).toBe("9.5px");
     expect(
       container
         .querySelector<HTMLElement>(".ruler-top")
         ?.style.getPropertyValue("--interval-ruler-font-size"),
-    ).toBe("8.5px");
+    ).toBe("8px");
+    expect(
+      container
+        .querySelector<HTMLElement>(".ruler-top")
+        ?.style.getPropertyValue("--interval-ruler-top-offset"),
+    ).toBe("24px");
+    expect(
+      container
+        .querySelector<HTMLElement>(".ruler-left")
+        ?.style.getPropertyValue("--interval-ruler-left-offset"),
+    ).toBe("48px");
+    expect(
+      container
+        .querySelector<HTMLElement>(".dimension-ruler-printable-height")
+        ?.style.getPropertyValue("--dimension-ruler-inner-offset"),
+    ).toBe("70px");
   });
 });
