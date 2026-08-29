@@ -3,10 +3,7 @@ import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
-const projectPath = resolve(
-  repositoryRoot,
-  "apps/ipad/Labelmaker.xcodeproj",
-);
+const projectPath = resolve(repositoryRoot, "apps/ipad/Labelmaker.xcodeproj");
 const buildDirectory = resolve(tmpdir(), "labelmaker-ipad-derived-data");
 const appPath = resolve(
   buildDirectory,
@@ -22,7 +19,9 @@ if (process.argv.includes("--help")) {
 
 const ipadId = process.env.IPAD_ID?.trim();
 if (!ipadId) {
-  console.error("Set IPAD_ID to the connected iPad identifier, then try again.");
+  console.error(
+    "Set IPAD_ID to the connected iPad identifier, then try again.",
+  );
   process.exit(1);
 }
 
