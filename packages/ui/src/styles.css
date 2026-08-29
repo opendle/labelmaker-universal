@@ -1276,7 +1276,7 @@ textarea.inline-text-editor:focus-visible {
   gap: 0;
   padding: 0 7px 0 0;
 }
-.line-height-field > span {
+.field.line-height-field > span {
   left: 40px;
   max-width: calc(100% - 48px);
 }
