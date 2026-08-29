@@ -162,12 +162,19 @@ await capture(1440, 960, "labelmaker-primary-1440x960.png", async (page) => {
     );
   }
 
+  if ((await page.getByLabel("Label name").count()) !== 0) {
+    throw new Error("The label name input is still in the editor toolbar");
+  }
+  await page.getByRole("button", { name: /^Rename label 1:/ }).dblclick();
   const labelNameWidth = await page
     .getByLabel("Label name")
     .evaluate((input) => input.getBoundingClientRect().width);
-  if (labelNameWidth < 160) {
-    throw new Error(`Label name input is too narrow: ${labelNameWidth}`);
+  if (labelNameWidth < 100) {
+    throw new Error(
+      `Plate strip label name input is too narrow: ${labelNameWidth}`,
+    );
   }
+  await page.getByLabel("Label name").press("Escape");
 
   const before = await page.locator(".label-canvas").boundingBox();
   await page

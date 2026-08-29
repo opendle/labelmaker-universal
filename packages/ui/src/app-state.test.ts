@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { appReducer, initialAppState } from "./app-state.js";
+import { appReducer, initialAppState, movePlate } from "./app-state.js";
 import { sampleDocument } from "./sample.js";
 
 describe("app session recovery", () => {
@@ -31,5 +31,19 @@ describe("app session recovery", () => {
       past: [],
       future: [],
     });
+  });
+});
+
+describe("plate order", () => {
+  it("moves one plate to a bounded target position", () => {
+    const moved = movePlate(sampleDocument, "plate-resistors", 2);
+
+    expect(moved.plates.map((plate) => plate.id)).toEqual([
+      "plate-capacitors",
+      "plate-connectors",
+      "plate-resistors",
+    ]);
+    expect(movePlate(moved, "plate-resistors", 99).plates).toBe(moved.plates);
+    expect(movePlate(moved, "missing", 0)).toBe(moved);
   });
 });

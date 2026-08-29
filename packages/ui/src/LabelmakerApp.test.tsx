@@ -170,7 +170,11 @@ describe("LabelmakerApp", () => {
     render(<LabelmakerApp host={host} />);
 
     expect(await screen.findByText("Recovered workspace")).toBeInTheDocument();
-    expect(screen.getByLabelText("Label name")).toHaveValue(activePlate.name);
+    expect(
+      screen.getByRole("button", {
+        name: `Rename label 2: ${activePlate.name}`,
+      }),
+    ).toBeInTheDocument();
     expect(screen.getByText("130%")).toBeInTheDocument();
     expect(screen.getByText("Edited")).toBeInTheDocument();
     expect(
@@ -222,8 +226,32 @@ describe("LabelmakerApp", () => {
     await user.click(screen.getByRole("button", { name: "Add label" }));
 
     expectLabelCount(4);
-    expect(screen.getByLabelText("Label name")).toHaveValue("Label 4");
+    expect(
+      screen.getByRole("button", { name: "Rename label 4: Label 4" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Label 4")).toBeInTheDocument();
+    expect(screen.getByText("Edited")).toBeInTheDocument();
+  });
+
+  it("renames a label only from its name in the plate strip", async () => {
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+
+    expect(screen.queryByLabelText("Label name")).not.toBeInTheDocument();
+    await user.dblClick(
+      screen.getByRole("button", { name: "Rename label 1: Resistors" }),
+    );
+    const name = screen.getByLabelText("Label name");
+    await user.clear(name);
+    await user.type(name, "Parts{Enter}");
+
+    expect(screen.queryByLabelText("Label name")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Rename label 1: Parts" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Select label 1: Parts" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Edited")).toBeInTheDocument();
   });
 
@@ -269,7 +297,9 @@ describe("LabelmakerApp", () => {
     expect(
       screen.queryByRole("button", { name: "Select label 1: Resistors" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Label name")).toHaveValue("Capacitors");
+    expect(
+      screen.getByRole("button", { name: "Rename label 1: Capacitors" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Edited")).toBeInTheDocument();
 
     await user.click(
@@ -1350,7 +1380,11 @@ describe("LabelmakerApp", () => {
     expect(flag).toHaveClass("active");
 
     expectLabelCount(3);
-    expect(screen.getByLabelText("Label name")).toHaveValue("Flag Resistors");
+    expect(
+      screen.getByRole("button", {
+        name: "Rename label 1: Flag Resistors",
+      }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Plate width")).toHaveValue(62);
     expect(
       screen.getByRole("region", { name: "Flag Resistors label canvas" }),
@@ -1373,7 +1407,9 @@ describe("LabelmakerApp", () => {
     await user.click(screen.getByRole("button", { name: "Flag" }));
     expect(flag).toHaveAttribute("aria-pressed", "false");
     expect(flag).not.toHaveClass("active");
-    expect(screen.getByLabelText("Label name")).toHaveValue("Resistors");
+    expect(
+      screen.getByRole("button", { name: "Rename label 1: Resistors" }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Plate width")).toHaveValue(62);
     expect(
       screen.getAllByRole("button", { name: "Text element: SIGNAL" }),
@@ -1580,6 +1616,9 @@ describe("LabelmakerApp", () => {
     );
     const shell = container.querySelector<HTMLElement>(".app-shell")!;
 
+    await user.dblClick(
+      screen.getByRole("button", { name: "Rename label 1: Resistors" }),
+    );
     await user.click(screen.getByLabelText("Label name"));
     expect(shell).not.toHaveAttribute("data-software-keyboard");
     expect(

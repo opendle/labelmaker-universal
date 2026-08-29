@@ -11,7 +11,7 @@ import {
 
 import { AddPrinterDialog } from "./AppDialogs.js";
 import { AppHeader } from "./AppHeader.js";
-import { replacePlate } from "./app-state.js";
+import { movePlate, replacePlate } from "./app-state.js";
 import { EditorCanvas } from "./EditorCanvas.js";
 import {
   editableElementCount,
@@ -33,6 +33,40 @@ const IconLibraryControl = lazy(() =>
     default: Control,
   })),
 );
+
+function AppPlateStrip({
+  controller,
+}: {
+  readonly controller: ReturnType<typeof useLabelmakerController>;
+}) {
+  const { activePrinter, dispatch, state } = controller;
+  return (
+    <PlateStrip
+      activePlateId={state.activePlateId}
+      marginBottomMm={activePrinter?.marginBottomMm}
+      marginTopMm={activePrinter?.marginTopMm}
+      onAddPlate={controller.addPlate}
+      onDeletePlate={controller.deletePlate}
+      onMovePlate={(plateId, targetIndex) => {
+        const workspace = movePlate(state.workspace, plateId, targetIndex);
+        if (workspace !== state.workspace) controller.editWorkspace(workspace);
+      }}
+      onRenamePlate={(plateId, name) =>
+        controller.editWorkspace(
+          replacePlate(state.workspace, plateId, (plate) => ({
+            ...plate,
+            name,
+          })),
+        )
+      }
+      onSelectPlate={(plateId, elementId) =>
+        dispatch({ type: "select-plate", plateId, elementId })
+      }
+      printHeadSizeMm={activePrinter?.printableWidthMm}
+      workspace={state.workspace}
+    />
+  );
+}
 
 async function trimLatestWorkspace(
   plateId: string,
@@ -285,18 +319,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             selectedText={selectedText}
           />
         </div>
-        <PlateStrip
-          activePlateId={state.activePlateId}
-          onAddPlate={controller.addPlate}
-          onDeletePlate={controller.deletePlate}
-          onSelectPlate={(plateId, elementId) =>
-            dispatch({ type: "select-plate", plateId, elementId })
-          }
-          marginBottomMm={controller.activePrinter?.marginBottomMm}
-          marginTopMm={controller.activePrinter?.marginTopMm}
-          printHeadSizeMm={controller.activePrinter?.printableWidthMm}
-          workspace={state.workspace}
-        />
+        <AppPlateStrip controller={controller} />
       </div>
       <AddPrinterDialog
         discovered={state.discovered}

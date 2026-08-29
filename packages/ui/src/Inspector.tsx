@@ -530,14 +530,6 @@ export function PlateToolbarSettings({
 }) {
   return (
     <div className="plate-toolbar-settings">
-      <label className="toolbar-field plate-name-field">
-        <span>LABEL NAME</span>
-        <input
-          aria-label="Label name"
-          onChange={(event) => onChange({ ...plate, name: event.target.value })}
-          value={plate.name}
-        />
-      </label>
       <label className="toolbar-field width-field">
         <span>WIDTH</span>
         <div className="toolbar-unit-input">

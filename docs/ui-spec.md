@@ -12,7 +12,7 @@ and excessive decoration.
 - **Top bar:** large New, Open, and Save actions; workspace name and save state;
   undo, redo, preview, a printer menu with an add-printer action, and print.
 - **Center:** one WYSIWYG label canvas with a neutral work surface.
-- **Editor toolbar:** element actions on the left and always-visible plate name,
+- **Editor toolbar:** element actions on the left and always-visible plate
   width, height, and margin controls on the right. Put a separated Trim action
   at the far right. It spans the center and inspector columns.
 - Use one shared field style for the editor toolbar, selected-element inspector,
@@ -54,6 +54,10 @@ appearances so that they show the physical label and printed result accurately.
   actions. Close the dialog after success and keep it open after failure.
 - Do not show controls that have no action.
 - Select plate thumbnails.
+- Double-click a plate name in the plate strip to rename it. Keep the rename
+  action available from the keyboard.
+- Press and hold a plate in the plate strip, then move it to change the plate
+  order. Keep an equivalent keyboard action available.
 - Delete a plate from its thumbnail. Keep at least one plate in the workspace.
 - Add a plate with the large `+` control. Name each new plate `Label N`, where
   `N` is its position when it is added.

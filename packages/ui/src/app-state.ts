@@ -285,6 +285,26 @@ export function replacePlate(
   };
 }
 
+export function movePlate(
+  workspace: LabelDocument,
+  plateId: string,
+  targetIndex: number,
+): LabelDocument {
+  const sourceIndex = workspace.plates.findIndex(
+    (plate) => plate.id === plateId,
+  );
+  const boundedTargetIndex = Math.max(
+    0,
+    Math.min(Math.trunc(targetIndex), workspace.plates.length - 1),
+  );
+  if (sourceIndex < 0 || sourceIndex === boundedTargetIndex) return workspace;
+  const plates = [...workspace.plates];
+  const [plate] = plates.splice(sourceIndex, 1);
+  if (!plate) return workspace;
+  plates.splice(boundedTargetIndex, 0, plate);
+  return { ...workspace, plates };
+}
+
 export function replaceElement(
   workspace: LabelDocument,
   plateId: string,

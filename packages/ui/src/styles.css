@@ -1405,9 +1405,6 @@ textarea.inline-text-editor:focus-visible {
   padding: 0 var(--field-control-padding-inline);
   font-size: var(--field-control-font-size);
 }
-.plate-name-field > input {
-  width: 164px;
-}
 .toolbar-unit-input {
   display: flex;
   align-items: center;
@@ -1633,15 +1630,21 @@ textarea.inline-text-editor:focus-visible {
   flex: 0 0 calc(var(--label-preview-width) + 12px);
   min-width: 0;
   padding: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 17px;
   overflow: hidden;
   border: 1px solid transparent;
   border-radius: 8px;
   background: transparent;
+  touch-action: none;
+  transition:
+    opacity 120ms ease,
+    box-shadow 120ms ease;
 }
 .plate-thumb-select {
   width: 100%;
-  height: 100%;
-  padding: 4px 6px 2px;
+  min-height: 0;
+  padding: 4px 6px 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -1658,6 +1661,14 @@ textarea.inline-text-editor:focus-visible {
   border-color: var(--accent);
   background: var(--soft-accent);
   box-shadow: inset 0 0 0 1px rgba(230, 95, 56, 0.08);
+}
+.plate-thumb.dragging {
+  z-index: 4;
+  opacity: 0.58;
+  cursor: grabbing;
+}
+.plate-thumb.drop-target:not(.dragging) {
+  box-shadow: -4px 0 0 var(--accent);
 }
 .plate-number {
   position: absolute;
@@ -1755,12 +1766,38 @@ textarea.inline-text-editor:focus-visible {
   box-shadow: 0 2px 5px rgba(40, 35, 25, 0.09);
 }
 .thumb-name {
+  display: block;
+  width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: center;
   color: #625e56;
   font-size: 9.5px;
+}
+.thumb-name-control {
+  min-width: 0;
+  height: 17px;
+  margin: 0 5px 1px;
+  padding: 0 2px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  cursor: text;
+}
+.thumb-name-input {
+  min-width: 0;
+  height: 16px;
+  margin: 0 5px 1px;
+  padding: 0 3px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: var(--paper);
+  color: #3f3b35;
+  font-size: 9.5px;
+  text-align: center;
+  outline: 0;
 }
 .add-plate {
   flex: 0 0 78px;

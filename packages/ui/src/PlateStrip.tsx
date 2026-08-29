@@ -1,11 +1,127 @@
-import type { LabelDocument } from "@labelmaker/domain";
+import type { LabelDocument, LabelPlate } from "@labelmaker/domain";
 import { Plus, Trash2 } from "lucide-react";
-import { type CSSProperties, useEffect, useRef } from "react";
+import {
+  type CSSProperties,
+  type Dispatch,
+  type PointerEvent as ReactPointerEvent,
+  type SetStateAction,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import { LabelArtwork } from "./LabelArtwork.js";
 import { nonPrintableMarginsMm } from "./label-layout.js";
 
 const THUMBNAIL_PIXELS_PER_MM = 3.25;
+const LONG_PRESS_MS = 500;
+const MOVE_TOLERANCE_PX = 8;
+
+interface PressState {
+  readonly plateId: string;
+  readonly pointerId: number;
+  readonly startX: number;
+  readonly startY: number;
+  readonly startScrollLeft: number;
+  moved: boolean;
+}
+
+interface DragState {
+  readonly plateId: string;
+  readonly pointerId: number;
+  readonly sourceIndex: number;
+  targetIndex: number;
+}
+
+interface RenameState {
+  readonly plateId: string;
+  readonly value: string;
+}
+
+function PlateName({
+  index,
+  plate,
+  rename,
+  setRename,
+  ignoreSuppressedClick,
+  onRenamePlate,
+  onSelectPlate,
+}: {
+  readonly index: number;
+  readonly plate: LabelPlate;
+  readonly rename: RenameState | null;
+  readonly setRename: Dispatch<SetStateAction<RenameState | null>>;
+  readonly ignoreSuppressedClick: () => boolean;
+  readonly onRenamePlate: (plateId: string, name: string) => void;
+  readonly onSelectPlate: (plateId: string, elementId: string | null) => void;
+}) {
+  const editing = rename?.plateId === plate.id;
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!editing) return;
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, [editing]);
+
+  if (editing) {
+    return (
+      <input
+        aria-label="Label name"
+        className="thumb-name-input"
+        onBlur={(event) => {
+          if (event.currentTarget.value !== plate.name) {
+            onRenamePlate(plate.id, event.currentTarget.value);
+          }
+          setRename((current) =>
+            current?.plateId === plate.id ? null : current,
+          );
+        }}
+        onChange={(event) =>
+          setRename({ plateId: plate.id, value: event.target.value })
+        }
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            event.currentTarget.blur();
+          } else if (event.key === "Escape") {
+            event.preventDefault();
+            setRename(null);
+          }
+        }}
+        ref={inputRef}
+        value={rename.value}
+      />
+    );
+  }
+
+  return (
+    <button
+      aria-label={`Rename label ${index + 1}: ${plate.name}`}
+      className="thumb-name-control"
+      onClick={(event) => {
+        if (ignoreSuppressedClick()) {
+          event.preventDefault();
+          return;
+        }
+        onSelectPlate(plate.id, null);
+      }}
+      onDoubleClick={(event) => {
+        event.preventDefault();
+        setRename({ plateId: plate.id, value: plate.name });
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== "F2") return;
+        event.preventDefault();
+        onSelectPlate(plate.id, null);
+        setRename({ plateId: plate.id, value: plate.name });
+      }}
+      title="Double-click to rename"
+      type="button"
+    >
+      <span className="thumb-name">{plate.name}</span>
+    </button>
+  );
+}
 
 export function PlateStrip({
   workspace,
@@ -13,6 +129,8 @@ export function PlateStrip({
   onSelectPlate,
   onAddPlate,
   onDeletePlate,
+  onMovePlate,
+  onRenamePlate,
   printHeadSizeMm,
   marginTopMm,
   marginBottomMm,
@@ -22,12 +140,135 @@ export function PlateStrip({
   readonly onSelectPlate: (plateId: string, elementId: string | null) => void;
   readonly onAddPlate: () => void;
   readonly onDeletePlate: (plateId: string) => void;
+  readonly onMovePlate: (plateId: string, targetIndex: number) => void;
+  readonly onRenamePlate: (plateId: string, name: string) => void;
   readonly printHeadSizeMm: number | undefined;
   readonly marginTopMm: number | undefined;
   readonly marginBottomMm: number | undefined;
 }) {
   const keyboardDeleteEnabledRef = useRef(false);
   const stripRef = useRef<HTMLElement>(null);
+  const pressRef = useRef<PressState | null>(null);
+  const dragRef = useRef<DragState | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressNextClickRef = useRef(false);
+  const [draggingPlateId, setDraggingPlateId] = useState<string | null>(null);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const [rename, setRename] = useState<RenameState | null>(null);
+
+  const clearLongPressTimer = () => {
+    if (longPressTimerRef.current === null) return;
+    globalThis.clearTimeout(longPressTimerRef.current);
+    longPressTimerRef.current = null;
+  };
+
+  const clearDrag = () => {
+    dragRef.current = null;
+    setDraggingPlateId(null);
+    setDropTargetIndex(null);
+  };
+
+  const finishPointer = (pointerId: number, commit: boolean) => {
+    const press = pressRef.current;
+    if (!press || press.pointerId !== pointerId) return;
+    clearLongPressTimer();
+    const drag = dragRef.current;
+    if (drag?.pointerId === pointerId) {
+      if (commit && drag.targetIndex !== drag.sourceIndex) {
+        onMovePlate(drag.plateId, drag.targetIndex);
+      }
+      clearDrag();
+    }
+    if (press.moved || drag) {
+      suppressNextClickRef.current = true;
+      globalThis.setTimeout(() => {
+        suppressNextClickRef.current = false;
+      });
+    }
+    pressRef.current = null;
+  };
+
+  const handlePointerDown = (
+    event: ReactPointerEvent<HTMLDivElement>,
+    plateId: string,
+  ) => {
+    if (event.button !== 0 || event.isPrimary === false) return;
+    const target = event.target;
+    if (
+      target instanceof Element &&
+      Boolean(target.closest(".plate-delete, .thumb-name-input"))
+    ) {
+      return;
+    }
+    clearLongPressTimer();
+    suppressNextClickRef.current = false;
+    const thumbnails = stripRef.current?.querySelector(".plate-thumbnails");
+    pressRef.current = {
+      plateId,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startScrollLeft:
+        thumbnails instanceof HTMLElement ? thumbnails.scrollLeft : 0,
+      moved: false,
+    };
+    const pointerTarget = event.currentTarget;
+    longPressTimerRef.current = globalThis.setTimeout(() => {
+      const press = pressRef.current;
+      if (!press || press.pointerId !== event.pointerId || press.moved) return;
+      const sourceIndex = workspace.plates.findIndex(
+        (plate) => plate.id === plateId,
+      );
+      if (sourceIndex < 0) return;
+      dragRef.current = {
+        plateId,
+        pointerId: event.pointerId,
+        sourceIndex,
+        targetIndex: sourceIndex,
+      };
+      suppressNextClickRef.current = true;
+      pointerTarget.setPointerCapture?.(event.pointerId);
+      setDraggingPlateId(plateId);
+      setDropTargetIndex(sourceIndex);
+      onSelectPlate(plateId, null);
+    }, LONG_PRESS_MS);
+  };
+
+  const handlePointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const press = pressRef.current;
+    if (!press || press.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - press.startX;
+    const deltaY = event.clientY - press.startY;
+    const drag = dragRef.current;
+    if (!drag) {
+      if (Math.hypot(deltaX, deltaY) <= MOVE_TOLERANCE_PX) return;
+      press.moved = true;
+      clearLongPressTimer();
+      suppressNextClickRef.current = true;
+      if (
+        event.pointerType === "touch" &&
+        Math.abs(deltaX) > Math.abs(deltaY)
+      ) {
+        const thumbnails = stripRef.current?.querySelector(".plate-thumbnails");
+        if (thumbnails instanceof HTMLElement) {
+          thumbnails.scrollLeft = press.startScrollLeft - deltaX;
+        }
+      }
+      return;
+    }
+    event.preventDefault();
+    press.moved = true;
+    const thumbnails = Array.from(
+      stripRef.current?.querySelectorAll<HTMLElement>(".plate-thumb") ?? [],
+    );
+    if (thumbnails.length === 0) return;
+    const targetIndex = thumbnails.findIndex((thumbnail) => {
+      const bounds = thumbnail.getBoundingClientRect();
+      return event.clientX < bounds.left + bounds.width / 2;
+    });
+    drag.targetIndex = targetIndex < 0 ? thumbnails.length - 1 : targetIndex;
+    setDropTargetIndex(drag.targetIndex);
+  };
 
   useEffect(() => {
     const updateKeyboardDelete = (event: PointerEvent) => {
@@ -38,12 +279,16 @@ export function PlateStrip({
         Boolean(stripRef.current?.contains(target));
     };
     globalThis.document.addEventListener("pointerdown", updateKeyboardDelete);
-    return () =>
+    return () => {
       globalThis.document.removeEventListener(
         "pointerdown",
         updateKeyboardDelete,
       );
+      clearLongPressTimer();
+    };
   }, []);
+
+  const ignoreSuppressedClick = () => suppressNextClickRef.current;
 
   return (
     <footer aria-label="Labels" className="plate-strip" ref={stripRef}>
@@ -51,8 +296,13 @@ export function PlateStrip({
         {workspace.plates.map((plate, index) => {
           return (
             <div
-              className={`plate-thumb ${plate.id === activePlateId ? "selected" : ""}`}
+              aria-grabbed={draggingPlateId === plate.id}
+              className={`plate-thumb${plate.id === activePlateId ? " selected" : ""}${draggingPlateId === plate.id ? " dragging" : ""}${draggingPlateId !== null && dropTargetIndex === index ? " drop-target" : ""}`}
               key={plate.id}
+              onPointerCancel={(event) => finishPointer(event.pointerId, false)}
+              onPointerDown={(event) => handlePointerDown(event, plate.id)}
+              onPointerMove={handlePointerMove}
+              onPointerUp={(event) => finishPointer(event.pointerId, true)}
               style={
                 {
                   "--label-preview-height": `${plate.size.heightMm * THUMBNAIL_PIXELS_PER_MM}px`,
@@ -61,14 +311,33 @@ export function PlateStrip({
               }
             >
               <button
+                aria-keyshortcuts="Delete Backspace Alt+ArrowLeft Alt+ArrowRight"
                 aria-label={`Select label ${index + 1}: ${plate.name}`}
-                aria-keyshortcuts="Delete Backspace"
                 className="plate-thumb-select"
-                onClick={() => {
+                onClick={(event) => {
+                  if (ignoreSuppressedClick()) {
+                    event.preventDefault();
+                    return;
+                  }
                   keyboardDeleteEnabledRef.current = true;
                   onSelectPlate(plate.id, null);
                 }}
                 onKeyDown={(event) => {
+                  if (
+                    event.altKey &&
+                    (event.key === "ArrowLeft" || event.key === "ArrowRight")
+                  ) {
+                    event.preventDefault();
+                    const targetIndex =
+                      index + (event.key === "ArrowLeft" ? -1 : 1);
+                    if (
+                      targetIndex >= 0 &&
+                      targetIndex < workspace.plates.length
+                    ) {
+                      onMovePlate(plate.id, targetIndex);
+                    }
+                    return;
+                  }
                   if (
                     (event.key !== "Delete" && event.key !== "Backspace") ||
                     !keyboardDeleteEnabledRef.current
@@ -81,6 +350,7 @@ export function PlateStrip({
                     onDeletePlate(plate.id);
                   }
                 }}
+                title="Press and hold to reorder"
                 type="button"
               >
                 <span className="plate-number">{index + 1}</span>
@@ -94,8 +364,16 @@ export function PlateStrip({
                     marginBottomMm,
                   )}
                 />
-                <span className="thumb-name">{plate.name}</span>
               </button>
+              <PlateName
+                ignoreSuppressedClick={ignoreSuppressedClick}
+                index={index}
+                onRenamePlate={onRenamePlate}
+                onSelectPlate={onSelectPlate}
+                plate={plate}
+                rename={rename}
+                setRename={setRename}
+              />
               <button
                 aria-label={`Delete label ${plate.name}`}
                 className="plate-delete"
