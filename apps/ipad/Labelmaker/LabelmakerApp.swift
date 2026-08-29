@@ -5,7 +5,7 @@ struct LabelmakerApp: App {
     var body: some Scene {
         WindowGroup {
             LabelmakerWebView()
-                .ignoresSafeArea(.container)
+                .ignoresSafeArea([.container, .keyboard])
         }
     }
 }

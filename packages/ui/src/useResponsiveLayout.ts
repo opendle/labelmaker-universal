@@ -74,13 +74,14 @@ export function useResponsiveLayout(platform: HostPlatform): {
       );
 
       if (viewport) {
+        const layoutHeight = keyboardOpen ? visibleHeight : unobscuredHeight;
         globalThis.document.documentElement.style.setProperty(
           "--visual-viewport-height",
-          `${viewport.height}px`,
+          `${layoutHeight}px`,
         );
         globalThis.document.documentElement.style.setProperty(
           "--visual-viewport-offset-top",
-          `${viewport.offsetTop}px`,
+          `${keyboardOpen ? viewport.offsetTop : 0}px`,
         );
       }
     };

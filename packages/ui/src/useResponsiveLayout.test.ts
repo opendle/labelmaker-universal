@@ -84,12 +84,23 @@ describe("responsiveLayoutForViewport", () => {
     act(() => input.focus());
     act(() => {
       viewport.height = 390;
+      viewport.offsetTop = 18;
       viewport.dispatchEvent(new Event("resize"));
     });
     expect(result.current).toEqual({
       layout: "standard",
       softwareKeyboardOpen: true,
     });
+    expect(
+      document.documentElement.style.getPropertyValue(
+        "--visual-viewport-height",
+      ),
+    ).toBe("390px");
+    expect(
+      document.documentElement.style.getPropertyValue(
+        "--visual-viewport-offset-top",
+      ),
+    ).toBe("18px");
 
     act(() => input.blur());
     expect(result.current.layout).toBe("standard");
@@ -97,12 +108,18 @@ describe("responsiveLayoutForViewport", () => {
 
     act(() => {
       viewport.height = 1_024;
+      viewport.offsetTop = 0;
       viewport.dispatchEvent(new Event("resize"));
     });
     expect(result.current).toEqual({
       layout: "standard",
       softwareKeyboardOpen: false,
     });
+    expect(
+      document.documentElement.style.getPropertyValue(
+        "--visual-viewport-height",
+      ),
+    ).toBe("1024px");
   });
 
   it("ignores the small viewport change from hardware keyboard controls", () => {
@@ -117,6 +134,7 @@ describe("responsiveLayoutForViewport", () => {
     act(() => input.focus());
     act(() => {
       viewport.height = 980;
+      viewport.offsetTop = 44;
       viewport.dispatchEvent(new Event("resize"));
     });
 
@@ -124,5 +142,15 @@ describe("responsiveLayoutForViewport", () => {
       layout: "standard",
       softwareKeyboardOpen: false,
     });
+    expect(
+      document.documentElement.style.getPropertyValue(
+        "--visual-viewport-height",
+      ),
+    ).toBe("1024px");
+    expect(
+      document.documentElement.style.getPropertyValue(
+        "--visual-viewport-offset-top",
+      ),
+    ).toBe("0px");
   });
 });
