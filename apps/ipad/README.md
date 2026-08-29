@@ -66,7 +66,8 @@ LABELMAKER_APP_STORE_SCREENSHOT_ORIENTATION=portrait \
 Set `LABELMAKER_APP_STORE_SCREENSHOT_DIRECTORY` to use a different output
 folder. The capture uses local test data and does not need a printer.
 
-To capture the four Phone acceptance sizes with WebKit, run:
+To check seven Phone sizes with WebKit and save one portrait and one landscape
+screenshot, run:
 
 ```sh
 npm run responsive:screenshots

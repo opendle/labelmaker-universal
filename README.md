@@ -16,7 +16,7 @@ of the editor and document model.
 </p>
 
 <p align="center">
-  <img src="artifacts/screenshots/labelmaker-plate-settings-1440x960.png" alt="Label width, height, trim, and margin controls" width="49%">
+  <img src="artifacts/screenshots/labelmaker-dark-1440x960.png" alt="Labelmaker editor in dark mode" width="49%">
   <img src="artifacts/screenshots/labelmaker-flag-1440x960.png" alt="Flag label editor with repeated cable text" width="49%">
 </p>
 
@@ -66,7 +66,9 @@ Run the screenshot task only after a material UI change:
 npm run ui:screenshot
 ```
 
-The screenshot files in `artifacts/screenshots` stay in the repository.
+The task checks all desktop scenes and keeps seven representative screenshots.
+The four screenshots used in this README stay in the repository. Other generated
+screenshots stay ignored by Git.
 
 Run the demo video task only when you need a new video:
 
