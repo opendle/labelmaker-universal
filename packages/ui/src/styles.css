@@ -1250,17 +1250,17 @@ textarea.inline-text-editor:focus-visible {
 .line-height-field .unit-input:has(input:disabled) {
   opacity: 0.55;
 }
-.threshold-field > span {
+.image-tone-field > span {
   display: flex;
   justify-content: space-between;
 }
-.threshold-field > span b {
+.image-tone-field > span b {
   color: #68645c;
   font-family: "DM Mono", monospace;
   font-size: 8px;
   font-weight: 500;
 }
-.threshold-field input[type="range"] {
+.image-tone-field input[type="range"] {
   height: 20px;
   padding: 0;
   border: 0;

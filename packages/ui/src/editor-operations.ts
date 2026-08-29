@@ -81,7 +81,8 @@ export function createImage(plate: LabelPlate, source: string): ImageElement {
     rotationDeg: 0,
     source,
     fit: "contain",
-    threshold: 128,
+    brightness: 128,
+    contrast: 128,
     transparentBackground: true,
   };
 }

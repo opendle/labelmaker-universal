@@ -70,7 +70,7 @@ function drawFittedImage(
 export async function renderMonochromeImageFrame(
   element: Pick<
     ImageElement,
-    "source" | "fit" | "threshold" | "transparentBackground"
+    "source" | "fit" | "brightness" | "contrast" | "transparentBackground"
   >,
   widthPixels: number,
   heightPixels: number,
@@ -90,7 +90,8 @@ export async function renderMonochromeImageFrame(
   const monochrome = rgbaToMonochrome(
     { widthPixels: width, heightPixels: height, data: rgba.data },
     {
-      blackLevel: element.threshold,
+      brightness: element.brightness,
+      contrast: element.contrast,
       mode: "floyd-steinberg",
       threshold: 128,
     },

@@ -22,7 +22,8 @@ describe("image inspector", () => {
       rotationDeg: 0,
       source: "data:image/png;base64,image",
       fit: "contain" as const,
-      threshold: 128,
+      brightness: 128,
+      contrast: 128,
     };
     render(
       <Inspector

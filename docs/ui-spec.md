@@ -126,10 +126,12 @@ appearances so that they show the physical label and printed result accurately.
   to front below Rotation in the selected-element inspector.
 - Accept only PNG, JPEG, GIF, WebP, and BMP images that the print renderer can
   use.
-- Convert imported images to monochrome with Floyd-Steinberg dithering. Show a
-  black-level control in the image inspector. Apply it to image midtones before
-  dithering, and use the result in previews, trim, and print. A value of 128 is
-  neutral, a higher value is darker, and pure white stays white.
+- Convert imported images to monochrome with Floyd-Steinberg dithering. Show
+  Brightness and Contrast controls in the image inspector. Apply both controls
+  to image midtones before dithering. Use the result in previews, trim, and
+  print. A value of 128 is neutral for both controls. A higher Brightness value
+  makes midtones lighter. A higher Contrast value increases separation around
+  the midpoint. Pure white stays white.
 - Put a Transparent control on the same inspector row as image Fit. Enable it
   for new images and drawings. When it is enabled, exact white pixels reveal
   the label and earlier elements. When it is disabled, white pixels stay

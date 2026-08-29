@@ -56,7 +56,9 @@ export interface ImageElement extends LabelElementBase {
   readonly kind: "image";
   readonly source: string;
   readonly fit: "contain" | "cover" | "stretch";
-  readonly threshold: number;
+  /** Tone controls from 0 through 255. A value of 128 is neutral. */
+  readonly brightness: number;
+  readonly contrast: number;
   /** Exact white pixels reveal the label and earlier elements by default. */
   readonly transparentBackground?: boolean;
   /** Full pre-crop pixels and the visible bounds used by the drawing editor. */

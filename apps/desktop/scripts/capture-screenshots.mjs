@@ -300,7 +300,8 @@ await capture(1440, 960, "labelmaker-icons-1440x960.png", async (page) => {
   await search.fill("accessibility");
   await search.press("Enter");
   await dialog.waitFor({ state: "detached" });
-  await page.getByLabel("Image black level").waitFor();
+  await page.getByLabel("Image brightness").waitFor();
+  await page.getByLabel("Image contrast").waitFor();
 
   await page.getByRole("button", { name: "Icons" }).click();
   await dialog.waitFor();
@@ -375,7 +376,8 @@ await capture(
     const search = page.getByRole("searchbox", { name: "Search icons" });
     await search.fill("accessibility");
     await search.press("Enter");
-    await page.getByLabel("Image black level").waitFor();
+    await page.getByLabel("Image brightness").waitFor();
+    await page.getByLabel("Image contrast").waitFor();
   },
 );
 await capture(
@@ -566,6 +568,21 @@ await capture(1440, 960, "labelmaker-image-1440x960.png", async (page) => {
     ),
   });
   await page.getByRole("button", { name: "Image element" }).waitFor();
+  await page.getByLabel("Image brightness").waitFor();
+  await page.getByLabel("Image contrast").waitFor();
+});
+await capture(1100, 760, "labelmaker-image-1100x760.png", async (page) => {
+  await page.getByLabel("Choose image").setInputFiles({
+    name: "storage-bin.png",
+    mimeType: "image/png",
+    buffer: Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "base64",
+    ),
+  });
+  await page.getByRole("button", { name: "Image element" }).waitFor();
+  await page.getByLabel("Image brightness").waitFor();
+  await page.getByLabel("Image contrast").waitFor();
 });
 await capture(
   1440,

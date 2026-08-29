@@ -27,7 +27,8 @@ const image: ImageElement = {
   rotationDeg: 0,
   source: "data:image/png;base64,AA==",
   fit: "contain",
-  threshold: 128,
+  brightness: 128,
+  contrast: 128,
 };
 const size = { widthMm: 40, heightMm: 16 };
 const margins = { topMm: 2, bottomMm: 3 };

@@ -106,7 +106,8 @@ async function preparePlateImages(
       );
     }
     const bitmap = rgbaToMonochrome(source, {
-      blackLevel: element.threshold,
+      brightness: element.brightness,
+      contrast: element.contrast,
       mode: "floyd-steinberg",
       threshold: 128,
     });

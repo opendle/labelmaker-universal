@@ -1197,7 +1197,8 @@ describe("LabelmakerApp", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Image X position")).toBeInTheDocument();
     expect(screen.getByLabelText("Image Y position")).toBeInTheDocument();
-    expect(screen.getByLabelText("Image black level")).toHaveValue("128");
+    expect(screen.getByLabelText("Image brightness")).toHaveValue("128");
+    expect(screen.getByLabelText("Image contrast")).toHaveValue("128");
     expect(
       screen.getByRole("button", { name: "Resize image block se" }),
     ).toBeInTheDocument();
@@ -1206,10 +1207,14 @@ describe("LabelmakerApp", () => {
     expect(
       width.compareDocumentPosition(x) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Image black level"), {
+    fireEvent.change(screen.getByLabelText("Image brightness"), {
       target: { value: "180" },
     });
-    expect(screen.getByLabelText("Image black level")).toHaveValue("180");
+    fireEvent.change(screen.getByLabelText("Image contrast"), {
+      target: { value: "96" },
+    });
+    expect(screen.getByLabelText("Image brightness")).toHaveValue("180");
+    expect(screen.getByLabelText("Image contrast")).toHaveValue("96");
     expect(screen.getByText("Edited")).toBeInTheDocument();
   });
 

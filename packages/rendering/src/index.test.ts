@@ -172,7 +172,7 @@ describe("RGBA conversion", () => {
     ]).toEqual([1, 0]);
   });
 
-  it("uses black level to adjust midtones before dithering", () => {
+  it("uses brightness to adjust midtones before dithering", () => {
     const widthPixels = 16;
     const heightPixels = 16;
     const data = Uint8Array.from(
@@ -180,11 +180,31 @@ describe("RGBA conversion", () => {
         rgbaPixel(128, 128, 128),
       ).flat(),
     );
-    const blackPixels = (blackLevel: number) =>
+    const blackPixels = (brightness: number) =>
       [
         ...rgbaToMonochrome(
           { widthPixels, heightPixels, data },
-          { blackLevel, mode: "floyd-steinberg", threshold: 128 },
+          { brightness, mode: "floyd-steinberg", threshold: 128 },
+        ).pixels,
+      ].reduce((sum, pixel) => sum + pixel, 0);
+
+    expect(blackPixels(32)).toBeGreaterThan(blackPixels(128));
+    expect(blackPixels(128)).toBeGreaterThan(blackPixels(224));
+  });
+
+  it("uses contrast to separate image midtones before dithering", () => {
+    const widthPixels = 16;
+    const heightPixels = 16;
+    const data = Uint8Array.from(
+      Array.from({ length: widthPixels * heightPixels }, () =>
+        rgbaPixel(112, 112, 112),
+      ).flat(),
+    );
+    const blackPixels = (contrast: number) =>
+      [
+        ...rgbaToMonochrome(
+          { widthPixels, heightPixels, data },
+          { contrast, mode: "floyd-steinberg", threshold: 128 },
         ).pixels,
       ].reduce((sum, pixel) => sum + pixel, 0);
 
@@ -192,18 +212,23 @@ describe("RGBA conversion", () => {
     expect(blackPixels(128)).toBeLessThan(blackPixels(224));
   });
 
-  it("keeps pure black, pure white, and transparency stable at all black levels", () => {
+  it("keeps pure black, pure white, and transparency stable at all tone settings", () => {
     const data = Uint8Array.from([
       ...rgbaPixel(0, 0, 0),
       ...rgbaPixel(255, 255, 255),
       ...rgbaPixel(0, 0, 0, 0),
     ]);
 
-    for (const blackLevel of [0, 128, 255]) {
+    for (const toneValue of [0, 128, 255]) {
       expect([
         ...rgbaToMonochrome(
           { widthPixels: 3, heightPixels: 1, data },
-          { blackLevel, mode: "floyd-steinberg", threshold: 128 },
+          {
+            brightness: toneValue,
+            contrast: toneValue,
+            mode: "floyd-steinberg",
+            threshold: 128,
+          },
         ).pixels,
       ]).toEqual([1, 0, 0]);
     }
@@ -224,9 +249,19 @@ describe("RGBA conversion", () => {
           heightPixels: 1,
           data: Uint8Array.from(rgbaPixel(128, 128, 128)),
         },
-        { blackLevel: 256 },
+        { brightness: 256 },
       ),
-    ).toThrow(/blackLevel/);
+    ).toThrow(/brightness/);
+    expect(() =>
+      rgbaToMonochrome(
+        {
+          widthPixels: 1,
+          heightPixels: 1,
+          data: Uint8Array.from(rgbaPixel(128, 128, 128)),
+        },
+        { contrast: -1 },
+      ),
+    ).toThrow(/contrast/);
 
     const plan = createPlateRasterPlan({
       widthMm: 25.4,
@@ -260,7 +295,8 @@ describe("image backgrounds in print output", () => {
         rotationDeg: 0,
         source: "data:image/png;base64,image",
         fit: "stretch",
-        threshold: 128,
+        brightness: 128,
+        contrast: 128,
         transparentBackground,
       },
     ],

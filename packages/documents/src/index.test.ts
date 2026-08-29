@@ -91,7 +91,7 @@ describe("workspace documents", () => {
     );
   });
 
-  it("defaults image backgrounds to transparent and preserves an opaque setting", () => {
+  it("loads old image tone values and defaults contrast", () => {
     const changed = structuredClone(document) as unknown as {
       plates: Array<{ elements: Array<Record<string, unknown>> }>;
     };
@@ -105,12 +105,32 @@ describe("workspace documents", () => {
       rotationDeg: 0,
       source: "data:image/png;base64,image",
       fit: "contain",
-      threshold: 128,
+      threshold: 50,
     });
 
     expect(validateLabelDocument(changed).plates[0]!.elements[1]).toMatchObject(
-      { transparentBackground: true },
+      { brightness: 206, contrast: 128, transparentBackground: true },
     );
+  });
+
+  it("preserves image tone controls and an opaque background", () => {
+    const changed = structuredClone(document) as unknown as {
+      plates: Array<{ elements: Array<Record<string, unknown>> }>;
+    };
+    changed.plates[0]!.elements.push({
+      id: "image",
+      kind: "image",
+      xMm: 1,
+      yMm: 1,
+      widthMm: 5,
+      heightMm: 5,
+      rotationDeg: 0,
+      source: "data:image/png;base64,image",
+      fit: "contain",
+      brightness: 176,
+      contrast: 92,
+      transparentBackground: true,
+    });
     changed.plates[0]!.elements[1]!.transparentBackground = false;
     changed.plates[0]!.elements[1]!.editorSource = {
       source: "data:image/png;base64,full-image",
@@ -122,6 +142,8 @@ describe("workspace documents", () => {
       parseLabelDocument(serializeLabelDocument(changed as never)).plates[0]!
         .elements[1],
     ).toMatchObject({
+      brightness: 176,
+      contrast: 92,
       transparentBackground: false,
       editorSource: {
         source: "data:image/png;base64,full-image",
@@ -130,6 +152,36 @@ describe("workspace documents", () => {
         bounds: { left: 10, top: 5, right: 89, bottom: 44 },
       },
     });
+  });
+
+  it("rejects invalid image tone values", () => {
+    const changed = structuredClone(document) as unknown as {
+      plates: Array<{ elements: Array<Record<string, unknown>> }>;
+    };
+    const image = {
+      id: "image",
+      kind: "image",
+      xMm: 1,
+      yMm: 1,
+      widthMm: 5,
+      heightMm: 5,
+      rotationDeg: 0,
+      source: "data:image/png;base64,image",
+      fit: "contain",
+      brightness: 128,
+      contrast: 128,
+    };
+    changed.plates[0]!.elements.push(image);
+    image.brightness = 256;
+    expect(() => validateLabelDocument(changed)).toThrow(
+      "brightness must be between 0 and 255",
+    );
+
+    image.brightness = 128;
+    image.contrast = -1;
+    expect(() => validateLabelDocument(changed)).toThrow(
+      "contrast must be between 0 and 255",
+    );
   });
 
   it("rejects an invalid image background setting", () => {

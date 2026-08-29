@@ -82,7 +82,8 @@ describe("drawing image frames", () => {
     rotationDeg: 0,
     source: "old",
     fit: "contain" as const,
-    threshold: 128,
+    brightness: 128,
+    contrast: 128,
   };
 
   it("keeps the cropped pixels in their current physical position", () => {

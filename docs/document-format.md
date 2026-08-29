@@ -90,6 +90,12 @@ Image elements can include a `transparentBackground` boolean. An omitted value
 means `true`. When it is `true`, exact white image pixels reveal the label and
 elements below the image. When it is `false`, white pixels stay opaque.
 
+Image elements include integer `brightness` and `contrast` values from 0
+through 255. A value of 128 is neutral. Older schema version 1 files can use
+`threshold` instead of `brightness`. The loader converts this old black-level
+value to the matching brightness and uses neutral contrast. New files use only
+`brightness` and `contrast`.
+
 An image edited in the drawing editor can include `editorSource`. This object
 stores the full pre-crop PNG, its pixel dimensions, and the visible pixel
 bounds. Label rendering continues to use the cropped `source`. The drawing

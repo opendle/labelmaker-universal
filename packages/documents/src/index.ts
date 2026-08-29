@@ -191,6 +191,10 @@ function imageElement(
     fail(`${path}.transparentBackground must be a boolean`);
   }
   const editorSource = value.editorSource;
+  const legacyThreshold =
+    value.brightness === undefined
+      ? integerValue(value.threshold, `${path}.threshold`, 0, 255)
+      : undefined;
   return {
     ...baseElement(value, path),
     kind: "image",
@@ -201,7 +205,14 @@ function imageElement(
       false,
     ),
     fit,
-    threshold: integerValue(value.threshold, `${path}.threshold`, 0, 255),
+    brightness:
+      legacyThreshold === undefined
+        ? integerValue(value.brightness, `${path}.brightness`, 0, 255)
+        : Math.min(255, 256 - legacyThreshold),
+    contrast:
+      value.contrast === undefined
+        ? 128
+        : integerValue(value.contrast, `${path}.contrast`, 0, 255),
     transparentBackground: transparentBackground ?? true,
     ...(editorSource === undefined
       ? {}

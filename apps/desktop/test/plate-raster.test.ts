@@ -190,7 +190,7 @@ describe("desktop plate rasterization", () => {
     expect(page.data[0]).toBe(0);
   });
 
-  it("applies each image black level before it composites the artwork", async () => {
+  it("applies each image tone setting before it composites the artwork", async () => {
     const base = createBlankLabelDocument(() => "id").plates[0];
     if (!base) throw new Error("Expected a plate");
     const image = {
@@ -203,7 +203,8 @@ describe("desktop plate rasterization", () => {
       rotationDeg: 0,
       source: "data:image/png;base64,AA==",
       fit: "stretch" as const,
-      threshold: 50,
+      brightness: 206,
+      contrast: 128,
     };
     const plate = { ...base, elements: [...base.elements, image] };
     const finalSvgs: string[] = [];
@@ -228,7 +229,9 @@ describe("desktop plate rasterization", () => {
       {
         ...plate,
         elements: plate.elements.map((element) =>
-          element.kind === "image" ? { ...element, threshold: 150 } : element,
+          element.kind === "image"
+            ? { ...element, brightness: 106, contrast: 160 }
+            : element,
         ),
       },
       { dpi: 25.4, rasterWidthPixels: 8, printableWidthMm: 8 },

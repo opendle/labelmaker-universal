@@ -51,8 +51,10 @@ export interface MonochromeOptions {
   readonly mode?: MonochromeMode;
   /** A composited luminance below this value becomes black. */
   readonly threshold?: number;
-  /** Midtone level from 0 through 255. 128 is neutral; higher is darker. */
-  readonly blackLevel?: number;
+  /** Midtone brightness from 0 through 255. 128 is neutral. */
+  readonly brightness?: number;
+  /** Midtone contrast from 0 through 255. 128 is neutral. */
+  readonly contrast?: number;
 }
 
 function assertFiniteNumber(value: number, name: string): void {
@@ -186,12 +188,15 @@ function resolveThreshold(value: number | undefined): number {
   return threshold;
 }
 
-function resolveBlackLevel(value: number | undefined): number {
-  const blackLevel = value ?? 128;
-  if (!Number.isInteger(blackLevel) || blackLevel < 0 || blackLevel > 255) {
-    throw new RangeError("blackLevel must be an integer from 0 through 255.");
+function resolveToneValue(
+  value: number | undefined,
+  name: "brightness" | "contrast",
+): number {
+  const result = value ?? 128;
+  if (!Number.isInteger(result) || result < 0 || result > 255) {
+    throw new RangeError(`${name} must be an integer from 0 through 255.`);
   }
-  return blackLevel;
+  return result;
 }
 
 function resolveMode(mode: MonochromeMode | undefined): MonochromeMode {
@@ -214,27 +219,38 @@ function compositedLuminance(
   return (luminance * alpha + 255 * (255 - alpha)) / 255;
 }
 
-function applyBlackLevel(luminance: number, blackLevel: number): number {
-  if (luminance <= 0 || luminance >= 255 || blackLevel === 128) {
+function applyTone(
+  luminance: number,
+  brightness: number,
+  contrast: number,
+): number {
+  if (luminance <= 0 || luminance >= 255) {
     return luminance;
   }
-  const gamma = 2 ** ((blackLevel - 128) / 64);
-  return 255 * (luminance / 255) ** gamma;
+  const brightnessGamma = 2 ** ((128 - brightness) / 64);
+  const brightened = 255 * (luminance / 255) ** brightnessGamma;
+  const contrastFactor = 2 ** ((contrast - 128) / 64);
+  return Math.max(0, Math.min(255, 128 + (brightened - 128) * contrastFactor));
 }
 
-function rgbaLuminances(image: RgbaImage, blackLevel: number): Float64Array {
+function rgbaLuminances(
+  image: RgbaImage,
+  brightness: number,
+  contrast: number,
+): Float64Array {
   const count = image.widthPixels * image.heightPixels;
   const luminances = new Float64Array(count);
   for (let pixelIndex = 0; pixelIndex < count; pixelIndex += 1) {
     const rgbaIndex = pixelIndex * 4;
-    luminances[pixelIndex] = applyBlackLevel(
+    luminances[pixelIndex] = applyTone(
       compositedLuminance(
         image.data[rgbaIndex] ?? 0,
         image.data[rgbaIndex + 1] ?? 0,
         image.data[rgbaIndex + 2] ?? 0,
         image.data[rgbaIndex + 3] ?? 0,
       ),
-      blackLevel,
+      brightness,
+      contrast,
     );
   }
   return luminances;
@@ -298,9 +314,10 @@ export function rgbaToMonochrome(
 ): MonochromeBitmap {
   validateRgbaImage(image);
   const threshold = resolveThreshold(options.threshold);
-  const blackLevel = resolveBlackLevel(options.blackLevel);
+  const brightness = resolveToneValue(options.brightness, "brightness");
+  const contrast = resolveToneValue(options.contrast, "contrast");
   const mode = resolveMode(options.mode);
-  const luminances = rgbaLuminances(image, blackLevel);
+  const luminances = rgbaLuminances(image, brightness, contrast);
   const pixels =
     mode === "threshold"
       ? thresholdLuminances(luminances, threshold)

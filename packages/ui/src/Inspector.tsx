@@ -425,19 +425,34 @@ function ImageInspector({
           <span>TRANSPARENT</span>
         </label>
       </div>
-      <label className="field threshold-field">
+      <label className="field image-tone-field">
         <span>
-          BLACK LEVEL <b>{element.threshold}</b>
+          BRIGHTNESS <b>{element.brightness}</b>
         </span>
         <input
-          aria-label="Image black level"
+          aria-label="Image brightness"
           max={255}
           min={0}
           onChange={(event) =>
-            onChange({ ...element, threshold: Number(event.target.value) })
+            onChange({ ...element, brightness: Number(event.target.value) })
           }
           type="range"
-          value={element.threshold}
+          value={element.brightness}
+        />
+      </label>
+      <label className="field image-tone-field">
+        <span>
+          CONTRAST <b>{element.contrast}</b>
+        </span>
+        <input
+          aria-label="Image contrast"
+          max={255}
+          min={0}
+          onChange={(event) =>
+            onChange({ ...element, contrast: Number(event.target.value) })
+          }
+          type="range"
+          value={element.contrast}
         />
       </label>
       <FrameControls
