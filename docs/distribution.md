@@ -10,8 +10,8 @@
 
 ## Open-source release
 
-The project source uses Apache-2.0. Contributions and source releases use
-the same license.
+The project source uses the GNU Affero General Public License v3.0.
+Contributions and source releases use the same license.
 
 A public release also needs:
 

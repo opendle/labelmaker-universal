@@ -129,4 +129,4 @@ packages/ui              Shared React editor and application UI
 docs                     Product, architecture, format, and test documents
 ```
 
-Labelmaker uses the [Apache-2.0 license](LICENSE).
+Labelmaker uses the [GNU Affero General Public License v3.0](LICENSE).
