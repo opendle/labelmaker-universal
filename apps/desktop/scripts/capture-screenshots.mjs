@@ -57,80 +57,120 @@ const screenshotDirectory = process.env.LABELMAKER_SCREENSHOT_DIRECTORY
   : resolve(appDirectory, "../../artifacts/screenshots");
 await mkdir(screenshotDirectory, { recursive: true });
 
-async function capture(width, height, name, setup) {
-  const profileDirectory = await mkdtemp(
-    join(tmpdir(), "labelmaker-screenshot-"),
-  );
-  const application = await electron.launch({
+const profileDirectory = await mkdtemp(
+  join(tmpdir(), "labelmaker-screenshot-"),
+);
+let application;
+let page;
+
+async function closeCaptureApplication(ignoreCloseError = false) {
+  let closeError;
+  try {
+    await application?.close();
+  } catch (error) {
+    closeError = error;
+  }
+  application = undefined;
+  page = undefined;
+  await rm(profileDirectory, { recursive: true, force: true });
+  if (closeError && !ignoreCloseError) throw closeError;
+}
+
+async function launchCaptureApplication(width, height) {
+  application = await electron.launch({
     args: ["--no-sandbox", `--user-data-dir=${profileDirectory}`, appDirectory],
     env: {
       ...process.env,
       LABELMAKER_ENABLE_MOCK_PRINTER: "1",
       LABELMAKER_DISABLE_HARDWARE_PRINTERS: "1",
       LABELMAKER_DISABLE_LEGACY_PRINTER_CONFIGURATION: "1",
+      LABELMAKER_SCREENSHOT_MODE: "1",
       LABELMAKER_WINDOW_SIZE: `${width}x${height}`,
     },
   });
-  let teardown;
+  page = await application.firstWindow();
+}
+
+async function capture(width, height, name, setup) {
   try {
-    const applicationIdentity = await application.evaluate(({ app }) => ({
-      applicationName: app.getName(),
-      processTitle: process.title,
-    }));
-    if (
-      applicationIdentity.applicationName !== "Labelmaker" ||
-      applicationIdentity.processTitle !== "Labelmaker"
-    ) {
-      throw new Error(
-        `Unexpected application identity: ${JSON.stringify(applicationIdentity)}`,
+    if (!application || !page) {
+      await launchCaptureApplication(width, height);
+    } else {
+      await application.evaluate(
+        ({ BrowserWindow }, size) => {
+          const window = BrowserWindow.getAllWindows()[0];
+          if (!window) throw new Error("The screenshot window is missing");
+          window.setSize(size.width, size.height);
+        },
+        { width, height },
       );
+      await page.reload({ waitUntil: "domcontentloaded" });
     }
-    const page = await application.firstWindow();
-    await page.waitForSelector(".label-canvas");
-    await page.waitForFunction(() => {
-      const name = document
-        .querySelector(".printer-trigger-copy strong")
-        ?.textContent?.trim();
-      return Boolean(name && name !== "No printer");
-    });
-    teardown = await setup?.(page);
-    await page.evaluate(async () => {
-      await document.fonts.ready;
-      await new Promise((resolveFrame) =>
-        requestAnimationFrame(() => requestAnimationFrame(resolveFrame)),
-      );
-    });
-    await page.waitForTimeout(250);
-    await page.evaluate(() => {
-      const label = document.querySelector(".label-canvas");
-      if (!(label instanceof HTMLElement)) throw new Error("Label is missing");
-      const declaredWidth = Number.parseFloat(label.style.width);
-      const renderedWidth = label.getBoundingClientRect().width;
-      if (Math.abs(declaredWidth - renderedWidth) > 0.05) {
+    await page.emulateMedia({ colorScheme: "light" });
+
+    let teardown;
+    try {
+      const applicationIdentity = await application.evaluate(({ app }) => ({
+        applicationName: app.getName(),
+        processTitle: process.title,
+      }));
+      if (
+        applicationIdentity.applicationName !== "Labelmaker" ||
+        applicationIdentity.processTitle !== "Labelmaker"
+      ) {
         throw new Error(
-          `Label scale changed after layout: ${declaredWidth} != ${renderedWidth}`,
+          `Unexpected application identity: ${JSON.stringify(applicationIdentity)}`,
         );
       }
-    });
-    const layout = await page.evaluate(() => ({
-      clientHeight: document.documentElement.clientHeight,
-      clientWidth: document.documentElement.clientWidth,
-      scrollHeight: document.documentElement.scrollHeight,
-      scrollWidth: document.documentElement.scrollWidth,
-    }));
-    if (
-      layout.scrollWidth > layout.clientWidth ||
-      layout.scrollHeight > layout.clientHeight
-    ) {
-      throw new Error(
-        `Desktop layout overflows its viewport: ${JSON.stringify(layout)}`,
-      );
+      await page.waitForSelector(".label-canvas");
+      await page.waitForFunction(() => {
+        const name = document
+          .querySelector(".printer-trigger-copy strong")
+          ?.textContent?.trim();
+        return Boolean(name && name !== "No printer");
+      });
+      teardown = await setup?.(page);
+      await page.evaluate(async () => {
+        await document.fonts.ready;
+        await new Promise((resolveFrame) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolveFrame)),
+        );
+      });
+      await page.waitForTimeout(250);
+      await page.evaluate(() => {
+        const label = document.querySelector(".label-canvas");
+        if (!(label instanceof HTMLElement))
+          throw new Error("Label is missing");
+        const declaredWidth = Number.parseFloat(label.style.width);
+        const renderedWidth = label.getBoundingClientRect().width;
+        if (Math.abs(declaredWidth - renderedWidth) > 0.05) {
+          throw new Error(
+            `Label scale changed after layout: ${declaredWidth} != ${renderedWidth}`,
+          );
+        }
+      });
+      const layout = await page.evaluate(() => ({
+        clientHeight: document.documentElement.clientHeight,
+        clientWidth: document.documentElement.clientWidth,
+        scrollHeight: document.documentElement.scrollHeight,
+        scrollWidth: document.documentElement.scrollWidth,
+      }));
+      if (
+        layout.scrollWidth > layout.clientWidth ||
+        layout.scrollHeight > layout.clientHeight
+      ) {
+        throw new Error(
+          `Desktop layout overflows its viewport: ${JSON.stringify(layout)}`,
+        );
+      }
+      await page.screenshot({ path: resolve(screenshotDirectory, name) });
+    } finally {
+      if (typeof teardown === "function")
+        await teardown().catch(() => undefined);
     }
-    await page.screenshot({ path: resolve(screenshotDirectory, name) });
-  } finally {
-    if (typeof teardown === "function") await teardown().catch(() => undefined);
-    await application.close();
-    await rm(profileDirectory, { recursive: true, force: true });
+  } catch (error) {
+    await closeCaptureApplication(true);
+    throw error;
   }
 }
 
@@ -639,5 +679,6 @@ await capture(
   },
 );
 await capture(1100, 760, "labelmaker-compact-1100x760.png");
+await closeCaptureApplication();
 
-console.log(`Screenshots saved to ${screenshotDirectory}`);
+console.log(`Screenshots saved to ${screenshotDirectory} in one app session`);

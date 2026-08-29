@@ -31,6 +31,10 @@ Capture the two supported desktop sizes with:
 npm run ui:screenshot
 ```
 
+The command builds once and captures all desktop images in one hidden app
+session. It reloads a clean editor state between images and does not use the
+normal workspace recovery file.
+
 After you pair a MakeID E1 on macOS, you can run one opt-in desktop hardware
 print. The command sets both horizontal margins to zero and trims the current
 plate before it prints:

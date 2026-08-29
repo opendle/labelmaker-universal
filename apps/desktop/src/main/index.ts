@@ -112,6 +112,7 @@ let quitRecoveryFlushed = false;
 let quitRecoveryFlushStarted = false;
 let developmentRestartRequested = false;
 const isDevelopmentLaunch = process.env.LABELMAKER_DEVELOPMENT === "1";
+const isScreenshotCapture = process.env.LABELMAKER_SCREENSHOT_MODE === "1";
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 const context: AdapterContext = {
   log: createProcessLogger(),
@@ -386,6 +387,7 @@ function printerModel(
 
 function registerIpc(): void {
   ipcMain.handle("labelmaker:load-workspace-recovery", async (event) => {
+    if (isScreenshotCapture) return null;
     const recovery = await readWorkspaceRecoveryFile(workspaceRecoveryPath());
     if (!recovery) return null;
     if (recovery.filePath) {
@@ -407,6 +409,7 @@ function registerIpc(): void {
   ipcMain.handle(
     "labelmaker:store-workspace-recovery",
     (event, value: unknown) => {
+      if (isScreenshotCapture) return;
       const recovery = createWorkspaceRecoveryRecord(
         value,
         workspacePaths.get(event.sender.id),
@@ -842,6 +845,7 @@ function createWindow(): void {
     minWidth: 900,
     minHeight: 650,
     show: false,
+    skipTaskbar: isScreenshotCapture,
     backgroundColor: nativeTheme.shouldUseDarkColors ? "#1c1d1f" : "#efeee9",
     title: APPLICATION_NAME,
     ...(process.platform === "darwin"
@@ -883,7 +887,9 @@ function createWindow(): void {
         window.destroy();
       });
   });
-  window.once("ready-to-show", () => window.show());
+  window.once("ready-to-show", () => {
+    if (!isScreenshotCapture) window.show();
+  });
   void window.loadFile(
     fileURLToPath(new URL("../renderer/index.html", import.meta.url)),
   );
@@ -911,6 +917,7 @@ if (!hasSingleInstanceLock) {
   });
 
   app.whenReady().then(async () => {
+    if (isScreenshotCapture && process.platform === "darwin") app.dock?.hide();
     await restoreConfiguredPrinters();
     workspaceRecoveryStore = new WorkspaceRecoveryStore(
       workspaceRecoveryPath(),
