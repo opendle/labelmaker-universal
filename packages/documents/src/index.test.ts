@@ -11,6 +11,27 @@ import {
 const ids = ["workspace-1", "plate-1", "element-1"];
 const document = createBlankLabelDocument(() => ids.shift() ?? "extra-id");
 
+function mutableElementsDocument() {
+  return structuredClone(document) as unknown as {
+    plates: Array<{ elements: Array<Record<string, unknown>> }>;
+  };
+}
+
+function imageElement<T extends Record<string, unknown>>(values: T) {
+  return {
+    id: "image",
+    kind: "image",
+    xMm: 1,
+    yMm: 1,
+    widthMm: 5,
+    heightMm: 5,
+    rotationDeg: 0,
+    source: "data:image/png;base64,image",
+    fit: "contain",
+    ...values,
+  };
+}
+
 describe("workspace documents", () => {
   it("names the first label by its position", () => {
     expect(document.plates[0]?.name).toBe("Label 1");
@@ -25,9 +46,7 @@ describe("workspace documents", () => {
   });
 
   it("accepts old text elements without a font style", () => {
-    const oldDocument = structuredClone(document) as unknown as {
-      plates: Array<{ elements: Array<Record<string, unknown>> }>;
-    };
+    const oldDocument = mutableElementsDocument();
     delete oldDocument.plates[0]!.elements[0]!.fontStyle;
 
     const validated = validateLabelDocument(oldDocument);
@@ -36,9 +55,7 @@ describe("workspace documents", () => {
   });
 
   it("preserves italic text and rejects unknown font styles", () => {
-    const italicDocument = structuredClone(document) as unknown as {
-      plates: Array<{ elements: Array<Record<string, unknown>> }>;
-    };
+    const italicDocument = mutableElementsDocument();
     italicDocument.plates[0]!.elements[0]!.fontStyle = "italic";
     expect(
       parseLabelDocument(serializeLabelDocument(italicDocument as never))
@@ -52,9 +69,7 @@ describe("workspace documents", () => {
   });
 
   it("preserves optional line height and vertical alignment", () => {
-    const changed = structuredClone(document) as unknown as {
-      plates: Array<{ elements: Array<Record<string, unknown>> }>;
-    };
+    const changed = mutableElementsDocument();
     changed.plates[0]!.elements[0]!.lineHeightPt = 18.5;
     changed.plates[0]!.elements[0]!.verticalAlign = "bottom";
 
@@ -65,9 +80,7 @@ describe("workspace documents", () => {
   });
 
   it("rejects invalid line height and vertical alignment values", () => {
-    const changed = structuredClone(document) as unknown as {
-      plates: Array<{ elements: Array<Record<string, unknown>> }>;
-    };
+    const changed = mutableElementsDocument();
     changed.plates[0]!.elements[0]!.lineHeightPt = 0;
     expect(() => validateLabelDocument(changed)).toThrow(
       "lineHeightPt must be between 0.1 and 1000",
@@ -92,21 +105,12 @@ describe("workspace documents", () => {
   });
 
   it("loads old image tone values and defaults contrast", () => {
-    const changed = structuredClone(document) as unknown as {
-      plates: Array<{ elements: Array<Record<string, unknown>> }>;
-    };
-    changed.plates[0]!.elements.push({
-      id: "image",
-      kind: "image",
-      xMm: 1,
-      yMm: 1,
-      widthMm: 5,
-      heightMm: 5,
-      rotationDeg: 0,
-      source: "data:image/png;base64,image",
-      fit: "contain",
-      threshold: 50,
-    });
+    const changed = mutableElementsDocument();
+    changed.plates[0]!.elements.push(
+      imageElement({
+        threshold: 50,
+      }),
+    );
 
     expect(validateLabelDocument(changed).plates[0]!.elements[1]).toMatchObject(
       { brightness: 206, contrast: 128, transparentBackground: true },
@@ -114,23 +118,14 @@ describe("workspace documents", () => {
   });
 
   it("preserves image tone controls and an opaque background", () => {
-    const changed = structuredClone(document) as unknown as {
-      plates: Array<{ elements: Array<Record<string, unknown>> }>;
-    };
-    changed.plates[0]!.elements.push({
-      id: "image",
-      kind: "image",
-      xMm: 1,
-      yMm: 1,
-      widthMm: 5,
-      heightMm: 5,
-      rotationDeg: 0,
-      source: "data:image/png;base64,image",
-      fit: "contain",
-      brightness: 176,
-      contrast: 92,
-      transparentBackground: true,
-    });
+    const changed = mutableElementsDocument();
+    changed.plates[0]!.elements.push(
+      imageElement({
+        brightness: 176,
+        contrast: 92,
+        transparentBackground: true,
+      }),
+    );
     changed.plates[0]!.elements[1]!.transparentBackground = false;
     changed.plates[0]!.elements[1]!.editorSource = {
       source: "data:image/png;base64,full-image",
@@ -155,22 +150,11 @@ describe("workspace documents", () => {
   });
 
   it("rejects invalid image tone values", () => {
-    const changed = structuredClone(document) as unknown as {
-      plates: Array<{ elements: Array<Record<string, unknown>> }>;
-    };
-    const image = {
-      id: "image",
-      kind: "image",
-      xMm: 1,
-      yMm: 1,
-      widthMm: 5,
-      heightMm: 5,
-      rotationDeg: 0,
-      source: "data:image/png;base64,image",
-      fit: "contain",
+    const changed = mutableElementsDocument();
+    const image = imageElement({
       brightness: 128,
       contrast: 128,
-    };
+    });
     changed.plates[0]!.elements.push(image);
     image.brightness = 256;
     expect(() => validateLabelDocument(changed)).toThrow(
@@ -185,22 +169,13 @@ describe("workspace documents", () => {
   });
 
   it("rejects an invalid image background setting", () => {
-    const changed = structuredClone(document) as unknown as {
-      plates: Array<{ elements: Array<Record<string, unknown>> }>;
-    };
-    changed.plates[0]!.elements.push({
-      id: "image",
-      kind: "image",
-      xMm: 1,
-      yMm: 1,
-      widthMm: 5,
-      heightMm: 5,
-      rotationDeg: 0,
-      source: "data:image/png;base64,image",
-      fit: "contain",
-      threshold: 128,
-      transparentBackground: "yes",
-    });
+    const changed = mutableElementsDocument();
+    changed.plates[0]!.elements.push(
+      imageElement({
+        threshold: 128,
+        transparentBackground: "yes",
+      }),
+    );
 
     expect(() => validateLabelDocument(changed)).toThrow(
       "transparentBackground must be a boolean",
@@ -208,27 +183,18 @@ describe("workspace documents", () => {
   });
 
   it("rejects invalid full image editor bounds", () => {
-    const changed = structuredClone(document) as unknown as {
-      plates: Array<{ elements: Array<Record<string, unknown>> }>;
-    };
-    changed.plates[0]!.elements.push({
-      id: "image",
-      kind: "image",
-      xMm: 1,
-      yMm: 1,
-      widthMm: 5,
-      heightMm: 5,
-      rotationDeg: 0,
-      source: "data:image/png;base64,image",
-      fit: "contain",
-      threshold: 128,
-      editorSource: {
-        source: "data:image/png;base64,full-image",
-        widthPixels: 10,
-        heightPixels: 10,
-        bounds: { left: 0, top: 0, right: 10, bottom: 9 },
-      },
-    });
+    const changed = mutableElementsDocument();
+    changed.plates[0]!.elements.push(
+      imageElement({
+        threshold: 128,
+        editorSource: {
+          source: "data:image/png;base64,full-image",
+          widthPixels: 10,
+          heightPixels: 10,
+          bounds: { left: 0, top: 0, right: 10, bottom: 9 },
+        },
+      }),
+    );
 
     expect(() => validateLabelDocument(changed)).toThrow(
       "editorSource.bounds.right must be between 0 and 9",
@@ -236,9 +202,7 @@ describe("workspace documents", () => {
   });
 
   it("preserves shape types and treats an omitted type as a rectangle", () => {
-    const changed = structuredClone(document) as unknown as {
-      plates: Array<{ elements: Array<Record<string, unknown>> }>;
-    };
+    const changed = mutableElementsDocument();
     const base = changed.plates[0]!.elements[0]!;
     changed.plates[0]!.elements.push({
       id: "shape",
@@ -268,9 +232,7 @@ describe("workspace documents", () => {
   });
 
   it("rejects an invalid shape type", () => {
-    const changed = structuredClone(document) as unknown as {
-      plates: Array<{ elements: Array<Record<string, unknown>> }>;
-    };
+    const changed = mutableElementsDocument();
     changed.plates[0]!.elements.push({
       id: "shape",
       kind: "rectangle",

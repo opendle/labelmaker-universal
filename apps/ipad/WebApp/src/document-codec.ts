@@ -5,6 +5,8 @@ import {
 } from "@labelmaker/documents";
 import type { LabelDocument } from "@labelmaker/domain";
 
+import { base64ToBytes, bytesToBase64 } from "./base64.js";
+
 const GZIP_FORMAT = "gzip";
 
 export async function encodeWorkspace(
@@ -24,7 +26,12 @@ export async function encodeWorkspace(
 export async function decodeWorkspace(
   gzipBase64: string,
 ): Promise<LabelDocument> {
-  const compressed = base64ToBytes(gzipBase64);
+  let compressed: Uint8Array;
+  try {
+    compressed = base64ToBytes(gzipBase64);
+  } catch {
+    throw new Error("Workspace file data is not valid base64.");
+  }
   if (compressed.byteLength > MAX_WORKSPACE_BYTES) {
     throw new Error("The workspace file is too large.");
   }
@@ -69,26 +76,4 @@ async function collectStream(
     offset += chunk.byteLength;
   }
   return result;
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = "";
-  for (let offset = 0; offset < bytes.length; offset += 32_768) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + 32_768));
-  }
-  return btoa(binary);
-}
-
-function base64ToBytes(value: string): Uint8Array {
-  let binary: string;
-  try {
-    binary = atob(value);
-  } catch {
-    throw new Error("Workspace file data is not valid base64.");
-  }
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return bytes;
 }

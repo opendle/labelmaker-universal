@@ -1,32 +1,19 @@
 import { _electron as electron } from "playwright";
-import { spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
+import { prepareDesktopRuntime } from "./capture-support.mjs";
+
 const VIDEO_WIDTH = 1440;
 const VIDEO_HEIGHT = 960;
 const appDirectory = resolve(import.meta.dirname, "..");
-const launcherPath = resolve(import.meta.dirname, "launch-desktop.mjs");
 const videoDirectory = process.env.LABELMAKER_VIDEO_DIRECTORY
   ? resolve(process.env.LABELMAKER_VIDEO_DIRECTORY)
   : resolve(appDirectory, "../../artifacts/videos");
 const videoPath = join(videoDirectory, "labelmaker-demo.webm");
 
-const preparedRuntime = spawnSync(
-  process.execPath,
-  [launcherPath, "--prepare-only"],
-  { encoding: "utf8" },
-);
-if (preparedRuntime.status !== 0) {
-  throw new Error(
-    `Could not prepare the desktop runtime: ${(preparedRuntime.stderr || preparedRuntime.stdout).trim()}`,
-  );
-}
-const desktopExecutable = preparedRuntime.stdout.trim();
-if (!desktopExecutable) {
-  throw new Error("The desktop runtime did not report an executable");
-}
+prepareDesktopRuntime();
 
 await mkdir(videoDirectory, { recursive: true });
 await rm(videoPath, { force: true });

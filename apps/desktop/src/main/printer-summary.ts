@@ -12,11 +12,11 @@ type OfflineCapabilities = NonNullable<
   import("@labelmaker/printing").PrinterAdapter["offlineCapabilities"]
 >;
 
-export interface DesktopNumericSetting extends NumericSettingCapability {
+interface DesktopNumericSetting extends NumericSettingCapability {
   readonly value: number;
 }
 
-export interface DesktopPrinterSummary {
+interface DesktopPrinterSummary {
   readonly id: string;
   readonly adapterId: string;
   readonly name: string;

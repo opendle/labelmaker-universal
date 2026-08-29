@@ -30,7 +30,10 @@ import type {
   PrinterSettings,
   PrinterSession,
 } from "@labelmaker/printing";
-import { PrinterAdapterRegistry } from "@labelmaker/printing";
+import {
+  isPrinterSettings,
+  PrinterAdapterRegistry,
+} from "@labelmaker/printing";
 import { renderPlateForPrinter } from "@labelmaker/rendering";
 
 import {
@@ -125,16 +128,6 @@ const context: AdapterContext = {
 function assertBoolean(value: unknown, name: string): asserts value is boolean {
   if (typeof value !== "boolean")
     throw new TypeError(`${name} must be a boolean`);
-}
-
-function isTenthMillimeter(value: unknown, minimum: number): value is number {
-  return (
-    typeof value === "number" &&
-    Number.isFinite(value) &&
-    value >= minimum &&
-    value <= 100 &&
-    Math.abs(value * 10 - Math.round(value * 10)) < 1e-8
-  );
 }
 
 function parentWindow(event: IpcMainInvokeEvent): BrowserWindow | undefined {
@@ -617,15 +610,18 @@ function registerIpc(): void {
       ) {
         throw new RangeError("Printer darkness is outside its supported range");
       }
-      const printHeadSizeMm = settings.printHeadSizeMm;
-      const marginTopMm = settings.marginTopMm;
-      const marginBottomMm = settings.marginBottomMm;
-      const interLabelSpacingMm = settings.interLabelSpacingMm;
+      const geometry = {
+        printHeadSizeMm: settings.printHeadSizeMm,
+        marginTopMm: settings.marginTopMm,
+        marginBottomMm: settings.marginBottomMm,
+        interLabelSpacingMm: settings.interLabelSpacingMm,
+      };
       if (
-        !isTenthMillimeter(printHeadSizeMm, 0.1) ||
-        !isTenthMillimeter(marginTopMm, 0) ||
-        !isTenthMillimeter(marginBottomMm, 0) ||
-        !isTenthMillimeter(interLabelSpacingMm, 0)
+        !isPrinterSettings(geometry) ||
+        geometry.printHeadSizeMm === undefined ||
+        geometry.marginTopMm === undefined ||
+        geometry.marginBottomMm === undefined ||
+        geometry.interLabelSpacingMm === undefined
       ) {
         throw new RangeError(
           "Printer geometry must use 0.1 mm steps from 0 to 100 mm",
@@ -634,10 +630,10 @@ function registerIpc(): void {
       const updatedSettings: PrinterSettings = {
         ...(displayName === undefined ? {} : { displayName }),
         ...(darkness === undefined ? {} : { darkness }),
-        printHeadSizeMm,
-        marginTopMm,
-        marginBottomMm,
-        interLabelSpacingMm,
+        printHeadSizeMm: geometry.printHeadSizeMm,
+        marginTopMm: geometry.marginTopMm,
+        marginBottomMm: geometry.marginBottomMm,
+        interLabelSpacingMm: geometry.interLabelSpacingMm,
       };
       const nextPrinterSettings = new Map(printerSettings).set(
         printerId,

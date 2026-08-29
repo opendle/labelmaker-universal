@@ -1,5 +1,12 @@
 import type { LabelDocument } from "@labelmaker/domain";
-import type { PrinterState, PrinterTransport } from "@labelmaker/printing";
+import type {
+  NumericSettingCapability,
+  PrinterSettings,
+  PrinterState,
+  PrinterTransport,
+} from "@labelmaker/printing";
+
+export type { PrinterSettings };
 
 export interface PrinterSummary {
   readonly id: string;
@@ -17,24 +24,10 @@ export interface PrinterSummary {
   readonly marginTopMm?: number;
   readonly marginBottomMm?: number;
   readonly interLabelSpacingMm?: number;
-  readonly darkness?: {
-    readonly minimum: number;
-    readonly maximum: number;
-    readonly step: number;
-    readonly defaultValue: number;
+  readonly darkness?: NumericSettingCapability & {
     readonly value: number;
   };
   readonly batteryPercent?: number;
-}
-
-export interface PrinterSettings {
-  /** Omit this value to show the unchanged device name. */
-  readonly displayName?: string;
-  readonly darkness?: number;
-  readonly printHeadSizeMm?: number;
-  readonly marginTopMm?: number;
-  readonly marginBottomMm?: number;
-  readonly interLabelSpacingMm?: number;
 }
 
 export interface PrintRequest {

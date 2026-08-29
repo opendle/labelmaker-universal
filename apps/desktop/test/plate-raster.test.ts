@@ -2,10 +2,10 @@ import { createBlankLabelDocument } from "@labelmaker/documents";
 import { buildPlateSvg, renderPlateForPrinter } from "@labelmaker/rendering";
 import { describe, expect, it, vi } from "vitest";
 
+const plate = createBlankLabelDocument(() => "id").plates[0]!;
+
 describe("desktop plate rasterization", () => {
   it("renders document text as escaped SVG", () => {
-    const plate = createBlankLabelDocument(() => "id").plates[0];
-    if (!plate) throw new Error("Expected a plate");
     const changed = {
       ...plate,
       elements: plate.elements.map((element) =>
@@ -23,8 +23,6 @@ describe("desktop plate rasterization", () => {
   });
 
   it("uses the full height of a label that is narrower than the print head", () => {
-    const plate = createBlankLabelDocument(() => "id").plates[0];
-    if (!plate) throw new Error("Expected a plate");
     const narrow = { ...plate, size: { ...plate.size, heightMm: 10 } };
 
     const svg = buildPlateSvg(narrow, 320, 96, 12);
@@ -34,17 +32,12 @@ describe("desktop plate rasterization", () => {
   });
 
   it("positions the print head with independent top and bottom margins", () => {
-    const plate = createBlankLabelDocument(() => "id").plates[0];
-    if (!plate) throw new Error("Expected a plate");
-
     const svg = buildPlateSvg(plate, 320, 96, 12, 1, 3);
 
     expect(svg).toContain('viewBox="0 1 40 12"');
   });
 
   it("renders line breaks and italic text as separate SVG lines", () => {
-    const plate = createBlankLabelDocument(() => "id").plates[0];
-    if (!plate) throw new Error("Expected a plate");
     const changed = {
       ...plate,
       elements: plate.elements.map((element) =>
@@ -63,8 +56,6 @@ describe("desktop plate rasterization", () => {
   });
 
   it("uses fixed line height and vertical alignment in printed text", () => {
-    const plate = createBlankLabelDocument(() => "id").plates[0];
-    if (!plate) throw new Error("Expected a plate");
     const changed = {
       ...plate,
       elements: plate.elements.map((element) =>
@@ -88,9 +79,6 @@ describe("desktop plate rasterization", () => {
   });
 
   it("mirrors only the printed artwork when print mirroring is on", () => {
-    const plate = createBlankLabelDocument(() => "id").plates[0];
-    if (!plate) throw new Error("Expected a plate");
-
     const svg = buildPlateSvg({ ...plate, mirrorPrint: true }, 320, 96);
 
     expect(svg).toContain('<rect x="0" y="0" width="40"');
@@ -99,8 +87,6 @@ describe("desktop plate rasterization", () => {
   });
 
   it("renders line, rectangle, and circle shapes", () => {
-    const plate = createBlankLabelDocument(() => "id").plates[0];
-    if (!plate) throw new Error("Expected a plate");
     const frame = {
       kind: "rectangle" as const,
       xMm: 2,
@@ -130,8 +116,6 @@ describe("desktop plate rasterization", () => {
   });
 
   it("fills shapes in black without drawing outside their frames", () => {
-    const plate = createBlankLabelDocument(() => "id").plates[0];
-    if (!plate) throw new Error("Expected a plate");
     const changed = {
       ...plate,
       elements: [
@@ -159,8 +143,6 @@ describe("desktop plate rasterization", () => {
   });
 
   it("transposes pixels and reverses the E1 feed-line order", async () => {
-    const plate = createBlankLabelDocument(() => "id").plates[0];
-    if (!plate) throw new Error("Expected a plate");
     const rasterize = vi.fn((_svg: string, width: number, height: number) => {
       const data = new Uint8Array(width * height * 4).fill(255);
       const blackPixel = (y: number, x: number): void => {
@@ -191,8 +173,6 @@ describe("desktop plate rasterization", () => {
   });
 
   it("applies each image tone setting before it composites the artwork", async () => {
-    const base = createBlankLabelDocument(() => "id").plates[0];
-    if (!base) throw new Error("Expected a plate");
     const image = {
       id: "image",
       kind: "image" as const,
@@ -206,7 +186,7 @@ describe("desktop plate rasterization", () => {
       brightness: 206,
       contrast: 128,
     };
-    const plate = { ...base, elements: [...base.elements, image] };
+    const imagePlate = { ...plate, elements: [...plate.elements, image] };
     const finalSvgs: string[] = [];
     const rasterize = vi.fn((svg: string, width: number, height: number) => {
       const data = new Uint8Array(width * height * 4).fill(255);
@@ -221,14 +201,14 @@ describe("desktop plate rasterization", () => {
     });
 
     await renderPlateForPrinter(
-      plate,
+      imagePlate,
       { dpi: 25.4, rasterWidthPixels: 8, printableWidthMm: 8 },
       rasterize,
     );
     await renderPlateForPrinter(
       {
-        ...plate,
-        elements: plate.elements.map((element) =>
+        ...imagePlate,
+        elements: imagePlate.elements.map((element) =>
           element.kind === "image"
             ? { ...element, brightness: 106, contrast: 160 }
             : element,

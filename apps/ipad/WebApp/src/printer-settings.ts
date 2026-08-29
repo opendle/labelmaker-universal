@@ -1,14 +1,4 @@
-import type { PrinterSettings } from "@labelmaker/printing";
-
-const MAX_DISPLAY_NAME_LENGTH = 80;
-const ALLOWED_KEYS = new Set([
-  "displayName",
-  "darkness",
-  "printHeadSizeMm",
-  "marginTopMm",
-  "marginBottomMm",
-  "interLabelSpacingMm",
-]);
+import { isPrinterSettings, type PrinterSettings } from "@labelmaker/printing";
 
 export function validatePrinterSettings(value: unknown): PrinterSettings {
   if (!isPrinterSettings(value)) {
@@ -28,40 +18,6 @@ export function readStoredPrinterSettings(
       (entry): entry is [string, PrinterSettings] =>
         configuredIds.has(entry[0]) && isPrinterSettings(entry[1]),
     ),
-  );
-}
-
-function isPrinterSettings(value: unknown): value is PrinterSettings {
-  return (
-    isRecord(value) &&
-    Object.keys(value).every((key) => ALLOWED_KEYS.has(key)) &&
-    (!("displayName" in value) ||
-      (typeof value.displayName === "string" &&
-        value.displayName === value.displayName.trim() &&
-        value.displayName.length > 0 &&
-        value.displayName.length <= MAX_DISPLAY_NAME_LENGTH)) &&
-    (!("darkness" in value) ||
-      (typeof value.darkness === "number" &&
-        Number.isInteger(value.darkness) &&
-        value.darkness >= 0 &&
-        value.darkness <= 31)) &&
-    (!("printHeadSizeMm" in value) ||
-      isTenthMillimeter(value.printHeadSizeMm, 0.1)) &&
-    (!("marginTopMm" in value) || isTenthMillimeter(value.marginTopMm, 0)) &&
-    (!("marginBottomMm" in value) ||
-      isTenthMillimeter(value.marginBottomMm, 0)) &&
-    (!("interLabelSpacingMm" in value) ||
-      isTenthMillimeter(value.interLabelSpacingMm, 0))
-  );
-}
-
-function isTenthMillimeter(value: unknown, minimum: number): value is number {
-  return (
-    typeof value === "number" &&
-    Number.isFinite(value) &&
-    value >= minimum &&
-    value <= 100 &&
-    Math.abs(value * 10 - Math.round(value * 10)) < 1e-8
   );
 }
 

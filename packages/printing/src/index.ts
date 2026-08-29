@@ -102,12 +102,60 @@ export interface PrintJob {
 }
 
 export interface PrinterSettings {
+  /** Omit this value to show the unchanged device name. */
   readonly displayName?: string;
   readonly darkness?: number;
   readonly printHeadSizeMm?: number;
   readonly marginTopMm?: number;
   readonly marginBottomMm?: number;
   readonly interLabelSpacingMm?: number;
+}
+
+const PRINTER_SETTING_KEYS = new Set([
+  "displayName",
+  "darkness",
+  "printHeadSizeMm",
+  "marginTopMm",
+  "marginBottomMm",
+  "interLabelSpacingMm",
+]);
+
+export function isPrinterSettings(value: unknown): value is PrinterSettings {
+  return (
+    isRecord(value) &&
+    Object.keys(value).every((key) => PRINTER_SETTING_KEYS.has(key)) &&
+    (!("displayName" in value) ||
+      (typeof value.displayName === "string" &&
+        value.displayName === value.displayName.trim() &&
+        value.displayName.length > 0 &&
+        value.displayName.length <= MAX_PRINTER_DISPLAY_NAME_LENGTH)) &&
+    (!("darkness" in value) ||
+      (typeof value.darkness === "number" &&
+        Number.isInteger(value.darkness) &&
+        value.darkness >= 0 &&
+        value.darkness <= 31)) &&
+    (!("printHeadSizeMm" in value) ||
+      isTenthMillimeter(value.printHeadSizeMm, 0.1)) &&
+    (!("marginTopMm" in value) || isTenthMillimeter(value.marginTopMm, 0)) &&
+    (!("marginBottomMm" in value) ||
+      isTenthMillimeter(value.marginBottomMm, 0)) &&
+    (!("interLabelSpacingMm" in value) ||
+      isTenthMillimeter(value.interLabelSpacingMm, 0))
+  );
+}
+
+function isTenthMillimeter(value: unknown, minimum: number): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= minimum &&
+    value <= 100 &&
+    Math.abs(value * 10 - Math.round(value * 10)) < 1e-8
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 /** Add white feed rows between raster pages without changing their width. */

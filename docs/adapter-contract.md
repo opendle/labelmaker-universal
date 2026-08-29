@@ -46,9 +46,10 @@ common controls are insufficient.
 
 Common numeric settings report a minimum, maximum, step, and default value.
 Printer settings are outside the workspace document and belong to one
-configured printer. The desktop and iPad shells validate and store darkness,
-print-head size, independent top and bottom margins, and inter-label spacing
-before they render a print job. Geometry values use 0.1 mm steps. Inter-label
+configured printer. The desktop and iPad shells use the shared
+`isPrinterSettings` validator before they store darkness, print-head size,
+independent top and bottom margins, and inter-label spacing. Geometry values
+use 0.1 mm steps. Inter-label
 spacing defaults to 1 mm. The shells convert it to whole pixels at the printer
 resolution and add white raster rows after each page except the last page.
 This keeps spacing transport-neutral and keeps the raster width unchanged.

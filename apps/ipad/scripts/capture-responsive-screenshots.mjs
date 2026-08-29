@@ -1,8 +1,14 @@
-import { createServer } from "node:http";
-import { mkdir, readFile, rm, stat } from "node:fs/promises";
-import { extname, resolve, sep } from "node:path";
+import { mkdir, rm } from "node:fs/promises";
+import { resolve } from "node:path";
 
 import { webkit } from "playwright";
+
+import {
+  installCaptureHost,
+  settlePage,
+  startStaticServer,
+  watchPageFailures,
+} from "./screenshot-support.mjs";
 
 const appDirectory = resolve(import.meta.dirname, "..");
 const buildDirectory = resolve(appDirectory, "Labelmaker/Resources/WebApp");
@@ -35,17 +41,7 @@ await Promise.all(
         ],
   ),
 );
-const server = createStaticServer(buildDirectory);
-await new Promise((resolveListen, rejectListen) => {
-  server.once("error", rejectListen);
-  server.listen(0, "127.0.0.1", resolveListen);
-});
-const address = server.address();
-if (!address || typeof address === "string") {
-  server.close();
-  throw new Error("The screenshot server did not report a local port.");
-}
-const appUrl = `http://127.0.0.1:${address.port}/`;
+const server = await startStaticServer(buildDirectory);
 
 let browser;
 try {
@@ -55,9 +51,7 @@ try {
   }
 } finally {
   await browser?.close();
-  await new Promise((resolveClose, rejectClose) => {
-    server.close((error) => (error ? rejectClose(error) : resolveClose()));
-  });
+  await server.close();
 }
 
 console.log(`Responsive screenshots saved to ${screenshotDirectory}.`);
@@ -72,31 +66,16 @@ async function capture(viewport) {
     screen: { width: viewport.width, height: viewport.height },
     viewport: { width: viewport.width, height: viewport.height },
   });
-  await context.addInitScript(installCaptureHost);
+  await context.addInitScript(installCaptureHost, false);
   const page = await context.newPage();
-  const failures = [];
-  page.on("pageerror", (error) => failures.push(error.message));
-  page.on("console", (message) => {
-    const messageText = message.text();
-    const knownViewportWarning = messageText.startsWith(
-      'Viewport argument key "interactive-widget" not recognized',
-    );
-    if (message.type() === "error" && !knownViewportWarning) {
-      failures.push(messageText);
-    }
-  });
+  const failures = watchPageFailures(page);
   try {
-    await page.goto(appUrl, { waitUntil: "networkidle" });
+    await page.goto(server.url, { waitUntil: "networkidle" });
     await page.locator(".label-canvas").waitFor();
     await page
       .getByRole("button", { name: "Selected printer: Workshop printer" })
       .waitFor();
-    await page.evaluate(async () => {
-      await document.fonts.ready;
-      await new Promise((resolveFrame) =>
-        requestAnimationFrame(() => requestAnimationFrame(resolveFrame)),
-      );
-    });
+    await settlePage(page);
 
     const expectedLayout =
       viewport.width > 600 &&
@@ -573,89 +552,4 @@ async function inspectStandardIPad(page) {
   });
   await printerTrigger.click();
   return { ...inspection, printerActionGap };
-}
-
-function installCaptureHost() {
-  localStorage.setItem(
-    "labelmaker.ipados.printers.v1",
-    JSON.stringify({
-      printerIds: ["makeid:ipad-ble-workshop"],
-      activePrinterId: "makeid:ipad-ble-workshop",
-      settings: {
-        "makeid:ipad-ble-workshop": {
-          displayName: "Workshop printer",
-          darkness: 20,
-          printHeadSizeMm: 12,
-          marginTopMm: 2,
-          marginBottomMm: 2,
-        },
-      },
-    }),
-  );
-  Object.defineProperty(window, "webkit", {
-    configurable: true,
-    value: {
-      messageHandlers: {
-        labelmaker: {
-          async postMessage(request) {
-            switch (request?.method) {
-              case "loadWorkspaceRecovery":
-                return { ok: true, result: null };
-              case "storeWorkspaceRecovery":
-              case "clearWorkspaceAssociation":
-                return { ok: true, result: null };
-              default:
-                return {
-                  ok: false,
-                  error: {
-                    code: "CAPTURE_METHOD_UNAVAILABLE",
-                    message: `The screenshot host does not support ${String(request?.method)}.`,
-                  },
-                };
-            }
-          },
-        },
-      },
-    },
-  });
-}
-
-function createStaticServer(rootDirectory) {
-  return createServer(async (request, response) => {
-    try {
-      const requestUrl = new URL(request.url ?? "/", "http://127.0.0.1");
-      const relativePath =
-        requestUrl.pathname === "/"
-          ? "index.html"
-          : decodeURIComponent(requestUrl.pathname.slice(1));
-      const path = resolve(rootDirectory, relativePath);
-      if (!path.startsWith(`${rootDirectory}${sep}`)) {
-        response.writeHead(404).end();
-        return;
-      }
-      if (!(await stat(path)).isFile()) {
-        response.writeHead(404).end();
-        return;
-      }
-      response.writeHead(200, {
-        "Cache-Control": "no-store",
-        "Content-Type": contentType(path),
-      });
-      response.end(await readFile(path));
-    } catch {
-      response.writeHead(404).end();
-    }
-  });
-}
-
-function contentType(path) {
-  return (
-    {
-      ".css": "text/css; charset=utf-8",
-      ".html": "text/html; charset=utf-8",
-      ".js": "text/javascript; charset=utf-8",
-      ".png": "image/png",
-      ".svg": "image/svg+xml",
-    }[extname(path)] ?? "application/octet-stream"
-  );
 }

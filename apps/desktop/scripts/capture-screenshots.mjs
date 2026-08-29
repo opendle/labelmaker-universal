@@ -4,22 +4,10 @@ import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
+import { prepareDesktopRuntime } from "./capture-support.mjs";
+
 const appDirectory = resolve(import.meta.dirname, "..");
-const launcherPath = resolve(import.meta.dirname, "launch-desktop.mjs");
-const preparedRuntime = spawnSync(
-  process.execPath,
-  [launcherPath, "--prepare-only"],
-  { encoding: "utf8" },
-);
-if (preparedRuntime.status !== 0) {
-  throw new Error(
-    `Could not prepare the desktop runtime: ${(preparedRuntime.stderr || preparedRuntime.stdout).trim()}`,
-  );
-}
-const desktopExecutable = preparedRuntime.stdout.trim();
-if (!desktopExecutable) {
-  throw new Error("The desktop runtime did not report an executable");
-}
+const desktopExecutable = prepareDesktopRuntime();
 if (
   process.platform === "darwin" &&
   basename(desktopExecutable) !== "Labelmaker"

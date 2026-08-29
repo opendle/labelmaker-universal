@@ -3,6 +3,7 @@ import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
 import {
+  isPrinterSettings,
   MAX_PRINTER_DISPLAY_NAME_LENGTH,
   type PrinterDescriptor,
   type PrinterSettings,
@@ -405,48 +406,6 @@ function isBoundedDisplayText(value: unknown): value is string {
 function isBoundedText(value: unknown, maximum: number): value is string {
   return (
     typeof value === "string" && value.length > 0 && value.length <= maximum
-  );
-}
-
-function isPrinterSettings(value: unknown): value is PrinterSettings {
-  const allowedKeys = new Set([
-    "displayName",
-    "darkness",
-    "printHeadSizeMm",
-    "marginTopMm",
-    "marginBottomMm",
-    "interLabelSpacingMm",
-  ]);
-  return (
-    isRecord(value) &&
-    Object.keys(value).every((key) => allowedKeys.has(key)) &&
-    (!("displayName" in value) ||
-      (typeof value.displayName === "string" &&
-        value.displayName === value.displayName.trim() &&
-        value.displayName.length > 0 &&
-        value.displayName.length <= MAX_PRINTER_DISPLAY_NAME_LENGTH)) &&
-    (!("darkness" in value) ||
-      (typeof value.darkness === "number" &&
-        Number.isInteger(value.darkness) &&
-        value.darkness >= 0 &&
-        value.darkness <= 31)) &&
-    (!("printHeadSizeMm" in value) ||
-      isTenthMillimeter(value.printHeadSizeMm, 0.1)) &&
-    (!("marginTopMm" in value) || isTenthMillimeter(value.marginTopMm, 0)) &&
-    (!("marginBottomMm" in value) ||
-      isTenthMillimeter(value.marginBottomMm, 0)) &&
-    (!("interLabelSpacingMm" in value) ||
-      isTenthMillimeter(value.interLabelSpacingMm, 0))
-  );
-}
-
-function isTenthMillimeter(value: unknown, minimum: number): value is number {
-  return (
-    typeof value === "number" &&
-    Number.isFinite(value) &&
-    value >= minimum &&
-    value <= 100 &&
-    Math.abs(value * 10 - Math.round(value * 10)) < 1e-8
   );
 }
 

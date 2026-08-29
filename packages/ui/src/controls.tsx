@@ -5,12 +5,14 @@ import { resizeCursor, type ResizeCorner } from "./resize-cursor.js";
 export function IconButton({
   label,
   children,
+  className = "icon-button",
   disabled = false,
   initialFocus = false,
   onClick,
 }: {
   readonly label: string;
   readonly children: ReactNode;
+  readonly className?: string;
   readonly disabled?: boolean;
   readonly initialFocus?: boolean;
   readonly onClick?: () => void;
@@ -18,7 +20,7 @@ export function IconButton({
   return (
     <button
       aria-label={label}
-      className="icon-button"
+      className={className}
       data-autofocus={initialFocus || undefined}
       disabled={disabled}
       onClick={onClick}

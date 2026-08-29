@@ -1126,7 +1126,6 @@ describe("LabelmakerApp", () => {
 
   it("saves a copy through the Save As host operation", async () => {
     const host = createHost();
-    const user = userEvent.setup();
     render(<LabelmakerApp host={host} />);
 
     fireEvent.keyDown(window, { key: "s", ctrlKey: true, shiftKey: true });
@@ -2197,7 +2196,6 @@ describe("LabelmakerApp", () => {
   it("uses the Phone header and compact text controls in a narrow viewport", async () => {
     vi.stubGlobal("innerWidth", 393);
     vi.stubGlobal("innerHeight", 852);
-    const user = userEvent.setup();
     const { container } = render(<LabelmakerApp host={createHost()} />);
 
     expect(container.querySelector(".app-shell")).toHaveClass("layout-phone");

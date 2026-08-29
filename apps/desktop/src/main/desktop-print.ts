@@ -13,7 +13,7 @@ import type {
 import type { ValidatedPrintRequest } from "./print-request.js";
 import type { SavedPrinterRecord } from "./printer-configuration.js";
 
-export interface PrintRasterTarget {
+interface PrintRasterTarget {
   readonly dpi: number;
   readonly rasterWidthPixels: number;
   readonly printableWidthMm: number;
@@ -21,7 +21,7 @@ export interface PrintRasterTarget {
   readonly marginBottomMm: number;
 }
 
-export type DesktopPlateRenderer = (
+type DesktopPlateRenderer = (
   plate: LabelPlate,
   target: PrintRasterTarget,
 ) => Promise<RasterPage>;

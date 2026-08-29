@@ -1,5 +1,4 @@
 export { LabelmakerApp } from "./LabelmakerApp.js";
-export { sampleDocument } from "./sample.js";
 export type {
   HostPlatform,
   LabelmakerHost,

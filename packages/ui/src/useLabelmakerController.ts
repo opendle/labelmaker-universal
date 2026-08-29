@@ -19,6 +19,7 @@ import {
   initialAppState,
   replaceElement,
   replacePlate,
+  type Toast,
 } from "./app-state.js";
 import {
   appendElementAndFlagPeer,
@@ -45,6 +46,13 @@ import {
   printerFailureMessage,
   remotePrinterFailureMessage,
 } from "./printer-failure-message.js";
+
+function toastAction(tone: Toast["tone"], message: string, busy = false) {
+  return {
+    type: "set-toast" as const,
+    toast: { tone, message, ...(busy ? { busy: true } : {}) },
+  };
+}
 
 export function useLabelmakerController(host: LabelmakerHost) {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
@@ -146,13 +154,9 @@ export function useLabelmakerController(host: LabelmakerHost) {
         })
         .catch(() => {
           if (active && showError)
-            dispatch({
-              type: "set-toast",
-              toast: {
-                tone: "error",
-                message: "Printers could not be loaded. Try again.",
-              },
-            });
+            dispatch(
+              toastAction("error", "Printers could not be loaded. Try again."),
+            );
         })
         .finally(() => {
           refreshPending = false;
@@ -177,13 +181,9 @@ export function useLabelmakerController(host: LabelmakerHost) {
     (printerId: string) => {
       dispatch({ type: "set-active-printer", printerId });
       void host.setActivePrinterId?.(printerId).catch(() => {
-        dispatch({
-          type: "set-toast",
-          toast: {
-            tone: "error",
-            message: "The printer selection could not be saved.",
-          },
-        });
+        dispatch(
+          toastAction("error", "The printer selection could not be saved."),
+        );
       });
     },
     [host],
@@ -202,19 +202,15 @@ export function useLabelmakerController(host: LabelmakerHost) {
             ? { preferredId: state.activePrinterId }
             : {}),
         });
-        dispatch({
-          type: "set-toast",
-          toast: { tone: "success", message: "Printer settings saved" },
-        });
+        dispatch(toastAction("success", "Printer settings saved"));
         return true;
       } catch {
-        dispatch({
-          type: "set-toast",
-          toast: {
-            tone: "error",
-            message: "Printer settings could not be saved. Try again.",
-          },
-        });
+        dispatch(
+          toastAction(
+            "error",
+            "Printer settings could not be saved. Try again.",
+          ),
+        );
         return false;
       }
     },
@@ -264,29 +260,16 @@ export function useLabelmakerController(host: LabelmakerHost) {
             savedAt: result.savedAt,
             fileName: result.fileName,
           });
-          dispatch({
-            type: "set-toast",
-            toast: { tone: "success", message: `Saved ${result.fileName}` },
-          });
+          dispatch(toastAction("success", `Saved ${result.fileName}`));
         } else if (result.status === "failed") {
-          dispatch({
-            type: "set-toast",
-            toast: { tone: "error", message: result.error.message },
-          });
+          dispatch(toastAction("error", result.error.message));
         } else {
-          dispatch({
-            type: "set-toast",
-            toast: { tone: "neutral", message: "Save canceled" },
-          });
+          dispatch(toastAction("neutral", "Save canceled"));
         }
       } catch {
-        dispatch({
-          type: "set-toast",
-          toast: {
-            tone: "error",
-            message: "The workspace could not be saved. Try again.",
-          },
-        });
+        dispatch(
+          toastAction("error", "The workspace could not be saved. Try again."),
+        );
       }
     },
     [host, state.workspace],
@@ -301,29 +284,19 @@ export function useLabelmakerController(host: LabelmakerHost) {
           workspace: result.document,
           fileName: null,
         });
-        dispatch({
-          type: "set-toast",
-          toast: { tone: "success", message: "New workspace created" },
-        });
+        dispatch(toastAction("success", "New workspace created"));
       } else if (result.status === "failed") {
-        dispatch({
-          type: "set-toast",
-          toast: { tone: "error", message: result.error.message },
-        });
+        dispatch(toastAction("error", result.error.message));
       } else {
-        dispatch({
-          type: "set-toast",
-          toast: { tone: "neutral", message: "New workspace canceled" },
-        });
+        dispatch(toastAction("neutral", "New workspace canceled"));
       }
     } catch {
-      dispatch({
-        type: "set-toast",
-        toast: {
-          tone: "error",
-          message: "A new workspace could not be created. Try again.",
-        },
-      });
+      dispatch(
+        toastAction(
+          "error",
+          "A new workspace could not be created. Try again.",
+        ),
+      );
     }
   }, [host, state.dirty, state.workspace]);
 
@@ -336,29 +309,16 @@ export function useLabelmakerController(host: LabelmakerHost) {
           workspace: result.document,
           fileName: result.fileName,
         });
-        dispatch({
-          type: "set-toast",
-          toast: { tone: "success", message: `Opened ${result.fileName}` },
-        });
+        dispatch(toastAction("success", `Opened ${result.fileName}`));
       } else if (result.status === "failed") {
-        dispatch({
-          type: "set-toast",
-          toast: { tone: "error", message: result.error.message },
-        });
+        dispatch(toastAction("error", result.error.message));
       } else {
-        dispatch({
-          type: "set-toast",
-          toast: { tone: "neutral", message: "Open canceled" },
-        });
+        dispatch(toastAction("neutral", "Open canceled"));
       }
     } catch {
-      dispatch({
-        type: "set-toast",
-        toast: {
-          tone: "error",
-          message: "The workspace could not be opened. Try again.",
-        },
-      });
+      dispatch(
+        toastAction("error", "The workspace could not be opened. Try again."),
+      );
     }
   }, [host, state.dirty, state.workspace]);
 
@@ -369,10 +329,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
       dispatch({ type: "discovery-finished", printers });
     } catch {
       dispatch({ type: "discovery-failed" });
-      dispatch({
-        type: "set-toast",
-        toast: { tone: "error", message: "Printer search failed. Try again." },
-      });
+      dispatch(toastAction("error", "Printer search failed. Try again."));
     }
   }, [host]);
 
@@ -383,22 +340,18 @@ export function useLabelmakerController(host: LabelmakerHost) {
         const printers = await host.addPrinter(printerId);
         dispatch({ type: "set-printers", printers, preferredId: printerId });
         selectPrinter(printerId);
-        dispatch({
-          type: "set-toast",
-          toast: { tone: "success", message: "Printer added" },
-        });
+        dispatch(toastAction("success", "Printer added"));
         return true;
       } catch (error) {
-        dispatch({
-          type: "set-toast",
-          toast: {
-            tone: "error",
-            message: remotePrinterFailureMessage(
+        dispatch(
+          toastAction(
+            "error",
+            remotePrinterFailureMessage(
               error,
               "The printer could not be added. Try again.",
             ),
-          },
-        });
+          ),
+        );
         return false;
       }
     },
@@ -408,13 +361,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
   const removePrinter = useCallback(
     async (printerId: string) => {
       if (!host.removePrinter) {
-        dispatch({
-          type: "set-toast",
-          toast: {
-            tone: "neutral",
-            message: "Printer removal is not available.",
-          },
-        });
+        dispatch(toastAction("neutral", "Printer removal is not available."));
         return;
       }
       printerMutationGeneration.current += 1;
@@ -435,18 +382,9 @@ export function useLabelmakerController(host: LabelmakerHost) {
         if (preferredId && preferredId !== state.activePrinterId) {
           selectPrinter(preferredId);
         }
-        dispatch({
-          type: "set-toast",
-          toast: { tone: "success", message: "Printer removed" },
-        });
+        dispatch(toastAction("success", "Printer removed"));
       } catch {
-        dispatch({
-          type: "set-toast",
-          toast: {
-            tone: "error",
-            message: "The printer could not be removed.",
-          },
-        });
+        dispatch(toastAction("error", "The printer could not be removed."));
       }
     },
     [host, selectPrinter, state.activePrinterId],
@@ -457,29 +395,21 @@ export function useLabelmakerController(host: LabelmakerHost) {
       if (printInProgress.current) return;
       if (!activePlate || !activePrinter) {
         dispatch({ type: "set-print-menu", open: false });
-        dispatch({
-          type: "set-toast",
-          toast: {
-            tone: "error",
-            message: "Select a printer before printing.",
-          },
-        });
+        dispatch(toastAction("error", "Select a printer before printing."));
         return;
       }
       printInProgress.current = true;
       setIsPrinting(true);
       dispatch({ type: "set-print-menu", open: false });
-      dispatch({
-        type: "set-toast",
-        toast: {
-          tone: "neutral",
-          message:
-            activePrinter.state === "ready"
-              ? "Sending label to printer…"
-              : "Connecting to printer…",
-          busy: true,
-        },
-      });
+      dispatch(
+        toastAction(
+          "neutral",
+          activePrinter.state === "ready"
+            ? "Sending label to printer…"
+            : "Connecting to printer…",
+          true,
+        ),
+      );
       try {
         const result = await host.print({
           document: state.workspace,
@@ -488,18 +418,14 @@ export function useLabelmakerController(host: LabelmakerHost) {
             ? state.workspace.plates.map((plate) => plate.id)
             : [activePlate.id],
         });
-        dispatch({
-          type: "set-toast",
-          toast: { tone: "success", message: result.message },
-        });
+        dispatch(toastAction("success", result.message));
       } catch (error) {
-        dispatch({
-          type: "set-toast",
-          toast: {
-            tone: "error",
-            message: `${activePrinter.name}: ${printFailureMessage(error)}`,
-          },
-        });
+        dispatch(
+          toastAction(
+            "error",
+            `${activePrinter.name}: ${printFailureMessage(error)}`,
+          ),
+        );
       } finally {
         printInProgress.current = false;
         setIsPrinting(false);
@@ -638,20 +564,13 @@ export function useLabelmakerController(host: LabelmakerHost) {
     (file: File) => {
       if (!activePlate) return;
       if (!PRINTABLE_IMAGE_TYPES.has(file.type.toLowerCase())) {
-        dispatch({
-          type: "set-toast",
-          toast: {
-            tone: "error",
-            message: "Choose a PNG, JPEG, GIF, WebP, or BMP image.",
-          },
-        });
+        dispatch(
+          toastAction("error", "Choose a PNG, JPEG, GIF, WebP, or BMP image."),
+        );
         return;
       }
       if (file.size > 10 * 1024 * 1024) {
-        dispatch({
-          type: "set-toast",
-          toast: { tone: "error", message: "Image must be smaller than 10 MB" },
-        });
+        dispatch(toastAction("error", "Image must be smaller than 10 MB"));
         return;
       }
       const plateId = activePlate.id;
@@ -668,13 +587,9 @@ export function useLabelmakerController(host: LabelmakerHost) {
           void drawingResultFromImageSource(source)
             .then((result) => {
               if (!result) {
-                dispatch({
-                  type: "set-toast",
-                  toast: {
-                    tone: "error",
-                    message: "The image has no visible pixels.",
-                  },
-                });
+                dispatch(
+                  toastAction("error", "The image has no visible pixels."),
+                );
                 return;
               }
               const elementId = appendImage(
@@ -695,21 +610,14 @@ export function useLabelmakerController(host: LabelmakerHost) {
               }
             })
             .catch(() =>
-              dispatch({
-                type: "set-toast",
-                toast: { tone: "error", message: "The image could not open." },
-              }),
+              dispatch(toastAction("error", "The image could not open.")),
             );
         },
         { once: true },
       );
       reader.addEventListener(
         "error",
-        () =>
-          dispatch({
-            type: "set-toast",
-            toast: { tone: "error", message: "Image could not be read" },
-          }),
+        () => dispatch(toastAction("error", "Image could not be read")),
         { once: true },
       );
       reader.readAsDataURL(file);
@@ -820,6 +728,3 @@ function printFailureMessage(error: unknown): string {
     "The label could not be printed. Check the printer and try again.",
   );
 }
-
-export type LabelmakerController = ReturnType<typeof useLabelmakerController>;
-export type { ImageElement, ShapeElement, TextElement };

@@ -21,6 +21,17 @@ import { snapRotationDegrees } from "./rotation.js";
 export type ResizeCorner = "nw" | "ne" | "sw" | "se";
 type FramedElement = TextElement | ImageElement | ShapeElement;
 
+function trackPointerMovement(onMove: (event: PointerEvent) => void): void {
+  const finish = () => {
+    globalThis.removeEventListener("pointermove", onMove);
+    globalThis.removeEventListener("pointerup", finish);
+    globalThis.removeEventListener("pointercancel", finish);
+  };
+  globalThis.addEventListener("pointermove", onMove);
+  globalThis.addEventListener("pointerup", finish);
+  globalThis.addEventListener("pointercancel", finish);
+}
+
 function frameWithScale<T extends FramedElement>(
   element: T,
   scale: number,
@@ -444,14 +455,7 @@ export function useCanvasInteractions({
         ),
       );
     };
-    const onUp = () => {
-      globalThis.removeEventListener("pointermove", onMove);
-      globalThis.removeEventListener("pointerup", onUp);
-      globalThis.removeEventListener("pointercancel", onUp);
-    };
-    globalThis.addEventListener("pointermove", onMove);
-    globalThis.addEventListener("pointerup", onUp);
-    globalThis.addEventListener("pointercancel", onUp);
+    trackPointerMovement(onMove);
   };
 
   const startResize = (
@@ -488,14 +492,7 @@ export function useCanvasInteractions({
         ),
       );
     };
-    const onUp = () => {
-      globalThis.removeEventListener("pointermove", onMove);
-      globalThis.removeEventListener("pointerup", onUp);
-      globalThis.removeEventListener("pointercancel", onUp);
-    };
-    globalThis.addEventListener("pointermove", onMove);
-    globalThis.addEventListener("pointerup", onUp);
-    globalThis.addEventListener("pointercancel", onUp);
+    trackPointerMovement(onMove);
   };
 
   const startRotate = (
@@ -518,14 +515,7 @@ export function useCanvasInteractions({
       );
       onChangeElement({ ...element, rotationDeg });
     };
-    const onUp = () => {
-      globalThis.removeEventListener("pointermove", onMove);
-      globalThis.removeEventListener("pointerup", onUp);
-      globalThis.removeEventListener("pointercancel", onUp);
-    };
-    globalThis.addEventListener("pointermove", onMove);
-    globalThis.addEventListener("pointerup", onUp);
-    globalThis.addEventListener("pointercancel", onUp);
+    trackPointerMovement(onMove);
   };
 
   const moveWithKeyboard = (

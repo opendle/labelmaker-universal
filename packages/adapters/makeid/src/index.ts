@@ -199,36 +199,20 @@ export class MakeIdAdapter implements PrinterAdapter {
           signal,
         );
         throwIfAborted(signal);
-        if (protocolFamily === "abf0-66") {
-          const profile = await probeAbf0Profile(
-            transport,
-            kind,
-            connection.advertisedName,
-            this.#options.responseTimeoutMs,
-            signal,
-          );
-          const resolvedPrinter = resolvedDescriptor(
-            printer,
-            connection,
-            profile,
-          );
-          context.log.info("MakeID protocol connected", {
-            model: profile.model,
-            profileId: profile.profileId,
-          });
-          return new MakeId66Session(
-            resolvedPrinter,
-            transport,
-            context,
-            this.#options,
-            profile,
-          );
-        }
-        const profile = await probeFf00Profile(
-          transport,
-          this.#options.responseTimeoutMs,
-          signal,
-        );
+        const profile =
+          protocolFamily === "abf0-66"
+            ? await probeAbf0Profile(
+                transport,
+                kind,
+                connection.advertisedName,
+                this.#options.responseTimeoutMs,
+                signal,
+              )
+            : await probeFf00Profile(
+                transport,
+                this.#options.responseTimeoutMs,
+                signal,
+              );
         const resolvedPrinter = resolvedDescriptor(
           printer,
           connection,
@@ -238,7 +222,9 @@ export class MakeIdAdapter implements PrinterAdapter {
           model: profile.model,
           profileId: profile.profileId,
         });
-        return new MakeIdFf00Session(
+        const Session =
+          protocolFamily === "abf0-66" ? MakeId66Session : MakeIdFf00Session;
+        return new Session(
           resolvedPrinter,
           transport,
           context,
@@ -422,26 +408,91 @@ export function encodeMakeId66Page(
   return frames;
 }
 
-class MakeId66Session implements PrinterSession {
+abstract class MakeIdSession implements PrinterSession {
   #closed = false;
   #operationTail: Promise<void> = Promise.resolve();
 
   constructor(
     readonly printer: PrinterDescriptor,
-    private readonly transport: MakeIdTransport,
-    private readonly context: AdapterContext,
-    private readonly options: ResolvedOptions,
-    private readonly profile: MakeIdResolvedProfile,
+    protected readonly transport: MakeIdTransport,
+    protected readonly context: AdapterContext,
+    protected readonly options: ResolvedOptions,
+    protected readonly profile: MakeIdResolvedProfile,
   ) {}
 
   async capabilities(signal?: AbortSignal): Promise<PrinterCapabilities> {
-    this.#assertOpen(signal);
+    this.assertOpen(signal);
     return capabilitiesForProfile(this.profile);
   }
 
+  abstract status(signal?: AbortSignal): Promise<PrinterStatus>;
+
+  abstract print(
+    job: PrintJob,
+    onProgress?: (progress: PrintProgress) => void,
+    signal?: AbortSignal,
+  ): Promise<void>;
+
+  async close(): Promise<void> {
+    return this.runExclusive(async () => {
+      if (this.#closed) return;
+      this.#closed = true;
+      await this.transport.close();
+    });
+  }
+
+  protected reportProgress(
+    onProgress: ((progress: PrintProgress) => void) | undefined,
+    progress: PrintProgress,
+  ): void {
+    try {
+      onProgress?.(progress);
+    } catch (error) {
+      this.context.log.warn("The MakeID print progress callback failed.", {
+        reason: adapterErrorReason(error),
+      });
+    }
+  }
+
+  protected assertOpen(signal?: AbortSignal): void {
+    throwIfAborted(signal);
+    if (this.#closed || !this.transport.open) {
+      throw new MakeIdAdapterError(
+        "makeid.closed",
+        "The MakeID printer session is closed",
+        false,
+      );
+    }
+  }
+
+  protected async invalidate(): Promise<void> {
+    this.#closed = true;
+    try {
+      await this.transport.close();
+    } catch {
+      // Preserve the operation result which made the session unusable.
+    }
+  }
+
+  protected async runExclusive<T>(operation: () => Promise<T>): Promise<T> {
+    const previous = this.#operationTail;
+    let release: () => void = () => undefined;
+    this.#operationTail = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await previous;
+    try {
+      return await operation();
+    } finally {
+      release();
+    }
+  }
+}
+
+class MakeId66Session extends MakeIdSession {
   async status(signal?: AbortSignal): Promise<PrinterStatus> {
-    return this.#runExclusive(async () => {
-      this.#assertOpen(signal);
+    return this.runExclusive(async () => {
+      this.assertOpen(signal);
       try {
         const response = await this.#query(signal);
         return mapResponseToStatus(response);
@@ -456,8 +507,8 @@ class MakeId66Session implements PrinterSession {
     onProgress?: (progress: PrintProgress) => void,
     signal?: AbortSignal,
   ): Promise<void> {
-    return this.#runExclusive(async () => {
-      this.#assertOpen(signal);
+    return this.runExclusive(async () => {
+      this.assertOpen(signal);
       validateJob(job, this.printer, this.profile);
       const darkness = readDarkness(job);
 
@@ -499,7 +550,7 @@ class MakeId66Session implements PrinterSession {
           }
 
           await this.#waitForCompletion(signal);
-          this.#reportProgress(onProgress, {
+          this.reportProgress(onProgress, {
             completedPages: pageIndex + 1,
             totalPages: job.pages.length,
             message: `Printed label ${pageIndex + 1} of ${job.pages.length}`,
@@ -513,16 +564,6 @@ class MakeId66Session implements PrinterSession {
         }
         throw normalizeAdapterError(error, signal);
       }
-    });
-  }
-
-  async close(): Promise<void> {
-    return this.#runExclusive(async () => {
-      if (this.#closed) {
-        return;
-      }
-      this.#closed = true;
-      await this.transport.close();
     });
   }
 
@@ -627,12 +668,7 @@ class MakeId66Session implements PrinterSession {
         "The MakeID final reply was not usable. The session was closed.",
         { reason: adapterErrorReason(error) },
       );
-      this.#closed = true;
-      try {
-        await this.transport.close();
-      } catch {
-        // The session is already unusable. Keep the completed print successful.
-      }
+      await this.invalidate();
     }
   }
 
@@ -648,76 +684,15 @@ class MakeId66Session implements PrinterSession {
     } finally {
       // A reset can produce a reply after cancellation. Close the transport so
       // that no later operation can consume that reply as its own response.
-      this.#closed = true;
-      try {
-        await this.transport.close();
-      } catch {
-        // The original cancellation error is more useful than a close error.
-      }
-    }
-  }
-
-  #reportProgress(
-    onProgress: ((progress: PrintProgress) => void) | undefined,
-    progress: PrintProgress,
-  ): void {
-    try {
-      onProgress?.(progress);
-    } catch (error) {
-      // A caller callback must not stop the printer protocol after a page is
-      // physically complete.
-      this.context.log.warn("The MakeID print progress callback failed.", {
-        reason: adapterErrorReason(error),
-      });
-    }
-  }
-
-  #assertOpen(signal?: AbortSignal): void {
-    throwIfAborted(signal);
-    if (this.#closed || !this.transport.open) {
-      throw new MakeIdAdapterError(
-        "makeid.closed",
-        "The MakeID printer session is closed",
-        false,
-      );
-    }
-  }
-
-  async #runExclusive<T>(operation: () => Promise<T>): Promise<T> {
-    const previous = this.#operationTail;
-    let release: () => void = () => undefined;
-    this.#operationTail = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    await previous;
-    try {
-      return await operation();
-    } finally {
-      release();
+      await this.invalidate();
     }
   }
 }
 
-class MakeIdFf00Session implements PrinterSession {
-  #closed = false;
-  #operationTail: Promise<void> = Promise.resolve();
-
-  constructor(
-    readonly printer: PrinterDescriptor,
-    private readonly transport: MakeIdTransport,
-    private readonly context: AdapterContext,
-    private readonly options: ResolvedOptions,
-    private readonly profile: MakeIdResolvedProfile,
-  ) {}
-
-  async capabilities(signal?: AbortSignal): Promise<PrinterCapabilities> {
-    this.#assertOpen(signal);
-    return capabilitiesForProfile(this.profile);
-  }
-
+class MakeIdFf00Session extends MakeIdSession {
   async status(signal?: AbortSignal): Promise<PrinterStatus> {
-    return this.#runExclusive(async () => {
-      this.#assertOpen(signal);
+    return this.runExclusive(async () => {
+      this.assertOpen(signal);
       try {
         await this.transport.write(MAKEID_FF00_STATUS_QUERY, signal);
         await this.#readNonEmptyReply("status", signal);
@@ -726,12 +701,7 @@ class MakeIdFf00Session implements PrinterSession {
           message: "Connection is responsive; detailed status is not available",
         };
       } catch (error) {
-        this.#closed = true;
-        try {
-          await this.transport.close();
-        } catch {
-          // Preserve the status failure.
-        }
+        await this.invalidate();
         throw normalizeAdapterError(error, signal);
       }
     });
@@ -742,8 +712,8 @@ class MakeIdFf00Session implements PrinterSession {
     onProgress?: (progress: PrintProgress) => void,
     signal?: AbortSignal,
   ): Promise<void> {
-    return this.#runExclusive(async () => {
-      this.#assertOpen(signal);
+    return this.runExclusive(async () => {
+      this.assertOpen(signal);
       validateJob(job, this.printer, this.profile);
       try {
         // Captures from L1-300 firmware V1.07HH show that these five queries
@@ -778,41 +748,19 @@ class MakeIdFf00Session implements PrinterSession {
         // Captured L1 firmware emits the physical labels only after the final
         // close acknowledgement. Report completion after that proof.
         for (let pageIndex = 0; pageIndex < job.pages.length; pageIndex += 1) {
-          try {
-            onProgress?.({
-              completedPages: pageIndex + 1,
-              totalPages: job.pages.length,
-              message: `Printed label ${pageIndex + 1} of ${job.pages.length}`,
-            });
-          } catch (error) {
-            this.context.log.warn(
-              "The MakeID print progress callback failed.",
-              {
-                reason: adapterErrorReason(error),
-              },
-            );
-          }
+          this.reportProgress(onProgress, {
+            completedPages: pageIndex + 1,
+            totalPages: job.pages.length,
+            message: `Printed label ${pageIndex + 1} of ${job.pages.length}`,
+          });
         }
       } catch (error) {
         // No cancel command is known for this FF00 firmware. A failed transfer
         // can leave delayed bytes or an open device session. Close the dirty
         // stream so a later operation must start with a new connection.
-        this.#closed = true;
-        try {
-          await this.transport.close();
-        } catch {
-          // Preserve the original failure.
-        }
+        await this.invalidate();
         throw normalizeAdapterError(error, signal);
       }
-    });
-  }
-
-  async close(): Promise<void> {
-    return this.#runExclusive(async () => {
-      if (this.#closed) return;
-      this.#closed = true;
-      await this.transport.close();
     });
   }
 
@@ -861,31 +809,6 @@ class MakeIdFf00Session implements PrinterSession {
       `The ${this.profile.model} returned an unexpected reply`,
       true,
     );
-  }
-
-  #assertOpen(signal?: AbortSignal): void {
-    throwIfAborted(signal);
-    if (this.#closed || !this.transport.open) {
-      throw new MakeIdAdapterError(
-        "makeid.closed",
-        "The MakeID printer session is closed",
-        false,
-      );
-    }
-  }
-
-  async #runExclusive<T>(operation: () => Promise<T>): Promise<T> {
-    const previous = this.#operationTail;
-    let release: () => void = () => undefined;
-    this.#operationTail = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-    await previous;
-    try {
-      return await operation();
-    } finally {
-      release();
-    }
   }
 }
 

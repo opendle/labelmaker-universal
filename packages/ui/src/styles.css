@@ -749,17 +749,20 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
     transparent
   );
 }
-.ruler-top {
+.ruler-top,
+.ruler-left {
   position: absolute;
+  color: #77736a;
+  font-family: "DM Mono", monospace;
+  font-size: var(--interval-ruler-font-size, 7.5px);
+  pointer-events: none;
+}
+.ruler-top {
   left: 0;
   top: calc(0px - var(--interval-ruler-top-offset, 24px));
   width: 100%;
   height: var(--interval-ruler-top-height, 22px);
   border-bottom: 1px solid #a8a49a;
-  color: #77736a;
-  font-family: "DM Mono", monospace;
-  font-size: var(--interval-ruler-font-size, 7.5px);
-  pointer-events: none;
 }
 .dimension-ruler {
   position: absolute;
@@ -825,16 +828,11 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   background: #817e75;
 }
 .ruler-left {
-  position: absolute;
   left: calc(0px - var(--interval-ruler-left-offset, 48px));
   top: 0;
   width: var(--interval-ruler-left-width, 46px);
   height: 100%;
   border-right: 1px solid #a8a49a;
-  color: #77736a;
-  font-family: "DM Mono", monospace;
-  font-size: var(--interval-ruler-font-size, 7.5px);
-  pointer-events: none;
 }
 .ruler-left span {
   position: absolute;
@@ -952,13 +950,16 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   border: 0;
   background: transparent;
 }
-.canvas-element {
+.canvas-element,
+.canvas-shape {
   position: absolute;
   left: var(--element-left);
   top: var(--element-top);
   width: var(--element-width);
   height: var(--element-height);
   transform: var(--element-rotation);
+}
+.canvas-element {
   border: 0;
   color: inherit;
   background: transparent;
@@ -1054,12 +1055,6 @@ textarea.inline-text-editor:focus-visible {
   object-fit: fill;
 }
 .canvas-shape {
-  position: absolute;
-  left: var(--element-left);
-  top: var(--element-top);
-  width: var(--element-width);
-  height: var(--element-height);
-  transform: var(--element-rotation);
   color: #8f8a80;
   pointer-events: none;
 }
@@ -1293,15 +1288,18 @@ textarea.inline-text-editor:focus-visible {
   border: 0;
   accent-color: var(--accent);
 }
-.layer-buttons {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.layer-buttons,
+.text-style-buttons {
   height: var(--field-control-height);
   overflow: hidden;
   border: 1px solid var(--field-control-border);
   border-radius: var(--field-control-radius);
   margin: 0;
   padding: 0;
+}
+.layer-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .layer-buttons button {
   min-width: 0;
@@ -1337,14 +1335,8 @@ textarea.inline-text-editor:focus-visible {
   accent-color: var(--accent);
 }
 .text-style-buttons {
-  height: var(--field-control-height);
   display: flex;
   align-items: center;
-  overflow: hidden;
-  border: 1px solid var(--field-control-border);
-  border-radius: var(--field-control-radius);
-  margin: 0;
-  padding: 0;
 }
 .weight-group {
   display: grid;
@@ -1445,11 +1437,11 @@ textarea.inline-text-editor:focus-visible {
   gap: 4px;
   padding: 7px 7px 0;
 }
-.toolbar-unit-input input {
-  width: 32px;
+.toolbar-unit-input input,
+.unit-input input {
+  height: 100%;
   flex: 1 1 auto;
   min-width: 0;
-  height: 100%;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1457,7 +1449,11 @@ textarea.inline-text-editor:focus-visible {
   font-size: var(--field-control-font-size);
   text-align: right;
 }
-.toolbar-unit-input input:focus {
+.toolbar-unit-input input {
+  width: 32px;
+}
+.toolbar-unit-input input:focus,
+.unit-input input:focus {
   outline: 0;
 }
 .toolbar-unit-input:has(input:focus-visible),
@@ -1465,7 +1461,8 @@ textarea.inline-text-editor:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
-.toolbar-unit-input b {
+.toolbar-unit-input b,
+.unit-input b {
   flex: 0 0 auto;
   color: #969187;
   font-family: "DM Mono", monospace;
@@ -1571,28 +1568,6 @@ textarea.inline-text-editor:focus-visible {
   background: var(--field-control-background);
   color: var(--field-control-color);
   padding: 0 7px;
-}
-.unit-input input {
-  height: 100%;
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--field-control-color);
-  font-size: var(--field-control-font-size);
-  text-align: right;
-}
-.unit-input input:focus {
-  outline: 0;
-}
-.unit-input b {
-  flex: 0 0 auto;
-  color: #969187;
-  font-family: "DM Mono", monospace;
-  font-size: 8px;
-  font-weight: 500;
-  white-space: nowrap;
 }
 .segmented {
   height: var(--field-control-height);
@@ -2154,7 +2129,8 @@ textarea.inline-text-editor:focus-visible {
 }
 .printer-name-setting > span,
 .printer-readonly-setting > span,
-.printer-number-setting > span:first-child {
+.printer-number-setting > span:first-child,
+.darkness-setting strong {
   color: var(--field-label-color);
   font-size: var(--field-label-font-size);
   font-weight: var(--field-label-font-weight);
@@ -2197,12 +2173,6 @@ textarea.inline-text-editor:focus-visible {
 .printer-name-control .button:disabled {
   opacity: 0.45;
   cursor: default;
-}
-.darkness-setting strong {
-  color: var(--field-label-color);
-  font-size: var(--field-label-font-size);
-  font-weight: var(--field-label-font-weight);
-  letter-spacing: var(--field-label-letter-spacing);
 }
 .darkness-setting small,
 .printer-setting-unavailable {
