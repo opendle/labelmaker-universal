@@ -17,7 +17,7 @@
   --accent-dark: #c94723;
   --soft-accent: #fff0e9;
   --green: #2d9a68;
-  --field-control-height: 30px;
+  --field-control-height: 40px;
   --field-control-font-size: 11px;
   --field-control-background: white;
   --field-control-border: #d5d1c8;
@@ -29,6 +29,8 @@
   --field-label-font-weight: 700;
   --field-label-gap: 2px;
   --field-label-letter-spacing: 0.09em;
+  --field-label-background: var(--panel);
+  --focus-ring: #4f8acb;
 }
 
 * {
@@ -58,7 +60,7 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid #4f8acb;
+  outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
 }
 button[data-focus-ring-suppressed="true"]:focus-visible {
@@ -314,7 +316,7 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   cursor: default;
 }
 .button {
-  height: 32px;
+  height: var(--field-control-height);
   padding: 0 12px;
   display: inline-flex;
   align-items: center;
@@ -344,7 +346,7 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   background: #fff;
 }
 .button.small {
-  height: 29px;
+  height: var(--field-control-height);
   min-width: 58px;
 }
 .print-control {
@@ -593,6 +595,7 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   background: #e8e7e2;
 }
 .editor-toolbar {
+  --field-label-background: #f7f6f2;
   grid-column: 1;
   grid-row: 1;
   display: flex;
@@ -649,7 +652,7 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   margin-left: 4px;
 }
 .tool-button {
-  height: 36px;
+  height: var(--field-control-height);
   padding: 0 9px;
   display: flex;
   align-items: center;
@@ -1177,9 +1180,10 @@ textarea.inline-text-editor:focus-visible {
   overflow: auto;
 }
 .field {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--field-label-gap);
+  gap: 0;
   min-width: 0;
 }
 .field > span,
@@ -1188,6 +1192,18 @@ textarea.inline-text-editor:focus-visible {
   font-size: var(--field-label-font-size);
   font-weight: 700;
   letter-spacing: var(--field-label-letter-spacing);
+}
+.field:not(.image-tone-field) > span {
+  position: absolute;
+  top: -5px;
+  left: 8px;
+  z-index: 1;
+  max-width: calc(100% - 16px);
+  padding: 0 4px;
+  overflow: hidden;
+  background: var(--field-label-background);
+  line-height: 10px;
+  text-overflow: ellipsis;
 }
 .field input,
 .field select,
@@ -1200,6 +1216,12 @@ textarea.inline-text-editor:focus-visible {
   background: var(--field-control-background);
   color: var(--field-control-color);
   font-size: var(--field-control-font-size);
+}
+.field:has(> span):not(.image-tone-field) > input,
+.field:has(> span):not(.image-tone-field) > select,
+.field:has(> span):not(.image-tone-field) > textarea,
+.field:has(> span):not(.image-tone-field) > .unit-input {
+  padding-top: 5px;
 }
 .field textarea {
   height: 55px;
@@ -1229,9 +1251,9 @@ textarea.inline-text-editor:focus-visible {
 }
 .alignment-group {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 .field-heading {
   display: flex;
@@ -1281,22 +1303,30 @@ textarea.inline-text-editor:focus-visible {
 .layer-buttons {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
+  height: var(--field-control-height);
+  overflow: hidden;
+  border: 1px solid var(--field-control-border);
+  border-radius: var(--field-control-radius);
+  margin: 0;
+  padding: 0;
 }
 .layer-buttons button {
   min-width: 0;
-  min-height: 32px;
-  padding: 5px 6px;
+  min-height: 0;
+  padding: 0 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
-  border: 1px solid #d5d1c8;
-  border-radius: 5px;
+  border: 0;
+  border-right: 1px solid var(--field-control-border);
   background: white;
   color: #5f5b53;
   font-size: 9px;
   cursor: pointer;
+}
+.layer-buttons button:last-child {
+  border-right: 0;
 }
 .layer-buttons button:hover {
   color: var(--accent);
@@ -1314,19 +1344,20 @@ textarea.inline-text-editor:focus-visible {
   accent-color: var(--accent);
 }
 .text-style-buttons {
-  height: 30px;
+  height: var(--field-control-height);
   display: flex;
   align-items: center;
-  gap: 6px;
+  overflow: hidden;
+  border: 1px solid var(--field-control-border);
+  border-radius: var(--field-control-radius);
+  margin: 0;
+  padding: 0;
 }
 .weight-group {
   display: grid;
   flex: 1 1 auto;
   grid-template-columns: repeat(4, 1fr);
-  height: 30px;
-  overflow: hidden;
-  border: 1px solid #d5d1c8;
-  border-radius: 5px;
+  height: 100%;
 }
 .text-style-buttons button {
   min-width: 0;
@@ -1343,11 +1374,10 @@ textarea.inline-text-editor:focus-visible {
   cursor: pointer;
 }
 .text-style-buttons .italic-button {
-  flex: 0 0 30px;
-  width: 30px;
-  height: 30px;
-  border: 1px solid #d5d1c8;
-  border-radius: 5px;
+  flex: 0 0 var(--field-control-height);
+  width: var(--field-control-height);
+  height: 100%;
+  border-left: 1px solid var(--field-control-border);
 }
 .text-style-buttons .weight-300 {
   color: #aaa59b;
@@ -1385,13 +1415,20 @@ textarea.inline-text-editor:focus-visible {
   box-shadow: none;
 }
 .toolbar-field {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: var(--field-label-gap);
+  gap: 0;
   min-width: 0;
 }
 .toolbar-field > span {
+  position: absolute;
+  top: -5px;
+  left: 8px;
+  z-index: 1;
+  padding: 0 4px;
+  background: var(--field-label-background);
   color: var(--field-label-color);
   font-size: var(--field-label-font-size);
   font-weight: var(--field-label-font-weight);
@@ -1414,7 +1451,7 @@ textarea.inline-text-editor:focus-visible {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 0 7px;
+  padding: 5px 7px 0;
 }
 .toolbar-unit-input input {
   width: 32px;
@@ -1430,6 +1467,11 @@ textarea.inline-text-editor:focus-visible {
 }
 .toolbar-unit-input input:focus {
   outline: 0;
+}
+.toolbar-unit-input:has(input:focus-visible),
+.unit-input:has(input:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
 }
 .toolbar-unit-input b {
   flex: 0 0 auto;
@@ -1505,25 +1547,27 @@ textarea.inline-text-editor:focus-visible {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 9px;
-  align-items: end;
+  align-items: center;
 }
 .image-background-toggle {
   height: var(--field-control-height);
+  padding: 0 11px;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  color: var(--field-label-color);
-  font-size: var(--field-label-font-size);
-  font-weight: var(--field-label-font-weight);
-  letter-spacing: var(--field-label-letter-spacing);
+  justify-content: center;
+  border: 1px solid var(--field-control-border);
+  border-radius: var(--field-control-radius);
+  background: var(--field-control-background);
+  color: #5f5b53;
+  font-size: 10px;
+  font-weight: 650;
   cursor: pointer;
   white-space: nowrap;
 }
-.image-background-toggle input {
-  width: 13px;
-  height: 13px;
-  margin: 0;
-  accent-color: var(--accent);
+.image-background-toggle.active {
+  border-color: var(--accent);
+  background: var(--soft-accent);
+  color: var(--accent-dark);
 }
 .unit-input {
   height: var(--field-control-height);
@@ -1559,7 +1603,7 @@ textarea.inline-text-editor:focus-visible {
   white-space: nowrap;
 }
 .segmented {
-  height: 30px;
+  height: var(--field-control-height);
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   border: 1px solid #d5d1c8;
@@ -1842,6 +1886,7 @@ textarea.inline-text-editor:focus-visible {
   backdrop-filter: blur(2px);
 }
 .dialog {
+  --field-label-background: #fbfaf7;
   width: 470px;
   border: 1px solid rgba(99, 91, 76, 0.25);
   border-radius: 12px;
@@ -2111,10 +2156,11 @@ textarea.inline-text-editor:focus-visible {
 .printer-name-setting,
 .printer-readonly-setting,
 .printer-number-setting {
+  position: relative;
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: var(--field-label-gap);
+  gap: 0;
 }
 .printer-name-setting > span,
 .printer-readonly-setting > span,
@@ -2123,6 +2169,17 @@ textarea.inline-text-editor:focus-visible {
   font-size: var(--field-label-font-size);
   font-weight: var(--field-label-font-weight);
   letter-spacing: var(--field-label-letter-spacing);
+}
+.printer-name-setting > span,
+.printer-readonly-setting > span,
+.printer-number-setting > span:first-child {
+  position: absolute;
+  top: -5px;
+  left: 8px;
+  z-index: 1;
+  padding: 0 4px;
+  background: var(--field-label-background);
+  line-height: 10px;
 }
 .printer-name-control {
   display: grid;
@@ -2134,7 +2191,7 @@ textarea.inline-text-editor:focus-visible {
   width: 100%;
   height: var(--field-control-height);
   min-width: 0;
-  padding: 0 var(--field-control-padding-inline);
+  padding: 5px var(--field-control-padding-inline) 0;
   border: 1px solid var(--field-control-border);
   border-radius: var(--field-control-radius);
   background: var(--field-control-background);
@@ -2166,7 +2223,7 @@ textarea.inline-text-editor:focus-visible {
 .printer-readonly-setting output {
   width: 100%;
   height: var(--field-control-height);
-  padding: 0 var(--field-control-padding-inline);
+  padding: 5px var(--field-control-padding-inline) 0;
   display: flex;
   align-items: center;
   border: 1px solid var(--field-control-border);
@@ -2192,6 +2249,7 @@ textarea.inline-text-editor:focus-visible {
 }
 .printer-number-setting .unit-input {
   width: 100%;
+  padding-top: 5px;
 }
 .darkness-setting {
   display: flex;
@@ -2385,7 +2443,7 @@ textarea.inline-text-editor:focus-visible {
 
 /* iPadOS uses the same editor structure with touch-sized platform adjustments. */
 .platform-ipados {
-  --field-control-height: 31px;
+  --field-control-height: 44px;
   --field-label-gap: 0;
   width: 100%;
   height: var(--visual-viewport-height, 100%);
@@ -2493,7 +2551,7 @@ textarea.inline-text-editor:focus-visible {
 .platform-ipados .toolbar-field > input,
 .platform-ipados .toolbar-unit-input,
 .platform-ipados .toolbar-trim-button,
-.platform-ipados .field input:not([type="checkbox"]):not([type="range"]),
+.platform-ipados .field > input:not([type="checkbox"]):not([type="range"]),
 .platform-ipados .field select,
 .platform-ipados .unit-input,
 .platform-ipados .printer-name-setting input,
@@ -2505,16 +2563,7 @@ textarea.inline-text-editor:focus-visible {
 .platform-ipados .text-style-buttons,
 .platform-ipados .weight-group,
 .platform-ipados .text-style-buttons .italic-button {
-  min-height: 31px;
-}
-
-.platform-ipados .field > span,
-.platform-ipados .toolbar-field > span,
-.platform-ipados .printer-name-setting > span,
-.platform-ipados .printer-readonly-setting > span,
-.platform-ipados .printer-number-setting > span:first-child,
-.platform-ipados .darkness-setting > span {
-  margin-bottom: -1px;
+  min-height: var(--field-control-height);
 }
 
 .platform-ipados input,
@@ -2971,6 +3020,7 @@ textarea.inline-text-editor:focus-visible {
 }
 
 .phone-editor-toolbar {
+  --field-label-background: #f7f6f2;
   position: relative;
   z-index: 11;
   grid-column: 1;
@@ -3353,6 +3403,11 @@ textarea.inline-text-editor:focus-visible {
   color: var(--accent-dark);
 }
 
+.layout-phone,
+.layout-phone-short {
+  --field-control-height: 44px;
+}
+
 .phone-plate-settings-footer {
   flex: 0 0 auto;
   gap: 8px;
@@ -3488,15 +3543,17 @@ textarea.inline-text-editor:focus-visible {
     --green: #55c98e;
     --field-control-background: #303236;
     --field-control-border: #55575c;
+    --field-label-background: var(--panel);
     --field-control-color: #efede7;
     --field-label-color: #b8b4ac;
+    --focus-ring: #7eb2ee;
   }
 
   button:focus-visible,
   input:focus-visible,
   select:focus-visible,
   textarea:focus-visible {
-    outline-color: #7eb2ee;
+    outline-color: var(--focus-ring);
   }
 
   .app-shell {
@@ -3535,6 +3592,7 @@ textarea.inline-text-editor:focus-visible {
 
   .phone-editor-toolbar,
   .phone-command-fixed {
+    --field-label-background: #292a2d;
     border-color: #3d3f43;
     background: #292a2d;
   }
@@ -3691,6 +3749,7 @@ textarea.inline-text-editor:focus-visible {
 
   .editor-toolbar,
   .plate-strip {
+    --field-label-background: #292a2d;
     border-color: #3d3f43;
     background: #292a2d;
   }
@@ -3790,6 +3849,7 @@ textarea.inline-text-editor:focus-visible {
   .text-style-buttons .italic-button,
   .text-style-buttons button,
   .trim-button,
+  .layer-buttons,
   .layer-buttons button,
   .segmented,
   .segmented button {
@@ -3902,6 +3962,7 @@ textarea.inline-text-editor:focus-visible {
   }
 
   .dialog {
+    --field-label-background: #252629;
     border-color: #505258;
     background: #252629;
     box-shadow: 0 24px 75px rgba(0, 0, 0, 0.6);
@@ -3940,7 +4001,12 @@ textarea.inline-text-editor:focus-visible {
     color: #c4c1ba;
   }
 
-  .phone-special-toggle.active {
+  .image-background-toggle {
+    color: #c4c1ba;
+  }
+
+  .phone-special-toggle.active,
+  .image-background-toggle.active {
     border-color: var(--accent);
     background: var(--soft-accent);
     color: #ff9a7c;

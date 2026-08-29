@@ -16,11 +16,12 @@ and excessive decoration.
   width, height, and margin controls on the right. Put a separated Trim action
   at the far right. It spans the center and inspector columns.
 - Use one shared field style for the editor toolbar, selected-element inspector,
-  and printer settings. Keep label text, label spacing, control height, input
-  text, borders, and units consistent in all three areas. Right-align values in
-  controls that show a unit, and keep the unit only as wide as its text. Keep
-  the label-to-control gap compact. Make the editor toolbar tall enough for its
-  field labels and controls, and vertically center its element actions.
+  and printer settings. Put each field label in a clean break in the top border.
+  Keep control height, input text, borders, and units consistent in all three
+  areas. Make each field, select, segmented group, toggle, and text action the
+  same height as the editor toolbar buttons. Right-align values in controls
+  that show a unit, and keep the unit only as wide as its text. Vertically
+  center the editor toolbar actions and fields.
 - **Right inspector:** selected-element properties only. Remove it from the
   layout when no element is selected. Overlay it on the canvas when shown so
   that the canvas keeps its full size and does not move. Start it below the
@@ -94,6 +95,8 @@ appearances so that they show the physical label and printed result accurately.
 - Apply a typeface, font size, light/regular/semi-bold/bold weight, italic
   style, automatic or fixed line height, and horizontal and vertical alignment
   to selected text.
+- Do not put visible group labels above weight, horizontal alignment, vertical
+  alignment, or layer-order buttons. Keep an accessible name for each group.
 - Keep font size in whole points. Put its compact input on the same aligned row
   as the wider line-height input.
 - Offer twelve useful system typefaces in alphabetical order. Use Avenir
@@ -139,7 +142,8 @@ appearances so that they show the physical label and printed result accurately.
 - Put a Transparent control on the same inspector row as image Fit. Enable it
   for new images and drawings. When it is enabled, exact white pixels reveal
   the label and earlier elements. When it is disabled, white pixels stay
-  opaque and use the label paper color on screen.
+  opaque and use the label paper color on screen. Make Transparent a toggle
+  button, and do not put a visible label above the Fit select.
 - Show width and height above X and Y for text and image frames. Do not show
   separate Position or Size section titles. Use 0.1 mm keyboard steps for
   element width, height, X, Y, and shape stroke controls.

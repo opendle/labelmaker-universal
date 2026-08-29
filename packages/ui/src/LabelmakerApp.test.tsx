@@ -2421,7 +2421,12 @@ describe("LabelmakerApp", () => {
     });
     expect(elementSheet).toHaveTextContent("TYPEFACE");
     expect(elementSheet).toHaveTextContent("LINE HEIGHT");
-    expect(elementSheet).toHaveTextContent("VERTICAL");
+    expect(elementSheet).not.toHaveTextContent("VERTICAL");
+    expect(
+      within(elementSheet).getByRole("group", {
+        name: "Vertical alignment",
+      }),
+    ).toBeInTheDocument();
     expect(elementSheet).toHaveTextContent("ROTATION");
     await user.click(screen.getByRole("button", { name: "Close properties" }));
 

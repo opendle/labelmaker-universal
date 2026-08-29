@@ -39,19 +39,65 @@ describe("image inspector", () => {
       />,
     );
 
-    const checkbox = screen.getByRole("checkbox", {
+    const toggle = screen.getByRole("button", {
       name: "Transparent image background",
     });
-    expect(checkbox).toBeChecked();
-    expect(checkbox.closest(".image-fit-row")).toContainElement(
+    expect(toggle).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("FIT")).not.toBeInTheDocument();
+    expect(toggle.closest(".image-fit-row")).toContainElement(
       screen.getByRole("combobox", { name: "Image fit" }),
     );
 
-    await user.click(checkbox);
+    await user.click(toggle);
 
     expect(onUpdateImage).toHaveBeenCalledWith({
       ...image,
       transparentBackground: false,
     });
+  });
+
+  it("uses accessible button groups without redundant visible labels", () => {
+    render(
+      <Inspector
+        hasMultipleElements
+        onDeleteSelection={vi.fn()}
+        onMoveLayer={vi.fn()}
+        onUpdateImage={vi.fn()}
+        onUpdateShape={vi.fn()}
+        onUpdateText={vi.fn()}
+        selectedImage={undefined}
+        selectedShape={undefined}
+        selectedText={{
+          id: "text",
+          kind: "text",
+          xMm: 1,
+          yMm: 1,
+          widthMm: 10,
+          heightMm: 5,
+          rotationDeg: 0,
+          text: "Label",
+          fontFamily: "Avenir Next",
+          fontSizePt: 12,
+          fontWeight: 400,
+          align: "left",
+        }}
+      />,
+    );
+
+    for (const name of [
+      "Weight and style",
+      "Horizontal alignment",
+      "Vertical alignment",
+      "Layer order",
+    ]) {
+      expect(screen.getByRole("group", { name })).toBeInTheDocument();
+    }
+    for (const label of ["WEIGHT & STYLE", "HORIZONTAL", "VERTICAL", "LAYER"]) {
+      expect(screen.queryByText(label)).not.toBeInTheDocument();
+    }
+    expect(screen.getByRole("button", { name: "Regular" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 });

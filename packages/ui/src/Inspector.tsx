@@ -208,17 +208,14 @@ function FrameControls<T extends FramedElement>({
         onChange={(rotationDeg) => onChange({ ...element, rotationDeg })}
       />
       {hasMultipleElements && (
-        <div className="field layer-field">
-          <span>LAYER</span>
-          <div className="layer-buttons">
-            <button onClick={() => onMoveLayer("back")} type="button">
-              <SendToBack size={14} /> Send to back
-            </button>
-            <button onClick={() => onMoveLayer("front")} type="button">
-              <BringToFront size={14} /> Bring to front
-            </button>
-          </div>
-        </div>
+        <fieldset aria-label="Layer order" className="layer-buttons">
+          <button onClick={() => onMoveLayer("back")} type="button">
+            <SendToBack size={14} /> Send to back
+          </button>
+          <button onClick={() => onMoveLayer("front")} type="button">
+            <BringToFront size={14} /> Bring to front
+          </button>
+        </fieldset>
       )}
     </>
   );
@@ -270,50 +267,47 @@ function TextInspector({
         />
         <LineHeightField element={element} onChange={onChange} />
       </div>
-      <div className="field">
-        <span>WEIGHT &amp; STYLE</span>
-        <div className="text-style-buttons" aria-label="Weight and style">
-          <span className="weight-group">
-            {[300, 400, 600, 700].map((fontWeight) => (
-              <button
-                aria-label={
-                  fontWeight === 300
-                    ? "Light"
-                    : fontWeight === 400
-                      ? "Regular"
-                      : fontWeight === 600
-                        ? "Semi bold"
-                        : "Bold"
-                }
-                className={`weight-button weight-${fontWeight} ${element.fontWeight === fontWeight ? "active" : ""}`}
-                key={fontWeight}
-                onClick={() => onChange({ ...element, fontWeight })}
-                style={{ fontWeight }}
-                type="button"
-              >
-                B
-              </button>
-            ))}
-          </span>
-          <button
-            aria-label="Italic"
-            aria-pressed={element.fontStyle === "italic"}
-            className={`italic-button ${element.fontStyle === "italic" ? "active" : ""}`}
-            onClick={() =>
-              onChange({
-                ...element,
-                fontStyle: element.fontStyle === "italic" ? "normal" : "italic",
-              })
-            }
-            type="button"
-          >
-            <Italic size={14} />
-          </button>
-        </div>
-      </div>
+      <fieldset aria-label="Weight and style" className="text-style-buttons">
+        <span className="weight-group">
+          {[300, 400, 600, 700].map((fontWeight) => (
+            <button
+              aria-label={
+                fontWeight === 300
+                  ? "Light"
+                  : fontWeight === 400
+                    ? "Regular"
+                    : fontWeight === 600
+                      ? "Semi bold"
+                      : "Bold"
+              }
+              aria-pressed={element.fontWeight === fontWeight}
+              className={`weight-button weight-${fontWeight} ${element.fontWeight === fontWeight ? "active" : ""}`}
+              key={fontWeight}
+              onClick={() => onChange({ ...element, fontWeight })}
+              style={{ fontWeight }}
+              type="button"
+            >
+              B
+            </button>
+          ))}
+        </span>
+        <button
+          aria-label="Italic"
+          aria-pressed={element.fontStyle === "italic"}
+          className={`italic-button ${element.fontStyle === "italic" ? "active" : ""}`}
+          onClick={() =>
+            onChange({
+              ...element,
+              fontStyle: element.fontStyle === "italic" ? "normal" : "italic",
+            })
+          }
+          type="button"
+        >
+          <Italic size={14} />
+        </button>
+      </fieldset>
       <div className="alignment-row">
-        <div className="alignment-group">
-          <div className="property-label">HORIZONTAL</div>
+        <fieldset aria-label="Horizontal alignment" className="alignment-group">
           <div className="segmented">
             {(["left", "center", "right"] as const).map((align) => (
               <button
@@ -334,9 +328,8 @@ function TextInspector({
               </button>
             ))}
           </div>
-        </div>
-        <div className="alignment-group">
-          <div className="property-label">VERTICAL</div>
+        </fieldset>
+        <fieldset aria-label="Vertical alignment" className="alignment-group">
           <div className="segmented">
             {(["top", "middle", "bottom"] as const).map((verticalAlign) => (
               <button
@@ -363,7 +356,7 @@ function TextInspector({
               </button>
             ))}
           </div>
-        </div>
+        </fieldset>
       </div>
       <FrameControls
         element={element}
@@ -395,8 +388,7 @@ function ImageInspector({
         <MonochromeImage element={element} label="Selected image" />
       </div>
       <div className="image-fit-row">
-        <label className="field full">
-          <span>FIT</span>
+        <label className="field full image-fit-select">
           <select
             aria-label="Image fit"
             onChange={(event) =>
@@ -412,20 +404,20 @@ function ImageInspector({
             <option value="stretch">Stretch</option>
           </select>
         </label>
-        <label className="image-background-toggle">
-          <input
-            aria-label="Transparent image background"
-            checked={element.transparentBackground !== false}
-            onChange={(event) =>
-              onChange({
-                ...element,
-                transparentBackground: event.target.checked,
-              })
-            }
-            type="checkbox"
-          />
-          <span>TRANSPARENT</span>
-        </label>
+        <button
+          aria-label="Transparent image background"
+          aria-pressed={element.transparentBackground !== false}
+          className={`image-background-toggle${element.transparentBackground !== false ? " active" : ""}`}
+          onClick={() =>
+            onChange({
+              ...element,
+              transparentBackground: element.transparentBackground === false,
+            })
+          }
+          type="button"
+        >
+          Transparent
+        </button>
       </div>
       <label className="field image-tone-field">
         <span>

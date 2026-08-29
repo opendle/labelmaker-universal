@@ -92,12 +92,23 @@ export function PrinterSettingsDialog({
     }
   };
   const marginFields = [
-    { key: "marginTopMm" as const, label: "Top margin", minimum: 0 },
-    { key: "marginBottomMm" as const, label: "Bottom margin", minimum: 0 },
+    {
+      key: "marginTopMm" as const,
+      label: "Top margin",
+      minimum: 0,
+      shortLabel: "Top margin",
+    },
+    {
+      key: "marginBottomMm" as const,
+      label: "Bottom margin",
+      minimum: 0,
+      shortLabel: "Bottom margin",
+    },
     {
       key: "interLabelSpacingMm" as const,
       label: "Margin between labels",
       minimum: 0,
+      shortLabel: "Label gap",
     },
   ];
   return (
@@ -196,7 +207,7 @@ export function PrinterSettingsDialog({
             <div className="printer-geometry-grid printer-margin-grid">
               {marginFields.map((field) => (
                 <label className="printer-number-setting" key={field.key}>
-                  <span>{field.label.toUpperCase()}</span>
+                  <span>{field.shortLabel.toUpperCase()}</span>
                   <span className="unit-input">
                     <input
                       aria-label={field.label}
