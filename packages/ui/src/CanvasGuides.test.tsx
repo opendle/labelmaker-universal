@@ -88,7 +88,7 @@ describe("CanvasRulers", () => {
       container
         .querySelector<HTMLElement>(".dimension-ruler-width")
         ?.style.getPropertyValue("--dimension-ruler-width-offset"),
-    ).toBe("34.5px");
+    ).toBe("37.5px");
     expect(
       container
         .querySelector<HTMLElement>(".dimension-ruler-height")
@@ -124,7 +124,7 @@ describe("CanvasRulers", () => {
       container
         .querySelector<HTMLElement>(".dimension-ruler-width")
         ?.style.getPropertyValue("--dimension-ruler-width-offset"),
-    ).toBe("23px");
+    ).toBe("25px");
     expect(
       container
         .querySelector<HTMLElement>(".ruler-left")

@@ -90,7 +90,7 @@ export function CanvasRulers({
   const intervalFontSize = 7.5 * rulerZoomScale;
   const intervalTopOffset = 20;
   const intervalLeftOffset = 40;
-  const topDimensionTierGap = 3;
+  const topDimensionTierGap = 5;
   const leftDimensionTierGap = 0;
   const verticalDimensionGap = 18;
   const dimensionInnerOffset = intervalLeftOffset + leftDimensionTierGap;
