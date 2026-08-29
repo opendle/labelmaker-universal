@@ -85,17 +85,22 @@ export function CanvasRulers({
   );
   const hasSeparatePrintableHeight =
     Math.abs(heightMm - printableHeightMm) > DIMENSION_MERGE_TOLERANCE_MM;
-  const dimensionFontSize = Math.max(9.5, 9.5 * (zoom / 100));
-  const intervalFontSize = Math.max(8, 8 * (zoom / 100));
-  const rulerLayoutScale = Math.max(1, zoom / 100);
+  const rulerZoomScale = Math.max(1, 1 + (zoom - 100) / 400);
+  const dimensionFontSize = 9 * rulerZoomScale;
+  const intervalFontSize = 7.5 * rulerZoomScale;
+  const intervalTopOffset = 22;
+  const intervalLeftOffset = 40;
+  const dimensionTierGap = 0;
+  const verticalDimensionGap = 18;
+  const dimensionInnerOffset = intervalLeftOffset + dimensionTierGap;
   const layoutStyle = {
-    "--dimension-ruler-outer-offset": `${78 * rulerLayoutScale}px`,
-    "--dimension-ruler-width-offset": `${36 * rulerLayoutScale}px`,
-    "--dimension-ruler-inner-offset": `${60 * rulerLayoutScale}px`,
-    "--interval-ruler-left-offset": `${48 * rulerLayoutScale}px`,
-    "--interval-ruler-left-width": `${46 * rulerLayoutScale}px`,
-    "--interval-ruler-top-height": `${22 * rulerLayoutScale}px`,
-    "--interval-ruler-top-offset": `${24 * rulerLayoutScale}px`,
+    "--dimension-ruler-outer-offset": `${(dimensionInnerOffset + verticalDimensionGap) * rulerZoomScale}px`,
+    "--dimension-ruler-width-offset": `${(intervalTopOffset + dimensionTierGap) * rulerZoomScale}px`,
+    "--dimension-ruler-inner-offset": `${dimensionInnerOffset * rulerZoomScale}px`,
+    "--interval-ruler-left-offset": `${intervalLeftOffset * rulerZoomScale}px`,
+    "--interval-ruler-left-width": `${38 * rulerZoomScale}px`,
+    "--interval-ruler-top-height": `${18 * rulerZoomScale}px`,
+    "--interval-ruler-top-offset": `${intervalTopOffset * rulerZoomScale}px`,
   } as RulerStyle;
   const dimensionStyle = {
     ...layoutStyle,

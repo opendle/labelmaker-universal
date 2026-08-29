@@ -16,6 +16,7 @@ import electronExecutable from "electron";
 const APPLICATION_NAME = "Labelmaker";
 const BUNDLE_IDENTIFIER = "io.labelmaker.universal.dev";
 const BUNDLE_ICON_NAME = "labelmaker.icns";
+const DEVELOPMENT_ENVIRONMENT_KEY = "LABELMAKER_DEVELOPMENT";
 const BLUETOOTH_USAGE_DESCRIPTION =
   "Labelmaker uses Bluetooth to find and print labels on nearby printers.";
 const RUNTIME_LAYOUT_VERSION = 4;
@@ -262,6 +263,44 @@ async function prepareMacOsRuntime() {
   }
 }
 
+function stopRunningMacOsDevelopmentApp() {
+  const bundleIdentifier = JSON.stringify(BUNDLE_IDENTIFIER);
+  const script = `
+ObjC.import("AppKit");
+const bundleIdentifier = ${bundleIdentifier};
+const runningApplications =
+  $.NSRunningApplication.runningApplicationsWithBundleIdentifier(bundleIdentifier);
+for (let index = 0; index < runningApplications.count; index += 1) {
+  runningApplications.objectAtIndex(index).terminate;
+}
+const deadline = Date.now() + 5000;
+while (
+  $.NSRunningApplication.runningApplicationsWithBundleIdentifier(bundleIdentifier)
+    .count > 0 &&
+  Date.now() < deadline
+) {
+  delay(0.05);
+}
+if (
+  $.NSRunningApplication.runningApplicationsWithBundleIdentifier(bundleIdentifier)
+    .count > 0
+) {
+  throw new Error("The earlier Labelmaker development app did not close");
+}
+`;
+  const result = spawnSync(
+    "/usr/bin/osascript",
+    ["-l", "JavaScript", "-e", script],
+    { encoding: "utf8" },
+  );
+  if (result.status !== 0) {
+    const detail = (result.stderr || result.stdout).trim();
+    throw new Error(
+      `Could not close the earlier Labelmaker development app${detail ? `: ${detail}` : ""}`,
+    );
+  }
+}
+
 const prepareOnly = process.argv.includes("--prepare-only");
 const applicationArguments = process.argv
   .slice(2)
@@ -274,11 +313,15 @@ const executable =
 if (prepareOnly) {
   process.stdout.write(`${executable}\n`);
 } else {
+  if (process.platform === "darwin") stopRunningMacOsDevelopmentApp();
   const child = spawn(
     executable,
     [applicationDirectory, ...applicationArguments],
     {
-      env: process.env,
+      env: {
+        ...process.env,
+        [DEVELOPMENT_ENVIRONMENT_KEY]: "1",
+      },
       stdio: "inherit",
     },
   );

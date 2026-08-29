@@ -43,6 +43,7 @@ import { installAppIcon } from "./app-icon.js";
 import { createProcessLogger } from "./process-logger.js";
 import { prepareToQuit } from "./quit-coordinator.js";
 import { validatePrintRequest } from "./print-request.js";
+import { handleSecondInstance } from "./second-instance.js";
 import {
   initialConfiguredPrinterIds,
   mockPrintersEnabled,
@@ -109,6 +110,8 @@ const workspacePaths = new Map<number, string>();
 let workspaceRecoveryStore: WorkspaceRecoveryStore | undefined;
 let quitRecoveryFlushed = false;
 let quitRecoveryFlushStarted = false;
+let developmentRestartRequested = false;
+const isDevelopmentLaunch = process.env.LABELMAKER_DEVELOPMENT === "1";
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 const context: AdapterContext = {
   log: createProcessLogger(),
@@ -890,11 +893,21 @@ if (!hasSingleInstanceLock) {
   app.quit();
 } else {
   app.on("second-instance", () => {
-    const window = BrowserWindow.getAllWindows()[0];
-    if (!window) return;
-    if (window.isMinimized()) window.restore();
-    window.show();
-    window.focus();
+    handleSecondInstance({
+      development: isDevelopmentLaunch && !developmentRestartRequested,
+      focusCurrentWindow: () => {
+        const window = BrowserWindow.getAllWindows()[0];
+        if (!window) return;
+        if (window.isMinimized()) window.restore();
+        window.show();
+        window.focus();
+      },
+      quit: () => app.quit(),
+      relaunch: () => {
+        developmentRestartRequested = true;
+        app.relaunch();
+      },
+    });
   });
 
   app.whenReady().then(async () => {

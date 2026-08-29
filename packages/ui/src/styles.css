@@ -742,14 +742,14 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   border-bottom: 1px solid #a8a49a;
   color: #77736a;
   font-family: "DM Mono", monospace;
-  font-size: var(--interval-ruler-font-size, 8px);
+  font-size: var(--interval-ruler-font-size, 7.5px);
   pointer-events: none;
 }
 .dimension-ruler {
   position: absolute;
   color: #68645c;
   font-family: "DM Mono", monospace;
-  font-size: var(--dimension-ruler-font-size, 9.5px);
+  font-size: var(--dimension-ruler-font-size, 9px);
   pointer-events: none;
 }
 .dimension-ruler::before,
@@ -817,7 +817,7 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   border-right: 1px solid #a8a49a;
   color: #77736a;
   font-family: "DM Mono", monospace;
-  font-size: var(--interval-ruler-font-size, 8px);
+  font-size: var(--interval-ruler-font-size, 7.5px);
   pointer-events: none;
 }
 .ruler-left span {

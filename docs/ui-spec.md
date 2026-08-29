@@ -174,10 +174,10 @@ appearances so that they show the physical label and printed result accurately.
   printable height and the total label height as two dimension rulers. Rotate
   the vertical dimension text 90 degrees counterclockwise. Merge the vertical
   rulers when printable height and total height are equal. Scale ruler label
-  text and the space between rulers with the label zoom, but keep readable
-  minimum sizes and compact spacing. Keep the 5 mm labels smaller than the
-  total dimensions at every zoom. Do not show printer resolution or
-  printable-area metadata at the lower-left corner.
+  text and the space between rulers with the label zoom at a slower rate than
+  the label itself. Keep readable minimum sizes and compact spacing. Keep the
+  5 mm labels smaller than the total dimensions at every zoom. Do not show
+  printer resolution or printable-area metadata at the lower-left corner.
 
 On macOS, use the native window controls from Electron. Do not draw a second
 set of traffic-light controls in the application header.
