@@ -2798,15 +2798,24 @@ textarea.inline-text-editor:focus-visible {
 
 .phone-header-actions {
   min-width: 0;
+  flex: 1 1 auto;
   margin-left: auto;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 2px;
+  justify-content: safe flex-end;
+  gap: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.phone-header-actions::-webkit-scrollbar {
+  display: none;
 }
 
 .phone-header-actions .icon-button,
 .phone-header-icon {
+  flex: 0 0 44px;
   width: 44px;
   height: 44px;
 }
@@ -2842,44 +2851,6 @@ textarea.inline-text-editor:focus-visible {
   background: var(--accent);
 }
 
-.phone-workspace-control {
-  position: relative;
-}
-
-.phone-workspace-menu {
-  position: absolute;
-  z-index: 30;
-  top: 48px;
-  left: 0;
-  width: 230px;
-  padding: 6px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--panel);
-  box-shadow: 0 12px 35px rgba(40, 35, 25, 0.2);
-}
-
-.phone-workspace-summary {
-  padding: 9px 10px 11px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  border-bottom: 1px solid var(--line);
-}
-
-.phone-workspace-summary strong {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-}
-
-.phone-workspace-summary span {
-  color: var(--muted);
-  font-size: 10px;
-}
-
-.phone-workspace-menu button,
 .phone-tools-menu button {
   width: 100%;
   min-height: 44px;
@@ -2894,9 +2865,7 @@ textarea.inline-text-editor:focus-visible {
   text-align: left;
 }
 
-.phone-workspace-menu button:hover,
 .phone-tools-menu button:hover,
-.phone-workspace-menu button:focus-visible,
 .phone-tools-menu button:focus-visible {
   background: #f0eee8;
 }
@@ -2907,17 +2876,32 @@ textarea.inline-text-editor:focus-visible {
 
 .phone-titlebar .printer-trigger {
   position: relative;
-  width: 116px;
+  width: 44px;
   height: 44px;
   min-height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .phone-titlebar .printer-add-trigger {
-  width: 116px;
+  width: 44px;
 }
 
-.printer-compact-status {
+.phone-titlebar .printer-trigger-copy,
+.phone-titlebar .printer-trigger > svg:last-child,
+.phone-titlebar .printer-add-trigger strong {
   display: none;
+}
+
+.phone-titlebar .printer-compact-status {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: block;
+  width: 7px;
+  height: 7px;
 }
 
 .phone-titlebar .printer-menu,
@@ -3183,30 +3167,6 @@ textarea.inline-text-editor:focus-visible {
   font-size: 7px;
 }
 
-.phone-plate-strip .plate-delete {
-  top: 0;
-  right: 0;
-  width: 44px;
-  height: 44px;
-  border: 0;
-  background: transparent;
-}
-
-.phone-plate-strip .plate-delete::before {
-  position: absolute;
-  width: 24px;
-  height: 24px;
-  content: "";
-  border: 1px solid rgba(117, 110, 99, 0.3);
-  border-radius: 5px;
-  background: rgba(255, 254, 250, 0.92);
-}
-
-.phone-plate-strip .plate-delete svg {
-  position: relative;
-  z-index: 1;
-}
-
 .phone-plate-strip .add-plate {
   flex-basis: 58px;
   min-width: 58px;
@@ -3295,14 +3255,11 @@ textarea.inline-text-editor:focus-visible {
   overflow-y: auto;
 }
 
-.phone-plate-mode-actions {
-  margin-bottom: 12px;
+.phone-plate-settings-form {
+  min-height: 0;
   display: flex;
-  gap: 6px;
-}
-
-.phone-plate-mode-actions .tool-button {
-  min-height: 44px;
+  flex: 1 1 auto;
+  flex-direction: column;
 }
 
 .phone-plate-property-modal .plate-toolbar-settings {
@@ -3326,6 +3283,15 @@ textarea.inline-text-editor:focus-visible {
 
 .phone-plate-property-modal .toolbar-trim-button {
   min-height: 44px;
+}
+
+.phone-plate-settings-footer {
+  flex: 0 0 auto;
+  gap: 8px;
+}
+
+.phone-delete-label {
+  color: #9a4f43;
 }
 
 .layout-phone .modal-backdrop:not(.phone-property-modal),
@@ -3442,38 +3408,6 @@ textarea.inline-text-editor:focus-visible {
   padding-bottom: 0;
 }
 
-@media (max-width: 430px) {
-  .phone-titlebar .printer-trigger,
-  .phone-titlebar .printer-add-trigger {
-    width: 44px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .phone-titlebar .printer-trigger-copy,
-  .phone-titlebar .printer-trigger > svg:last-child,
-  .phone-titlebar .printer-add-trigger strong {
-    display: none;
-  }
-
-  .phone-titlebar .printer-compact-status {
-    position: absolute;
-    right: 6px;
-    bottom: 6px;
-    display: block;
-    width: 7px;
-    height: 7px;
-  }
-}
-
-@media (max-width: 360px) {
-  .phone-header-actions > .icon-button {
-    display: none;
-  }
-}
-
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -3529,9 +3463,7 @@ textarea.inline-text-editor:focus-visible {
   .phone-header-icon:hover,
   .phone-header-icon:focus-visible,
   .phone-header-icon[aria-expanded="true"],
-  .phone-workspace-menu button:hover,
   .phone-tools-menu button:hover,
-  .phone-workspace-menu button:focus-visible,
   .phone-tools-menu button:focus-visible {
     background: #383a3e;
     color: #fff;
@@ -3555,11 +3487,6 @@ textarea.inline-text-editor:focus-visible {
     border-color: #505258;
     background: #36383c;
     color: #fff;
-  }
-
-  .phone-plate-strip .plate-delete::before {
-    border-color: #5b5d61;
-    background: rgba(42, 43, 46, 0.94);
   }
 
   .header-action {

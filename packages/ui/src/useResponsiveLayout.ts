@@ -7,10 +7,11 @@ export type ResponsiveLayout = "standard" | "phone" | "phone-short";
 export function responsiveLayoutForViewport(
   width: number,
   unobscuredHeight: number,
+  phoneWidth = 600,
 ): ResponsiveLayout {
-  const phoneWidth = width <= 600;
+  const narrowViewport = width <= phoneWidth;
   const phoneHeight = unobscuredHeight <= 500 && width <= 1_000;
-  if (!phoneWidth && !phoneHeight) return "standard";
+  if (!narrowViewport && !phoneHeight) return "standard";
   return unobscuredHeight <= 500 ? "phone-short" : "phone";
 }
 
@@ -26,8 +27,13 @@ export function useResponsiveLayout(platform: HostPlatform): {
   readonly layout: ResponsiveLayout;
   readonly softwareKeyboardOpen: boolean;
 } {
+  const phoneWidth = platform === "ipados" ? 600 : 960;
   const [layout, setLayout] = useState<ResponsiveLayout>(() =>
-    responsiveLayoutForViewport(globalThis.innerWidth, globalThis.innerHeight),
+    responsiveLayoutForViewport(
+      globalThis.innerWidth,
+      globalThis.innerHeight,
+      phoneWidth,
+    ),
   );
   const [softwareKeyboardOpen, setSoftwareKeyboardOpen] = useState(false);
 
@@ -63,7 +69,9 @@ export function useResponsiveLayout(platform: HostPlatform): {
         (hasEditableFocus || keyboardWasOpen);
       keyboardWasOpen = keyboardOpen;
       setSoftwareKeyboardOpen(keyboardOpen);
-      setLayout(responsiveLayoutForViewport(width, unobscuredHeight));
+      setLayout(
+        responsiveLayoutForViewport(width, unobscuredHeight, phoneWidth),
+      );
 
       if (viewport) {
         globalThis.document.documentElement.style.setProperty(
@@ -96,7 +104,7 @@ export function useResponsiveLayout(platform: HostPlatform): {
         "--visual-viewport-offset-top",
       );
     };
-  }, [platform]);
+  }, [phoneWidth, platform]);
 
   return { layout, softwareKeyboardOpen };
 }

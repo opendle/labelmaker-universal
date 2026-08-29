@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { mkdir, readFile, stat } from "node:fs/promises";
+import { mkdir, readFile, rm, stat } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 
 import { webkit } from "playwright";
@@ -13,14 +13,25 @@ const screenshotDirectory = process.env
 const viewports = [
   { width: 393, height: 852, save: true },
   { width: 852, height: 393, save: true },
-  { width: 375, height: 667, save: true },
-  { width: 667, height: 375, save: true },
+  { width: 375, height: 667, save: false },
+  { width: 667, height: 375, save: false },
   { width: 600, height: 800, save: false },
   { width: 430, height: 800, save: false },
   { width: 320, height: 667, save: false },
 ];
 
 await mkdir(screenshotDirectory, { recursive: true });
+await Promise.all(
+  viewports.flatMap((viewport) =>
+    viewport.save
+      ? []
+      : [
+          rm(resolve(screenshotDirectory, screenshotName(viewport)), {
+            force: true,
+          }),
+        ],
+  ),
+);
 const server = createStaticServer(buildDirectory);
 await new Promise((resolveListen, rejectListen) => {
   server.once("error", rejectListen);
@@ -106,9 +117,10 @@ async function capture(viewport) {
       const visibleHeaderButtons = Array.from(
         header.querySelectorAll("button"),
       ).filter((target) => target.getBoundingClientRect().width > 0);
+      const headerActions = header.querySelector(".phone-header-actions");
       const undersizedTargets = Array.from(
         document.querySelectorAll(
-          ".phone-titlebar button, .phone-editor-toolbar button, .phone-plate-strip .plate-thumb-select, .phone-plate-strip .plate-delete, .phone-plate-strip .add-plate",
+          ".phone-titlebar button, .phone-editor-toolbar button, .phone-plate-strip .plate-thumb-select, .phone-plate-strip .add-plate",
         ),
       ).flatMap((target) => {
         const bounds = target.getBoundingClientRect();
@@ -135,9 +147,11 @@ async function capture(viewport) {
             .querySelector(".printer-compact-status")
             ?.getBoundingClientRect().width === 7,
         directSaveVisible:
-          document
-            .querySelector(".phone-header-actions > .icon-button")
-            ?.getBoundingClientRect().width === 44,
+          document.querySelector(".phone-save-action")?.getBoundingClientRect()
+            .width === 44,
+        headerActionsScroll:
+          headerActions instanceof HTMLElement &&
+          headerActions.scrollWidth > headerActions.clientWidth,
         headerControlsFit: visibleHeaderButtons.every((target) => {
           const bounds = target.getBoundingClientRect();
           return (
@@ -161,19 +175,20 @@ async function capture(viewport) {
     if (inspection.overflow) {
       throw new Error(`${viewport.width}x${viewport.height} overflows.`);
     }
-    if (!inspection.headerControlsFit) {
+    if (
+      viewport.width >= 375 &&
+      (!inspection.headerControlsFit || inspection.headerActionsScroll)
+    ) {
       throw new Error(
-        `${viewport.width}x${viewport.height} clips a Phone header control.`,
+        `${viewport.width}x${viewport.height} does not fit the icon header.`,
       );
     }
-    if (inspection.directSaveVisible !== viewport.width > 360) {
-      throw new Error(
-        `${viewport.width}x${viewport.height} has the wrong direct Save visibility.`,
-      );
+    if (!inspection.directSaveVisible) {
+      throw new Error(`${viewport.width}x${viewport.height} hides Save.`);
     }
-    if (inspection.compactPrinterStatusVisible !== viewport.width <= 430) {
+    if (!inspection.compactPrinterStatusVisible) {
       throw new Error(
-        `${viewport.width}x${viewport.height} has the wrong compact printer status.`,
+        `${viewport.width}x${viewport.height} hides the printer status.`,
       );
     }
     if (!inspection.canvasFits) {
@@ -199,15 +214,16 @@ async function capture(viewport) {
     }
     if (viewport.save) {
       await page.screenshot({
-        path: resolve(
-          screenshotDirectory,
-          `labelmaker-phone-${viewport.width}x${viewport.height}.png`,
-        ),
+        path: resolve(screenshotDirectory, screenshotName(viewport)),
       });
     }
   } finally {
     await context.close();
   }
+}
+
+function screenshotName(viewport) {
+  return `labelmaker-phone-${viewport.width}x${viewport.height}.png`;
 }
 
 function installCaptureHost() {

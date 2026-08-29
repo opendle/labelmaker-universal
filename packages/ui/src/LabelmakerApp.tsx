@@ -1,4 +1,4 @@
-import type { LabelDocument } from "@labelmaker/domain";
+import type { LabelDocument, LabelPlate } from "@labelmaker/domain";
 import { Check, CircleAlert, Info } from "lucide-react";
 import {
   lazy,
@@ -11,7 +11,7 @@ import {
 
 import { AddPrinterDialog } from "./AppDialogs.js";
 import { AppHeader, type AppHeaderProps } from "./AppHeader.js";
-import { movePlate, replacePlate } from "./app-state.js";
+import { movePlate, replacePlate, type Toast } from "./app-state.js";
 import { EditorCanvas } from "./EditorCanvas.js";
 import {
   editableElementCount,
@@ -108,6 +108,24 @@ async function trimLatestWorkspace(
   throw new Error("The label changed while trim was running.");
 }
 
+function AppToast({ toast }: { readonly toast: Toast | null }) {
+  if (!toast) return null;
+  return (
+    <output aria-live="polite" className={`toast ${toast.tone}`}>
+      {toast.busy ? (
+        <span aria-hidden="true" className="mini-spinner" />
+      ) : toast.tone === "success" ? (
+        <Check size={17} />
+      ) : toast.tone === "error" ? (
+        <CircleAlert size={17} />
+      ) : (
+        <Info size={17} />
+      )}{" "}
+      {toast.message}
+    </output>
+  );
+}
+
 export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   const controller = useLabelmakerController(host);
   const {
@@ -124,6 +142,9 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   const [phoneSheet, setPhoneSheet] = useState<"element" | "plate" | null>(
     null,
   );
+  const [phonePlateDraft, setPhonePlateDraft] = useState<
+    LabelPlate | undefined
+  >();
   const { layout, softwareKeyboardOpen } = useResponsiveLayout(host.platform);
   const closePhoneSheetDuringRender =
     phoneSheet !== null &&
@@ -133,6 +154,9 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
         !selectedImage &&
         !selectedShape));
   if (closePhoneSheetDuringRender) setPhoneSheet(null);
+  if (closePhoneSheetDuringRender && phonePlateDraft) {
+    setPhonePlateDraft(undefined);
+  }
   const visiblePhoneSheet = closePhoneSheetDuringRender ? null : phoneSheet;
   const drawingEditor = useDrawingEditor({
     activePlate,
@@ -274,7 +298,10 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             }
             onDeleteSelection={controller.deleteSelected}
             onOpenElementProperties={() => setPhoneSheet("element")}
-            onOpenPlateSettings={() => setPhoneSheet("plate")}
+            onOpenPlateSettings={() => {
+              setPhonePlateDraft(activePlate);
+              setPhoneSheet("plate");
+            }}
             onTrim={trimActivePlate}
             onUpdatePlate={(plate) =>
               controller.editWorkspace(
@@ -323,19 +350,26 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             selectedText={selectedText}
           />
         )}
-      {layout !== "standard" && visiblePhoneSheet === "plate" && (
-        <PhonePlatePropertySheet
-          onChange={(plate) =>
-            controller.editWorkspace(
-              replacePlate(state.workspace, activePlate.id, () => plate),
-            )
-          }
-          onClose={() => setPhoneSheet(null)}
-          onToggleFlag={() => controller.addSpecial("flag")}
-          onTrim={trimActivePlate}
-          plate={activePlate}
-        />
-      )}
+      {layout !== "standard" &&
+        visiblePhoneSheet === "plate" &&
+        phonePlateDraft && (
+          <PhonePlatePropertySheet
+            canDelete={state.workspace.plates.length > 1}
+            draft={phonePlateDraft}
+            onChange={setPhonePlateDraft}
+            onClose={() => {
+              setPhonePlateDraft(undefined);
+              setPhoneSheet(null);
+            }}
+            onDelete={() => controller.deletePlate(activePlate.id)}
+            onSave={(plate) => {
+              if (plate === activePlate) return;
+              controller.editWorkspace(
+                replacePlate(state.workspace, activePlate.id, () => plate),
+              );
+            }}
+          />
+        )}
       <AddPrinterDialog
         discovered={state.discovered}
         discoveryFailed={state.discoveryFailed}
@@ -382,20 +416,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
           />
         </Suspense>
       )}
-      {state.toast && (
-        <output aria-live="polite" className={`toast ${state.toast.tone}`}>
-          {state.toast.busy ? (
-            <span aria-hidden="true" className="mini-spinner" />
-          ) : state.toast.tone === "success" ? (
-            <Check size={17} />
-          ) : state.toast.tone === "error" ? (
-            <CircleAlert size={17} />
-          ) : (
-            <Info size={17} />
-          )}{" "}
-          {state.toast.message}
-        </output>
-      )}
+      <AppToast toast={state.toast} />
     </div>
   );
 }

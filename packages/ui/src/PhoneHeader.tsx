@@ -1,13 +1,11 @@
-import { FilePlus2, FolderOpen, Files, Redo2, Save, Undo2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { FilePlus2, FolderOpen, Redo2, Save, Undo2 } from "lucide-react";
+import { useEffect, useRef } from "react";
 
 import type { AppHeaderProps } from "./AppHeader.js";
 import { AppHeaderPrinterPicker } from "./AppHeaderPrinterPicker.js";
 import { AppHeaderPrintControl } from "./AppHeaderPrintControl.js";
-import { IconButton } from "./controls.js";
 
 export function PhoneHeader({
-  workspaceName,
   saveState,
   printers,
   activePrinterId,
@@ -30,10 +28,8 @@ export function PhoneHeader({
   onPrintMenuChange,
   platform,
 }: AppHeaderProps) {
-  const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false);
-  const workspaceControlRef = useRef<HTMLDivElement>(null);
-  const workspaceTriggerRef = useRef<HTMLButtonElement>(null);
   const onPrintMenuChangeRef = useRef(onPrintMenuChange);
+  const unsaved = saveState === "Edited" || saveState === "Not saved";
 
   useEffect(() => {
     onPrintMenuChangeRef.current = onPrintMenuChange;
@@ -46,22 +42,6 @@ export function PhoneHeader({
     [],
   );
 
-  useEffect(() => {
-    const closeMenu = (event: PointerEvent) => {
-      if (!workspaceControlRef.current?.contains(event.target as Node)) {
-        setWorkspaceMenuOpen(false);
-      }
-    };
-    globalThis.document.addEventListener("pointerdown", closeMenu);
-    return () =>
-      globalThis.document.removeEventListener("pointerdown", closeMenu);
-  }, []);
-
-  const runWorkspaceAction = (action: () => void) => {
-    setWorkspaceMenuOpen(false);
-    action();
-  };
-
   return (
     <header className="phone-titlebar">
       <div
@@ -69,69 +49,26 @@ export function PhoneHeader({
         className={`phone-window-drag-spacer ${platform === "macos" ? "macos" : ""}`}
       />
       <div className="phone-header-actions">
-        <div className="phone-workspace-control" ref={workspaceControlRef}>
-          <button
-            aria-expanded={workspaceMenuOpen}
-            aria-haspopup="menu"
-            aria-label={`Workspace ${workspaceName}, ${saveState}`}
-            className={`phone-header-icon${saveState === "Edited" ? " is-dirty" : ""}`}
-            onClick={() => setWorkspaceMenuOpen((open) => !open)}
-            ref={workspaceTriggerRef}
-            type="button"
-          >
-            <Files size={19} />
-          </button>
-          {workspaceMenuOpen && (
-            <div
-              aria-label="Workspace actions"
-              className="phone-workspace-menu"
-              onKeyDown={(event) => {
-                if (event.key !== "Escape") return;
-                event.preventDefault();
-                setWorkspaceMenuOpen(false);
-                workspaceTriggerRef.current?.focus();
-              }}
-              role="menu"
-              tabIndex={-1}
-            >
-              <div className="phone-workspace-summary">
-                <strong>{workspaceName}</strong>
-                <span>{saveState}</span>
-              </div>
-              <button
-                onClick={() => runWorkspaceAction(onNew)}
-                role="menuitem"
-                type="button"
-              >
-                <FilePlus2 size={17} /> New workspace
-              </button>
-              <button
-                onClick={() => runWorkspaceAction(onOpen)}
-                role="menuitem"
-                type="button"
-              >
-                <FolderOpen size={17} /> Open workspace
-              </button>
-              <button
-                onClick={() => runWorkspaceAction(onSave)}
-                role="menuitem"
-                type="button"
-              >
-                <Save size={17} /> Save workspace
-              </button>
-            </div>
-          )}
-        </div>
-        <IconButton label="Save" onClick={onSave}>
+        <PhoneHeaderAction label="New workspace" onClick={onNew}>
+          <FilePlus2 size={18} />
+        </PhoneHeaderAction>
+        <PhoneHeaderAction label="Open workspace" onClick={onOpen}>
+          <FolderOpen size={18} />
+        </PhoneHeaderAction>
+        <PhoneHeaderAction
+          className={`phone-save-action${unsaved ? " is-dirty" : ""}`}
+          label={`Save workspace, ${saveState}`}
+          onClick={onSave}
+        >
           <Save size={18} />
-        </IconButton>
+        </PhoneHeaderAction>
         <span className="phone-history-actions">
-          <IconButton label="Undo" disabled={!canUndo} onClick={onUndo}>
+          <PhoneHeaderAction label="Undo" disabled={!canUndo} onClick={onUndo}>
             <Undo2 size={18} />
-          </IconButton>
-          <IconButton label="Redo" disabled={!canRedo} onClick={onRedo}>
+          </PhoneHeaderAction>
+          <PhoneHeaderAction label="Redo" disabled={!canRedo} onClick={onRedo}>
             <Redo2 size={18} />
-          </IconButton>
+          </PhoneHeaderAction>
         </span>
         <AppHeaderPrinterPicker
           activePrinterId={activePrinterId}
@@ -158,5 +95,32 @@ export function PhoneHeader({
         />
       </div>
     </header>
+  );
+}
+
+function PhoneHeaderAction({
+  children,
+  className = "",
+  disabled = false,
+  label,
+  onClick,
+}: {
+  readonly children: React.ReactNode;
+  readonly className?: string;
+  readonly disabled?: boolean;
+  readonly label: string;
+  readonly onClick: () => void;
+}) {
+  return (
+    <button
+      aria-label={label}
+      className={`phone-header-icon ${className}`.trim()}
+      disabled={disabled}
+      onClick={onClick}
+      title={label}
+      type="button"
+    >
+      {children}
+    </button>
   );
 }

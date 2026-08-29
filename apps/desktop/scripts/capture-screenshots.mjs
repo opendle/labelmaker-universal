@@ -1,6 +1,6 @@
 import { _electron as electron } from "playwright";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
@@ -52,10 +52,34 @@ if (process.platform === "darwin") {
     }
   }
 }
-const screenshotDirectory = process.env.LABELMAKER_SCREENSHOT_DIRECTORY
-  ? resolve(process.env.LABELMAKER_SCREENSHOT_DIRECTORY)
+const customScreenshotDirectory = process.env.LABELMAKER_SCREENSHOT_DIRECTORY;
+const screenshotDirectory = customScreenshotDirectory
+  ? resolve(customScreenshotDirectory)
   : resolve(appDirectory, "../../artifacts/screenshots");
+const savedScreenshotNames = new Set([
+  "labelmaker-primary-1440x960.png",
+  "labelmaker-phone-960x700.png",
+  "labelmaker-phone-settings-600x500.png",
+  "labelmaker-dark-1440x960.png",
+  "labelmaker-flag-1440x960.png",
+  "labelmaker-add-printer-1440x960.png",
+  "labelmaker-compact-1100x760.png",
+]);
 await mkdir(screenshotDirectory, { recursive: true });
+if (!customScreenshotDirectory) {
+  const previousScreenshots = await readdir(screenshotDirectory, {
+    withFileTypes: true,
+  });
+  await Promise.all(
+    previousScreenshots.flatMap((entry) =>
+      entry.isFile() &&
+      /^(?:ipad|labelmaker)-.*\.png$/.test(entry.name) &&
+      !savedScreenshotNames.has(entry.name)
+        ? [rm(resolve(screenshotDirectory, entry.name), { force: true })]
+        : [],
+    ),
+  );
+}
 
 const profileDirectory = await mkdtemp(
   join(tmpdir(), "labelmaker-screenshot-"),
@@ -163,7 +187,9 @@ async function capture(width, height, name, setup) {
           `Desktop layout overflows its viewport: ${JSON.stringify(layout)}`,
         );
       }
-      await page.screenshot({ path: resolve(screenshotDirectory, name) });
+      if (savedScreenshotNames.has(name)) {
+        await page.screenshot({ path: resolve(screenshotDirectory, name) });
+      }
     } finally {
       if (typeof teardown === "function")
         await teardown().catch(() => undefined);
@@ -268,7 +294,7 @@ await capture(600, 500, "labelmaker-phone-600x500.png", async (page) => {
   await page.locator(".phone-plate-strip").waitFor();
   const undersizedTargets = await page
     .locator(
-      ".phone-titlebar button, .phone-editor-toolbar button, .phone-plate-strip .plate-thumb-select, .phone-plate-strip .plate-delete, .phone-plate-strip .add-plate",
+      ".phone-titlebar button, .phone-editor-toolbar button, .phone-plate-strip .plate-thumb-select, .phone-plate-strip .add-plate",
     )
     .evaluateAll((targets) =>
       targets.flatMap((target) => {
@@ -287,6 +313,82 @@ await capture(600, 500, "labelmaker-phone-600x500.png", async (page) => {
   if (undersizedTargets.length > 0) {
     throw new Error(
       `Phone controls are smaller than 44 px: ${JSON.stringify(undersizedTargets)}`,
+    );
+  }
+});
+await capture(960, 700, "labelmaker-phone-960x700.png", async (page) => {
+  const shellClass = await page.locator(".app-shell").getAttribute("class");
+  if (!shellClass?.includes("layout-phone")) {
+    throw new Error(`The 960x700 window did not use Phone mode: ${shellClass}`);
+  }
+  const visibleHeaderText = await page
+    .locator(".phone-titlebar")
+    .evaluate((header) =>
+      Array.from(
+        header.querySelectorAll(
+          ".printer-trigger-copy, .printer-add-trigger strong, .print-label",
+        ),
+      ).flatMap((label) =>
+        label.getBoundingClientRect().width > 0
+          ? [label.textContent?.trim() ?? ""]
+          : [],
+      ),
+    );
+  if (visibleHeaderText.some(Boolean)) {
+    throw new Error(
+      `The Phone header contains visible button text: ${JSON.stringify(visibleHeaderText)}`,
+    );
+  }
+});
+await capture(
+  600,
+  500,
+  "labelmaker-phone-settings-600x500.png",
+  async (page) => {
+    await page.getByRole("button", { name: "Label settings" }).click();
+    await page
+      .getByRole("dialog", { name: "Label settings" })
+      .getByRole("button", { name: "Save settings" })
+      .waitFor();
+  },
+);
+await capture(961, 700, "labelmaker-standard-961x700.png", async (page) => {
+  const shellClass = await page.locator(".app-shell").getAttribute("class");
+  if (!shellClass?.includes("layout-standard")) {
+    throw new Error(
+      `The 961x700 window did not use standard mode: ${shellClass}`,
+    );
+  }
+  const clipped = await page.evaluate(() => {
+    const titlebar = document
+      .querySelector(".titlebar")
+      ?.getBoundingClientRect();
+    const titleActions = document
+      .querySelector(".title-actions")
+      ?.getBoundingClientRect();
+    const toolbar = document
+      .querySelector(".editor-toolbar")
+      ?.getBoundingClientRect();
+    const trim = document
+      .querySelector(".toolbar-trim-button")
+      ?.getBoundingClientRect();
+    return {
+      header: Boolean(
+        titlebar &&
+        titleActions &&
+        (titleActions.left < titlebar.left ||
+          titleActions.right > titlebar.right),
+      ),
+      toolbar: Boolean(
+        toolbar &&
+        trim &&
+        (trim.left < toolbar.left || trim.right > toolbar.right),
+      ),
+    };
+  });
+  if (clipped.header || clipped.toolbar) {
+    throw new Error(
+      `The narrow standard layout clips controls: ${JSON.stringify(clipped)}`,
     );
   }
 });

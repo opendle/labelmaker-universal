@@ -538,10 +538,14 @@ export function PlateToolbarSettings({
   plate,
   onChange,
   onTrim,
+  onEnter = onTrim,
+  showTrim = true,
 }: {
   readonly plate: LabelPlate;
   readonly onChange: (plate: LabelPlate) => void;
   readonly onTrim: () => void;
+  readonly onEnter?: () => void;
+  readonly showTrim?: boolean;
 }) {
   return (
     <div className="plate-toolbar-settings">
@@ -562,7 +566,7 @@ export function PlateToolbarSettings({
             onKeyDown={(event) => {
               if (event.key !== "Enter") return;
               event.preventDefault();
-              onTrim();
+              onEnter();
             }}
             step={1}
             type="number"
@@ -602,7 +606,7 @@ export function PlateToolbarSettings({
               onKeyDown={(event) => {
                 if (event.key !== "Enter") return;
                 event.preventDefault();
-                onTrim();
+                onEnter();
               }}
               type="number"
               value={Math.round((value as number) * 10) / 10}
@@ -611,15 +615,17 @@ export function PlateToolbarSettings({
           </div>
         </label>
       ))}
-      <button
-        aria-label="Trim plate to content"
-        className="tool-button toolbar-trim-button"
-        onClick={onTrim}
-        title="Adjust the width to the printed content and margins"
-        type="button"
-      >
-        <Crop size={15} /> Trim
-      </button>
+      {showTrim && (
+        <button
+          aria-label="Trim plate to content"
+          className="tool-button toolbar-trim-button"
+          onClick={onTrim}
+          title="Adjust the width to the printed content and margins"
+          type="button"
+        >
+          <Crop size={15} /> Trim
+        </button>
+      )}
     </div>
   );
 }

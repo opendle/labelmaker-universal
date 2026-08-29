@@ -1,8 +1,7 @@
 import type { LabelPlate } from "@labelmaker/domain";
-import { Flag, FlipHorizontal2, Trash2, X } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 
 import { IconButton } from "./controls.js";
-import { isFlagPlate } from "./editor-operations.js";
 import {
   InspectorContent,
   PlateToolbarSettings,
@@ -56,57 +55,78 @@ export function PhoneElementPropertySheet({
 }
 
 export function PhonePlatePropertySheet({
-  plate,
+  canDelete,
+  draft,
   onChange,
   onClose,
-  onToggleFlag,
-  onTrim,
+  onDelete,
+  onSave,
 }: {
-  readonly plate: LabelPlate;
+  readonly canDelete: boolean;
+  readonly draft: LabelPlate;
   readonly onChange: (plate: LabelPlate) => void;
   readonly onClose: () => void;
-  readonly onToggleFlag: () => void;
-  readonly onTrim: () => void;
+  readonly onDelete: () => void;
+  readonly onSave: (plate: LabelPlate) => void;
 }) {
+  const save = () => {
+    onSave(draft);
+    onClose();
+  };
   return (
     <Modal
       className="phone-property-modal phone-plate-property-modal"
       labelId="phone-plate-properties-title"
       onClose={onClose}
     >
-      <div className="phone-sheet-header">
-        <h2 id="phone-plate-properties-title">Label settings</h2>
-        <IconButton initialFocus label="Close label settings" onClick={onClose}>
-          <X size={19} />
-        </IconButton>
-      </div>
-      <div className="phone-plate-settings-content">
-        <div className="phone-plate-mode-actions">
-          <button
-            aria-pressed={isFlagPlate(plate)}
-            className={`tool-button${isFlagPlate(plate) ? " active" : ""}`}
-            onClick={onToggleFlag}
-            type="button"
+      <form
+        className="phone-plate-settings-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          save();
+        }}
+      >
+        <div className="phone-sheet-header">
+          <h2 id="phone-plate-properties-title">Label settings</h2>
+          <IconButton
+            initialFocus
+            label="Close label settings"
+            onClick={onClose}
           >
-            <Flag size={17} /> Flag
-          </button>
+            <X size={19} />
+          </IconButton>
+        </div>
+        <div className="phone-plate-settings-content">
+          <PlateToolbarSettings
+            onChange={onChange}
+            onEnter={save}
+            onTrim={() => undefined}
+            plate={draft}
+            showTrim={false}
+          />
+        </div>
+        <div className="dialog-footer phone-plate-settings-footer">
           <button
-            aria-pressed={plate.mirrorPrint === true}
-            className={`tool-button${plate.mirrorPrint ? " active" : ""}`}
-            onClick={() =>
-              onChange({ ...plate, mirrorPrint: !plate.mirrorPrint })
+            className="button phone-delete-label"
+            disabled={!canDelete}
+            onClick={() => {
+              onDelete();
+              onClose();
+            }}
+            title={
+              canDelete
+                ? `Delete ${draft.name}`
+                : "A workspace must contain one label"
             }
             type="button"
           >
-            <FlipHorizontal2 size={17} /> Mirror
+            <Trash2 size={16} /> Delete label
+          </button>
+          <button className="button primary" type="submit">
+            Save settings
           </button>
         </div>
-        <PlateToolbarSettings
-          onChange={onChange}
-          onTrim={onTrim}
-          plate={plate}
-        />
-      </div>
+      </form>
     </Modal>
   );
 }

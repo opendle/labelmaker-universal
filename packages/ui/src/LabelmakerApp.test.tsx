@@ -9,6 +9,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -2173,7 +2174,19 @@ describe("LabelmakerApp", () => {
     const { container } = render(<LabelmakerApp host={createHost()} />);
 
     expect(container.querySelector(".app-shell")).toHaveClass("layout-phone");
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    const newWorkspace = screen.getByRole("button", {
+      name: "New workspace",
+    });
+    const openWorkspace = screen.getByRole("button", {
+      name: "Open workspace",
+    });
+    const saveWorkspace = screen.getByRole("button", {
+      name: "Save workspace, Not saved",
+    });
+    expect(newWorkspace).toHaveTextContent("");
+    expect(openWorkspace).toHaveTextContent("");
+    expect(saveWorkspace).toHaveTextContent("");
+    expect(saveWorkspace).toHaveClass("is-dirty");
     expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
     expect(
       await screen.findByRole("button", {
@@ -2195,19 +2208,10 @@ describe("LabelmakerApp", () => {
     expect(screen.getByRole("contentinfo", { name: "Labels" })).toHaveClass(
       "phone-plate-strip",
     );
-
-    await user.click(
-      screen.getByRole("button", { name: /Workspace Labels, Not saved/ }),
-    );
+    expect(screen.queryByRole("button", { name: /Delete label/ })).toBeNull();
     expect(
-      screen.getByRole("menuitem", { name: "New workspace" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: "Open workspace" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("menuitem", { name: "Save workspace" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("menu", { name: "Workspace actions" }),
+    ).toBeNull();
   });
 
   it("fits a wide label inside the Phone work area at 100 percent", async () => {
@@ -2264,7 +2268,7 @@ describe("LabelmakerApp", () => {
     ).toBeInTheDocument();
 
     act(() => {
-      vi.stubGlobal("innerWidth", 744);
+      vi.stubGlobal("innerWidth", 1_100);
       vi.stubGlobal("innerHeight", 1_024);
       globalThis.dispatchEvent(new Event("resize"));
     });
@@ -2350,8 +2354,54 @@ describe("LabelmakerApp", () => {
     expect(labelSheet).toHaveTextContent("LEFT");
     expect(labelSheet).toHaveTextContent("RIGHT");
     expect(
-      screen.getByRole("button", { name: "Trim plate to content" }),
+      within(labelSheet).queryByRole("button", {
+        name: "Trim plate to content",
+      }),
+    ).toBeNull();
+    expect(
+      within(labelSheet).queryByRole("button", { name: "Flag" }),
+    ).toBeNull();
+    expect(
+      within(labelSheet).queryByRole("button", { name: "Mirror" }),
+    ).toBeNull();
+    expect(
+      within(labelSheet).getByRole("button", { name: "Delete label" }),
     ).toBeInTheDocument();
+    expect(
+      within(labelSheet).getByRole("button", { name: "Save settings" }),
+    ).toBeInTheDocument();
+  });
+
+  it("saves Phone label settings and moves label deletion into the sheet", async () => {
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 852);
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+
+    const settings = screen.getByRole("button", { name: "Label settings" });
+    await user.pointer([{ keys: "[MouseLeft>]", target: settings }]);
+    await user.pointer([{ keys: "[/MouseLeft]", target: settings }]);
+    const sheet = screen.getByRole("dialog", { name: "Label settings" });
+    fireEvent.change(within(sheet).getByLabelText("Plate width"), {
+      target: { value: "70" },
+    });
+    await user.click(
+      within(sheet).getByRole("button", { name: "Save settings" }),
+    );
+    expect(sheet).not.toBeInTheDocument();
+    expect(settings).toHaveFocus();
+    expect(settings).toHaveAttribute("data-focus-ring-suppressed", "true");
+
+    await user.click(settings);
+    const reopened = screen.getByRole("dialog", { name: "Label settings" });
+    expect(within(reopened).getByLabelText("Plate width")).toHaveValue(70);
+    await user.click(
+      within(reopened).getByRole("button", { name: "Delete label" }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Select label 1: Resistors" }),
+    ).toBeNull();
+    expect(screen.queryByRole("dialog", { name: "Label settings" })).toBeNull();
   });
 
   it("keeps an element sheet current through undo and redo", async () => {

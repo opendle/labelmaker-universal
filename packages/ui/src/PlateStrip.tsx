@@ -144,6 +144,29 @@ function PlateName({
   );
 }
 
+function PlateDeleteButton({
+  disabled,
+  name,
+  onDelete,
+}: {
+  readonly disabled: boolean;
+  readonly name: string;
+  readonly onDelete: () => void;
+}) {
+  return (
+    <button
+      aria-label={`Delete label ${name}`}
+      className="plate-delete"
+      disabled={disabled}
+      onClick={onDelete}
+      title={disabled ? "A workspace must contain one label" : `Delete ${name}`}
+      type="button"
+    >
+      <Trash2 size={12} />
+    </button>
+  );
+}
+
 export function PlateStrip({
   workspace,
   activePlateId,
@@ -413,20 +436,13 @@ export function PlateStrip({
                 rename={rename}
                 setRename={setRename}
               />
-              <button
-                aria-label={`Delete label ${plate.name}`}
-                className="plate-delete"
-                disabled={workspace.plates.length === 1}
-                onClick={() => onDeletePlate(plate.id)}
-                title={
-                  workspace.plates.length === 1
-                    ? "A workspace must contain one label"
-                    : `Delete ${plate.name}`
-                }
-                type="button"
-              >
-                <Trash2 size={12} />
-              </button>
+              {!phoneMode && (
+                <PlateDeleteButton
+                  disabled={workspace.plates.length === 1}
+                  name={plate.name}
+                  onDelete={() => onDeletePlate(plate.id)}
+                />
+              )}
             </div>
           );
         })}

@@ -202,6 +202,12 @@ export function PhoneEditorToolbar({
           aria-label="Label settings"
           className="phone-command-icon"
           onClick={onOpenPlateSettings}
+          onKeyDown={(event) => {
+            delete event.currentTarget.dataset.focusRingSuppressed;
+          }}
+          onPointerDown={(event) => {
+            event.currentTarget.dataset.focusRingSuppressed = "true";
+          }}
           title="Label settings"
           type="button"
         >

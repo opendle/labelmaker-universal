@@ -237,6 +237,8 @@ not add a separate editor.
 
 - Primary desktop: 1440 × 960.
 - Compact desktop: 1100 × 760.
+- Narrow standard desktop threshold: 961 × 700.
+- Wide Phone desktop threshold: 960 × 700.
 - Primary iPad landscape: 1180 × 820 CSS pixels.
 - Compact iPad portrait: 768 × 1024 CSS pixels.
 - iPad Split View: 744 × 1024 CSS pixels.
@@ -247,15 +249,18 @@ not add a separate editor.
 
 ## Phone layout
 
-Use Phone mode at 600 CSS pixels wide or less. Also use it when the unobscured
-height is 500 CSS pixels or less and the width is 1,000 CSS pixels or less.
-The software keyboard must not change an iPad from its normal layout to Phone
-mode.
+Use Phone mode at 960 CSS pixels wide or less in a desktop host. Use Phone mode
+at 600 CSS pixels wide or less in the Apple mobile host, so the current iPad
+portrait and Split View layouts stay unchanged. Also use Phone mode when the
+unobscured height is 500 CSS pixels or less and the width is 1,000 CSS pixels or
+less. The software keyboard must not change an iPad from its normal layout to
+Phone mode.
 
 - Keep the label strip visible while the software keyboard is closed. Use a
   68-pixel strip in Phone mode and a 54-pixel strip in short Phone mode.
-- Use an icon header for workspace, save, undo, redo, printer, and print. Put
-  New, Open, and Save in the workspace menu. Put Preview in the Print menu.
+- Use an icon-only header for New, Open, Save, undo, redo, printer, and print.
+  Do not show the workspace name. Mark the Save icon when the workspace needs
+  its first save or has edits. Put Preview in the Print menu.
 - Use one 48-pixel editor command row. Keep Label settings and Trim fixed.
   Scroll the other controls in the horizontal direction.
 - When no element is selected, show the element, Flag, and Mirror actions.
@@ -263,7 +268,10 @@ mode.
   image, show Contrast. For a selected shape, show stroke width. Keep Tools,
   More, and Delete available.
 - Open complete element properties and label settings in modal lower sheets.
-  Keep all properties available in these sheets.
+  Keep all element properties available. The label-settings sheet contains
+  width, height, margins, Delete label, and a Save settings footer. Keep Flag,
+  Mirror, and Trim in the Phone command controls instead of repeating them in
+  the sheet. Do not show label delete buttons in the Phone label strip.
 - Fit the label and rulers to the Phone work area at 100% when possible.
 - Use safe-area-aware full-screen dialogs. Make dialog content scroll in a
   short landscape viewport.

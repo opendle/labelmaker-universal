@@ -41,13 +41,13 @@ describe("responsiveLayoutForViewport", () => {
   });
 
   it("updates Phone mode across breakpoint and orientation changes", () => {
-    vi.stubGlobal("innerWidth", 744);
+    vi.stubGlobal("innerWidth", 1_100);
     vi.stubGlobal("innerHeight", 1_024);
     const { result } = renderHook(() => useResponsiveLayout("linux"));
     expect(result.current.layout).toBe("standard");
 
     act(() => {
-      vi.stubGlobal("innerWidth", 393);
+      vi.stubGlobal("innerWidth", 900);
       vi.stubGlobal("innerHeight", 852);
       globalThis.dispatchEvent(new Event("resize"));
     });
@@ -59,6 +59,17 @@ describe("responsiveLayoutForViewport", () => {
       globalThis.dispatchEvent(new Event("resize"));
     });
     expect(result.current.layout).toBe("phone-short");
+  });
+
+  it("uses the wider Phone breakpoint only for desktop hosts", () => {
+    vi.stubGlobal("innerWidth", 900);
+    vi.stubGlobal("innerHeight", 800);
+    const desktop = renderHook(() => useResponsiveLayout("macos"));
+    expect(desktop.result.current.layout).toBe("phone");
+    desktop.unmount();
+
+    const ipad = renderHook(() => useResponsiveLayout("ipados"));
+    expect(ipad.result.current.layout).toBe("standard");
   });
 
   it("keeps the unobstructed iPad layout while the keyboard is open", () => {

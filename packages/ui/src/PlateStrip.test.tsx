@@ -197,4 +197,24 @@ describe("PlateStrip", () => {
 
     expect(onRenamePlate).toHaveBeenCalledWith("plate-resistors", "Parts");
   });
+
+  it("does not show label delete buttons in Phone mode", () => {
+    render(
+      <PlateStrip
+        activePlateId="plate-resistors"
+        marginBottomMm={undefined}
+        marginTopMm={undefined}
+        onAddPlate={vi.fn()}
+        onDeletePlate={vi.fn()}
+        onMovePlate={vi.fn()}
+        onRenamePlate={vi.fn()}
+        onSelectPlate={vi.fn()}
+        phoneMode
+        printHeadSizeMm={undefined}
+        workspace={sampleDocument}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /Delete label/ })).toBeNull();
+  });
 });
