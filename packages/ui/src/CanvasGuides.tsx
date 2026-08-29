@@ -88,14 +88,15 @@ export function CanvasRulers({
   const rulerZoomScale = Math.max(1, 1 + (zoom - 100) / 400);
   const dimensionFontSize = 9 * rulerZoomScale;
   const intervalFontSize = 7.5 * rulerZoomScale;
-  const intervalTopOffset = 22;
+  const intervalTopOffset = 20;
   const intervalLeftOffset = 40;
-  const dimensionTierGap = 0;
+  const topDimensionTierGap = 3;
+  const leftDimensionTierGap = 0;
   const verticalDimensionGap = 18;
-  const dimensionInnerOffset = intervalLeftOffset + dimensionTierGap;
+  const dimensionInnerOffset = intervalLeftOffset + leftDimensionTierGap;
   const layoutStyle = {
     "--dimension-ruler-outer-offset": `${(dimensionInnerOffset + verticalDimensionGap) * rulerZoomScale}px`,
-    "--dimension-ruler-width-offset": `${(intervalTopOffset + dimensionTierGap) * rulerZoomScale}px`,
+    "--dimension-ruler-width-offset": `${(intervalTopOffset + topDimensionTierGap) * rulerZoomScale}px`,
     "--dimension-ruler-inner-offset": `${dimensionInnerOffset * rulerZoomScale}px`,
     "--interval-ruler-left-offset": `${intervalLeftOffset * rulerZoomScale}px`,
     "--interval-ruler-left-width": `${38 * rulerZoomScale}px`,
