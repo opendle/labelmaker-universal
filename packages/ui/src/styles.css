@@ -2787,6 +2787,13 @@ textarea.inline-text-editor:focus-visible {
   }
 }
 
+@media (max-width: 850px) and (orientation: portrait) {
+  .platform-ipados.layout-standard .inspector {
+    top: var(--editor-toolbar-height);
+    bottom: auto;
+  }
+}
+
 /* Phone mode is a separate responsive presentation of the shared editor. */
 .layout-phone,
 .layout-phone-short {

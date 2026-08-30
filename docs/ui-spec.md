@@ -231,8 +231,10 @@ not add a separate editor.
 
 - Respect the safe area on each edge of the screen.
 - Use a right inspector in landscape. At 850 CSS pixels or less, overlay the
-  inspector on the lower edge instead of moving or resizing the canvas.
-  Size the lower inspector to its content, up to the available editor height.
+  inspector instead of moving or resizing the canvas. In the standard portrait
+  layout, place it below the editor toolbar. In other orientations, place it on
+  the lower edge. Size the inspector to its content, up to the available editor
+  height.
   Keep its existing field groups inside the screen without horizontal overflow.
 - At 850 CSS pixels or less, show only icons for the editor element actions.
   Keep undo and redo centered in the top bar. Align the printer and print

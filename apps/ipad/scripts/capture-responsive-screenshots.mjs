@@ -156,12 +156,20 @@ async function capture(viewport) {
         }
         if (!inspection.inspectorFits) {
           throw new Error(
-            `${viewport.width}x${viewport.height} lets the bottom inspector overflow.`,
+            `${viewport.width}x${viewport.height} lets the compact inspector overflow.`,
           );
         }
         if (!inspection.inspectorHeightFollowsContent) {
           throw new Error(
-            `${viewport.width}x${viewport.height} leaves unused space below the bottom inspector controls.`,
+            `${viewport.width}x${viewport.height} leaves unused space below the compact inspector controls.`,
+          );
+        }
+        if (
+          viewport.height > viewport.width &&
+          !inspection.inspectorIsBelowEditorToolbar
+        ) {
+          throw new Error(
+            `${viewport.width}x${viewport.height} does not place the inspector below the editor toolbar.`,
           );
         }
       }
@@ -475,6 +483,7 @@ async function inspectStandardIPad(page) {
     const headerBounds = header.getBoundingClientRect();
     const historyBounds = history.getBoundingClientRect();
     const outputBounds = output.getBoundingClientRect();
+    const toolbarBounds = toolbar.getBoundingClientRect();
     const inspectorBounds = inspector.getBoundingClientRect();
     const propertyStack = inspector.querySelector(".property-stack");
     const propertyStackBounds = propertyStack?.getBoundingClientRect();
@@ -542,6 +551,8 @@ async function inspectStandardIPad(page) {
             lastPropertyBottom -
             Number.parseFloat(propertyStackStyle.paddingBottom),
         ) <= 1,
+      inspectorIsBelowEditorToolbar:
+        Math.abs(inspectorBounds.top - toolbarBounds.bottom) <= 1,
       inspectorBounds: {
         bottom: inspectorBounds.bottom,
         left: inspectorBounds.left,
