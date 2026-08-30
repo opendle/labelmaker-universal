@@ -129,7 +129,7 @@ export const MAKEID_E1_PROFILE: MakeIdResolvedProfile = {
   dpi: 203,
   rasterWidthPixels: 96,
   printableWidthMm: 12,
-  rasterAlignment: "center",
+  rasterAlignment: "start",
   maxRowsPerPacket: 170,
   swapRasterBytePairs: false,
 };

@@ -37,6 +37,12 @@ describe("desktop plate rasterization", () => {
     expect(svg).toContain('viewBox="0 1 40 12"');
   });
 
+  it("keeps centered artwork centered on 16 mm MakeID E1 media", () => {
+    const svg = buildPlateSvg(plate, 320, 96, 12, 2, 2, "start");
+
+    expect(svg).toContain('viewBox="0 0 40 12"');
+  });
+
   it.each([
     ["start", 0],
     ["center", -1],

@@ -111,6 +111,13 @@ describe("MakeID protocol primitives", () => {
     });
   });
 
+  it("uses start alignment for an old MakeID E1 status reply", () => {
+    expect(parseMakeIdAbf0Profile(response({}), "e1")).toMatchObject({
+      profileId: "e1-abf0-203",
+      rasterAlignment: "start",
+    });
+  });
+
   it("uses protocol 1.3 head width, row limit, and byte order", () => {
     const bytes = new Uint8Array(44);
     bytes[0] = 0x66;
