@@ -18,6 +18,7 @@ const screenshotDirectory = process.env
   : resolve(appDirectory, "../../artifacts/responsive");
 const viewports = [
   { width: 1180, height: 820, save: true },
+  { width: 1032, height: 1376, save: false },
   { width: 768, height: 1024, save: true },
   { width: 744, height: 1024, save: true },
   { width: 393, height: 852, save: true },
@@ -85,6 +86,12 @@ async function capture(viewport) {
           ? "phone-short"
           : "phone";
     if (expectedLayout === "standard") {
+      if (viewport.height > viewport.width) {
+        await page
+          .getByRole("button", { name: "Text element: RESISTORS" })
+          .click();
+        await page.locator(".inspector:not(.is-hidden)").waitFor();
+      }
       const inspection = await inspectStandardIPad(page);
       if (!inspection.className.includes("layout-standard")) {
         throw new Error(
@@ -128,6 +135,28 @@ async function capture(viewport) {
           );
         }
       }
+      if (viewport.height > viewport.width) {
+        if (!inspection.inspectorFits) {
+          throw new Error(
+            `${viewport.width}x${viewport.height} lets the portrait inspector overflow.`,
+          );
+        }
+        if (!inspection.inspectorHeightFollowsContent) {
+          throw new Error(
+            `${viewport.width}x${viewport.height} does not show the full portrait inspector content.`,
+          );
+        }
+        if (!inspection.inspectorIsBelowEditorToolbar) {
+          throw new Error(
+            `${viewport.width}x${viewport.height} does not place the inspector below the editor toolbar.`,
+          );
+        }
+        if (!inspection.inspectorIsFullWidth) {
+          throw new Error(
+            `${viewport.width}x${viewport.height} does not make the portrait inspector full-width.`,
+          );
+        }
+      }
       if (viewport.width <= 850) {
         if (!inspection.historyIsCentered) {
           throw new Error(
@@ -152,24 +181,6 @@ async function capture(viewport) {
         if (!inspection.editorToolbarFits) {
           throw new Error(
             `${viewport.width}x${viewport.height} scrolls the compact editor toolbar.`,
-          );
-        }
-        if (!inspection.inspectorFits) {
-          throw new Error(
-            `${viewport.width}x${viewport.height} lets the compact inspector overflow.`,
-          );
-        }
-        if (!inspection.inspectorHeightFollowsContent) {
-          throw new Error(
-            `${viewport.width}x${viewport.height} leaves unused space below the compact inspector controls.`,
-          );
-        }
-        if (
-          viewport.height > viewport.width &&
-          !inspection.inspectorIsBelowEditorToolbar
-        ) {
-          throw new Error(
-            `${viewport.width}x${viewport.height} does not place the inspector below the editor toolbar.`,
           );
         }
       }
@@ -553,6 +564,9 @@ async function inspectStandardIPad(page) {
         ) <= 1,
       inspectorIsBelowEditorToolbar:
         Math.abs(inspectorBounds.top - toolbarBounds.bottom) <= 1,
+      inspectorIsFullWidth:
+        Math.abs(inspectorBounds.left) <= 1 &&
+        Math.abs(inspectorBounds.right - client.clientWidth) <= 1,
       inspectorBounds: {
         bottom: inspectorBounds.bottom,
         left: inspectorBounds.left,

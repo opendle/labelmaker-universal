@@ -1,8 +1,9 @@
-import { mkdir, readFile, rm } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { webkit } from "playwright";
 
+import { captureOpaquePng } from "../../../scripts/capture-opaque-png.mjs";
 import {
   installCaptureHost,
   settlePage,
@@ -164,12 +165,7 @@ async function capture(name, setup, colorScheme = "light") {
       .waitFor();
     if (showPortraitTextProperties) {
       await selectTextAndWaitForProperties(page);
-    }
-    if (device === "ipad" && orientation === "portrait") {
-      await panCanvasLeftOfInspector(page);
-    }
-    if (showPortraitTextProperties) {
-      await selectTextAndWaitForProperties(page);
+      await assertPortraitTextLayout(page);
     }
     await setup?.(page);
     await settlePage(page);
@@ -178,8 +174,8 @@ async function capture(name, setup, colorScheme = "light") {
       throw new Error(`The iPad app reported an error: ${failures.join("; ")}`);
     }
     const path = resolve(screenshotDirectory, name);
-    await page.screenshot({ path });
-    await assertPngSize(path, expectedPixels.width, expectedPixels.height);
+    const size = await captureOpaquePng(page, path);
+    assertPngSize(path, size, expectedPixels.width, expectedPixels.height);
   } finally {
     await context.close();
   }
@@ -191,28 +187,33 @@ async function selectTextAndWaitForProperties(page) {
   await page.getByLabel("Font size").waitFor();
 }
 
-async function panCanvasLeftOfInspector(page) {
-  const surface = await page.locator(".work-surface").boundingBox();
+async function assertPortraitTextLayout(page) {
+  const toolbar = await page.locator(".editor-toolbar").boundingBox();
   const inspector = await page.locator(".inspector").boundingBox();
-  if (!surface || !inspector) {
-    throw new Error("The portrait canvas or inspector is not visible.");
+  const label = await page.locator(".label-canvas").boundingBox();
+  if (!toolbar || !inspector || !label) {
+    throw new Error(
+      "The portrait label, toolbar, or inspector is not visible.",
+    );
   }
-  const startX = surface.x + surface.width / 2;
-  const startY = surface.y + Math.min(surface.height / 3, 240);
-  const distance = Math.ceil(inspector.width / 2 + 24);
-  await page.mouse.move(startX, startY);
-  await page.mouse.down();
-  await page.mouse.move(startX - distance, startY, { steps: 12 });
-  await page.mouse.up();
+  if (
+    Math.abs(inspector.x) > 1 ||
+    Math.abs(inspector.width - viewport.width) > 1 ||
+    Math.abs(inspector.y - (toolbar.y + toolbar.height)) > 1
+  ) {
+    throw new Error(
+      "The portrait text inspector is not full-width at the top.",
+    );
+  }
+  if (label.y < inspector.y + inspector.height + 16) {
+    throw new Error("The portrait text inspector overlaps the label.");
+  }
 }
 
-async function assertPngSize(path, width, height) {
-  const png = await readFile(path);
-  const actualWidth = png.readUInt32BE(16);
-  const actualHeight = png.readUInt32BE(20);
-  if (actualWidth !== width || actualHeight !== height) {
+function assertPngSize(path, size, width, height) {
+  if (size.width !== width || size.height !== height) {
     throw new Error(
-      `${path} is ${actualWidth}x${actualHeight}; expected ${width}x${height}.`,
+      `${path} is ${size.width}x${size.height}; expected ${width}x${height}.`,
     );
   }
 }

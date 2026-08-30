@@ -22,8 +22,9 @@ A public release also needs:
 - reproducible protocol tests that do not require printer hardware.
 
 Store screenshots are generated from the current application with
-`npm run app-store:screenshots`. This command generates five current images for
-each of these store groups:
+`npm run app-store:screenshots`. FFmpeg must be on `PATH`. The command converts
+each image to an RGB PNG without an alpha channel and verifies it before
+completion. It generates five current images for each of these store groups:
 
 - iPhone 6.5-inch portrait at 1284 by 2778 pixels;
 - iPad 13-inch landscape at 2752 by 2064 pixels;
@@ -32,8 +33,8 @@ each of these store groups:
 
 The fifth image in each group uses dark mode. The mobile capture CSS removes
 number-input controls that iOS and iPadOS do not show. The iPad portrait capture
-moves the canvas clear of the right inspector. The image order is editor, icon
-library, add printer, printer settings, and dark-mode flag label.
+shows the full-width text inspector above the canvas. The image order is editor,
+icon library, add printer, printer settings, and dark-mode flag label.
 
 Run `npm run app-store:previews` to generate one 20-second H.264 MP4 app preview
 for iPhone, iPad, and Mac. FFmpeg and FFprobe must be on `PATH`. The command

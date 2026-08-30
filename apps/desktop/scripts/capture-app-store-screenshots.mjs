@@ -1,8 +1,9 @@
 import { _electron as electron } from "playwright";
-import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
+import { captureOpaquePng } from "../../../scripts/capture-opaque-png.mjs";
 import { prepareDesktopRuntime } from "./capture-support.mjs";
 
 const appDirectory = resolve(import.meta.dirname, "..");
@@ -107,14 +108,11 @@ async function capture(page, name, setup, colorScheme = "light") {
   });
   await page.waitForTimeout(250);
   const path = resolve(screenshotDirectory, name);
-  await page.screenshot({ path });
-  await assertAcceptedMacSize(path);
+  const size = await captureOpaquePng(page, path);
+  assertAcceptedMacSize(path, size);
 }
 
-async function assertAcceptedMacSize(path) {
-  const png = await readFile(path);
-  const width = png.readUInt32BE(16);
-  const height = png.readUInt32BE(20);
+function assertAcceptedMacSize(path, { width, height }) {
   const accepted = new Set(["1440x900", "2880x1800"]);
   if (!accepted.has(`${String(width)}x${String(height)}`)) {
     throw new Error(
