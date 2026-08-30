@@ -64,7 +64,13 @@ Build the distribution `.pkg` with a new build number:
 LABELMAKER_APPLE_TEAM_ID=32J9W47SH8 LABELMAKER_MAS_BUILD=1 npm run mas:distribution
 ```
 
-Upload a new version after you set the App Store Connect API-key variables:
+Store the App Store Connect API key in the login Keychain once:
+
+```bash
+npm run mas:store-api-key -- /path/to/AuthKey_EXAMPLE123.p8 --delete-source
+```
+
+Upload a new version after you set the API-key ID and issuer variables:
 
 ```bash
 LABELMAKER_MAS_VERSION=1.0.1 LABELMAKER_MAS_BUILD=2 npm run mas:upload

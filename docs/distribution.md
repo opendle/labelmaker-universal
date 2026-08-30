@@ -151,24 +151,26 @@ development package for Bluetooth and file tests.
 ### App Store Connect upload
 
 Create an App Store Connect API key that can upload builds. Download its `.p8`
-file once, keep the original in 1Password, and install a protected local copy:
+file once and keep an encrypted backup in 1Password. Move the downloaded key
+into the login Keychain with:
 
 ```bash
-mkdir -p ~/.appstoreconnect/private_keys
-cp /safe/source/AuthKey_EXAMPLE123.p8 ~/.appstoreconnect/private_keys/
-chmod 600 ~/.appstoreconnect/private_keys/AuthKey_EXAMPLE123.p8
+npm run mas:store-api-key -- /path/to/AuthKey_EXAMPLE123.p8 --delete-source
 ```
 
-Do not put the key in the repository. Set these environment variables:
+The command verifies the Keychain copy before it removes the source file. Do
+not put the key in the repository. Set these environment variables:
 
 ```bash
 export LABELMAKER_APP_STORE_CONNECT_KEY_ID="EXAMPLE123"
 export LABELMAKER_APP_STORE_CONNECT_ISSUER_ID="00000000-0000-0000-0000-000000000000"
 ```
 
-Automatic discovery needs the file name `AuthKey_<KEY_ID>.p8`. A different
-file name or location can be set with
-`LABELMAKER_APP_STORE_CONNECT_KEY_PATH`.
+Check the Keychain item without contacting Apple:
+
+```bash
+npm run mas:check-api-key
+```
 
 Use an explicit version and a new build number for each upload:
 
@@ -176,9 +178,10 @@ Use an explicit version and a new build number for each upload:
 LABELMAKER_MAS_VERSION=1.0.1 LABELMAKER_MAS_BUILD=2 npm run mas:upload
 ```
 
-The upload command checks its inputs and key permissions before it builds. It
-then runs the distribution build, validates the `.pkg` with Apple, and uploads
-it. It does not change the price, release method, metadata, or other App Store
+The upload command gets the key from the login Keychain and sends it to Apple's
+tool through standard input. It does not create a temporary `.p8` file. It then
+runs the distribution build, validates the `.pkg` with Apple, and uploads it.
+It does not change the price, release method, metadata, or other App Store
 Connect settings. Do not run this command until the build is ready for upload.
 
 The scripts select profiles by bundle ID, team, platform, purpose, and expiry.

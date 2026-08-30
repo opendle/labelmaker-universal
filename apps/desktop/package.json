@@ -14,6 +14,7 @@
     "hardware:print": "npm run build && node scripts/hardware-print.mjs",
     "mas:development": "node scripts/package-mas.mjs --development",
     "mas:distribution": "node scripts/package-mas.mjs --distribution",
+    "mas:check-api-key": "node scripts/upload-mas.mjs --check-keychain",
     "mas:upload": "node scripts/upload-mas.mjs",
     "screenshot": "npm run build && node scripts/run-screenshots.mjs",
     "video": "playwright install ffmpeg && npm run build && node scripts/run-video.mjs",

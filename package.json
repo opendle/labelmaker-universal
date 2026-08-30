@@ -25,6 +25,8 @@
     "ipad:simulator": "node apps/ipad/scripts/launch-simulator.mjs",
     "mas:development": "npm run mas:development --workspace @labelmaker/desktop",
     "mas:distribution": "npm run mas:distribution --workspace @labelmaker/desktop",
+    "mas:check-api-key": "npm run mas:check-api-key --workspace @labelmaker/desktop",
+    "mas:store-api-key": "xcrun swift apps/desktop/scripts/store-mas-api-key.swift",
     "mas:upload": "npm run mas:upload --workspace @labelmaker/desktop",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

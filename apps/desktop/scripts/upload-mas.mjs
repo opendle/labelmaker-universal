@@ -1,7 +1,20 @@
 import { spawnSync } from "node:child_process";
-import { accessSync, statSync } from "node:fs";
-import { homedir } from "node:os";
+import { accessSync } from "node:fs";
 import { resolve } from "node:path";
+
+const KEYCHAIN_SERVICE = "com.opendle.labelmaker.app-store-connect-api-key";
+const arguments_ = process.argv.slice(2);
+
+if (arguments_.length === 1 && arguments_[0] === "--check-keychain") {
+  const keyId = requiredEnvironmentValue("LABELMAKER_APP_STORE_CONNECT_KEY_ID");
+  const key = readApiPrivateKey(keyId);
+  key.fill(0);
+  console.log(`App Store Connect API key ${keyId} is available in Keychain.`);
+  process.exit(0);
+}
+if (arguments_.length !== 0) {
+  throw new Error("The upload command arguments are invalid.");
+}
 
 const APP_VERSION = requiredEnvironmentValue("LABELMAKER_MAS_VERSION");
 const BUILD_VERSION = requiredEnvironmentValue("LABELMAKER_MAS_BUILD");
@@ -36,17 +49,6 @@ const packagePath = resolve(
   "release/macos-app-store/distribution",
   `Label Maker-${APP_VERSION}-${BUILD_VERSION}.pkg`,
 );
-const apiKeyPath = findApiKeyPath(API_KEY_ID);
-const apiKeyStats = statSync(apiKeyPath);
-if (!apiKeyStats.isFile()) {
-  throw new Error(`${apiKeyPath} is not an App Store Connect API key file.`);
-}
-const apiKeyMode = apiKeyStats.mode & 0o777;
-if ((apiKeyMode & 0o077) !== 0) {
-  throw new Error(
-    `Protect ${apiKeyPath} with chmod 600 before an App Store upload.`,
-  );
-}
 
 console.log("Building and signing a new Label Maker Mac App Store package.");
 run(process.execPath, [
@@ -61,28 +63,41 @@ const authenticationArguments = [
   "--api-issuer",
   API_ISSUER_ID,
   "--p8-file-path",
-  apiKeyPath,
+  "/dev/stdin",
 ];
 
-console.log(`Validating ${packagePath} with App Store Connect.`);
-run("/usr/bin/xcrun", [
-  "altool",
-  "--validate-app",
-  packagePath,
-  ...authenticationArguments,
-  "--output-format",
-  "json",
-]);
+const apiPrivateKey = readApiPrivateKey(API_KEY_ID);
+try {
+  console.log(`Validating ${packagePath} with App Store Connect.`);
+  run(
+    "/usr/bin/xcrun",
+    [
+      "altool",
+      "--validate-app",
+      packagePath,
+      ...authenticationArguments,
+      "--output-format",
+      "json",
+    ],
+    { input: apiPrivateKey },
+  );
 
-console.log(`Uploading ${packagePath} to App Store Connect.`);
-run("/usr/bin/xcrun", [
-  "altool",
-  "--upload-app",
-  "-f",
-  packagePath,
-  ...authenticationArguments,
-  "--show-progress",
-]);
+  console.log(`Uploading ${packagePath} to App Store Connect.`);
+  run(
+    "/usr/bin/xcrun",
+    [
+      "altool",
+      "--upload-app",
+      "-f",
+      packagePath,
+      ...authenticationArguments,
+      "--show-progress",
+    ],
+    { input: apiPrivateKey },
+  );
+} finally {
+  apiPrivateKey.fill(0);
+}
 
 console.log(
   "Label Maker was uploaded. App Store Connect can take time to process the build.",
@@ -94,42 +109,82 @@ function requiredEnvironmentValue(name) {
   return value;
 }
 
-function findApiKeyPath(keyId) {
-  const fileName = `AuthKey_${keyId}.p8`;
-  const configuredPath = process.env.LABELMAKER_APP_STORE_CONNECT_KEY_PATH;
-  if (configuredPath) {
-    const candidate = resolve(configuredPath);
-    try {
-      accessSync(candidate);
-    } catch {
-      throw new Error(
-        `Could not read the App Store Connect API key at ${candidate}.`,
-      );
-    }
-    return candidate;
+function readApiPrivateKey(keyId) {
+  const result = spawnSync(
+    "/usr/bin/security",
+    ["find-generic-password", "-s", KEYCHAIN_SERVICE, "-a", keyId, "-w"],
+    {
+      encoding: null,
+      maxBuffer: 1024 * 1024,
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(
+      `Could not read App Store Connect API key ${keyId} from the login Keychain.`,
+    );
   }
-  const configuredDirectory = process.env.API_PRIVATE_KEYS_DIR;
-  const candidates = [
-    ...(configuredDirectory ? [resolve(configuredDirectory, fileName)] : []),
-    resolve(homedir(), ".appstoreconnect/private_keys", fileName),
-    resolve(homedir(), ".private_keys", fileName),
-    resolve(homedir(), "private_keys", fileName),
-  ];
-  for (const candidate of candidates) {
-    try {
-      accessSync(candidate);
-      return candidate;
-    } catch {}
+  const key = decodeKeychainPassword(result.stdout);
+  if (
+    !key.includes(Buffer.from("-----BEGIN PRIVATE KEY-----")) ||
+    !key.includes(Buffer.from("-----END PRIVATE KEY-----"))
+  ) {
+    key.fill(0);
+    throw new Error(`The Keychain item for ${keyId} is not a valid API key.`);
   }
-  throw new Error(
-    `Install ${fileName} under ~/.appstoreconnect/private_keys, or set LABELMAKER_APP_STORE_CONNECT_KEY_PATH.`,
+  return key;
+}
+
+function decodeKeychainPassword(value) {
+  let end = value.length;
+  while (
+    end > 0 &&
+    (value[end - 1] === 0x0a ||
+      value[end - 1] === 0x0d ||
+      value[end - 1] === 0x20 ||
+      value[end - 1] === 0x09)
+  ) {
+    end -= 1;
+  }
+  const isHexadecimal =
+    end > 0 && end % 2 === 0 && value.subarray(0, end).every(isHexadecimalByte);
+  if (!isHexadecimal) {
+    const decoded = Buffer.from(value);
+    value.fill(0);
+    return decoded;
+  }
+
+  const decoded = Buffer.alloc(end / 2);
+  for (let index = 0; index < end; index += 2) {
+    decoded[index / 2] =
+      hexadecimalNibble(value[index]) * 16 +
+      hexadecimalNibble(value[index + 1]);
+  }
+  value.fill(0);
+  return decoded;
+}
+
+function isHexadecimalByte(value) {
+  return (
+    (value >= 0x30 && value <= 0x39) ||
+    (value >= 0x41 && value <= 0x46) ||
+    (value >= 0x61 && value <= 0x66)
   );
 }
 
-function run(command, args) {
+function hexadecimalNibble(value) {
+  if (value >= 0x30 && value <= 0x39) return value - 0x30;
+  if (value >= 0x41 && value <= 0x46) return value - 0x41 + 10;
+  return value - 0x61 + 10;
+}
+
+function run(command, args, options = {}) {
+  const hasInput = options.input !== undefined;
   const result = spawnSync(command, args, {
     env: process.env,
-    stdio: "inherit",
+    ...(hasInput ? { input: options.input } : {}),
+    stdio: hasInput ? ["pipe", "inherit", "inherit"] : "inherit",
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
