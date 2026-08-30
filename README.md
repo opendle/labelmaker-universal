@@ -1,6 +1,6 @@
 # Labelmaker
 
-Labelmaker is an open-source label editor for desktop and iPad. One `.lbl`
+Labelmaker is a source-available label editor for desktop and iPad. One `.lbl`
 workspace can contain many labels. The editor can create text, image, and shape
 elements. It can also set label size and margins, trim a label to its printed
 content, make cable flags, and print through a printer adapter.
@@ -134,4 +134,6 @@ packages/ui              Shared React editor and application UI
 docs                     Product, architecture, format, and test documents
 ```
 
-Labelmaker uses the [GNU Affero General Public License v3.0](LICENSE).
+Labelmaker uses the [Functional Source License 1.1 with the MIT Future
+License](LICENSE). Each version becomes available under the MIT License two
+years after that version is made available.

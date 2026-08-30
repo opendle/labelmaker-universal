@@ -8,10 +8,12 @@
 - Publish one universal iPhone and iPad application through the App Store.
 - Keep the optional server and local print bridge separate from desktop bundles.
 
-## Open-source release
+## Source-available release
 
-The project source uses the GNU Affero General Public License v3.0.
-Contributions and source releases use the same license.
+The project source uses the Functional Source License 1.1 with the MIT Future
+License. Contributions and source releases use the same license. Each version
+becomes available under the MIT License two years after that version is made
+available.
 
 A public release also needs:
 

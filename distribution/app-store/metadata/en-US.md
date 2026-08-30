@@ -4,7 +4,7 @@ Use this text for the iOS and macOS version 1.0 listings.
 
 ## Promotional text
 
-Open-source label design for MakeID printers, with App Store updates. Your
+Source-available label design for MakeID printers, with App Store updates. Your
 optional purchase funds development, hardware tests, and support for more
 printers.
 
@@ -29,10 +29,10 @@ Features:
 - Work without an account, advertising, analytics, or cloud storage.
 - Receive automatic updates through the App Store.
 
-Labelmaker is open-source software under the GNU Affero General Public License
-v3.0. You can build it from source at no charge. The small App Store price is an
-optional way to support continued development and the printer hardware that is
-needed to add and verify support for more models.
+Labelmaker is source-available software under the Functional Source License 1.1
+with the MIT Future License. You can build it from source at no charge. The
+small App Store price is an optional way to support continued development and
+the printer hardware that is needed to add and verify support for more models.
 
 Source code and support:
 https://github.com/opendle/labelmaker-universal

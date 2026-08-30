@@ -40,10 +40,10 @@ Maker through the App Store. Apple controls this processing. See
 Label Maker does not knowingly collect personal data from children or other
 users.
 
-## Open-source software
+## Source-available software
 
-Label Maker is open-source software. You can inspect its source code to verify
-its behavior.
+Label Maker is source-available software. You can inspect its source code to
+verify its behavior.
 
 ## Policy changes
 

@@ -40,4 +40,5 @@ Keep a change focused. Explain its user-visible result, package boundaries,
 tests, and hardware status. Do not describe an adapter as supported until the
 listed physical tests pass.
 
-Contributions are accepted under the GNU Affero General Public License v3.0.
+Contributions are accepted under the Functional Source License 1.1 with the
+MIT Future License.
