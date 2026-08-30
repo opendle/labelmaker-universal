@@ -42,10 +42,15 @@ creates:
 
 - `artifacts/app-store/previews/iphone-6.5-portrait/labelmaker-preview.mp4`
   at 886 by 1920 pixels;
-- `artifacts/app-store/previews/ipad-13-portrait/labelmaker-preview.mp4` at
-  1200 by 1600 pixels; and
+- `artifacts/app-store/previews/ipad-13-landscape/labelmaker-preview.mp4` at
+  1600 by 1200 pixels; and
 - `artifacts/app-store/previews/macos/labelmaker-preview.mp4` at 1920 by 1080
   pixels.
+
+The Mac preview moves the pointer between the actual control positions. The
+iPhone and iPad previews show a short touch marker at each actual tap position.
+Both mobile sequences print the edited label. The iPhone sequence also adds a
+discovered printer.
 
 The encoder limits previews to 30 frames per second and adds a stereo AAC track.
 It checks the duration, file size, dimensions, bit rate, profile, level,

@@ -3,6 +3,10 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
+import {
+  clickWithVisibleMouse,
+  installCaptureInputFeedback,
+} from "../../../scripts/capture-input-feedback.mjs";
 import { encodeAppPreview } from "../../../scripts/encode-app-preview.mjs";
 import { prepareDesktopRuntime } from "./capture-support.mjs";
 
@@ -60,27 +64,37 @@ try {
   if (!video) throw new Error("Playwright did not start the video recorder");
 
   await page.waitForSelector(".label-canvas");
+  await installCaptureInputFeedback(page, "mouse");
   const addPrinter = page.getByRole("button", { name: "Add printer" });
   await addPrinter.waitFor();
   await pause(page, 900);
 
-  await addPrinter.click();
+  await clickWithVisibleMouse(page, addPrinter);
   const printerRow = page.locator(".discovery-item", {
     hasText: "Studio Labeler",
   });
   await printerRow.getByRole("button", { name: "Add" }).waitFor();
   await pause(page);
-  await printerRow.getByRole("button", { name: "Add" }).click();
+  await clickWithVisibleMouse(
+    page,
+    printerRow.getByRole("button", { name: "Add" }),
+  );
   await page
     .getByRole("button", { name: "Selected printer: Studio Labeler" })
     .waitFor();
   await pause(page, 900);
 
-  await page.getByRole("button", { name: "Add label" }).click();
+  await clickWithVisibleMouse(
+    page,
+    page.getByRole("button", { name: "Add label" }),
+  );
   await page.getByRole("button", { name: "Select label 4: Label 4" }).waitFor();
   await pause(page);
 
-  await page.getByRole("button", { name: "Text element: NEW LABEL" }).click();
+  await clickWithVisibleMouse(
+    page,
+    page.getByRole("button", { name: "Text element: NEW LABEL" }),
+  );
   const textEditor = page.getByRole("textbox", { name: "Edit text on label" });
   await textEditor.waitFor();
   await textEditor.press("ControlOrMeta+A");
@@ -88,24 +102,33 @@ try {
   await pause(page, 800);
 
   const fontSize = page.getByLabel("Font size");
-  await fontSize.click();
+  await clickWithVisibleMouse(page, fontSize);
   await fontSize.press("ControlOrMeta+A");
   await fontSize.pressSequentially("22", { delay: 120 });
   await fontSize.press("Enter");
   await pause(page);
-  await page.getByRole("button", { name: "Bold", exact: true }).click();
+  await clickWithVisibleMouse(
+    page,
+    page.getByRole("button", { name: "Bold", exact: true }),
+  );
   await pause(page, 800);
 
   const plateWidth = page.getByLabel("Plate width");
   const widthBeforeTrim = await plateWidth.inputValue();
-  await page.getByRole("button", { name: "Trim plate to content" }).click();
+  await clickWithVisibleMouse(
+    page,
+    page.getByRole("button", { name: "Trim plate to content" }),
+  );
   await page.waitForFunction((previousWidth) => {
     const input = document.querySelector('[aria-label="Plate width"]');
     return input instanceof HTMLInputElement && input.value !== previousWidth;
   }, widthBeforeTrim);
   await pause(page, 900);
 
-  await page.getByRole("button", { name: /^Print$/ }).click();
+  await clickWithVisibleMouse(
+    page,
+    page.getByRole("button", { name: /^Print$/ }),
+  );
   await page.getByText("1 label sent to Studio Labeler").waitFor();
   await pause(page, 1_500);
   completed = true;

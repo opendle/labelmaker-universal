@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 
 import { webkit } from "playwright";
 
+import { installCaptureInputFeedback } from "../../../scripts/capture-input-feedback.mjs";
 import { encodeAppPreview } from "../../../scripts/encode-app-preview.mjs";
 import {
   installCaptureHost,
@@ -27,13 +28,20 @@ const previews = [
     name: "iphone-6.5-portrait",
     viewport: { width: 428, height: 926 },
     video: { width: 886, height: 1920 },
+    addPrinter: true,
   },
   {
-    name: "ipad-13-portrait",
-    viewport: { width: 1032, height: 1376 },
-    video: { width: 1200, height: 1600 },
+    name: "ipad-13-landscape",
+    viewport: { width: 1376, height: 1032 },
+    video: { width: 1600, height: 1200 },
+    addPrinter: false,
   },
 ];
+
+await rm(resolve(previewDirectory, "ipad-13-portrait"), {
+  recursive: true,
+  force: true,
+});
 
 let browser;
 try {
@@ -59,7 +67,10 @@ async function capturePreview(preview) {
     screen: preview.viewport,
     viewport: preview.viewport,
   });
-  await context.addInitScript(installCaptureHost, false);
+  await context.addInitScript(installCaptureHost, {
+    includeBluetoothPrinter: preview.addPrinter,
+    startWithConfiguredPrinter: !preview.addPrinter,
+  });
   const page = await context.newPage();
   const failures = watchPageFailures(page);
   let video;
@@ -80,12 +91,10 @@ async function capturePreview(preview) {
       `,
     });
     await page.locator(".label-canvas").waitFor();
-    if (preview.name === "ipad-13-portrait") {
-      await panCanvasLeftOfInspector(page);
-    }
+    await installCaptureInputFeedback(page, "touch");
     video = page.video();
     if (!video) throw new Error("Playwright did not start the video recorder.");
-    await demonstrateEditor(page);
+    await demonstrateEditor(page, preview.addPrinter);
     await settlePage(page);
     if (failures.length > 0) {
       throw new Error(
@@ -115,30 +124,52 @@ async function capturePreview(preview) {
   );
 }
 
-async function panCanvasLeftOfInspector(page) {
-  const surface = await page.locator(".work-surface").boundingBox();
-  const inspector = await page.locator(".inspector").boundingBox();
-  if (!surface || !inspector) {
-    throw new Error("The portrait canvas or inspector is not visible.");
-  }
-  const startX = surface.x + surface.width / 2;
-  const startY = surface.y + Math.min(surface.height / 3, 240);
-  const distance = Math.ceil(inspector.width / 2 + 24);
-  await page.mouse.move(startX, startY);
-  await page.mouse.down();
-  await page.mouse.move(startX - distance, startY, { steps: 12 });
-  await page.mouse.up();
-}
-
-async function demonstrateEditor(page) {
+async function demonstrateEditor(page, addPrinter) {
   const pause = (milliseconds = 900) => page.waitForTimeout(milliseconds);
   await pause(1_500);
 
-  await page.getByRole("button", { name: "Add label" }).click();
+  if (addPrinter) {
+    await page.getByRole("button", { name: "Add printer" }).tap();
+    const printerRow = page.locator(".discovery-item", {
+      hasText: "MakeID E1-Office",
+    });
+    await printerRow.getByRole("button", { name: "Add" }).waitFor();
+    await pause();
+    await printerRow.getByRole("button", { name: "Add" }).tap();
+    await page
+      .getByRole("button", { name: "Selected printer: MakeID E1-Office" })
+      .waitFor();
+    await pause();
+
+    await page
+      .getByRole("button", { name: "Selected printer: MakeID E1-Office" })
+      .tap();
+    await page
+      .getByRole("button", { name: "Settings for MakeID E1-Office" })
+      .tap();
+    const printerSettings = page.getByRole("dialog", {
+      name: "Printer settings",
+    });
+    await printerSettings.waitFor();
+    await pause();
+    await printerSettings.getByRole("button", { name: "Save" }).tap();
+    await printerSettings.waitFor({ state: "hidden" });
+    await pause();
+  }
+
+  await page.getByRole("button", { name: "Add label" }).tap();
   await page.getByRole("button", { name: "Select label 4: Label 4" }).waitFor();
   await pause();
 
-  await page.getByRole("button", { name: "Text element: NEW LABEL" }).click();
+  const newLabelText = page.getByRole("button", {
+    name: "Text element: NEW LABEL",
+  });
+  await newLabelText.tap();
+  await pause(350);
+  await newLabelText.tap();
+  // WebKit sends the click after the touch pointer sequence. Playwright's tap
+  // stops before that click when the canvas prevents pointer-down defaults.
+  await newLabelText.dispatchEvent("click");
   const textEditor = page.getByRole("textbox", { name: "Edit text on label" });
   await textEditor.waitFor();
   await textEditor.press("ControlOrMeta+A");
@@ -151,6 +182,16 @@ async function demonstrateEditor(page) {
   await pause();
   await page
     .getByRole("button", { name: /Trim (label|plate) to content/ })
-    .click();
-  await pause(3_000);
+    .tap();
+  await pause();
+
+  await page.getByRole("button", { name: "Print options" }).tap();
+  await pause();
+  await page.getByRole("menuitem", { name: "Print current label" }).tap();
+  await page
+    .getByText(
+      `1 label sent to ${addPrinter ? "MakeID E1-Office" : "Workshop printer"}`,
+    )
+    .waitFor();
+  await pause(1_800);
 }

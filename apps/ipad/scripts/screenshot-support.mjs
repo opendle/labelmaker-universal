@@ -78,23 +78,48 @@ export function settlePage(page) {
   });
 }
 
-export function installCaptureHost(includeBluetoothPrinter) {
+export function installCaptureHost(options) {
+  const includeBluetoothPrinter =
+    typeof options === "boolean"
+      ? options
+      : (options?.includeBluetoothPrinter ?? false);
+  const startWithConfiguredPrinter =
+    typeof options === "boolean"
+      ? true
+      : (options?.startWithConfiguredPrinter ?? true);
   localStorage.setItem(
     "labelmaker.ipados.printers.v1",
-    JSON.stringify({
-      printerIds: ["makeid:ipad-ble-workshop"],
-      activePrinterId: "makeid:ipad-ble-workshop",
-      settings: {
-        "makeid:ipad-ble-workshop": {
-          displayName: "Workshop printer",
-          darkness: 20,
-          printHeadSizeMm: 12,
-          marginTopMm: 2,
-          marginBottomMm: 2,
-        },
-      },
-    }),
+    JSON.stringify(
+      startWithConfiguredPrinter
+        ? {
+            printerIds: ["makeid:ipad-ble-workshop"],
+            activePrinterId: "makeid:ipad-ble-workshop",
+            settings: {
+              "makeid:ipad-ble-workshop": {
+                displayName: "Workshop printer",
+                darkness: 20,
+                printHeadSizeMm: 12,
+                marginTopMm: 2,
+                marginBottomMm: 2,
+              },
+            },
+          }
+        : {
+            version: 2,
+            printerIds: [],
+            activePrinterId: null,
+            settings: {},
+            printerRecords: {},
+          },
+    ),
   );
+  const statusResponse = new Uint8Array(36);
+  statusResponse.set([0x66, 36, 0, 0x10]);
+  let statusBinary = "";
+  for (const byte of statusResponse) {
+    statusBinary += String.fromCharCode(byte);
+  }
+  const statusBytesBase64 = btoa(statusBinary);
   Object.defineProperty(window, "webkit", {
     configurable: true,
     value: {
@@ -116,6 +141,20 @@ export function installCaptureHost(includeBluetoothPrinter) {
                     ],
                   };
                 }
+                break;
+              case "bluetoothConnect":
+                return {
+                  ok: true,
+                  result: { connectionId: "capture-makeid-e1" },
+                };
+              case "bluetoothWrite":
+              case "bluetoothClose":
+                return { ok: true, result: null };
+              case "bluetoothRead":
+                return {
+                  ok: true,
+                  result: { bytesBase64: statusBytesBase64 },
+                };
             }
             return {
               ok: false,
