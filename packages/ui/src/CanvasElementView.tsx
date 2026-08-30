@@ -130,6 +130,12 @@ export function CanvasElementView({
       : {};
   const editorLineCount =
     element.kind === "text" ? element.text.split(/\r\n?|\n/).length : 1;
+  const measurementText =
+    element.kind === "text" && /(?:\r\n?|\n)$/.test(element.text)
+      ? `${element.text}\u200b`
+      : element.kind === "text"
+        ? element.text
+        : "";
   return (
     <div
       className={`canvas-element ${element.kind === "image" ? "canvas-image" : element.kind === "rectangle" ? "canvas-shape-element" : "canvas-text"} ${selected ? "selected" : ""} ${editing ? "editing" : ""}`}
@@ -142,7 +148,7 @@ export function CanvasElementView({
             className="inline-text-editor inline-text-measure"
             ref={inlineMeasureRef}
           >
-            {element.text}
+            {measurementText}
           </span>
           <textarea
             aria-label="Edit text on label"

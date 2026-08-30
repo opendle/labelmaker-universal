@@ -1831,6 +1831,35 @@ describe("LabelmakerApp", () => {
     expect(screen.getByLabelText("Y position")).toHaveValue(4.1);
   });
 
+  it("keeps editor overflow visible when the last line is empty", async () => {
+    const getComputedStyle = globalThis.getComputedStyle.bind(globalThis);
+    vi.spyOn(globalThis, "getComputedStyle").mockImplementation(
+      (element, pseudoElement) => {
+        if (element.classList.contains("inline-text-measure")) {
+          return {
+            height: element.textContent?.endsWith("\u200b") ? "64px" : "32px",
+          } as CSSStyleDeclaration;
+        }
+        return getComputedStyle(element, pseudoElement);
+      },
+    );
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Text element: RESISTORS" }),
+    );
+    const editor = screen.getByRole("textbox", {
+      name: "Edit text on label",
+    });
+    expect(editor).toHaveStyle({ height: "32px" });
+
+    fireEvent.change(editor, { target: { value: "LINE 1\n" } });
+
+    expect(editor).toHaveValue("LINE 1\n");
+    expect(editor).toHaveStyle({ height: "64px" });
+  });
+
   it("snaps a dragged element to printable left and top limits", async () => {
     render(<LabelmakerApp host={createHost()} />);
     await screen.findByText("Studio Labeler");
