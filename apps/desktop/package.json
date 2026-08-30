@@ -6,6 +6,7 @@
   "type": "module",
   "main": "dist/main/index.js",
   "scripts": {
+    "app-store:screenshots": "npm run build && node scripts/run-app-store-screenshots.mjs",
     "build": "npm run build:renderer && npm run build:main",
     "build:renderer": "vite build",
     "build:main": "tsc --project tsconfig.main.json",

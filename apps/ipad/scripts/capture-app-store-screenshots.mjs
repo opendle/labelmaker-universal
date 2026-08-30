@@ -1,4 +1,4 @@
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { webkit } from "playwright";
@@ -12,27 +12,61 @@ import {
 
 const appDirectory = resolve(import.meta.dirname, "..");
 const buildDirectory = resolve(appDirectory, "Labelmaker/Resources/WebApp");
+const device = process.env.LABELMAKER_APP_STORE_SCREENSHOT_DEVICE ?? "ipad";
+if (device !== "ipad" && device !== "iphone") {
+  throw new Error(
+    "LABELMAKER_APP_STORE_SCREENSHOT_DEVICE must be ipad or iphone.",
+  );
+}
 const orientation =
-  process.env.LABELMAKER_APP_STORE_SCREENSHOT_ORIENTATION ?? "landscape";
+  process.env.LABELMAKER_APP_STORE_SCREENSHOT_ORIENTATION ??
+  (device === "iphone" ? "portrait" : "landscape");
 if (orientation !== "landscape" && orientation !== "portrait") {
   throw new Error(
     "LABELMAKER_APP_STORE_SCREENSHOT_ORIENTATION must be landscape or portrait.",
   );
 }
 
+const deviceScaleFactor = device === "iphone" ? 3 : 2;
+const baseViewport =
+  device === "iphone"
+    ? { width: 428, height: 926 }
+    : { width: 1376, height: 1032 };
 const viewport =
   orientation === "landscape"
-    ? { width: 1376, height: 1032 }
-    : { width: 1032, height: 1376 };
+    ? {
+        width: Math.max(baseViewport.width, baseViewport.height),
+        height: Math.min(baseViewport.width, baseViewport.height),
+      }
+    : {
+        width: Math.min(baseViewport.width, baseViewport.height),
+        height: Math.max(baseViewport.width, baseViewport.height),
+      };
 const expectedPixels = {
-  width: viewport.width * 2,
-  height: viewport.height * 2,
+  width: viewport.width * deviceScaleFactor,
+  height: viewport.height * deviceScaleFactor,
 };
 const screenshotDirectory = process.env
   .LABELMAKER_APP_STORE_SCREENSHOT_DIRECTORY
   ? resolve(process.env.LABELMAKER_APP_STORE_SCREENSHOT_DIRECTORY)
-  : resolve(appDirectory, `../../artifacts/app-store/ipad-13-${orientation}`);
+  : resolve(
+      appDirectory,
+      `../../artifacts/app-store/${device === "iphone" ? "iphone-6.5" : "ipad-13"}-${orientation}`,
+    );
 await mkdir(screenshotDirectory, { recursive: true });
+for (const name of [
+  "01-label-editor.png",
+  "02-icon-library.png",
+  "02-print-preview.png",
+  "02-printer-settings.png",
+  "03-add-bluetooth-printer.png",
+  "03-printer-settings.png",
+  "04-add-bluetooth-printer.png",
+  "04-flag-label.png",
+  "05-flag-label.png",
+]) {
+  await rm(resolve(screenshotDirectory, name), { force: true });
+}
 
 const server = await startStaticServer(buildDirectory);
 
@@ -40,7 +74,11 @@ let browser;
 try {
   browser = await webkit.launch();
   await capture("01-label-editor.png");
-  await capture("02-printer-settings.png", async (page) => {
+  await capture("02-icon-library.png", async (page) => {
+    await page.getByRole("button", { name: "Icons" }).click();
+    await page.getByRole("dialog", { name: "Icon library" }).waitFor();
+  });
+  await capture("03-printer-settings.png", async (page) => {
     await page
       .getByRole("button", { name: "Selected printer: Workshop printer" })
       .click();
@@ -49,16 +87,26 @@ try {
       .click();
     await page.getByRole("dialog", { name: "Printer settings" }).waitFor();
   });
-  await capture("03-add-bluetooth-printer.png", async (page) => {
+  await capture("04-add-bluetooth-printer.png", async (page) => {
     await page
       .getByRole("button", { name: "Selected printer: Workshop printer" })
       .click();
     await page.getByRole("menuitem", { name: "Add a printer" }).click();
     await page.getByText("MakeID E1-Office").waitFor();
   });
-  await capture("04-flag-label.png", async (page) => {
-    await page.getByRole("button", { name: "Flag" }).click();
-    await page.getByRole("button", { name: "Flag", pressed: true }).waitFor();
+  await capture("05-flag-label.png", async (page) => {
+    if (device === "iphone") {
+      await page.getByRole("button", { name: "Label settings" }).click();
+      const settings = page.getByRole("dialog", { name: "Label settings" });
+      await settings.getByRole("button", { name: "Flag" }).click();
+      await settings.getByRole("button", { name: "Save settings" }).click();
+      await page
+        .getByRole("button", { name: "Rename label 1: Flag Resistors" })
+        .waitFor();
+    } else {
+      await page.getByRole("button", { name: "Flag" }).click();
+      await page.getByRole("button", { name: "Flag", pressed: true }).waitFor();
+    }
   });
 } finally {
   await browser?.close();
@@ -73,7 +121,7 @@ async function capture(name, setup) {
   if (!browser) throw new Error("The screenshot browser is not available.");
   const context = await browser.newContext({
     colorScheme: "light",
-    deviceScaleFactor: 2,
+    deviceScaleFactor,
     hasTouch: true,
     isMobile: true,
     screen: viewport,

@@ -21,6 +21,15 @@ A public release also needs:
 - dependency and third-party notice generation;
 - reproducible protocol tests that do not require printer hardware.
 
+Store screenshots are generated from the current application with
+`npm run app-store:screenshots`. The generated files stay under
+`artifacts/app-store` and are not committed. Store copy is kept in
+`distribution/app-store/metadata` so that the published text can be reviewed.
+
+Do not commit application binaries. Publish signed binaries as App Store builds
+or GitHub Release assets. Keep only source, release scripts, and public metadata
+in Git.
+
 ## Mac App Store build
 
 The Mac App Store build is different from a normal Electron macOS build:
@@ -57,8 +66,9 @@ possible.
   not available in this repository.
 - Bluetooth Low Energy has not been tested from an Electron `mas` build.
 - Bluetooth Low Energy on iPhone and iPad needs a physical MakeID E1 hardware test.
-- The application icon, privacy text, support URL, and store metadata are not
-  final.
+- A Mac App Store package and its sandboxed Bluetooth path are not ready.
+- Store contact information, copyright ownership, age rating, availability,
+  and Digital Services Act status need the account holder's confirmation.
 
 ## Primary references
 

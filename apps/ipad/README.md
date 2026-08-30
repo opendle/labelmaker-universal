@@ -67,17 +67,24 @@ The generated Vite bundle is ignored by Git. Do not commit
 Run the following command from the repository root:
 
 ```sh
-npm run app-store:screenshots
+npm run app-store:screenshots:mobile
 ```
 
-The task creates five landscape screenshots at 2752 × 2064 pixels in
+The task creates five iPad landscape screenshots at 2752 × 2064 pixels in
 `artifacts/app-store/ipad-13-landscape`. This folder is ignored by Git.
+
+To create five iPhone portrait screenshots at 1284 × 2778 pixels, run:
+
+```sh
+LABELMAKER_APP_STORE_SCREENSHOT_DEVICE=iphone \
+  npm run app-store:screenshot --workspace @labelmaker/ipad
+```
 
 To create portrait screenshots at 2064 × 2752 pixels, run:
 
 ```sh
 LABELMAKER_APP_STORE_SCREENSHOT_ORIENTATION=portrait \
-  npm run app-store:screenshots
+  npm run app-store:screenshot --workspace @labelmaker/ipad
 ```
 
 Set `LABELMAKER_APP_STORE_SCREENSHOT_DIRECTORY` to use a different output
