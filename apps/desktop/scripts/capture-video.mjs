@@ -3,20 +3,28 @@ import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
+import { encodeAppPreview } from "../../../scripts/encode-app-preview.mjs";
 import { prepareDesktopRuntime } from "./capture-support.mjs";
 
-const VIDEO_WIDTH = 1440;
-const VIDEO_HEIGHT = 960;
+const WINDOW_WIDTH = 1440;
+const WINDOW_HEIGHT = 810;
+const VIDEO_WIDTH = 1920;
+const VIDEO_HEIGHT = 1080;
 const appDirectory = resolve(import.meta.dirname, "..");
 const videoDirectory = process.env.LABELMAKER_VIDEO_DIRECTORY
   ? resolve(process.env.LABELMAKER_VIDEO_DIRECTORY)
   : resolve(appDirectory, "../../artifacts/videos");
 const videoPath = join(videoDirectory, "labelmaker-demo.webm");
+const previewPath = resolve(
+  appDirectory,
+  "../../artifacts/app-store/previews/macos/labelmaker-preview.mp4",
+);
 
-prepareDesktopRuntime();
+const desktopExecutable = prepareDesktopRuntime();
 
 await mkdir(videoDirectory, { recursive: true });
 await rm(videoPath, { force: true });
+await rm(previewPath, { force: true });
 const profileDirectory = await mkdtemp(
   join(tmpdir(), "labelmaker-video-profile-"),
 );
@@ -33,22 +41,17 @@ const pause = (page, milliseconds = 650) => page.waitForTimeout(milliseconds);
 try {
   application = await electron.launch({
     args: ["--no-sandbox", `--user-data-dir=${profileDirectory}`, appDirectory],
+    executablePath: desktopExecutable,
     env: {
       ...process.env,
       LABELMAKER_DISABLE_HARDWARE_PRINTERS: "1",
       LABELMAKER_DISABLE_LEGACY_PRINTER_CONFIGURATION: "1",
       LABELMAKER_ENABLE_MOCK_PRINTER_DISCOVERY: "1",
-      LABELMAKER_WINDOW_SIZE: `${VIDEO_WIDTH}x${VIDEO_HEIGHT}`,
+      LABELMAKER_WINDOW_SIZE: `${WINDOW_WIDTH}x${WINDOW_HEIGHT}`,
     },
     recordVideo: {
       dir: recordingDirectory,
       size: { width: VIDEO_WIDTH, height: VIDEO_HEIGHT },
-      showActions: {
-        cursor: "pointer",
-        duration: 500,
-        fontSize: 16,
-        position: "bottom-right",
-      },
     },
   });
 
@@ -84,12 +87,10 @@ try {
   await textEditor.pressSequentially("LABELMAKER", { delay: 65 });
   await pause(page, 800);
 
-  await page.getByLabel("Typeface").selectOption({ label: "Futura" });
-  await pause(page);
   const fontSize = page.getByLabel("Font size");
   await fontSize.click();
   await fontSize.press("ControlOrMeta+A");
-  await fontSize.pressSequentially("18", { delay: 120 });
+  await fontSize.pressSequentially("22", { delay: 120 });
   await fontSize.press("Enter");
   await pause(page);
   await page.getByRole("button", { name: "Bold", exact: true }).click();
@@ -113,6 +114,12 @@ try {
   try {
     if (completed && video) {
       await video.saveAs(videoPath);
+      await encodeAppPreview({
+        sourcePath: videoPath,
+        outputPath: previewPath,
+        width: VIDEO_WIDTH,
+        height: VIDEO_HEIGHT,
+      });
     }
   } finally {
     await Promise.all([
@@ -123,3 +130,4 @@ try {
 }
 
 console.log(`Demo video saved to ${videoPath}`);
+console.log(`Mac App Store preview saved to ${previewPath}`);

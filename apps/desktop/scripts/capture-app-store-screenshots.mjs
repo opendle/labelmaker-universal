@@ -67,10 +67,15 @@ try {
     await page.getByRole("dialog", { name: "Add a printer" }).waitFor();
     await page.getByText("Workshop Printer").waitFor();
   });
-  await capture(page, "05-flag-label.png", async () => {
-    await page.getByRole("button", { name: "Flag" }).click();
-    await page.getByRole("button", { name: "Flag", pressed: true }).waitFor();
-  });
+  await capture(
+    page,
+    "05-flag-label.png",
+    async () => {
+      await page.getByRole("button", { name: "Flag" }).click();
+      await page.getByRole("button", { name: "Flag", pressed: true }).waitFor();
+    },
+    "dark",
+  );
 
   if (failures.length > 0) {
     throw new Error(
@@ -84,9 +89,9 @@ try {
 
 console.log(`Mac App Store screenshots saved to ${screenshotDirectory}.`);
 
-async function capture(page, name, setup) {
+async function capture(page, name, setup, colorScheme = "light") {
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.emulateMedia({ colorScheme: "light" });
+  await page.emulateMedia({ colorScheme });
   await page.locator(".label-canvas").waitFor();
   await page
     .getByRole("button", { name: "Selected printer: Studio Labeler" })

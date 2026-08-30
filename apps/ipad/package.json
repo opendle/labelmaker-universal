@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "app-store:screenshot": "playwright install webkit && npm run build:web && node scripts/capture-app-store-screenshots.mjs",
-    "app-store:screenshots": "playwright install webkit && npm run build:web && node scripts/capture-app-store-screenshots.mjs && LABELMAKER_APP_STORE_SCREENSHOT_DEVICE=iphone node scripts/capture-app-store-screenshots.mjs",
+    "app-store:previews": "playwright install webkit ffmpeg && npm run build:web && node scripts/capture-app-store-previews.mjs",
+    "app-store:screenshots": "playwright install webkit && npm run build:web && node scripts/capture-app-store-screenshots.mjs && LABELMAKER_APP_STORE_SCREENSHOT_ORIENTATION=portrait node scripts/capture-app-store-screenshots.mjs && LABELMAKER_APP_STORE_SCREENSHOT_DEVICE=iphone node scripts/capture-app-store-screenshots.mjs",
     "build": "npm run build:web",
     "build:web": "vite build",
     "responsive:screenshots": "playwright install webkit && npm run build:web && node scripts/capture-responsive-screenshots.mjs",
