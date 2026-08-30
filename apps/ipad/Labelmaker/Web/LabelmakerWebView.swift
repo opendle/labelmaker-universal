@@ -77,10 +77,35 @@ struct LabelmakerWebView: UIViewRepresentable {
         let bluetooth: BluetoothTransportHandling
         lazy var bridge = NativeBridge(workspace: workspace, recovery: recovery, bluetooth: bluetooth)
         weak var webView: WKWebView?
+        private var foregroundObserver: NSObjectProtocol?
 
         override init() {
             bluetooth = MakeIDBluetoothTransport()
             super.init()
+            foregroundObserver = NotificationCenter.default.addObserver(
+                forName: UIApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.repaintAfterForegroundReturn() }
+            }
+        }
+
+        deinit {
+            if let foregroundObserver {
+                NotificationCenter.default.removeObserver(foregroundObserver)
+            }
+        }
+
+        private func repaintAfterForegroundReturn() {
+            guard let webView else { return }
+            webView.setNeedsLayout()
+            webView.setNeedsDisplay()
+            webView.scrollView.setNeedsLayout()
+            webView.scrollView.setNeedsDisplay()
+            webView.evaluateJavaScript(
+                "window.dispatchEvent(new Event('labelmaker:foreground'))"
+            )
         }
 
         func webView(

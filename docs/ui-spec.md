@@ -257,9 +257,10 @@ add a separate editor.
 - Keep each main touch target at least 44 CSS pixels wide and high. The plate
   delete action is an intentional exception: use the same small visible and
   interactive size as desktop to reduce accidental label deletion.
-- When the iPad application returns to the foreground, repaint each plate
-  thumbnail and its delete action. Keep the open workspace and the horizontal
-  plate-strip scroll position unchanged.
+- When the iPad application returns to the foreground, use the native
+  application-active event to repaint each plate thumbnail and its delete
+  action. Do not depend only on web page visibility or focus events. Keep the
+  open workspace and the horizontal plate-strip scroll position unchanged.
 - Keep resize and rotation marks small. Give each mark an invisible 44 CSS
   pixel touch area.
 - Drag one finger on any empty part of the work surface to move the canvas. A

@@ -18,13 +18,14 @@ import {
 const THUMBNAIL_PIXELS_PER_MM = 3.25;
 const MOVE_TOLERANCE_PX = 8;
 const TOUCH_REORDER_DELAY_MS = 425;
+const NATIVE_FOREGROUND_EVENT = "labelmaker:foreground";
 
 function useForegroundPaintRevision(): number {
   const [paintRevision, setPaintRevision] = useState(0);
 
   useEffect(() => {
     let paintFrame: number | null = null;
-    const scheduleForegroundPaint = () => {
+    const scheduleBrowserForegroundPaint = () => {
       if (
         globalThis.document.visibilityState !== "visible" ||
         paintFrame !== null
@@ -36,20 +37,38 @@ function useForegroundPaintRevision(): number {
         setPaintRevision((current) => current + 1);
       });
     };
+    const scheduleNativeForegroundPaint = () => {
+      if (paintFrame !== null) {
+        globalThis.cancelAnimationFrame(paintFrame);
+        paintFrame = null;
+      }
+      setPaintRevision((current) => current + 1);
+    };
 
     globalThis.document.addEventListener(
       "visibilitychange",
-      scheduleForegroundPaint,
+      scheduleBrowserForegroundPaint,
     );
-    globalThis.addEventListener("pageshow", scheduleForegroundPaint);
-    globalThis.addEventListener("focus", scheduleForegroundPaint);
+    globalThis.addEventListener("pageshow", scheduleBrowserForegroundPaint);
+    globalThis.addEventListener("focus", scheduleBrowserForegroundPaint);
+    globalThis.addEventListener(
+      NATIVE_FOREGROUND_EVENT,
+      scheduleNativeForegroundPaint,
+    );
     return () => {
       globalThis.document.removeEventListener(
         "visibilitychange",
-        scheduleForegroundPaint,
+        scheduleBrowserForegroundPaint,
       );
-      globalThis.removeEventListener("pageshow", scheduleForegroundPaint);
-      globalThis.removeEventListener("focus", scheduleForegroundPaint);
+      globalThis.removeEventListener(
+        "pageshow",
+        scheduleBrowserForegroundPaint,
+      );
+      globalThis.removeEventListener("focus", scheduleBrowserForegroundPaint);
+      globalThis.removeEventListener(
+        NATIVE_FOREGROUND_EVENT,
+        scheduleNativeForegroundPaint,
+      );
       if (paintFrame !== null) {
         globalThis.cancelAnimationFrame(paintFrame);
       }

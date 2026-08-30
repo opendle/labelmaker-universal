@@ -16,6 +16,7 @@ import { sampleDocument } from "./sample.js";
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
@@ -111,20 +112,15 @@ describe("PlateStrip", () => {
     expect(text.style.height).toBe(`${(9.6 / 12) * 100}%`);
   });
 
-  it("remounts thumbnail paint nodes after the page returns to the foreground", () => {
-    let paintFrame: FrameRequestCallback | undefined;
+  it("remounts thumbnail paint nodes after the native app returns to the foreground", () => {
     vi.stubGlobal(
       "requestAnimationFrame",
-      vi.fn((callback: FrameRequestCallback) => {
-        paintFrame = callback;
-        return 1;
-      }),
+      vi.fn(() => 1),
     );
     vi.stubGlobal("cancelAnimationFrame", vi.fn());
-    Object.defineProperty(globalThis.document, "visibilityState", {
-      configurable: true,
-      value: "visible",
-    });
+    vi.spyOn(globalThis.document, "visibilityState", "get").mockReturnValue(
+      "hidden",
+    );
     const { container } = renderStrip();
     const scroller = container.querySelector<HTMLElement>(".plate-thumbnails")!;
     const oldArtwork = container.querySelector<HTMLElement>(".mini-label")!;
@@ -133,12 +129,9 @@ describe("PlateStrip", () => {
     });
     scroller.scrollLeft = 37;
 
-    fireEvent(globalThis.document, new Event("visibilitychange"));
-    fireEvent(globalThis.window, new PageTransitionEvent("pageshow"));
-    fireEvent.focus(globalThis.window);
+    fireEvent(globalThis.window, new Event("labelmaker:foreground"));
 
-    expect(globalThis.requestAnimationFrame).toHaveBeenCalledTimes(1);
-    act(() => paintFrame?.(0));
+    expect(globalThis.requestAnimationFrame).not.toHaveBeenCalled();
 
     const newArtwork = container.querySelector<HTMLElement>(".mini-label")!;
     const newDelete = screen.getByRole("button", {
