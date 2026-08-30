@@ -2739,7 +2739,7 @@ textarea.inline-text-editor:focus-visible {
     bottom: 0;
     left: 0;
     width: auto;
-    height: min(320px, 32vh);
+    height: auto;
     max-width: 100%;
     max-height: 100%;
     overflow: hidden;

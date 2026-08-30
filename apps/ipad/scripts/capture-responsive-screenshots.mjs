@@ -159,6 +159,11 @@ async function capture(viewport) {
             `${viewport.width}x${viewport.height} lets the bottom inspector overflow.`,
           );
         }
+        if (!inspection.inspectorHeightFollowsContent) {
+          throw new Error(
+            `${viewport.width}x${viewport.height} leaves unused space below the bottom inspector controls.`,
+          );
+        }
       }
       if (viewport.width === 768 && viewport.height === 1024) {
         await page.locator(".canvas-element-control").first().dblclick();
@@ -472,6 +477,19 @@ async function inspectStandardIPad(page) {
     const outputBounds = output.getBoundingClientRect();
     const inspectorBounds = inspector.getBoundingClientRect();
     const propertyStack = inspector.querySelector(".property-stack");
+    const propertyStackBounds = propertyStack?.getBoundingClientRect();
+    const propertyStackStyle = propertyStack
+      ? getComputedStyle(propertyStack)
+      : null;
+    const propertyChildren = propertyStack
+      ? Array.from(propertyStack.children).filter(
+          (child) => child.getBoundingClientRect().height > 0,
+        )
+      : [];
+    const lastPropertyBottom = propertyChildren.reduce(
+      (bottom, child) => Math.max(bottom, child.getBoundingClientRect().bottom),
+      propertyStackBounds?.top ?? 0,
+    );
     const visibleHeaderButtons = Array.from(
       header.querySelectorAll("button"),
     ).filter((target) => target.getBoundingClientRect().width > 0);
@@ -516,6 +534,14 @@ async function inspectStandardIPad(page) {
         inspectorBounds.bottom <= client.clientHeight + 0.5 &&
         (!(propertyStack instanceof HTMLElement) ||
           propertyStack.scrollWidth <= propertyStack.clientWidth),
+      inspectorHeightFollowsContent:
+        propertyStackBounds === undefined ||
+        propertyStackStyle === null ||
+        Math.abs(
+          propertyStackBounds.bottom -
+            lastPropertyBottom -
+            Number.parseFloat(propertyStackStyle.paddingBottom),
+        ) <= 1,
       inspectorBounds: {
         bottom: inspectorBounds.bottom,
         left: inspectorBounds.left,
