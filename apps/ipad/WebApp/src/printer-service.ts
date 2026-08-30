@@ -233,6 +233,7 @@ export class IpadPrinterService {
             dpi: capabilities.dpi,
             rasterWidthPixels: capabilities.rasterWidthPixels,
             printableWidthMm,
+            rasterAlignment: capabilities.rasterAlignment,
             ...((settings.marginTopMm ?? capabilities.printHeadMarginTopMm) ===
             undefined
               ? {}
@@ -374,6 +375,7 @@ function capabilityFields(
     dpi: capabilities.dpi,
     rasterWidthPixels: capabilities.rasterWidthPixels,
     printableWidthMm: settings.printHeadSizeMm ?? capabilities.printableWidthMm,
+    rasterAlignment: capabilities.rasterAlignment,
     marginTopMm: settings.marginTopMm ?? capabilities.printHeadMarginTopMm ?? 0,
     marginBottomMm:
       settings.marginBottomMm ?? capabilities.printHeadMarginBottomMm ?? 0,

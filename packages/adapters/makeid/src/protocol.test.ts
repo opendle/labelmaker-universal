@@ -96,6 +96,7 @@ describe("MakeID protocol primitives", () => {
       model: "MakeID L1 203 DPI",
       dpi: 203,
       rasterWidthPixels: 96,
+      rasterAlignment: "center",
       maxRowsPerPacket: 85,
       swapRasterBytePairs: true,
     });
@@ -104,6 +105,7 @@ describe("MakeID protocol primitives", () => {
       model: "MakeID L1 300 DPI",
       dpi: 300,
       rasterWidthPixels: 144,
+      rasterAlignment: "center",
       maxRowsPerPacket: 56,
       swapRasterBytePairs: true,
     });
@@ -128,10 +130,50 @@ describe("MakeID protocol primitives", () => {
       dpi: 300,
       rasterWidthPixels: 304,
       printableWidthMm: 25.7,
+      rasterAlignment: "start",
       maxRowsPerPacket: 64,
       swapRasterBytePairs: true,
       protocolVersion: "1.3",
     });
+  });
+
+  it.each([
+    [0, "start"],
+    [1, "center"],
+    [2, "end"],
+  ] as const)(
+    "reads protocol 1.3 raster alignment %i as %s",
+    (alignmentCode, rasterAlignment) => {
+      const bytes = new Uint8Array(44);
+      bytes[0] = 0x66;
+      bytes[1] = bytes.length;
+      bytes[3] = 0x10;
+      bytes[36] = 1;
+      bytes[37] = 3;
+      bytes[38] = alignmentCode;
+      bytes[39] = 12;
+      bytes[41] = 85;
+
+      expect(parseMakeIdAbf0Profile(bytes, "l1")).toMatchObject({
+        rasterAlignment,
+      });
+    },
+  );
+
+  it("rejects an invalid protocol 1.3 raster alignment", () => {
+    const bytes = new Uint8Array(44);
+    bytes[0] = 0x66;
+    bytes[1] = bytes.length;
+    bytes[3] = 0x10;
+    bytes[36] = 1;
+    bytes[37] = 3;
+    bytes[38] = 3;
+    bytes[39] = 12;
+    bytes[41] = 85;
+
+    expect(() => parseMakeIdAbf0Profile(bytes, "l1")).toThrow(
+      /invalid raster alignment/,
+    );
   });
 
   it("uses a clear protocol 1.3 byte-order flag without swapping", () => {

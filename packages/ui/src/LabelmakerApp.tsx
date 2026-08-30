@@ -49,6 +49,7 @@ function AppPlateStrip({
       activePlateId={state.activePlateId}
       marginBottomMm={activePrinter?.marginBottomMm}
       marginTopMm={activePrinter?.marginTopMm}
+      rasterAlignment={activePrinter?.rasterAlignment}
       onAddPlate={controller.addPlate}
       onDeletePlate={controller.deletePlate}
       onMovePlate={(plateId, targetIndex) => {
@@ -175,6 +176,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
     controller.activePrinter?.printableWidthMm,
     controller.activePrinter?.marginTopMm,
     controller.activePrinter?.marginBottomMm,
+    controller.activePrinter?.rasterAlignment,
   );
   const settingsPrinter = state.printers.find(
     (printer) => printer.id === state.printerSettingsId,

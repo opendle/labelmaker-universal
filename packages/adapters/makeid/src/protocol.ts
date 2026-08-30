@@ -298,6 +298,20 @@ export function parseMakeIdAbf0Profile(
   const protocolMinor = bytes.length >= 43 ? (bytes[37] ?? 0) : 0;
   const hasExtendedCapabilities =
     protocolMajor > 1 || (protocolMajor === 1 && protocolMinor >= 3);
+  const rasterAlignmentCode = hasExtendedCapabilities
+    ? (bytes[38] ?? 0) & 0x03
+    : 1;
+  if (rasterAlignmentCode === 3) {
+    throw new MakeIdProtocolError(
+      `The MakeID ${kind.toUpperCase()} reported an invalid raster alignment`,
+    );
+  }
+  const rasterAlignment =
+    rasterAlignmentCode === 0
+      ? "start"
+      : rasterAlignmentCode === 1
+        ? "center"
+        : "end";
   // Label Pro 1.8.2 calls bytes 39-40 the number of raster bytes in one
   // head line. Convert it to the transport-neutral pixel width here.
   const reportedBytesPerRow = hasExtendedCapabilities
@@ -366,6 +380,7 @@ export function parseMakeIdAbf0Profile(
     dpi,
     rasterWidthPixels,
     printableWidthMm: roundTenth((rasterWidthPixels * 25.4) / dpi),
+    rasterAlignment,
     maxRowsPerPacket,
     // The official application swaps each byte pair for old L1/P31 paths.
     // Protocol 1.3 reports the required order in bit 2 instead. E1 hardware

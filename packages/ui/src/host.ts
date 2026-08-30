@@ -1,6 +1,7 @@
 import type { LabelDocument } from "@labelmaker/domain";
 import type {
   NumericSettingCapability,
+  RasterAlignment,
   PrinterSettings,
   PrinterState,
   PrinterTransport,
@@ -21,6 +22,7 @@ export interface PrinterSummary {
   readonly dpi?: number;
   readonly rasterWidthPixels?: number;
   readonly printableWidthMm?: number;
+  readonly rasterAlignment?: RasterAlignment;
   readonly marginTopMm?: number;
   readonly marginBottomMm?: number;
   readonly interLabelSpacingMm?: number;

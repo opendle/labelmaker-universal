@@ -43,6 +43,7 @@ const capabilities: PrinterCapabilities = {
   dpi: 203,
   rasterWidthPixels: 96,
   printableWidthMm: 12,
+  rasterAlignment: "end",
   darkness: { minimum: 0, maximum: 31, step: 1, defaultValue: 20 },
   colorModes: ["monochrome"],
   media: [
@@ -191,6 +192,7 @@ describe("desktop physical print dispatch", () => {
       dpi: 203,
       rasterWidthPixels: 96,
       printableWidthMm: 11.8,
+      rasterAlignment: "end",
       marginTopMm: 1.4,
       marginBottomMm: 2.6,
     });

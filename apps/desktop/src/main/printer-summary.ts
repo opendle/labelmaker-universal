@@ -28,6 +28,7 @@ interface DesktopPrinterSummary {
   readonly dpi?: number;
   readonly rasterWidthPixels?: number;
   readonly printableWidthMm?: number;
+  readonly rasterAlignment?: PrinterCapabilities["rasterAlignment"];
   readonly marginTopMm?: number;
   readonly marginBottomMm?: number;
   readonly interLabelSpacingMm?: number;
@@ -95,6 +96,7 @@ function capabilitySummary(
     rasterWidthPixels: capabilities.rasterWidthPixels,
     printableWidthMm:
       settings?.printHeadSizeMm ?? capabilities.printableWidthMm,
+    rasterAlignment: capabilities.rasterAlignment,
     marginTopMm:
       settings?.marginTopMm ?? capabilities.printHeadMarginTopMm ?? 0,
     marginBottomMm:

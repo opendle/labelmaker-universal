@@ -89,6 +89,7 @@ describe("MakeIdAdapter", () => {
       dpi: 203,
       rasterWidthPixels: 96,
       printableWidthMm: 12,
+      rasterAlignment: "center",
       printHeadMarginTopMm: 2,
       printHeadMarginBottomMm: 2,
       darkness: { minimum: 0, maximum: 31, step: 1, defaultValue: 20 },
@@ -390,6 +391,22 @@ describe("MakeIdAdapter", () => {
     // byte pair in reverse order. Host transports on Android and Windows must
     // send this already-transformed frame without another byte-order change.
     expect([...frames[0]!.subarray(18, 24)]).toEqual([1, 0, 3, 2, 5, 4]);
+  });
+
+  it("reports the detected raster alignment", async () => {
+    const profileReply = extendedResponse({ dpiCode: 0, bytesPerRow: 12 });
+    profileReply[38] = 2;
+    const transport = new RecordingMakeIdTransport([profileReply]);
+    const adapter = new MakeIdAdapter(new FakeProvider([], transport));
+
+    const session = await adapter.connect(
+      makePrinter("l1", "unresolved-l1", "MakeID L1"),
+      context,
+    );
+
+    await expect(session.capabilities()).resolves.toMatchObject({
+      rasterAlignment: "end",
+    });
   });
 
   it.each([

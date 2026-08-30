@@ -1,3 +1,5 @@
+import type { RasterAlignment } from "@labelmaker/printing";
+
 const POINTS_PER_INCH = 72;
 const MILLIMETERS_PER_INCH = 25.4;
 
@@ -30,14 +32,22 @@ export function nonPrintableMarginsMm(
   printHeadSizeMm: number | undefined,
   configuredTopMm = 0,
   configuredBottomMm = 0,
+  rasterAlignment: RasterAlignment = "center",
 ): PrintableMargins {
   if (printHeadSizeMm === undefined) return { topMm: 0, bottomMm: 0 };
-  const nominalMediaHeightMm =
-    configuredTopMm + printHeadSizeMm + configuredBottomMm;
-  const mediaAdjustmentMm = (plateHeightMm - nominalMediaHeightMm) / 2;
+  if (plateHeightMm <= printHeadSizeMm) return { topMm: 0, bottomMm: 0 };
+  const unusedHeadWidthMm = plateHeightMm - printHeadSizeMm;
+  const alignedBaseMm =
+    rasterAlignment === "start"
+      ? 0
+      : rasterAlignment === "end"
+        ? unusedHeadWidthMm
+        : unusedHeadWidthMm / 2;
+  const marginAdjustmentMm = (configuredTopMm - configuredBottomMm) / 2;
+  const printableTopMm = alignedBaseMm + marginAdjustmentMm;
   return {
-    topMm: Math.max(0, configuredTopMm + mediaAdjustmentMm),
-    bottomMm: Math.max(0, configuredBottomMm + mediaAdjustmentMm),
+    topMm: Math.max(0, printableTopMm),
+    bottomMm: Math.max(0, plateHeightMm - printableTopMm - printHeadSizeMm),
   };
 }
 

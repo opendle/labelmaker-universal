@@ -37,6 +37,20 @@ describe("desktop plate rasterization", () => {
     expect(svg).toContain('viewBox="0 1 40 12"');
   });
 
+  it.each([
+    ["start", 0],
+    ["center", -1],
+    ["end", -2],
+  ] as const)(
+    "positions narrow media at the %s of the print head",
+    (rasterAlignment, viewBoxY) => {
+      const narrow = { ...plate, size: { ...plate.size, heightMm: 10 } };
+      const svg = buildPlateSvg(narrow, 320, 96, 12, 0, 0, rasterAlignment);
+
+      expect(svg).toContain(`viewBox="0 ${String(viewBoxY)} 40 12"`);
+    },
+  );
+
   it("renders line breaks and italic text as separate SVG lines", () => {
     const changed = {
       ...plate,
@@ -158,7 +172,12 @@ describe("desktop plate rasterization", () => {
 
     const page = await renderPlateForPrinter(
       plate,
-      { dpi: 25.4, rasterWidthPixels: 8, printableWidthMm: 8 },
+      {
+        dpi: 25.4,
+        rasterWidthPixels: 8,
+        printableWidthMm: 8,
+        rasterAlignment: "center",
+      },
       rasterize,
     );
 
@@ -202,7 +221,12 @@ describe("desktop plate rasterization", () => {
 
     await renderPlateForPrinter(
       imagePlate,
-      { dpi: 25.4, rasterWidthPixels: 8, printableWidthMm: 8 },
+      {
+        dpi: 25.4,
+        rasterWidthPixels: 8,
+        printableWidthMm: 8,
+        rasterAlignment: "center",
+      },
       rasterize,
     );
     await renderPlateForPrinter(
@@ -214,7 +238,12 @@ describe("desktop plate rasterization", () => {
             : element,
         ),
       },
-      { dpi: 25.4, rasterWidthPixels: 8, printableWidthMm: 8 },
+      {
+        dpi: 25.4,
+        rasterWidthPixels: 8,
+        printableWidthMm: 8,
+        rasterAlignment: "center",
+      },
       rasterize,
     );
 

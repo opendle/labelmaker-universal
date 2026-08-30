@@ -334,7 +334,12 @@ describe("image backgrounds in print output", () => {
 
     await renderPlateForPrinter(
       plate(true),
-      { dpi: 25.4, rasterWidthPixels: 1, printableWidthMm: 1 },
+      {
+        dpi: 25.4,
+        rasterWidthPixels: 1,
+        printableWidthMm: 1,
+        rasterAlignment: "center",
+      },
       rasterize,
     );
 
@@ -369,7 +374,12 @@ describe("image backgrounds in print output", () => {
 
     await renderPlateForPrinter(
       plate(false),
-      { dpi: 25.4, rasterWidthPixels: 1, printableWidthMm: 1 },
+      {
+        dpi: 25.4,
+        rasterWidthPixels: 1,
+        printableWidthMm: 1,
+        rasterAlignment: "center",
+      },
       rasterize,
     );
   });

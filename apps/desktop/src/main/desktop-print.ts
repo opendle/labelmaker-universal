@@ -7,6 +7,7 @@ import type {
   PrinterDescriptor,
   PrinterSettings,
   PrinterSession,
+  RasterAlignment,
   RasterPage,
 } from "@labelmaker/printing";
 
@@ -17,6 +18,7 @@ interface PrintRasterTarget {
   readonly dpi: number;
   readonly rasterWidthPixels: number;
   readonly printableWidthMm: number;
+  readonly rasterAlignment: RasterAlignment;
   readonly marginTopMm: number;
   readonly marginBottomMm: number;
 }
@@ -114,6 +116,7 @@ export async function printToSession(
         dpi: capabilities.dpi,
         rasterWidthPixels: capabilities.rasterWidthPixels,
         printableWidthMm,
+        rasterAlignment: capabilities.rasterAlignment,
         marginTopMm,
         marginBottomMm,
       }),

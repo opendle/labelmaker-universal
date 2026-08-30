@@ -36,13 +36,15 @@ The UI must derive available media, dimensions, printable head width, density
 controls, color modes, and copy limits from `PrinterCapabilities`. It calculates
 non-printable label areas from the label dimension across the print head, the
 physical printable head width, and the adapter's default top and bottom head
-offsets. A narrower label that fits under the head has no non-printable area. A
-missing capability stays hidden or disabled. An adapter can expose one set of
-static offline capabilities when all supported printers are identical. A
-multi-model adapter uses `offlineCapabilitiesFor` after it detects and stores a
-stable model profile. It must not guess a resolution for an ambiguous model.
-Manufacturer-specific settings can use namespaced advanced options after the
-common controls are insufficient.
+offsets. `rasterAlignment` reports whether narrower media starts at the top,
+stays in the center, or ends at the bottom of the print head. The renderer and
+the printable-area guides use this value. A narrower label that fits under the
+head has no non-printable area. A missing capability stays hidden or disabled.
+An adapter can expose one set of static offline capabilities when all supported
+printers are identical. A multi-model adapter uses `offlineCapabilitiesFor`
+after it detects and stores a stable model profile. It must not guess a
+resolution for an ambiguous model. Manufacturer-specific settings can use
+namespaced advanced options after the common controls are insufficient.
 
 Common numeric settings report a minimum, maximum, step, and default value.
 Printer settings are outside the workspace document and belong to one
@@ -92,7 +94,8 @@ service. Bluetooth Classic remains a migration path for old E1 records.
 An L1 name does not identify the 203-DPI or 300-DPI version. The adapter must
 connect and read the printer response before it stores the DPI. The P31 family
 must use the same rule because public evidence contains both 288-DPI and
-300-DPI values. An unresolved descriptor has no offline DPI and cannot print.
-These rules apply to macOS, iPadOS, and future Android and Windows transports.
-The implementation belongs in `packages/adapters/makeid`; model assumptions
-must not enter the shared UI.
+300-DPI values. For protocol 1.3 or later, the same response gives the raster
+alignment. Older protocols use center alignment. An unresolved descriptor has
+no offline DPI and cannot print. These rules apply to macOS, iPadOS, and future
+Android and Windows transports. The implementation belongs in
+`packages/adapters/makeid`; model assumptions must not enter the shared UI.

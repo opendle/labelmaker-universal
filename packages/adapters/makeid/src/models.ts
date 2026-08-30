@@ -1,6 +1,7 @@
 import type {
   OfflinePrinterCapabilities,
   PrinterCapabilities,
+  RasterAlignment,
 } from "@labelmaker/printing";
 
 export type MakeIdProtocolFamily = "abf0-66" | "ff00-escpos";
@@ -23,6 +24,7 @@ export interface MakeIdResolvedProfile {
   readonly dpi: number;
   readonly rasterWidthPixels: number;
   readonly printableWidthMm: number;
+  readonly rasterAlignment: RasterAlignment;
   readonly maxRowsPerPacket: number;
   readonly swapRasterBytePairs: boolean;
   readonly protocolVersion?: string;
@@ -82,6 +84,7 @@ export function offlineCapabilitiesForProfile(
     dpi: profile.dpi,
     rasterWidthPixels: profile.rasterWidthPixels,
     printableWidthMm: profile.printableWidthMm,
+    rasterAlignment: profile.rasterAlignment,
     printHeadMarginTopMm: halfUnprintableMarginMm,
     printHeadMarginBottomMm: halfUnprintableMarginMm,
     ...(profile.protocolFamily === "abf0-66" ? { darkness: DARKNESS } : {}),
@@ -126,6 +129,7 @@ export const MAKEID_E1_PROFILE: MakeIdResolvedProfile = {
   dpi: 203,
   rasterWidthPixels: 96,
   printableWidthMm: 12,
+  rasterAlignment: "center",
   maxRowsPerPacket: 170,
   swapRasterBytePairs: false,
 };
@@ -176,6 +180,7 @@ export function defaultProfileForId(
     dpi,
     rasterWidthPixels,
     printableWidthMm: Math.round(((rasterWidthPixels * 25.4) / dpi) * 10) / 10,
+    rasterAlignment: "center",
     maxRowsPerPacket: ff00
       ? 0xffff
       : dpi === 300

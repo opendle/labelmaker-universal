@@ -42,11 +42,16 @@ export interface NumericSettingCapability {
   readonly defaultValue: number;
 }
 
+/** Cross-feed position of media that is narrower than the print head. */
+export type RasterAlignment = "start" | "center" | "end";
+
 export interface PrinterCapabilities {
   readonly dpi: number;
   readonly rasterWidthPixels: number;
   /** Physical cross-feed width that the print head can reach. */
   readonly printableWidthMm: number;
+  /** Position of the media across the physical print head. */
+  readonly rasterAlignment: RasterAlignment;
   /** Default head offset from the top edge of the nominal media. */
   readonly printHeadMarginTopMm?: number;
   /** Default head offset from the bottom edge of the nominal media. */
@@ -61,7 +66,7 @@ export interface PrinterCapabilities {
 
 export type OfflinePrinterCapabilities = Pick<
   PrinterCapabilities,
-  "dpi" | "rasterWidthPixels" | "printableWidthMm"
+  "dpi" | "rasterWidthPixels" | "printableWidthMm" | "rasterAlignment"
 > &
   Partial<
     Pick<

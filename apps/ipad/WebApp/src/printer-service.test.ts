@@ -106,6 +106,7 @@ describe("iPad printer configuration", () => {
         model: "MakeID L1 300 DPI",
         dpi: 300,
         rasterWidthPixels: 144,
+        rasterAlignment: "center",
         darkness: expect.objectContaining({ value: 20 }),
       }),
     ]);

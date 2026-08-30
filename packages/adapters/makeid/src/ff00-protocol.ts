@@ -48,6 +48,7 @@ export function parseMakeIdFf00Model(bytes: Uint8Array): MakeIdResolvedProfile {
     dpi,
     rasterWidthPixels,
     printableWidthMm: Math.round(((rasterWidthPixels * 25.4) / dpi) * 10) / 10,
+    rasterAlignment: "center",
     maxRowsPerPacket: 0xffff,
     swapRasterBytePairs: false,
   };

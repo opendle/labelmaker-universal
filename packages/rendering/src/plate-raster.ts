@@ -3,7 +3,7 @@ import type {
   LabelElement,
   LabelPlate,
 } from "@labelmaker/domain";
-import type { RasterPage } from "@labelmaker/printing";
+import type { RasterAlignment, RasterPage } from "@labelmaker/printing";
 import {
   millimetersToPixels,
   packMonochromeRows,
@@ -20,6 +20,7 @@ export interface PlateRasterTarget {
   readonly dpi: number;
   readonly rasterWidthPixels: number;
   readonly printableWidthMm: number;
+  readonly rasterAlignment: RasterAlignment;
   readonly marginTopMm?: number;
   readonly marginBottomMm?: number;
 }
@@ -52,6 +53,7 @@ export async function renderPlateForPrinter(
       target.printableWidthMm,
       target.marginTopMm,
       target.marginBottomMm,
+      target.rasterAlignment,
     ),
     feedLengthPixels,
     target.rasterWidthPixels,
@@ -237,6 +239,7 @@ export function buildPlateSvg(
   printableWidthMm = plate.size.heightMm,
   marginTopMm = 0,
   marginBottomMm = 0,
+  rasterAlignment: RasterAlignment = "center",
 ): string {
   if (!Number.isFinite(printableWidthMm) || printableWidthMm <= 0) {
     throw new RangeError("Printer printable width must be greater than zero");
@@ -249,9 +252,22 @@ export function buildPlateSvg(
   ) {
     throw new RangeError("Printer margins must be zero or greater");
   }
-  const nominalMediaHeightMm = marginTopMm + printableWidthMm + marginBottomMm;
-  const viewBoxY =
-    marginTopMm + (plate.size.heightMm - nominalMediaHeightMm) / 2;
+  if (
+    rasterAlignment !== "start" &&
+    rasterAlignment !== "center" &&
+    rasterAlignment !== "end"
+  ) {
+    throw new RangeError("Printer raster alignment is invalid");
+  }
+  const unusedHeadWidthMm = plate.size.heightMm - printableWidthMm;
+  const alignedBaseMm =
+    rasterAlignment === "start"
+      ? 0
+      : rasterAlignment === "end"
+        ? unusedHeadWidthMm
+        : unusedHeadWidthMm / 2;
+  const marginAdjustmentMm = (marginTopMm - marginBottomMm) / 2;
+  const viewBoxY = alignedBaseMm + marginAdjustmentMm;
   const body = plate.elements.map(renderElement).join("");
   const artwork = plate.mirrorPrint
     ? `<g transform="translate(${number(plate.size.widthMm)} 0) scale(-1 1)">${body}</g>`

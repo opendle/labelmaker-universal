@@ -1,7 +1,9 @@
 import { spawn, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
+import { constants } from "node:fs";
 import {
   access,
+  chmod,
   cp,
   mkdir,
   readFile,
@@ -22,8 +24,18 @@ const BUNDLE_ICON_ASSET_CATALOG = "Assets.car";
 const DEVELOPMENT_ENVIRONMENT_KEY = "LABELMAKER_DEVELOPMENT";
 const BLUETOOTH_USAGE_DESCRIPTION =
   "Labelmaker uses Bluetooth to find and print labels on nearby printers.";
-const RUNTIME_LAYOUT_VERSION = 5;
+const RUNTIME_LAYOUT_VERSION = 6;
 const applicationDirectory = resolve(import.meta.dirname, "..");
+const repositoryRoot = resolve(applicationDirectory, "../..");
+const bluetoothHelperSource = join(
+  repositoryRoot,
+  "packages",
+  "adapters",
+  "makeid",
+  "dist",
+  "bin",
+  "makeid-bluetooth-helper",
+);
 const bundleIconSource = join(
   applicationDirectory,
   "resources",
@@ -109,6 +121,12 @@ async function bundleIconSourceHash() {
   return hash.digest("hex");
 }
 
+async function fileHash(filePath) {
+  return createHash("sha256")
+    .update(await readFile(filePath))
+    .digest("hex");
+}
+
 async function hasCurrentRuntime(runtimeMarker, runtimeBundle, expectedMarker) {
   try {
     const marker = JSON.parse(await readFile(runtimeMarker, "utf8"));
@@ -119,6 +137,10 @@ async function hasCurrentRuntime(runtimeMarker, runtimeBundle, expectedMarker) {
         join(runtimeBundle, "Contents", "Resources", BUNDLE_ICON_NAME),
         join(runtimeBundle, "Contents", "Resources", BUNDLE_ICON_ASSET_CATALOG),
       ].map((file) => access(file)),
+    );
+    await access(
+      join(runtimeBundle, "Contents", "Resources", "makeid-bluetooth-helper"),
+      constants.X_OK,
     );
     const bluetoothUsage = spawnSync(
       "/usr/bin/plutil",
@@ -174,6 +196,7 @@ async function prepareMacOsRuntime() {
     bluetoothUsageDescription: BLUETOOTH_USAGE_DESCRIPTION,
     bundleIdentifier: BUNDLE_IDENTIFIER,
     electronVersion,
+    bluetoothHelperSourceHash: await fileHash(bluetoothHelperSource),
     iconSourceHash: await bundleIconSourceHash(),
     layoutVersion: RUNTIME_LAYOUT_VERSION,
   };
@@ -232,6 +255,16 @@ async function prepareMacOsRuntime() {
     await renameHelper(tempBundle, " (Plugin)", ".Plugin");
     await renameHelper(tempBundle, " (Renderer)", ".Renderer");
     await installBundleIcon(tempBundle);
+
+    const bluetoothHelperDestination = join(
+      tempBundle,
+      "Contents",
+      "Resources",
+      "makeid-bluetooth-helper",
+    );
+    await cp(bluetoothHelperSource, bluetoothHelperDestination);
+    await chmod(bluetoothHelperDestination, 0o755);
+    await access(bluetoothHelperDestination, constants.X_OK);
 
     run("/usr/bin/codesign", ["--force", "--deep", "--sign", "-", tempBundle]);
     await rename(tempBundle, runtimeBundle);

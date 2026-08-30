@@ -1,4 +1,5 @@
 import type { LabelDocument, LabelPlate } from "@labelmaker/domain";
+import type { RasterAlignment } from "@labelmaker/printing";
 import { Plus, Trash2 } from "lucide-react";
 import {
   type CSSProperties,
@@ -391,6 +392,7 @@ export function PlateStrip({
   printHeadSizeMm,
   marginTopMm,
   marginBottomMm,
+  rasterAlignment,
   phoneMode = false,
   short = false,
 }: {
@@ -404,6 +406,7 @@ export function PlateStrip({
   readonly printHeadSizeMm: number | undefined;
   readonly marginTopMm: number | undefined;
   readonly marginBottomMm: number | undefined;
+  readonly rasterAlignment?: RasterAlignment | undefined;
   readonly phoneMode?: boolean;
   readonly short?: boolean;
 }) {
@@ -495,6 +498,7 @@ export function PlateStrip({
                     printHeadSizeMm,
                     marginTopMm,
                     marginBottomMm,
+                    rasterAlignment,
                   )}
                 />
               </button>

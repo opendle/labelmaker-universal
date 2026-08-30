@@ -84,6 +84,7 @@ describe("desktop printer summaries", () => {
           dpi: 203,
           rasterWidthPixels: 96,
           printableWidthMm: 12,
+          rasterAlignment: "end",
           printHeadMarginTopMm: 2,
           printHeadMarginBottomMm: 2,
           darkness: {
@@ -112,6 +113,7 @@ describe("desktop printer summaries", () => {
       statusMessage: "Connects on print",
       dpi: 203,
       printableWidthMm: 11.8,
+      rasterAlignment: "end",
       marginTopMm: 1.4,
       marginBottomMm: 2.6,
       interLabelSpacingMm: 1.5,
@@ -231,6 +233,7 @@ function fakeSession(): PrinterSession {
       dpi: 203,
       rasterWidthPixels: 96,
       printableWidthMm: 12,
+      rasterAlignment: "center",
       colorModes: ["monochrome"],
       media: [],
       maxCopies: 1,
