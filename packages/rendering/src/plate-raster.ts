@@ -115,7 +115,7 @@ async function preparePlateImages(
     });
     elements.push({
       ...element,
-      source: monochromeBmpDataUrl(
+      source: monochromePngDataUrl(
         bitmap,
         element.transparentBackground !== false,
       ),
@@ -133,75 +133,114 @@ function buildImageFrameSvg(
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPixels}" height="${heightPixels}" viewBox="0 0 ${widthPixels} ${heightPixels}"><rect width="${widthPixels}" height="${heightPixels}" fill="white"/><image x="0" y="0" width="${widthPixels}" height="${heightPixels}" href="${attribute(element.source)}" preserveAspectRatio="${aspect}"/></svg>`;
 }
 
-function monochromeBmpDataUrl(
+function monochromePngDataUrl(
   bitmap: MonochromeBitmap,
   transparentBackground: boolean,
 ): string {
-  if (transparentBackground) return transparentMonochromeBmpDataUrl(bitmap);
-  const rowBytes = Math.ceil((bitmap.widthPixels * 3) / 4) * 4;
-  const pixelBytes = rowBytes * bitmap.heightPixels;
-  const bytes = new Uint8Array(54 + pixelBytes);
-  const view = new DataView(bytes.buffer);
-  bytes[0] = 0x42;
-  bytes[1] = 0x4d;
-  view.setUint32(2, bytes.length, true);
-  view.setUint32(10, 54, true);
-  view.setUint32(14, 40, true);
-  view.setInt32(18, bitmap.widthPixels, true);
-  view.setInt32(22, bitmap.heightPixels, true);
-  view.setUint16(26, 1, true);
-  view.setUint16(28, 24, true);
-  view.setUint32(34, pixelBytes, true);
+  // WebKit does not reliably decode an embedded BMP when it rasterizes an SVG.
+  // Use a portable indexed PNG so mobile and desktop shells get the same image.
+  const scanlineBytes = 1 + bitmap.widthPixels;
+  const imageBytes = new Uint8Array(scanlineBytes * bitmap.heightPixels);
   for (let y = 0; y < bitmap.heightPixels; y += 1) {
-    const sourceY = bitmap.heightPixels - y - 1;
+    const rowOffset = y * scanlineBytes;
+    imageBytes[rowOffset] = 0;
     for (let x = 0; x < bitmap.widthPixels; x += 1) {
-      const black = bitmap.pixels[sourceY * bitmap.widthPixels + x] === 1;
-      const value = black ? 0 : 255;
-      const offset = 54 + y * rowBytes + x * 3;
-      bytes[offset] = value;
-      bytes[offset + 1] = value;
-      bytes[offset + 2] = value;
+      const black = bitmap.pixels[y * bitmap.widthPixels + x] === 1;
+      imageBytes[rowOffset + 1 + x] = black ? 0 : 1;
     }
   }
-  return `data:image/bmp;base64,${encodeBase64(bytes)}`;
+  const header = new Uint8Array(13);
+  const headerView = new DataView(header.buffer);
+  headerView.setUint32(0, bitmap.widthPixels);
+  headerView.setUint32(4, bitmap.heightPixels);
+  header[8] = 8;
+  header[9] = 3;
+  const bytes = concatenateBytes(
+    Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10),
+    pngChunk("IHDR", header),
+    pngChunk("PLTE", Uint8Array.of(0, 0, 0, 255, 255, 255)),
+    pngChunk("tRNS", Uint8Array.of(255, transparentBackground ? 0 : 255)),
+    pngChunk("IDAT", uncompressedZlib(imageBytes)),
+    pngChunk("IEND", new Uint8Array()),
+  );
+  return `data:image/png;base64,${encodeBase64(bytes)}`;
 }
 
-function transparentMonochromeBmpDataUrl(bitmap: MonochromeBitmap): string {
-  const dibHeaderBytes = 108;
-  const pixelOffset = 14 + dibHeaderBytes;
-  const rowBytes = bitmap.widthPixels * 4;
-  const pixelBytes = rowBytes * bitmap.heightPixels;
-  const bytes = new Uint8Array(pixelOffset + pixelBytes);
-  const view = new DataView(bytes.buffer);
-  bytes[0] = 0x42;
-  bytes[1] = 0x4d;
-  view.setUint32(2, bytes.length, true);
-  view.setUint32(10, pixelOffset, true);
-  view.setUint32(14, dibHeaderBytes, true);
-  view.setInt32(18, bitmap.widthPixels, true);
-  view.setInt32(22, bitmap.heightPixels, true);
-  view.setUint16(26, 1, true);
-  view.setUint16(28, 32, true);
-  view.setUint32(30, 3, true);
-  view.setUint32(34, pixelBytes, true);
-  view.setUint32(54, 0x00ff0000, true);
-  view.setUint32(58, 0x0000ff00, true);
-  view.setUint32(62, 0x000000ff, true);
-  view.setUint32(66, 0xff000000, true);
-  view.setUint32(70, 0x73524742, true);
-  for (let y = 0; y < bitmap.heightPixels; y += 1) {
-    const sourceY = bitmap.heightPixels - y - 1;
-    for (let x = 0; x < bitmap.widthPixels; x += 1) {
-      const black = bitmap.pixels[sourceY * bitmap.widthPixels + x] === 1;
-      const offset = pixelOffset + y * rowBytes + x * 4;
-      const value = black ? 0 : 255;
-      bytes[offset] = value;
-      bytes[offset + 1] = value;
-      bytes[offset + 2] = value;
-      bytes[offset + 3] = black ? 255 : 0;
-    }
+function uncompressedZlib(bytes: Uint8Array): Uint8Array {
+  const blockCount = Math.ceil(bytes.length / 65_535);
+  const output = new Uint8Array(2 + blockCount * 5 + bytes.length + 4);
+  output[0] = 0x78;
+  output[1] = 0x01;
+  let sourceOffset = 0;
+  let outputOffset = 2;
+  while (sourceOffset < bytes.length) {
+    const length = Math.min(65_535, bytes.length - sourceOffset);
+    output[outputOffset] = sourceOffset + length === bytes.length ? 1 : 0;
+    output[outputOffset + 1] = length & 0xff;
+    output[outputOffset + 2] = length >>> 8;
+    const inverseLength = 0xffff - length;
+    output[outputOffset + 3] = inverseLength & 0xff;
+    output[outputOffset + 4] = inverseLength >>> 8;
+    output.set(
+      bytes.subarray(sourceOffset, sourceOffset + length),
+      outputOffset + 5,
+    );
+    sourceOffset += length;
+    outputOffset += length + 5;
   }
-  return `data:image/bmp;base64,${encodeBase64(bytes)}`;
+  new DataView(output.buffer).setUint32(outputOffset, adler32(bytes));
+  return output;
+}
+
+function pngChunk(type: string, data: Uint8Array): Uint8Array {
+  const typeBytes = Uint8Array.from(type, (character) =>
+    character.charCodeAt(0),
+  );
+  const chunk = new Uint8Array(12 + data.length);
+  const view = new DataView(chunk.buffer);
+  view.setUint32(0, data.length);
+  chunk.set(typeBytes, 4);
+  chunk.set(data, 8);
+  view.setUint32(8 + data.length, crc32(concatenateBytes(typeBytes, data)));
+  return chunk;
+}
+
+function concatenateBytes(...parts: readonly Uint8Array[]): Uint8Array {
+  const output = new Uint8Array(
+    parts.reduce((sum, part) => sum + part.length, 0),
+  );
+  let offset = 0;
+  for (const part of parts) {
+    output.set(part, offset);
+    offset += part.length;
+  }
+  return output;
+}
+
+function adler32(bytes: Uint8Array): number {
+  let first = 1;
+  let second = 0;
+  for (const byte of bytes) {
+    first = (first + byte) % 65_521;
+    second = (second + first) % 65_521;
+  }
+  return ((second << 16) | first) >>> 0;
+}
+
+const CRC32_TABLE = Uint32Array.from({ length: 256 }, (_, index) => {
+  let value = index;
+  for (let bit = 0; bit < 8; bit += 1) {
+    value = (value >>> 1) ^ (value & 1 ? 0xedb88320 : 0);
+  }
+  return value >>> 0;
+});
+
+function crc32(bytes: Uint8Array): number {
+  let value = 0xffffffff;
+  for (const byte of bytes) {
+    value = (value >>> 8) ^ (CRC32_TABLE[(value ^ byte) & 0xff] ?? 0);
+  }
+  return (value ^ 0xffffffff) >>> 0;
 }
 
 const BASE64_ALPHABET =

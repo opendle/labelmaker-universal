@@ -1,4 +1,5 @@
 import type { LabelPlate } from "@labelmaker/domain";
+import { inflateSync } from "node:zlib";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -279,6 +280,37 @@ describe("RGBA conversion", () => {
 });
 
 describe("image backgrounds in print output", () => {
+  function pngImage(svg: string): {
+    readonly alpha: readonly number[];
+    readonly pixels: Buffer;
+  } {
+    const encoded = /data:image\/png;base64,([^&"]+)/.exec(svg)?.[1];
+    expect(encoded).toBeDefined();
+    const png = Buffer.from(encoded!, "base64");
+    expect([...png.subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
+    expect(png.toString("ascii", 12, 16)).toBe("IHDR");
+    expect(png.readUInt32BE(16)).toBe(2);
+    expect(png.readUInt32BE(20)).toBe(1);
+    expect(png[24]).toBe(8);
+    expect(png[25]).toBe(3);
+    const transparencyOffset = 51;
+    expect(
+      png.toString("ascii", transparencyOffset + 4, transparencyOffset + 8),
+    ).toBe("tRNS");
+    const alpha = [
+      ...png.subarray(transparencyOffset + 8, transparencyOffset + 10),
+    ];
+    const idatOffset = 65;
+    expect(png.toString("ascii", idatOffset + 4, idatOffset + 8)).toBe("IDAT");
+    const idatLength = png.readUInt32BE(idatOffset);
+    return {
+      alpha,
+      pixels: inflateSync(
+        png.subarray(idatOffset + 8, idatOffset + 8 + idatLength),
+      ),
+    };
+  }
+
   const plate = (transparentBackground: boolean): LabelPlate => ({
     id: "plate",
     name: "Plate",
@@ -314,14 +346,9 @@ describe("image backgrounds in print output", () => {
         ]),
       })
       .mockImplementationOnce((svg: string) => {
-        const encoded = /data:image\/bmp;base64,([^&"]+)/.exec(svg)?.[1];
-        expect(encoded).toBeDefined();
-        const bytes = Buffer.from(encoded!, "base64");
-        const pixelOffset = bytes.readUInt32LE(10);
-        expect(bytes.readUInt16LE(28)).toBe(32);
-        expect([...bytes.subarray(pixelOffset, pixelOffset + 8)]).toEqual([
-          0, 0, 0, 255, 255, 255, 255, 0,
-        ]);
+        const image = pngImage(svg);
+        expect(image.alpha).toEqual([255, 0]);
+        expect([...image.pixels]).toEqual([0, 0, 1]);
         return {
           widthPixels: 2,
           heightPixels: 1,
@@ -358,10 +385,9 @@ describe("image backgrounds in print output", () => {
         ]),
       })
       .mockImplementationOnce((svg: string) => {
-        const encoded = /data:image\/bmp;base64,([^&"]+)/.exec(svg)?.[1];
-        expect(encoded).toBeDefined();
-        const bytes = Buffer.from(encoded!, "base64");
-        expect(bytes.readUInt16LE(28)).toBe(24);
+        const image = pngImage(svg);
+        expect(image.alpha).toEqual([255, 255]);
+        expect([...image.pixels]).toEqual([0, 0, 1]);
         return {
           widthPixels: 2,
           heightPixels: 1,

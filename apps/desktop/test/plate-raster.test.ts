@@ -1,5 +1,6 @@
 import { createBlankLabelDocument } from "@labelmaker/documents";
 import { buildPlateSvg, renderPlateForPrinter } from "@labelmaker/rendering";
+import { inflateSync } from "node:zlib";
 import { describe, expect, it, vi } from "vitest";
 
 const plate = createBlankLabelDocument(() => "id").plates[0]!;
@@ -260,13 +261,20 @@ describe("desktop plate rasterization", () => {
     );
 
     const embeddedPixel = (svg: string) => {
-      const encoded = svg.match(/data:image\/bmp;base64,([^&"]+)/)?.[1];
-      if (!encoded) throw new Error("Expected an embedded BMP image");
-      const bitmap = Buffer.from(encoded, "base64");
-      const pixelOffset = bitmap.readUInt32LE(10);
+      const encoded = svg.match(/data:image\/png;base64,([^&"]+)/)?.[1];
+      if (!encoded) throw new Error("Expected an embedded PNG image");
+      const png = Buffer.from(encoded, "base64");
+      const idatOffset = 65;
+      const idatLength = png.readUInt32BE(idatOffset);
+      const paletteIndex = inflateSync(
+        png.subarray(idatOffset + 8, idatOffset + 8 + idatLength),
+      )[1];
+      if (paletteIndex === undefined) {
+        throw new Error("Expected an embedded PNG pixel");
+      }
       return {
-        blue: bitmap[pixelOffset],
-        alpha: bitmap[pixelOffset + 3],
+        blue: paletteIndex === 0 ? 0 : 255,
+        alpha: png[59 + paletteIndex],
       };
     };
     expect(embeddedPixel(finalSvgs[0] ?? "")).toEqual({
