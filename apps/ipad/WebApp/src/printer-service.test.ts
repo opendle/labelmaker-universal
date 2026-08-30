@@ -1,8 +1,18 @@
 // @vitest-environment jsdom
 
+import { createBlankLabelDocument } from "@labelmaker/documents";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { IpadPrinterService } from "./printer-service.js";
+
+vi.mock("@labelmaker/rendering", () => ({
+  renderPlateForPrinter: vi.fn(async () => ({
+    widthPixels: 96,
+    heightPixels: 1,
+    bytesPerRow: 12,
+    data: new Uint8Array(12),
+  })),
+}));
 
 const CONFIGURATION_KEY = "labelmaker.ipados.printers.v1";
 const PRINTER_ID = "makeid:ipad-ble-test-device";
@@ -251,5 +261,78 @@ describe("iPad printer configuration", () => {
       "bluetoothClose",
       "bluetoothDiscover",
     ]);
+  });
+
+  it("reuses one connection for sequential prints and closes it before discovery", async () => {
+    localStorage.setItem(
+      CONFIGURATION_KEY,
+      JSON.stringify({
+        version: 2,
+        printerIds: [PRINTER_ID],
+        activePrinterId: PRINTER_ID,
+        settings: {},
+        printerRecords: {
+          [PRINTER_ID]: {
+            id: PRINTER_ID,
+            adapterId: "makeid",
+            displayName: "MakeID E1",
+            model: "MakeID E1",
+            transport: "bluetooth-low-energy",
+            connection: {
+              transportDeviceId: "ipad-ble-test-device",
+              profileId: "e1-abf0-203",
+            },
+          },
+        },
+      }),
+    );
+    const methods: string[] = [];
+    const response = new Uint8Array(36);
+    response.set([0x66, 36, 0, 0x10]);
+    const bytesBase64 = btoa(String.fromCharCode(...response));
+    vi.stubGlobal("webkit", {
+      messageHandlers: {
+        labelmaker: {
+          postMessage: async (request: unknown) => {
+            const method = (request as { method: string }).method;
+            methods.push(method);
+            if (method === "bluetoothDiscover") {
+              return { ok: true, result: [] };
+            }
+            if (method === "bluetoothConnect") {
+              return {
+                ok: true,
+                result: { connectionId: "ipad-ble-test-device" },
+              };
+            }
+            if (method === "bluetoothRead") {
+              return { ok: true, result: { bytesBase64 } };
+            }
+            return { ok: true, result: null };
+          },
+        },
+      },
+    });
+    const document = createBlankLabelDocument(() => crypto.randomUUID());
+    const plateId = document.plates[0]?.id;
+    if (!plateId) throw new Error("Expected one plate");
+    const request = {
+      document,
+      printerId: PRINTER_ID,
+      plateIds: [plateId],
+    };
+    const service = new IpadPrinterService();
+
+    await service.print(request);
+    await service.print(request);
+
+    expect(
+      methods.filter((method) => method === "bluetoothConnect"),
+    ).toHaveLength(1);
+    expect(methods).not.toContain("bluetoothClose");
+
+    await service.discoverPrinters();
+
+    expect(methods.slice(-2)).toEqual(["bluetoothClose", "bluetoothDiscover"]);
   });
 });

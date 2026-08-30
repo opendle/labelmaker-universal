@@ -58,6 +58,9 @@ export class IpadPrinterService {
   }
 
   async discoverPrinters(): Promise<readonly PrinterSummary[]> {
+    // CoreBluetooth discovery and a configured-printer session share one
+    // native transport. Release the cached session before a new scan.
+    await this.discardSessions();
     const results = await Promise.allSettled(
       registry
         .list()
@@ -269,10 +272,11 @@ export class IpadPrinterService {
       return {
         message: `${pages.length} ${pages.length === 1 ? "label" : "labels"} sent to ${settings.displayName ?? descriptor.displayName}`,
       };
-    } finally {
-      // The iPad native transport owns one connection. Release it after each
-      // job so printer discovery and another configured printer can connect.
+    } catch (error) {
+      // A failed command stream can contain a late reply. Discard it so the
+      // next print must use a clean connection.
       await this.discardSession(descriptor.id);
+      throw error;
     }
   }
 
@@ -311,9 +315,18 @@ export class IpadPrinterService {
     };
   }
 
-  private session(descriptor: PrinterDescriptor): Promise<PrinterSession> {
+  private async session(
+    descriptor: PrinterDescriptor,
+  ): Promise<PrinterSession> {
     const existing = this.#sessions.get(descriptor.id);
     if (existing) return existing;
+
+    // The native mobile transport owns one CoreBluetooth connection. Close a
+    // session for another printer before this connection starts.
+    await this.discardSessions(descriptor.id);
+    const concurrent = this.#sessions.get(descriptor.id);
+    if (concurrent) return concurrent;
+
     const pending = registry
       .get(descriptor.adapterId)
       .connect(descriptor, context)
@@ -329,6 +342,14 @@ export class IpadPrinterService {
         this.#sessions.delete(descriptor.id);
     });
     return pending;
+  }
+
+  private async discardSessions(exceptPrinterId?: string): Promise<void> {
+    await Promise.all(
+      [...this.#sessions.keys()]
+        .filter((printerId) => printerId !== exceptPrinterId)
+        .map((printerId) => this.discardSession(printerId)),
+    );
   }
 
   private async discardSession(printerId: string): Promise<void> {
