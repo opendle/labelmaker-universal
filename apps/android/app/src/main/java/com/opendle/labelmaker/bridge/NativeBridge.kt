@@ -3,16 +3,37 @@ package com.opendle.labelmaker.bridge
 import android.util.Base64
 import com.opendle.labelmaker.storage.RecoveryStore
 import com.opendle.labelmaker.storage.WorkspaceCoordinator
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 private const val BRIDGE_VERSION = 1
 private const val DEFAULT_CONNECT_TIMEOUT_MS = 10_000
 private const val DEFAULT_WRITE_TIMEOUT_MS = 30_000
 private const val MAXIMUM_TIMEOUT_MS = 60_000
+
+internal class BluetoothOperationRegistry(private val closeAll: () -> Unit) {
+    private val jobs = ConcurrentHashMap.newKeySet<Job>()
+
+    fun register(job: Job) {
+        jobs.add(job)
+        job.invokeOnCompletion { jobs.remove(job) }
+    }
+
+    fun cancelAll() {
+        jobs.forEach { it.cancel() }
+        closeAll()
+    }
+}
 
 interface NativeUi {
     fun confirmWorkspaceReplacement(completion: (String) -> Unit)
@@ -28,12 +49,28 @@ internal class NativeBridge(
     private val bluetooth: BluetoothTransport,
     private val chunks: MessageChunkAssembler = MessageChunkAssembler(),
 ) {
-    private var eventSender: ((String) -> Unit)? = null
+    private data class EventSender(val generation: Long, val send: (String) -> Unit)
+
+    private val requestDispatcher = Dispatchers.Default.limitedParallelism(1)
+    private val messageGeneration = AtomicLong(0)
+    private val bluetoothOperations = BluetoothOperationRegistry(bluetooth::closeAll)
+    @Volatile
+    private var eventSender: EventSender? = null
     private var nextEventId = 0
     private val pendingBackEvents = mutableMapOf<String, (Boolean) -> Unit>()
 
     fun receive(rawFrame: String, send: (String) -> Unit) {
-        eventSender = send
+        val generation = messageGeneration.get()
+        scope.launch(requestDispatcher) {
+            if (generation != messageGeneration.get()) return@launch
+            val guardedSend: (String) -> Unit = { frame ->
+                if (generation == messageGeneration.get()) send(frame)
+            }
+            receiveOnWorker(rawFrame, guardedSend, generation)
+        }
+    }
+
+    private fun receiveOnWorker(rawFrame: String, send: (String) -> Unit, generation: Long) {
         val assembled = try {
             chunks.accept(rawFrame)
         } catch (error: BridgeFailure) {
@@ -41,14 +78,19 @@ internal class NativeBridge(
             return
         }
         if (assembled is AssemblyResult.Incomplete) return
+        if (generation != messageGeneration.get()) return
+        eventSender = EventSender(generation, send)
         val request = try {
             JSONObject((assembled as AssemblyResult.Complete).message)
         } catch (error: Exception) {
             sendReply(errorReply("native-invalid", BridgeFailure("INVALID_REQUEST", "The native request is invalid.")), send)
             return
         }
+        if (generation != messageGeneration.get()) return
         if (request.optString("type") == "event-result") {
-            receiveEventResult(request)
+            scope.launch(Dispatchers.Main.immediate) {
+                if (generation == messageGeneration.get()) receiveEventResult(request)
+            }
             return
         }
         val requestId = try {
@@ -58,7 +100,7 @@ internal class NativeBridge(
             return
         }
         try {
-            val version = if (request.has("version")) request.requireInteger("version") else BRIDGE_VERSION
+            val version = request.requireInteger("version")
             if (version != BRIDGE_VERSION) {
                 throw BridgeFailure("UNSUPPORTED_BRIDGE_VERSION", "The native bridge version is not supported.")
             }
@@ -67,17 +109,19 @@ internal class NativeBridge(
             if (payload !is JSONObject) {
                 throw BridgeFailure("INVALID_REQUEST", "The native bridge request payload is invalid.")
             }
-            dispatch(requestId, method, payload, send)
+            dispatch(requestId, method, payload, send, generation)
         } catch (error: Throwable) {
             sendReply(errorReply(requestId, safeFailure(error)), send)
         }
     }
 
     fun clearPendingMessages() {
+        messageGeneration.incrementAndGet()
         chunks.clear()
         eventSender = null
         pendingBackEvents.values.forEach { it(false) }
         pendingBackEvents.clear()
+        cancelBluetoothOperations()
     }
 
     fun clearIncompleteMessages() {
@@ -86,6 +130,8 @@ internal class NativeBridge(
 
     fun requestSystemBack(completion: (Boolean) -> Unit) {
         val send = eventSender
+            ?.takeIf { it.generation == messageGeneration.get() }
+            ?.send
         if (send == null) {
             completion(false)
             return
@@ -106,7 +152,10 @@ internal class NativeBridge(
     }
 
     fun notifyConnectionsClosed() {
-        val send = eventSender ?: return
+        val send = eventSender
+            ?.takeIf { it.generation == messageGeneration.get() }
+            ?.send
+            ?: return
         val event = JSONObject()
             .put("version", BRIDGE_VERSION)
             .put("type", "event")
@@ -115,7 +164,14 @@ internal class NativeBridge(
         MessageChunkFramer.frame(event.toString()).forEach(send)
     }
 
-    private fun dispatch(requestId: String, method: String, payload: JSONObject, send: (String) -> Unit) {
+    private fun dispatch(
+        requestId: String,
+        method: String,
+        payload: JSONObject,
+        send: (String) -> Unit,
+        generation: Long,
+    ) {
+        if (generation != messageGeneration.get()) return
         validatePayloadKeys(method, payload)
         when (method) {
             "getHostInfo" -> success(
@@ -129,20 +185,25 @@ internal class NativeBridge(
                 send,
             )
 
-            "confirmWorkspaceReplacement" -> ui.confirmWorkspaceReplacement { choice ->
-                success(requestId, choice, send)
+            "confirmWorkspaceReplacement" -> launchOnMain(requestId, send, generation) {
+                ui.confirmWorkspaceReplacement { choice ->
+                    success(requestId, choice, send)
+                }
             }
 
-            "openWorkspaceFile" -> workspace.openWorkspace { result ->
-                result.fold(
-                    onSuccess = { success(requestId, it, send) },
-                    onFailure = { failure(requestId, it, send) },
-                )
+            "openWorkspaceFile" -> launchOnMain(requestId, send, generation) {
+                workspace.openWorkspace { result ->
+                    sendResultOnWorker(requestId, result, send)
+                }
             }
 
             "acceptOpenedWorkspaceFile" -> {
-                workspace.acceptSelection(payload.requireBoundedString("selectionId", 300))
-                success(requestId, JSONObject.NULL, send)
+                val selectionId = payload.requireBoundedString("selectionId", 300)
+                launchOnMain(requestId, send, generation) {
+                    workspace.acceptSelection(selectionId) { result ->
+                        sendResultOnWorker(requestId, result.map { JSONObject.NULL }, send)
+                    }
+                }
             }
 
             "saveWorkspaceFile" -> {
@@ -150,37 +211,37 @@ internal class NativeBridge(
                 val base64 = payload.requireBoundedString("gzipBase64", MAX_MESSAGE_CHARACTERS)
                 val saveAs = payload.requireBoolean("saveAs")
                 val data = decodeBase64(base64, "The workspace data is invalid.")
-                workspace.saveWorkspace(data, fileName, saveAs) { result ->
-                    result.fold(
-                        onSuccess = { success(requestId, it, send) },
-                        onFailure = { failure(requestId, it, send) },
-                    )
+                launchOnMain(requestId, send, generation) {
+                    workspace.saveWorkspace(data, fileName, saveAs) { result ->
+                        sendResultOnWorker(requestId, result, send)
+                    }
                 }
             }
 
-            "clearWorkspaceAssociation" -> {
-                workspace.clearAssociation()
-                success(requestId, JSONObject.NULL, send)
+            "clearWorkspaceAssociation" -> launchOnMain(requestId, send, generation) {
+                workspace.clearAssociation { result ->
+                    sendResultOnWorker(requestId, result.map { JSONObject.NULL }, send)
+                }
             }
 
-            "loadWorkspaceRecovery" -> {
+            "loadWorkspaceRecovery" -> launch(requestId, send, generation) {
                 val state = recovery.load()
                 if (state is JSONObject) {
                     state.put("fileName", workspace.associatedFileName ?: JSONObject.NULL)
                 }
-                success(requestId, state ?: JSONObject.NULL, send)
+                state ?: JSONObject.NULL
             }
 
-            "storeWorkspaceRecovery" -> {
+            "storeWorkspaceRecovery" -> launch(requestId, send, generation) {
                 val state = payload.opt("state")
                 if (state !is JSONObject) {
                     throw BridgeFailure("INVALID_RECOVERY", "The recovery state is invalid.")
                 }
                 recovery.store(state)
-                success(requestId, JSONObject.NULL, send)
+                JSONObject.NULL
             }
 
-            "bluetoothDiscover" -> launch(requestId, send) {
+            "bluetoothDiscover" -> launchBluetooth(requestId, send, generation) {
                 requireBluetoothPermissions()
                 val devices = bluetooth.discover(
                     timeoutMs = payload.requireInteger("timeoutMs", maximum = MAXIMUM_TIMEOUT_MS),
@@ -198,7 +259,7 @@ internal class NativeBridge(
                 }
             }
 
-            "bluetoothConnect" -> launch(requestId, send) {
+            "bluetoothConnect" -> launchBluetooth(requestId, send, generation) {
                 requireBluetoothPermissions()
                 val protocolFamily = requireProtocolFamily(payload)
                 val connectionId = bluetooth.connect(
@@ -209,7 +270,7 @@ internal class NativeBridge(
                 JSONObject().put("connectionId", connectionId)
             }
 
-            "bluetoothWrite" -> launch(requestId, send) {
+            "bluetoothWrite" -> launchBluetooth(requestId, send, generation) {
                 bluetooth.write(
                     connectionId = payload.requireBoundedString("connectionId", 300),
                     bytes = decodeBase64(
@@ -221,7 +282,7 @@ internal class NativeBridge(
                 JSONObject.NULL
             }
 
-            "bluetoothRead" -> launch(requestId, send) {
+            "bluetoothRead" -> launchBluetooth(requestId, send, generation) {
                 val bytes = bluetooth.read(
                     connectionId = payload.requireBoundedString("connectionId", 300),
                     timeoutMs = payload.requireInteger("timeoutMs", maximum = MAXIMUM_TIMEOUT_MS),
@@ -229,17 +290,22 @@ internal class NativeBridge(
                 JSONObject().put("bytesBase64", Base64.encodeToString(bytes, Base64.NO_WRAP))
             }
 
-            "bluetoothClose" -> launch(requestId, send) {
+            "bluetoothClose" -> launch(requestId, send, generation) {
                 bluetooth.close(payload.requireBoundedString("connectionId", 300))
                 JSONObject.NULL
             }
 
-            "bluetoothPreserve" -> launch(requestId, send) {
+            "bluetoothCancel" -> {
+                cancelBluetoothOperations()
+                success(requestId, JSONObject.NULL, send)
+            }
+
+            "bluetoothPreserve" -> launch(requestId, send, generation) {
                 bluetooth.preserveDevice(payload.requireBoundedString("deviceId", 300))
                 JSONObject.NULL
             }
 
-            "bluetoothRelease" -> launch(requestId, send) {
+            "bluetoothRelease" -> launch(requestId, send, generation) {
                 bluetooth.releaseDevice(payload.requireBoundedString("deviceId", 300))
                 JSONObject.NULL
             }
@@ -248,13 +314,66 @@ internal class NativeBridge(
         }
     }
 
-    private fun launch(requestId: String, send: (String) -> Unit, operation: suspend () -> Any) {
-        scope.launch {
+    private fun launch(
+        requestId: String,
+        send: (String) -> Unit,
+        generation: Long,
+        operation: suspend () -> Any,
+    ) {
+        scope.launch(Dispatchers.Default) {
+            if (generation != messageGeneration.get()) return@launch
             try {
                 success(requestId, operation(), send)
             } catch (error: Throwable) {
                 failure(requestId, error, send)
             }
+        }
+    }
+
+    private fun launchOnMain(
+        requestId: String,
+        send: (String) -> Unit,
+        generation: Long,
+        operation: () -> Unit,
+    ) {
+        scope.launch(Dispatchers.Main.immediate) {
+            if (generation != messageGeneration.get()) return@launch
+            try {
+                operation()
+            } catch (error: Throwable) {
+                failure(requestId, error, send)
+            }
+        }
+    }
+
+    private fun launchBluetooth(
+        requestId: String,
+        send: (String) -> Unit,
+        generation: Long,
+        operation: suspend () -> Any,
+    ) {
+        val job = scope.launch(Dispatchers.Default, start = CoroutineStart.LAZY) {
+            if (generation != messageGeneration.get()) return@launch
+            try {
+                success(requestId, operation(), send)
+            } catch (error: Throwable) {
+                failure(requestId, error, send)
+            }
+        }
+        bluetoothOperations.register(job)
+        job.start()
+    }
+
+    private fun cancelBluetoothOperations() {
+        bluetoothOperations.cancelAll()
+    }
+
+    private fun <T : Any> sendResultOnWorker(requestId: String, result: Result<T>, send: (String) -> Unit) {
+        scope.launch(Dispatchers.Default) {
+            result.fold(
+                onSuccess = { success(requestId, it, send) },
+                onFailure = { failure(requestId, it, send) },
+            )
         }
     }
 
@@ -300,7 +419,7 @@ internal class NativeBridge(
     }
 
     private suspend fun requireBluetoothPermissions() {
-        if (!ui.ensureBluetoothPermissions()) {
+        if (!withContext(Dispatchers.Main.immediate) { ui.ensureBluetoothPermissions() }) {
             throw BridgeFailure(
                 "BLUETOOTH_PERMISSION_REQUIRED",
                 "Allow Bluetooth access to find and use a printer.",
@@ -314,7 +433,8 @@ internal class NativeBridge(
             "confirmWorkspaceReplacement",
             "openWorkspaceFile",
             "clearWorkspaceAssociation",
-            "loadWorkspaceRecovery"
+            "loadWorkspaceRecovery",
+            "bluetoothCancel",
             -> emptySet()
             "acceptOpenedWorkspaceFile" -> setOf("selectionId")
             "saveWorkspaceFile" -> setOf("fileName", "gzipBase64", "saveAs")
@@ -365,6 +485,9 @@ internal class NativeBridge(
 
     private fun safeFailure(error: Throwable): BridgeFailure {
         if (error is BridgeFailure) return error
+        if (error is CancellationException) {
+            return BridgeFailure("CANCELED", "The Bluetooth operation was canceled.")
+        }
         return BridgeFailure("NATIVE_OPERATION_FAILED", "The operation failed on this device.")
     }
 

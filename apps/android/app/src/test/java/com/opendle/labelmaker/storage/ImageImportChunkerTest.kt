@@ -9,7 +9,7 @@ class ImageImportChunkerTest {
     fun `a multi-part import stays bounded and reconstructs exactly`() {
         val base64 = "a".repeat(IMAGE_IMPORT_CHUNK_CHARACTERS * 2 + 17)
 
-        val chunks = ImageImportChunker.chunk(base64)
+        val chunks = ImageImportChunker.chunk(base64).toList()
 
         assertEquals(3, chunks.size)
         assertTrue(chunks.all { it.length <= IMAGE_IMPORT_CHUNK_CHARACTERS })

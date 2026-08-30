@@ -11,10 +11,11 @@ import {
 } from "node:fs/promises";
 import { basename, relative, resolve, sep } from "node:path";
 
+import { readReleaseVersion } from "./release-version.mjs";
+
 const repositoryRoot = resolve(import.meta.dirname, "..");
 const androidRoot = resolve(repositoryRoot, "apps/android");
 const releaseRoot = resolve(repositoryRoot, "release/android");
-const versionPath = resolve(repositoryRoot, "distribution/version.json");
 const noticesPath = resolve(
   repositoryRoot,
   "distribution/android/THIRD_PARTY_NOTICES.md",
@@ -29,9 +30,9 @@ if (mode === "help") {
 }
 
 requireCleanWorktree();
-const version = JSON.parse(await readFile(versionPath, "utf8"));
-const productVersion = requiredVersion(version.productVersion);
-const buildNumber = requiredBuildNumber(version.buildNumbers?.android);
+const version = await readReleaseVersion();
+const productVersion = version.productVersion;
+const buildNumber = version.buildNumbers.android;
 const releaseDirectory = resolve(
   releaseRoot,
   `${productVersion}-${String(buildNumber)}`,
@@ -134,20 +135,6 @@ function readMode(arguments_) {
   if (arguments_.length === 1 && arguments_[0] === "--apk") return "apk";
   if (arguments_.length === 1 && arguments_[0] === "--help") return "help";
   throw new Error("Use exactly one of --bundle or --apk.");
-}
-
-function requiredVersion(value) {
-  if (typeof value !== "string" || !/^\d+\.\d+\.\d+$/.test(value)) {
-    throw new Error("The product version is invalid.");
-  }
-  return value;
-}
-
-function requiredBuildNumber(value) {
-  if (!Number.isSafeInteger(value) || value < 1) {
-    throw new Error("The Android build number is invalid.");
-  }
-  return value;
 }
 
 function requireCleanWorktree() {

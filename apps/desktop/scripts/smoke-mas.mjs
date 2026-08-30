@@ -1,9 +1,10 @@
 import { _electron as electron } from "playwright";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { access, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
+
+import { readReleaseVersion } from "../../../scripts/release-version.mjs";
 
 const appPath = process.argv[2]
   ? resolve(process.argv[2])
@@ -12,12 +13,7 @@ const appPath = process.argv[2]
       "../../../release/macos-app-store/development/Label Maker-mas-universal/Label Maker.app",
     );
 const infoPath = resolve(appPath, "Contents/Info.plist");
-const releaseVersion = JSON.parse(
-  readFileSync(
-    new URL("../../../distribution/version.json", import.meta.url),
-    "utf8",
-  ),
-);
+const releaseVersion = await readReleaseVersion();
 const expectedVersion = releaseVersion.productVersion;
 const bundleIdentifier = readPlistValue(infoPath, "CFBundleIdentifier");
 const executableName = readPlistValue(infoPath, "CFBundleExecutable");

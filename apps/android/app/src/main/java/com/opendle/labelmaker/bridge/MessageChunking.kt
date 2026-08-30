@@ -10,6 +10,9 @@ internal const val MAX_FRAME_CHARACTERS = 128 * 1024
 internal const val MAX_CHUNK_DATA_CHARACTERS = 60 * 1024
 internal const val MAX_MESSAGE_CHARACTERS = 40 * 1024 * 1024
 internal const val MESSAGE_EXPIRY_MS = 60_000L
+internal const val MAX_INCOMPLETE_MESSAGES = 8
+internal const val MAX_INCOMPLETE_CHARACTERS = MAX_MESSAGE_CHARACTERS
+internal const val MAX_INCOMPLETE_PART_SLOTS = 4 * 1024
 private const val FRAME_ENVELOPE_RESERVE = 512
 
 internal fun interface ScheduledExpiry {
@@ -39,6 +42,9 @@ internal sealed interface AssemblyResult {
 internal class MessageChunkAssembler(
     private val now: () -> Long = SystemClock::elapsedRealtime,
     private val scheduler: ExpiryScheduler = MainThreadExpiryScheduler(),
+    private val maximumIncompleteMessages: Int = MAX_INCOMPLETE_MESSAGES,
+    private val maximumIncompleteCharacters: Int = MAX_INCOMPLETE_CHARACTERS,
+    private val maximumIncompletePartSlots: Int = MAX_INCOMPLETE_PART_SLOTS,
 ) {
     private data class Pending(
         val createdAt: Long,
@@ -49,6 +55,8 @@ internal class MessageChunkAssembler(
     )
 
     private val pending = mutableMapOf<String, Pending>()
+    private var pendingCharacters = 0
+    private var pendingPartSlots = 0
 
     @Synchronized
     fun accept(rawFrame: String): AssemblyResult {
@@ -77,11 +85,20 @@ internal class MessageChunkAssembler(
                 throw BridgeFailure("FRAME_TOO_LARGE", "The native bridge chunk is too large.")
             }
 
-            val message = pending[messageId] ?: Pending(createdAt = now(), parts = arrayOfNulls(total)).also { created ->
-                pending[messageId] = created
-                created.expiry = scheduler.schedule(MESSAGE_EXPIRY_MS) {
-                    synchronized(this) {
-                        if (pending[messageId] === created) pending.remove(messageId)
+            val message = pending[messageId] ?: run {
+                if (pending.size >= maximumIncompleteMessages) {
+                    throw BridgeFailure("MESSAGE_BUDGET_EXCEEDED", "Too many native bridge messages are incomplete.")
+                }
+                if (pendingPartSlots > maximumIncompletePartSlots - total) {
+                    throw BridgeFailure("MESSAGE_BUDGET_EXCEEDED", "The native bridge message part budget is full.")
+                }
+                Pending(createdAt = now(), parts = arrayOfNulls(total)).also { created ->
+                    pending[messageId] = created
+                    pendingPartSlots += total
+                    created.expiry = scheduler.schedule(MESSAGE_EXPIRY_MS) {
+                        synchronized(this) {
+                            if (pending[messageId] === created) remove(messageId)
+                        }
                     }
                 }
             }
@@ -93,9 +110,13 @@ internal class MessageChunkAssembler(
                 throw BridgeFailure("INVALID_CHUNK", "The native bridge chunk was repeated with different data.")
             }
             if (previous == null) {
+                if (pendingCharacters > maximumIncompleteCharacters - data.length) {
+                    throw BridgeFailure("MESSAGE_BUDGET_EXCEEDED", "The native bridge message memory budget is full.")
+                }
                 message.parts[index] = data
                 message.receivedCharacters += data.length
                 message.receivedParts += 1
+                pendingCharacters += data.length
             }
             if (message.receivedCharacters > MAX_MESSAGE_CHARACTERS) {
                 throw BridgeFailure("MESSAGE_TOO_LARGE", "The native bridge message is too large.")
@@ -120,6 +141,8 @@ internal class MessageChunkAssembler(
     fun clear() {
         pending.values.forEach { it.expiry?.cancel() }
         pending.clear()
+        pendingCharacters = 0
+        pendingPartSlots = 0
     }
 
     private fun expireOldMessages() {
@@ -128,35 +151,46 @@ internal class MessageChunkAssembler(
     }
 
     private fun remove(messageId: String) {
-        pending.remove(messageId)?.expiry?.cancel()
+        pending.remove(messageId)?.let { removed ->
+            pendingCharacters -= removed.receivedCharacters
+            pendingPartSlots -= removed.parts.size
+            removed.expiry?.cancel()
+        }
     }
 }
 
 internal object MessageChunkFramer {
-    fun frame(message: String): List<String> {
+    fun frame(message: String): Sequence<String> {
         if (message.length > MAX_MESSAGE_CHARACTERS) {
             throw BridgeFailure("MESSAGE_TOO_LARGE", "The native bridge reply is too large.")
         }
-        if (message.length <= MAX_FRAME_CHARACTERS) return listOf(message)
+        if (message.length <= MAX_FRAME_CHARACTERS) return sequenceOf(message)
 
         val messageId = "native-${UUID.randomUUID()}"
-        val chunks = splitForFrames(message, messageId)
+        val ranges = rangesForFrames(message, messageId)
         val maximumParts =
             (MAX_MESSAGE_CHARACTERS + MAX_CHUNK_DATA_CHARACTERS - 1) / MAX_CHUNK_DATA_CHARACTERS
-        if (chunks.size > maximumParts) {
+        if (ranges.size > maximumParts) {
             throw BridgeFailure("MESSAGE_TOO_LARGE", "The native bridge reply needs too many frames.")
         }
-        return chunks.mapIndexed { index, part ->
-            frame(messageId, index, chunks.size, part)
-        }.also { frames ->
-            if (frames.any { it.length > MAX_FRAME_CHARACTERS }) {
-                throw BridgeFailure("FRAME_TOO_LARGE", "The native bridge reply frame is too large.")
+        return sequence {
+            ranges.forEachIndexed { index, range ->
+                val framed = frame(
+                    messageId,
+                    index,
+                    ranges.size,
+                    message.substring(range.first, range.second),
+                )
+                if (framed.length > MAX_FRAME_CHARACTERS) {
+                    throw BridgeFailure("FRAME_TOO_LARGE", "The native bridge reply frame is too large.")
+                }
+                yield(framed)
             }
         }
     }
 
-    private fun splitForFrames(message: String, messageId: String): List<String> {
-        val result = mutableListOf<String>()
+    private fun rangesForFrames(message: String, messageId: String): List<Pair<Int, Int>> {
+        val result = mutableListOf<Pair<Int, Int>>()
         var start = 0
         while (start < message.length) {
             var end = minOf(
@@ -169,7 +203,7 @@ internal object MessageChunkFramer {
             if (end == start) {
                 throw BridgeFailure("FRAME_TOO_LARGE", "The native bridge reply cannot be framed.")
             }
-            result += message.substring(start, end)
+            result += start to end
             start = end
         }
         return result

@@ -15,6 +15,7 @@ protocol BluetoothTransportHandling: AnyObject {
     func write(connectionID: String, data: Data, completion: @escaping (Result<Void, Error>) -> Void)
     func read(connectionID: String, timeoutMilliseconds: Int, completion: @escaping (Result<Data, Error>) -> Void)
     func close(connectionID: String, completion: @escaping (Result<Void, Error>) -> Void)
+    func cancel(completion: @escaping (Result<Void, Error>) -> Void)
 }
 
 enum BluetoothTransportError: LocalizedError {
@@ -52,6 +53,10 @@ final class UnavailableBluetoothTransport: BluetoothTransportHandling {
     }
 
     func close(connectionID: String, completion: @escaping (Result<Void, Error>) -> Void) {
+        completion(.success(()))
+    }
+
+    func cancel(completion: @escaping (Result<Void, Error>) -> Void) {
         completion(.success(()))
     }
 }
@@ -133,6 +138,13 @@ extension MakeIDBluetoothTransport: BluetoothTransportHandling {
             } catch {
                 completion(.failure(error))
             }
+        }
+    }
+
+    func cancel(completion: @escaping (Result<Void, Error>) -> Void) {
+        Task {
+            await close()
+            completion(.success(()))
         }
     }
 }

@@ -31,12 +31,15 @@ import com.opendle.labelmaker.bridge.NativeBridge
 import com.opendle.labelmaker.bridge.NativeUi
 import com.opendle.labelmaker.storage.ImageImportChunker
 import com.opendle.labelmaker.storage.ImageImportReader
-import com.opendle.labelmaker.storage.MAXIMUM_IMAGE_IMPORT_CHARACTERS
 import com.opendle.labelmaker.storage.RecoveryStore
 import com.opendle.labelmaker.storage.WorkspaceCoordinator
 import com.opendle.labelmaker.web.APP_URL
 import com.opendle.labelmaker.web.createSecureWebView
 import com.opendle.labelmaker.web.updateWebViewColorScheme
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.util.UUID
 
@@ -58,6 +61,12 @@ class MainActivity : ComponentActivity(), NativeUi {
     private var latestSafeInsets: Insets = Insets.NONE
     private var latestKeyboardInsets: Insets = Insets.NONE
 
+    private data class PreparedImageImport(
+        val fileName: String,
+        val mimeType: String,
+        val chunks: Sequence<String>,
+    )
+
     private val openWorkspaceLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         workspace.onOpenResult(uri)
     }
@@ -74,15 +83,32 @@ class MainActivity : ComponentActivity(), NativeUi {
             val selected = WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data)
             callback.onReceiveValue(null)
             val uri = selected?.singleOrNull() ?: return@registerForActivityResult
-            runCatching { imageImportReader.read(uri) }
-                .onSuccess(::deliverImportedImage)
-                .onFailure {
+            val generation = ++imageDeliveryGeneration
+            lifecycleScope.launch {
+                val prepared = try {
+                    withContext(Dispatchers.IO) {
+                        val image = imageImportReader.read(uri)
+                        val base64 = Base64.encodeToString(image.bytes, Base64.NO_WRAP)
+                        PreparedImageImport(
+                            fileName = image.fileName,
+                            mimeType = image.mimeType,
+                            chunks = ImageImportChunker.chunk(base64),
+                        )
+                    }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Throwable) {
                     Toast.makeText(
                         this,
                         "The selected image could not be imported.",
                         Toast.LENGTH_SHORT,
                     ).show()
+                    return@launch
                 }
+                if (generation == imageDeliveryGeneration) {
+                    deliverImportedImage(prepared, generation)
+                }
+            }
         }
 
     private val bluetoothPermissionLauncher: ActivityResultLauncher<Array<String>> =
@@ -95,7 +121,7 @@ class MainActivity : ComponentActivity(), NativeUi {
         enableEdgeToEdge()
 
         recovery = RecoveryStore(this)
-        workspace = WorkspaceCoordinator(this, openWorkspaceLauncher, createWorkspaceLauncher)
+        workspace = WorkspaceCoordinator(this, openWorkspaceLauncher, createWorkspaceLauncher, lifecycleScope)
         nativeBridge = NativeBridge(
             scope = lifecycleScope,
             ui = this,
@@ -151,8 +177,13 @@ class MainActivity : ComponentActivity(), NativeUi {
         return bluetoothPermissions.ensurePermissions()
     }
 
+    override fun onPause() {
+        recovery.flushInBackground()
+        super.onPause()
+    }
+
     override fun onStop() {
-        recovery.flush()
+        recovery.flushInBackground()
         bluetooth.closeAll()
         nativeBridge.notifyConnectionsClosed()
         super.onStop()
@@ -253,11 +284,8 @@ class MainActivity : ComponentActivity(), NativeUi {
         )
     }
 
-    private fun deliverImportedImage(image: com.opendle.labelmaker.storage.ImportedImage) {
-        val base64 = Base64.encodeToString(image.bytes, Base64.NO_WRAP)
-        val chunks = ImageImportChunker.chunk(base64)
+    private fun deliverImportedImage(prepared: PreparedImageImport, generation: Int) {
         val token = "image-${UUID.randomUUID()}"
-        val generation = ++imageDeliveryGeneration
         val initialize = """
             (() => {
               const input = document.querySelector('input[type="file"][data-labelmaker-native-import="pending"]');
@@ -266,8 +294,8 @@ class MainActivity : ComponentActivity(), NativeUi {
               window.__labelmakerImageImports ??= Object.create(null);
               window.__labelmakerImageImports[${JSONObject.quote(token)}] = {
                 input,
-                fileName: ${JSONObject.quote(image.fileName)},
-                mimeType: ${JSONObject.quote(image.mimeType)},
+                fileName: ${JSONObject.quote(prepared.fileName)},
+                mimeType: ${JSONObject.quote(prepared.mimeType)},
                 parts: [],
               };
               return true;
@@ -275,29 +303,38 @@ class MainActivity : ComponentActivity(), NativeUi {
         """.trimIndent()
         webView.evaluateJavascript(initialize) { initialized ->
             if (initialized == "true" && generation == imageDeliveryGeneration) {
-                deliverImageChunk(token, chunks, 0, generation)
+                deliverImageChunk(token, prepared.chunks.iterator(), generation)
             } else {
                 cancelImageDelivery()
             }
         }
     }
 
-    private fun deliverImageChunk(token: String, chunks: List<String>, index: Int, generation: Int) {
+    private fun deliverImageChunk(token: String, chunks: Iterator<String>, generation: Int) {
         if (generation != imageDeliveryGeneration) return
-        if (index < chunks.size) {
-            val append = """
-                (() => {
-                  const entry = window.__labelmakerImageImports?.[${JSONObject.quote(token)}];
-                  if (!entry) return false;
-                  entry.parts.push(${JSONObject.quote(chunks[index])});
-                  return true;
-                })();
-            """.trimIndent()
-            webView.evaluateJavascript(append) { appended ->
-                if (appended == "true" && generation == imageDeliveryGeneration) {
-                    deliverImageChunk(token, chunks, index + 1, generation)
-                } else {
-                    cancelImageDelivery(token)
+        if (chunks.hasNext()) {
+            lifecycleScope.launch {
+                val quotedChunk = withContext(Dispatchers.Default) { JSONObject.quote(chunks.next()) }
+                if (generation != imageDeliveryGeneration) return@launch
+                val append = """
+                    (() => {
+                      const entry = window.__labelmakerImageImports?.[${JSONObject.quote(token)}];
+                      if (!entry) return false;
+                      const binary = atob($quotedChunk);
+                      const bytes = new Uint8Array(binary.length);
+                      for (let index = 0; index < binary.length; index += 1) {
+                        bytes[index] = binary.charCodeAt(index);
+                      }
+                      entry.parts.push(bytes);
+                      return true;
+                    })();
+                """.trimIndent()
+                webView.evaluateJavascript(append) { appended ->
+                    if (appended == "true" && generation == imageDeliveryGeneration) {
+                        deliverImageChunk(token, chunks, generation)
+                    } else {
+                        cancelImageDelivery(token)
+                    }
                 }
             }
             return
@@ -308,12 +345,7 @@ class MainActivity : ComponentActivity(), NativeUi {
               const entry = imports?.[${JSONObject.quote(token)}];
               if (!entry) return false;
               delete imports[${JSONObject.quote(token)}];
-              const base64 = entry.parts.join('');
-              if (base64.length > $MAXIMUM_IMAGE_IMPORT_CHARACTERS) return false;
-              const binary = atob(base64);
-              const bytes = new Uint8Array(binary.length);
-              for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-              const file = new File([bytes], entry.fileName, { type: entry.mimeType });
+              const file = new File(entry.parts, entry.fileName, { type: entry.mimeType });
               const transfer = new DataTransfer();
               transfer.items.add(file);
               entry.input.files = transfer.files;
@@ -357,12 +389,10 @@ class MainActivity : ComponentActivity(), NativeUi {
             webView.evaluateJavascript(
                 """
                     (() => {
-                      document.querySelectorAll('input[type="file"][data-labelmaker-native-import]')
-                        .forEach((input) => delete input.dataset.labelmakerNativeImport);
-                      const input = document.activeElement;
-                      if (!(input instanceof HTMLInputElement) || input.type !== 'file') return false;
-                      input.dataset.labelmakerNativeImport = 'pending';
-                      return true;
+                      const inputs = document.querySelectorAll(
+                        'input[type="file"][data-labelmaker-native-import="pending"]',
+                      );
+                      return inputs.length === 1;
                     })();
                 """.trimIndent(),
             ) { marked ->

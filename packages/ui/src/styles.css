@@ -77,6 +77,28 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   background: #efeee9;
   user-select: none;
 }
+
+.mobile-startup-failure {
+  width: min(420px, calc(100% - 40px));
+  margin: 15vh auto 0;
+  padding: 24px;
+  color: var(--ink);
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.mobile-startup-failure h1 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.mobile-startup-failure p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
 .application-content {
   display: grid;
   grid-template-rows: 68px minmax(0, 1fr) 92px;

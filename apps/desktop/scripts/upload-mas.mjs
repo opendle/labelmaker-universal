@@ -1,11 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { accessSync, readFileSync } from "node:fs";
+import { accessSync } from "node:fs";
 import { resolve } from "node:path";
 
 import {
   readAppStoreConnectApiKey,
   runAltoolWithAppStoreConnectApiKey,
 } from "../../../scripts/app-store-connect-key.mjs";
+import { readReleaseVersion } from "../../../scripts/release-version.mjs";
 
 const arguments_ = process.argv.slice(2);
 
@@ -20,12 +21,7 @@ if (arguments_.length !== 0) {
   throw new Error("The upload command arguments are invalid.");
 }
 
-const releaseVersion = JSON.parse(
-  readFileSync(
-    new URL("../../../distribution/version.json", import.meta.url),
-    "utf8",
-  ),
-);
+const releaseVersion = await readReleaseVersion();
 const APP_VERSION = releaseVersion.productVersion;
 const BUILD_VERSION = String(releaseVersion.buildNumbers?.macos);
 const API_KEY_ID = requiredEnvironmentValue(
@@ -35,16 +31,6 @@ const API_ISSUER_ID = requiredEnvironmentValue(
   "LABELMAKER_APP_STORE_CONNECT_ISSUER_ID",
 );
 
-if (!/^\d+(?:\.\d+){0,2}$/.test(APP_VERSION)) {
-  throw new Error(
-    "The product version in distribution/version.json is invalid.",
-  );
-}
-if (!/^\d+(?:\.\d+){0,2}$/.test(BUILD_VERSION)) {
-  throw new Error(
-    "The macOS build number in distribution/version.json is invalid.",
-  );
-}
 if (!/^[A-Za-z0-9]+$/.test(API_KEY_ID)) {
   throw new Error("LABELMAKER_APP_STORE_CONNECT_KEY_ID is invalid.");
 }

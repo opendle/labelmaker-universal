@@ -1,3 +1,4 @@
+import java.math.BigDecimal
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import groovy.json.JsonSlurper
 
@@ -16,12 +17,20 @@ require(productVersion.matches(Regex("^[0-9]+\\.[0-9]+\\.[0-9]+$"))) {
     "The product version must use major.minor.patch format."
 }
 val buildNumbers = versionManifest["buildNumbers"] as? Map<*, *>
-val androidBuildNumber = requireNotNull((buildNumbers?.get("android") as? Number)?.toInt()) {
+val androidBuildNumberValue = requireNotNull(buildNumbers?.get("android") as? Number) {
     "The Android build number is missing."
 }
-require(androidBuildNumber > 0) {
-    "The Android build number must be a positive integer."
+val androidBuildNumberLong = requireNotNull(
+    runCatching {
+        BigDecimal(androidBuildNumberValue.toString()).longValueExact()
+    }.getOrNull(),
+) {
+    "The Android build number must be an integer from 1 through 2100000000."
 }
+require(androidBuildNumberLong in 1L..2_100_000_000L) {
+    "The Android build number must be an integer from 1 through 2100000000."
+}
+val androidBuildNumber = androidBuildNumberLong.toInt()
 
 data class SigningMaterial(
     val storePath: String,

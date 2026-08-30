@@ -3,6 +3,7 @@ package com.opendle.labelmaker.bluetooth
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MakeIdGattProtocolTest {
@@ -48,6 +49,31 @@ class MakeIdGattProtocolTest {
         val chunks = MakeIdGattProtocol.chunks(bytes, 103)
 
         assertEquals(listOf(100, 100, 50), chunks.map { it.size })
+        assertArrayEquals(bytes, chunks.flatMap { it.asList() }.toByteArray())
+    }
+
+    @Test
+    fun `empty input produces no chunks`() {
+        assertTrue(MakeIdGattProtocol.chunks(byteArrayOf(), 23).isEmpty())
+    }
+
+    @Test
+    fun `an invalid small MTU keeps the safe default chunk size`() {
+        val bytes = ByteArray(21) { it.toByte() }
+
+        val chunks = MakeIdGattProtocol.chunks(bytes, 10)
+
+        assertEquals(listOf(20, 1), chunks.map { it.size })
+        assertArrayEquals(bytes, chunks.flatMap { it.asList() }.toByteArray())
+    }
+
+    @Test
+    fun `an exact MTU boundary does not add an empty chunk`() {
+        val bytes = ByteArray(40) { it.toByte() }
+
+        val chunks = MakeIdGattProtocol.chunks(bytes, 23)
+
+        assertEquals(listOf(20, 20), chunks.map { it.size })
         assertArrayEquals(bytes, chunks.flatMap { it.asList() }.toByteArray())
     }
 }

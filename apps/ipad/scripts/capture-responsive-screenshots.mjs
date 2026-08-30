@@ -57,7 +57,7 @@ try {
     { engine: webkit, launchOptions: {}, platform: "ipados", viewports },
     {
       engine: chromium,
-      launchOptions: { channel: "chrome" },
+      launchOptions: {},
       platform: "android",
       viewports: androidViewports,
     },

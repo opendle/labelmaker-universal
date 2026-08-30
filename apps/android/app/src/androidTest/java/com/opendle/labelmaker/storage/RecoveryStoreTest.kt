@@ -3,6 +3,7 @@ package com.opendle.labelmaker.storage
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.opendle.labelmaker.bridge.BridgeFailure
+import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -23,7 +24,7 @@ class RecoveryStoreTest {
     }
 
     @Test
-    fun flushStoresPendingRecoveryImmediately() {
+    fun flushStoresPendingRecoveryImmediately() = runBlocking {
         val store = RecoveryStore(context)
         store.store(JSONObject().put("zoom", 100))
 
@@ -33,14 +34,24 @@ class RecoveryStoreTest {
     }
 
     @Test
-    fun invalidRecoveryDoesNotStopStartup() {
+    fun backgroundFlushStoresPendingRecovery() = runBlocking {
+        val store = RecoveryStore(context)
+        store.store(JSONObject().put("plate", "one"))
+
+        store.flushInBackground().join()
+
+        assertEquals("one", (store.load() as JSONObject).getString("plate"))
+    }
+
+    @Test
+    fun invalidRecoveryDoesNotStopStartup() = runBlocking {
         File(context.noBackupFilesDir, "workspace-recovery.json").writeText("not json")
 
         assertNull(RecoveryStore(context).load())
     }
 
     @Test
-    fun oversizeRecoveryIsRejected() {
+    fun oversizeRecoveryIsRejected() = runBlocking {
         val store = RecoveryStore(context)
         try {
             store.store(JSONObject().put("value", "x".repeat(25 * 1024 * 1024)))

@@ -7,6 +7,7 @@ export const NATIVE_MESSAGE_CHUNK_SIZE = 128 * 1_024;
 const NATIVE_MESSAGE_CHUNK_DATA_SIZE = 60 * 1_024;
 export const NATIVE_MESSAGE_LIMIT = 40 * 1_024 * 1_024;
 export const NATIVE_MESSAGE_EXPIRY_MS = 60_000;
+export const NATIVE_PENDING_MESSAGE_LIMIT = 8;
 
 export interface NativeHostInfo {
   readonly version: 1;
@@ -96,6 +97,10 @@ export interface NativeMethodMap {
   };
   bluetoothClose: {
     readonly request: { readonly connectionId: string };
+    readonly response: null;
+  };
+  bluetoothCancel: {
+    readonly request: Record<string, never>;
     readonly response: null;
   };
   bluetoothPreserve: {
@@ -263,6 +268,7 @@ interface ChunkAccumulator {
 class AndroidRequestTransport implements RequestTransport {
   readonly #pending = new Map<string, PendingRequest>();
   readonly #incoming = new Map<string, ChunkAccumulator>();
+  #incomingSize = 0;
   #systemBackHandler: (() => boolean) | undefined;
   #connectionResetHandler: (() => void) | undefined;
 
@@ -330,6 +336,7 @@ class AndroidRequestTransport implements RequestTransport {
     }
     let accumulator = this.#incoming.get(frame.messageId);
     if (!accumulator) {
+      if (this.#incoming.size >= NATIVE_PENDING_MESSAGE_LIMIT) return;
       accumulator = {
         chunks: Array.from<string | undefined>({ length: frame.total }),
         expires: setTimeout(
@@ -345,8 +352,13 @@ class AndroidRequestTransport implements RequestTransport {
       return;
     }
     if (accumulator.chunks[frame.index] === undefined) {
+      if (this.#incomingSize + frame.data.length > NATIVE_MESSAGE_LIMIT) {
+        this.dropChunks(frame.messageId);
+        return;
+      }
       accumulator.chunks[frame.index] = frame.data;
       accumulator.size += frame.data.length;
+      this.#incomingSize += frame.data.length;
     }
     if (accumulator.size > NATIVE_MESSAGE_LIMIT) {
       this.dropChunks(frame.messageId);
@@ -439,6 +451,7 @@ class AndroidRequestTransport implements RequestTransport {
     const accumulator = this.#incoming.get(messageId);
     if (!accumulator) return;
     clearTimeout(accumulator.expires);
+    this.#incomingSize -= accumulator.size;
     this.#incoming.delete(messageId);
   }
 }
@@ -559,6 +572,7 @@ function validateResponse(
     case "storeWorkspaceRecovery":
     case "bluetoothWrite":
     case "bluetoothClose":
+    case "bluetoothCancel":
     case "bluetoothPreserve":
     case "bluetoothRelease":
       if (value === null) return value;
@@ -649,6 +663,7 @@ function validatePayload(
     case "openWorkspaceFile":
     case "clearWorkspaceAssociation":
     case "loadWorkspaceRecovery":
+    case "bluetoothCancel":
       if (!exactKeys()) invalidRequest();
       return;
     case "acceptOpenedWorkspaceFile":
@@ -747,7 +762,13 @@ function validIdentifier(value: unknown): value is string {
 
 export function validateHostInfo(value: unknown): NativeHostInfo {
   if (
-    !isRecord(value) ||
+    !exactRecord(value, [
+      "version",
+      "platform",
+      "presentation",
+      "printerStorageKey",
+      "jobIdPrefix",
+    ]) ||
     value.version !== NATIVE_BRIDGE_VERSION ||
     (value.platform !== "ipados" && value.platform !== "android") ||
     value.presentation !== "mobile-touch" ||

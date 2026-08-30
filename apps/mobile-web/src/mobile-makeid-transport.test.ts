@@ -73,7 +73,7 @@ describe("iPad MakeID transport provider", () => {
     ]);
   });
 
-  it("closes a native connection that completes after cancellation", async () => {
+  it("cancels a native connection attempt without waiting for its timeout", async () => {
     let finishConnect!: () => void;
     const connectionStarted = new Promise<void>((resolve) => {
       finishConnect = resolve;
@@ -98,6 +98,9 @@ describe("iPad MakeID transport provider", () => {
                 result: { connectionId: "late-connection" },
               };
             }
+            if (message.method === "bluetoothCancel") {
+              allowConnect();
+            }
             return {
               version: 1,
               id: message.id,
@@ -118,15 +121,74 @@ describe("iPad MakeID transport provider", () => {
     await connectionStarted;
 
     controller.abort(new Error("Canceled"));
-    allowConnect();
 
     await expect(pending).rejects.toThrow("Canceled");
     expect(requests).toEqual([
       expect.objectContaining({ method: "bluetoothConnect" }),
       expect.objectContaining({
-        method: "bluetoothClose",
-        payload: { connectionId: "late-connection" },
+        method: "bluetoothCancel",
+        payload: {},
       }),
     ]);
+  });
+
+  it("closes an in-flight native write when the print is canceled", async () => {
+    let writeStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      writeStarted = resolve;
+    });
+    let rejectWrite!: (error: Error) => void;
+    vi.stubGlobal("webkit", {
+      messageHandlers: {
+        labelmaker: {
+          postMessage: async (request: unknown) => {
+            requests.push(request);
+            const message = request as { id: string; method: string };
+            if (message.method === "bluetoothConnect") {
+              return {
+                version: 1,
+                id: message.id,
+                ok: true,
+                result: { connectionId: "active-connection" },
+              };
+            }
+            if (message.method === "bluetoothWrite") {
+              writeStarted();
+              return new Promise((_, reject) => {
+                rejectWrite = reject;
+              });
+            }
+            if (message.method === "bluetoothClose") {
+              rejectWrite(new Error("The connection was closed."));
+              return {
+                version: 1,
+                id: message.id,
+                ok: true,
+                result: null,
+              };
+            }
+            throw new Error(`Unexpected method ${message.method}`);
+          },
+        },
+      },
+    });
+    const provider = new MobileMakeIdTransportProvider(createNativeBridge());
+    const transport = await provider.connect("ipad-ble-printer", {
+      protocolFamily: "abf0-66",
+    });
+    const controller = new AbortController();
+    const pending = transport.write(Uint8Array.of(1, 2, 3), controller.signal);
+    await started;
+
+    controller.abort(new Error("Canceled"));
+
+    await expect(pending).rejects.toThrow("Canceled");
+    expect(transport.open).toBe(false);
+    expect(requests.at(-1)).toEqual(
+      expect.objectContaining({
+        method: "bluetoothClose",
+        payload: { connectionId: "active-connection" },
+      }),
+    );
   });
 });

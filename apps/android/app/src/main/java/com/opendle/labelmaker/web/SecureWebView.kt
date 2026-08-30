@@ -87,7 +87,7 @@ internal fun createSecureWebView(
                 sourceOrigin.host != "appassets.androidplatform.net"
             ) return@addWebMessageListener
             val raw = message.data ?: return@addWebMessageListener
-            nativeBridge.receive(raw) { frame -> replyProxy.postMessage(frame) }
+            nativeBridge.receive(raw) { frame -> post { replyProxy.postMessage(frame) } }
         }
     }
 }
@@ -123,11 +123,11 @@ private class LocalOnlyWebViewClient(
         assetLoader.shouldInterceptRequest(request.url)
 
     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
-        !isAllowed(request.url)
+        shouldBlockNavigation(request.url, request.isForMainFrame)
 
     override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
         onPageStarted()
-        if (!isAllowed(Uri.parse(url))) {
+        if (url != APP_URL) {
             view.stopLoading()
             view.loadUrl(APP_URL)
         }
@@ -139,7 +139,12 @@ private class LocalOnlyWebViewClient(
 
     override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean = false
 
-    private fun isAllowed(url: Uri): Boolean =
-        (url.scheme == "https" && url.host == "appassets.androidplatform.net") ||
-            url.toString() == "about:blank"
 }
+
+internal fun shouldBlockNavigation(url: Uri, isMainFrame: Boolean): Boolean =
+    if (isMainFrame) url.toString() != APP_URL else !isLocalAssetUrl(url)
+
+private fun isLocalAssetUrl(url: Uri): Boolean =
+    url.scheme == "https" &&
+        url.host == "appassets.androidplatform.net" &&
+        url.path?.startsWith("/assets/") == true

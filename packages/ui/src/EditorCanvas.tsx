@@ -34,6 +34,10 @@ import { createPortal } from "react-dom";
 import { CanvasElementView } from "./CanvasElementView.js";
 import { CanvasGrid, CanvasRulers } from "./CanvasGuides.js";
 import { clamp, isFlagPlate, MAX_ZOOM, MIN_ZOOM } from "./editor-operations.js";
+import {
+  clearImageFileInputMarker,
+  openImageFileInput,
+} from "./image-file-input.js";
 import { PhoneEditorToolbar } from "./PhoneEditorToolbar.js";
 import { PlateToolbarSettings } from "./Inspector.js";
 import {
@@ -189,7 +193,7 @@ function CanvasToolbar({
         </button>
         <button
           className="tool-button"
-          onClick={() => imageInputRef.current?.click()}
+          onClick={() => openImageFileInput(imageInputRef.current)}
           onBlur={clearPointerFocusRingSuppression}
           onKeyDown={clearPointerFocusRingSuppression}
           onPointerDown={suppressPointerFocusRing}
@@ -206,6 +210,7 @@ function CanvasToolbar({
           onChange={(event: ChangeEvent<HTMLInputElement>) => {
             const file = event.target.files?.[0];
             if (file) onAddImage(file);
+            clearImageFileInputMarker(event.target);
             event.target.value = "";
           }}
           type="file"

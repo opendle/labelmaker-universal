@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createNativeBridge,
   NATIVE_MESSAGE_CHUNK_SIZE,
+  NATIVE_PENDING_MESSAGE_LIMIT,
 } from "./native-bridge.js";
 
 class TestAndroidPort {
@@ -25,6 +26,32 @@ afterEach(() => {
 });
 
 describe("native bridge version 1", () => {
+  it("rejects host information with fields outside the version 1 contract", async () => {
+    vi.stubGlobal("webkit", {
+      messageHandlers: {
+        labelmaker: {
+          postMessage: async (request: unknown) => ({
+            version: 1,
+            id: (request as { id: string }).id,
+            ok: true,
+            result: {
+              version: 1,
+              platform: "ipados",
+              presentation: "mobile-touch",
+              printerStorageKey: "labelmaker.ipados.printers.v1",
+              jobIdPrefix: "ipados",
+              unexpected: true,
+            },
+          }),
+        },
+      },
+    });
+
+    await expect(
+      createNativeBridge().call("getHostInfo", {}),
+    ).rejects.toMatchObject({ code: "INVALID_HOST_INFO" });
+  });
+
   it("requires the native reply to contain the matching request ID", async () => {
     vi.stubGlobal("webkit", {
       messageHandlers: {
@@ -282,5 +309,68 @@ describe("native bridge version 1", () => {
 
     port.emit(reply);
     await expect(pending).resolves.toBeNull();
+  });
+
+  it("limits concurrent incomplete Android messages", async () => {
+    vi.stubGlobal("webkit", undefined);
+    const port = new TestAndroidPort();
+    vi.stubGlobal("labelmakerAndroid", port);
+    const pending = createNativeBridge().call("clearWorkspaceAssociation", {});
+    const request = JSON.parse(port.sent[0] ?? "null") as { id: string };
+    for (let index = 0; index < NATIVE_PENDING_MESSAGE_LIMIT; index += 1) {
+      port.emit(
+        JSON.stringify({
+          type: "chunk",
+          messageId: `filler-${index}`,
+          index: 0,
+          total: 2,
+          data: "{",
+        }),
+      );
+    }
+    const reply = JSON.stringify({
+      version: 1,
+      id: request.id,
+      ok: true,
+      result: null,
+    });
+    const replyFrame = JSON.stringify({
+      type: "chunk",
+      messageId: "valid-reply",
+      index: 0,
+      total: 1,
+      data: reply,
+    });
+    port.emit(replyFrame);
+    let settled = false;
+    void pending.finally(() => {
+      settled = true;
+    });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    port.emit(
+      JSON.stringify({
+        type: "chunk",
+        messageId: "filler-0",
+        index: 1,
+        total: 2,
+        data: "}",
+      }),
+    );
+    port.emit(replyFrame);
+    await expect(pending).resolves.toBeNull();
+
+    for (let index = 1; index < NATIVE_PENDING_MESSAGE_LIMIT; index += 1) {
+      port.emit(
+        JSON.stringify({
+          type: "chunk",
+          messageId: `filler-${index}`,
+          index: 1,
+          total: 2,
+          data: "}",
+        }),
+      );
+    }
   });
 });

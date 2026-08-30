@@ -8,7 +8,7 @@ import com.opendle.labelmaker.bridge.BridgeFailure
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 
-private const val MAXIMUM_IMAGE_BYTES = 25 * 1024 * 1024
+private const val MAXIMUM_IMAGE_BYTES = 8 * 1024 * 1024
 
 data class ImportedImage(
     val bytes: ByteArray,
@@ -45,7 +45,7 @@ class ImageImportReader(private val resolver: ContentResolver) {
             if (count < 0) break
             total += count
             if (total > MAXIMUM_IMAGE_BYTES) {
-                throw BridgeFailure("IMAGE_TOO_LARGE", "Images must be smaller than 25 MB.")
+                throw BridgeFailure("IMAGE_TOO_LARGE", "Images must be smaller than 8 MB.")
             }
             output.write(buffer, 0, count)
         }

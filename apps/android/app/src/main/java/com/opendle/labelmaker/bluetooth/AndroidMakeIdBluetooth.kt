@@ -213,13 +213,28 @@ class MakeIdBluetoothTransport(context: Context) : BluetoothTransport {
     }
 }
 
-private enum class ConnectionState {
+internal enum class ConnectionState {
     IDLE,
     CONNECTING,
     DISCOVERING_SERVICES,
     ENABLING_NOTIFICATIONS,
     READY,
     CLOSING,
+}
+
+internal object GattCallbackPolicy {
+    fun acceptsConnected(state: ConnectionState): Boolean = state == ConnectionState.CONNECTING
+
+    fun acceptsMtuOrServices(state: ConnectionState): Boolean = state == ConnectionState.DISCOVERING_SERVICES
+
+    fun acceptsDescriptor(state: ConnectionState, expected: Any?, actual: Any): Boolean =
+        state == ConnectionState.ENABLING_NOTIFICATIONS && expected === actual
+
+    fun acceptsNotification(state: ConnectionState, expected: Any?, actual: Any): Boolean =
+        state == ConnectionState.READY && expected === actual
+
+    fun acceptsWrite(state: ConnectionState, expected: Any?, actual: Any): Boolean =
+        state == ConnectionState.READY && expected === actual
 }
 
 @SuppressLint("MissingPermission")
@@ -243,6 +258,10 @@ private class GattConnection(
     @Volatile
     private var writeCharacteristic: BluetoothGattCharacteristic? = null
     @Volatile
+    private var replyCharacteristic: BluetoothGattCharacteristic? = null
+    @Volatile
+    private var notificationDescriptor: BluetoothGattDescriptor? = null
+    @Volatile
     private var mtu = 23
     private var ready = CompletableDeferred<Unit>()
     private var pendingWrite: CompletableDeferred<Unit>? = null
@@ -255,9 +274,14 @@ private class GattConnection(
                 fail(BridgeFailure("BLUETOOTH_DISCONNECTED", "The MakeID Bluetooth connection closed."))
                 return
             }
-            synchronized(stateLock) {
-                state = ConnectionState.DISCOVERING_SERVICES
+            val startsSetup = synchronized(stateLock) {
+                if (!GattCallbackPolicy.acceptsConnected(state)) false
+                else {
+                    state = ConnectionState.DISCOVERING_SERVICES
+                    true
+                }
             }
+            if (!startsSetup) return
             if (!gatt.requestMtu(517)) {
                 discoverServicesOnce(gatt)
             } else {
@@ -270,12 +294,14 @@ private class GattConnection(
 
         override fun onMtuChanged(gatt: BluetoothGatt, mtu: Int, status: Int) {
             if (!accept(gatt)) return
+            if (!GattCallbackPolicy.acceptsMtuOrServices(stateSnapshot())) return
             if (status == BluetoothGatt.GATT_SUCCESS && mtu >= 23) this@GattConnection.mtu = mtu
             discoverServicesOnce(gatt)
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
             if (!accept(gatt)) return
+            if (!GattCallbackPolicy.acceptsMtuOrServices(stateSnapshot())) return
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 fail(BridgeFailure("BLUETOOTH_SETUP_FAILED", "The MakeID Bluetooth services are not available."))
                 return
@@ -288,30 +314,47 @@ private class GattConnection(
                 return
             }
             writeCharacteristic = write
+            replyCharacteristic = reply
             synchronized(stateLock) { state = ConnectionState.ENABLING_NOTIFICATIONS }
             if (!gatt.setCharacteristicNotification(reply, true)) {
                 fail(BridgeFailure("BLUETOOTH_SETUP_FAILED", "The MakeID Bluetooth reply channel is not available."))
                 return
             }
             val descriptor = reply.getDescriptor(UUID.fromString(CLIENT_CHARACTERISTIC_CONFIGURATION))
+            notificationDescriptor = descriptor
             if (descriptor == null || !writeDescriptor(gatt, descriptor, BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE)) {
                 fail(BridgeFailure("BLUETOOTH_SETUP_FAILED", "The MakeID Bluetooth reply channel is not available."))
             }
         }
 
         override fun onDescriptorWrite(gatt: BluetoothGatt, descriptor: BluetoothGattDescriptor, status: Int) {
-            if (!accept(gatt) || descriptor.uuid.toString() != CLIENT_CHARACTERISTIC_CONFIGURATION) return
+            if (
+                !accept(gatt) ||
+                !GattCallbackPolicy.acceptsDescriptor(stateSnapshot(), notificationDescriptor, descriptor)
+            ) return
             if (status != BluetoothGatt.GATT_SUCCESS) {
                 fail(BridgeFailure("BLUETOOTH_SETUP_FAILED", "The MakeID Bluetooth reply channel is not available."))
                 return
             }
-            synchronized(stateLock) { state = ConnectionState.READY }
-            ready.complete(Unit)
+            val becomesReady = synchronized(stateLock) {
+                if (
+                    !accept(gatt) ||
+                    !GattCallbackPolicy.acceptsDescriptor(state, notificationDescriptor, descriptor)
+                ) false
+                else {
+                    state = ConnectionState.READY
+                    true
+                }
+            }
+            if (becomesReady) ready.complete(Unit)
         }
 
         @Deprecated("Used on Android 12")
         override fun onCharacteristicChanged(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic) {
-            if (accept(gatt)) receive(characteristic.value?.clone() ?: return)
+            if (
+                accept(gatt) &&
+                GattCallbackPolicy.acceptsNotification(stateSnapshot(), replyCharacteristic, characteristic)
+            ) receive(characteristic.value?.clone() ?: return)
         }
 
         override fun onCharacteristicChanged(
@@ -319,11 +362,17 @@ private class GattConnection(
             characteristic: BluetoothGattCharacteristic,
             value: ByteArray,
         ) {
-            if (accept(gatt)) receive(value.clone())
+            if (
+                accept(gatt) &&
+                GattCallbackPolicy.acceptsNotification(stateSnapshot(), replyCharacteristic, characteristic)
+            ) receive(value.clone())
         }
 
         override fun onCharacteristicWrite(gatt: BluetoothGatt, characteristic: BluetoothGattCharacteristic, status: Int) {
-            if (!accept(gatt)) return
+            if (
+                !accept(gatt) ||
+                !GattCallbackPolicy.acceptsWrite(stateSnapshot(), writeCharacteristic, characteristic)
+            ) return
             val pending = synchronized(stateLock) {
                 pendingWrite.also { pendingWrite = null }
             } ?: return
@@ -419,6 +468,9 @@ private class GattConnection(
             pendingWrite?.completeExceptionally(BridgeFailure("BLUETOOTH_DISCONNECTED", "The MakeID Bluetooth connection is closed."))
             pendingWrite = null
             ready.completeExceptionally(BridgeFailure("BLUETOOTH_DISCONNECTED", "The MakeID Bluetooth connection is closed."))
+            writeCharacteristic = null
+            replyCharacteristic = null
+            notificationDescriptor = null
         }
         incoming.close(BridgeFailure("BLUETOOTH_DISCONNECTED", "The MakeID Bluetooth connection is closed."))
         val currentGatt = gatt
@@ -461,6 +513,9 @@ private class GattConnection(
             pendingWrite?.completeExceptionally(error)
             pendingWrite = null
             ready.completeExceptionally(error)
+            writeCharacteristic = null
+            replyCharacteristic = null
+            notificationDescriptor = null
         }
         incoming.close(error)
         val currentGatt = gatt
@@ -473,6 +528,8 @@ private class GattConnection(
 
     private fun accept(callbackGatt: BluetoothGatt): Boolean =
         activeGeneration.get() == generation && callbackGatt === gatt
+
+    private fun stateSnapshot(): ConnectionState = synchronized(stateLock) { state }
 
     private fun requireReady() {
         if (

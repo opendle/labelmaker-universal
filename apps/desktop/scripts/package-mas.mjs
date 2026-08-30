@@ -1,7 +1,7 @@
 import { packager } from "@electron/packager";
 import { flat, sign } from "@electron/osx-sign";
 import { spawnSync } from "node:child_process";
-import { accessSync, readFileSync } from "node:fs";
+import { accessSync } from "node:fs";
 import {
   chmod,
   cp,
@@ -17,15 +17,12 @@ import { basename, join, resolve, sep } from "node:path";
 import plist from "plist";
 import { build as viteBuild } from "vite";
 
+import { readReleaseVersion } from "../../../scripts/release-version.mjs";
+
 const APPLICATION_NAME = "Label Maker";
 const BUNDLE_IDENTIFIER =
   process.env.LABELMAKER_MAS_BUNDLE_ID ?? "com.opendle.labelmaker";
-const releaseVersion = JSON.parse(
-  readFileSync(
-    new URL("../../../distribution/version.json", import.meta.url),
-    "utf8",
-  ),
-);
+const releaseVersion = await readReleaseVersion();
 const APP_VERSION = releaseVersion.productVersion;
 const BUILD_VERSION = String(releaseVersion.buildNumbers?.macos);
 const COPYRIGHT =
@@ -41,17 +38,6 @@ if (process.platform !== "darwin") {
 if (!/^(arm64|x64|universal)$/.test(architecture)) {
   throw new Error("LABELMAKER_MAS_ARCH must be arm64, x64, or universal.");
 }
-if (!/^\d+(?:\.\d+){0,2}$/.test(APP_VERSION)) {
-  throw new Error(
-    "The product version in distribution/version.json is invalid.",
-  );
-}
-if (!/^\d+(?:\.\d+){0,2}$/.test(BUILD_VERSION)) {
-  throw new Error(
-    "The macOS build number in distribution/version.json is invalid.",
-  );
-}
-
 const appDirectory = resolve(import.meta.dirname, "..");
 const repositoryRoot = resolve(appDirectory, "../..");
 const resourcesDirectory = resolve(appDirectory, "resources");

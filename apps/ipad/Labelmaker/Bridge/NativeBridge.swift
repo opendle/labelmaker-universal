@@ -29,7 +29,14 @@ final class NativeBridge: NSObject, WKScriptMessageHandlerWithReply {
         didReceive message: WKScriptMessage,
         replyHandler originalReplyHandler: @escaping (Any?, String?) -> Void
     ) {
-        guard let request = message.body as? [String: Any] else {
+        handleRequest(message.body, replyHandler: originalReplyHandler)
+    }
+
+    func handleRequest(
+        _ body: Any,
+        replyHandler originalReplyHandler: @escaping (Any?, String?) -> Void
+    ) {
+        guard let request = body as? [String: Any] else {
             originalReplyHandler([
                 "version": 1,
                 "id": "invalid-request",
@@ -89,6 +96,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandlerWithReply {
             "bluetoothWrite": ["connectionId", "bytesBase64"],
             "bluetoothRead": ["connectionId", "timeoutMs"],
             "bluetoothClose": ["connectionId"],
+            "bluetoothCancel": [],
             "bluetoothPreserve": ["deviceId"],
             "bluetoothRelease": ["deviceId"],
         ]
@@ -218,6 +226,10 @@ final class NativeBridge: NSObject, WKScriptMessageHandlerWithReply {
                     self.reply(result.map { NSNull() as Any }, to: replyHandler)
                 }
             } catch { replyFailure(error, to: replyHandler) }
+        case "bluetoothCancel":
+            bluetooth.cancel { result in
+                self.reply(result.map { NSNull() as Any }, to: replyHandler)
+            }
         case "bluetoothPreserve", "bluetoothRelease":
             do {
                 _ = try requiredString(payload, "deviceId")
@@ -293,10 +305,13 @@ private func validBridgeIdentifier(_ value: String) -> Bool {
 }
 
 private func requiredBool(_ payload: [String: Any], _ key: String) throws -> Bool {
-    guard let value = payload[key] as? Bool else {
+    guard
+        let value = payload[key] as? NSNumber,
+        CFGetTypeID(value) == CFBooleanGetTypeID()
+    else {
         throw NativeBridgeFailure(code: "INVALID_REQUEST", message: "The native request is missing \(key).")
     }
-    return value
+    return value.boolValue
 }
 
 private func requiredPositiveInteger(_ payload: [String: Any], _ key: String) throws -> Int {

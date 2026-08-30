@@ -32,6 +32,10 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import {
+  clearImageFileInputMarker,
+  openImageFileInput,
+} from "./image-file-input.js";
 import { NumberInput } from "./NumberInput.js";
 
 type PhoneMenu = "shapes" | null;
@@ -88,6 +92,7 @@ export function PhoneEditorToolbar({
   const selectImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) onAddImage(file);
+    clearImageFileInputMarker(event.target);
     event.target.value = "";
     setMenu(null);
   };
@@ -114,7 +119,7 @@ export function PhoneEditorToolbar({
           <PhoneToolButton
             icon={<ImageIcon size={19} />}
             label="Image"
-            onClick={() => imageInputRef.current?.click()}
+            onClick={() => openImageFileInput(imageInputRef.current)}
           />
           <PhoneToolButton
             icon={<Pencil size={19} />}

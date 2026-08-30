@@ -16,7 +16,7 @@ class MessageChunkingTest {
             .put("result", "\\\"".repeat(MAX_FRAME_CHARACTERS))
             .toString()
 
-        val frames = MessageChunkFramer.frame(message)
+        val frames = MessageChunkFramer.frame(message).toList()
 
         assertTrue(frames.size > 1)
         assertTrue(frames.all { it.length <= MAX_FRAME_CHARACTERS })
@@ -102,6 +102,69 @@ class MessageChunkingTest {
             AssemblyResult.Incomplete,
             assembler.accept(chunk("message-1", 1, 2, "two")),
         )
+    }
+
+    @Test
+    fun incompleteMessageCountIsBounded() {
+        val assembler = MessageChunkAssembler(
+            now = { 0L },
+            scheduler = FakeExpiryScheduler(),
+            maximumIncompleteMessages = 2,
+            maximumIncompleteCharacters = 100,
+            maximumIncompletePartSlots = 10,
+        )
+        assembler.accept(chunk("message-1", 0, 2, "one"))
+        assembler.accept(chunk("message-2", 0, 2, "two"))
+
+        val failure = expectBridgeFailure {
+            assembler.accept(chunk("message-3", 0, 2, "three"))
+        }
+
+        assertEquals("MESSAGE_BUDGET_EXCEEDED", failure.code)
+    }
+
+    @Test
+    fun incompleteMessageCharacterBudgetIsReleasedAfterCompletion() {
+        val assembler = MessageChunkAssembler(
+            now = { 0L },
+            scheduler = FakeExpiryScheduler(),
+            maximumIncompleteMessages = 3,
+            maximumIncompleteCharacters = 6,
+            maximumIncompletePartSlots = 10,
+        )
+        assembler.accept(chunk("message-1", 0, 2, "1234"))
+
+        val failure = expectBridgeFailure {
+            assembler.accept(chunk("message-2", 0, 2, "567"))
+        }
+        assertEquals("MESSAGE_BUDGET_EXCEEDED", failure.code)
+
+        assertEquals(
+            "123456",
+            (assembler.accept(chunk("message-1", 1, 2, "56")) as AssemblyResult.Complete).message,
+        )
+        assertEquals(AssemblyResult.Incomplete, assembler.accept(chunk("message-3", 0, 2, "567")))
+    }
+
+    @Test
+    fun incompleteMessagePartSlotBudgetIsBoundedAndReleasedOnExpiry() {
+        val scheduler = FakeExpiryScheduler()
+        val assembler = MessageChunkAssembler(
+            now = { 0L },
+            scheduler = scheduler,
+            maximumIncompleteMessages = 3,
+            maximumIncompleteCharacters = 100,
+            maximumIncompletePartSlots = 3,
+        )
+        assembler.accept(chunk("message-1", 0, 2, "one"))
+
+        val failure = expectBridgeFailure {
+            assembler.accept(chunk("message-2", 0, 2, "two"))
+        }
+        assertEquals("MESSAGE_BUDGET_EXCEEDED", failure.code)
+
+        scheduler.runAll()
+        assertEquals(AssemblyResult.Incomplete, assembler.accept(chunk("message-3", 0, 2, "three")))
     }
 
     private fun chunk(messageId: String, index: Int, total: Int, data: String): String =

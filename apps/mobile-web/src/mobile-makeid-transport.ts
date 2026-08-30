@@ -50,10 +50,14 @@ export class MobileMakeIdTransportProvider implements MakeIdTransportProvider {
     signal?: AbortSignal,
   ): Promise<MakeIdTransport> {
     throwIfAborted(signal);
-    const response = await this.bridge.call("bluetoothConnect", {
-      deviceId,
-      protocolFamily: options.protocolFamily,
-    });
+    const response = await runAbortableNativeOperation(
+      this.bridge.call("bluetoothConnect", {
+        deviceId,
+        protocolFamily: options.protocolFamily,
+      }),
+      signal,
+      () => this.bridge.call("bluetoothCancel", {}),
+    );
     if (!isRecord(response) || typeof response.connectionId !== "string") {
       throw new Error("Bluetooth connection returned invalid data.");
     }
@@ -91,10 +95,14 @@ class MobileMakeIdTransport implements MakeIdTransport {
 
   async write(bytes: Uint8Array, signal?: AbortSignal): Promise<void> {
     this.assertAvailable(signal);
-    await this.bridge.call("bluetoothWrite", {
-      connectionId: this.connectionId,
-      bytesBase64: bytesToBase64(bytes),
-    });
+    await runAbortableNativeOperation(
+      this.bridge.call("bluetoothWrite", {
+        connectionId: this.connectionId,
+        bytesBase64: bytesToBase64(bytes),
+      }),
+      signal,
+      () => this.close(),
+    );
     this.assertAvailable(signal);
   }
 
@@ -104,10 +112,14 @@ class MobileMakeIdTransport implements MakeIdTransport {
   }): Promise<Uint8Array> {
     this.assertAvailable(options.signal);
     try {
-      const response = await this.bridge.call("bluetoothRead", {
-        connectionId: this.connectionId,
-        timeoutMs: options.timeoutMs,
-      });
+      const response = await runAbortableNativeOperation(
+        this.bridge.call("bluetoothRead", {
+          connectionId: this.connectionId,
+          timeoutMs: options.timeoutMs,
+        }),
+        options.signal,
+        () => this.close(),
+      );
       this.assertAvailable(options.signal);
       if (!isRecord(response) || typeof response.bytesBase64 !== "string") {
         throw new Error("Bluetooth read returned invalid data.");
@@ -140,4 +152,35 @@ class MobileMakeIdTransport implements MakeIdTransport {
 
 function throwIfAborted(signal?: AbortSignal): void {
   if (signal?.aborted) throw signal.reason;
+}
+
+function runAbortableNativeOperation<T>(
+  operation: Promise<T>,
+  signal: AbortSignal | undefined,
+  cancel: () => Promise<unknown>,
+): Promise<T> {
+  if (!signal) return operation;
+  throwIfAborted(signal);
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", onAbort);
+      callback();
+    };
+    const onAbort = () => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", onAbort);
+      void cancel()
+        .catch(() => undefined)
+        .then(() => reject(signal.reason));
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+    operation.then(
+      (value) => finish(() => resolve(value)),
+      (error: unknown) => finish(() => reject(error)),
+    );
+  });
 }

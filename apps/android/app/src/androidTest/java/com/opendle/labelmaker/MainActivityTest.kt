@@ -47,6 +47,73 @@ class MainActivityTest {
     }
 
     @Test
+    fun rejectsARequestWithoutAnExplicitBridgeVersion() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            waitForApplication(scenario)
+            scenario.onActivity { activity ->
+                activity.findViewById<WebView>(R.id.labelmaker_web_view).evaluateJavascript(
+                    """
+                        (() => {
+                          const port = window.labelmakerAndroid;
+                          const id = 'instrumentation-missing-version';
+                          port.onmessage = (event) => {
+                            const reply = JSON.parse(event.data);
+                            if (reply.id === id) {
+                              document.title = `missing-version:${'$'}{reply.ok}:${'$'}{reply.error?.code}`;
+                            }
+                          };
+                          port.postMessage(JSON.stringify({
+                            id,
+                            method: 'getHostInfo',
+                            payload: {},
+                          }));
+                        })();
+                    """.trimIndent(),
+                    null,
+                )
+            }
+
+            waitUntil(scenario) { webView -> webView.title == "missing-version:false:INVALID_REQUEST" }
+        }
+    }
+
+    @Test
+    fun repliesWhenWorkspaceValidationFailsBeforeTheSavePickerStarts() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            waitForApplication(scenario)
+            scenario.onActivity { activity ->
+                activity.findViewById<WebView>(R.id.labelmaker_web_view).evaluateJavascript(
+                    """
+                        (() => {
+                          const port = window.labelmakerAndroid;
+                          const id = 'instrumentation-invalid-save';
+                          port.onmessage = (event) => {
+                            const reply = JSON.parse(event.data);
+                            if (reply.id === id) {
+                              document.title = `invalid-save:${'$'}{reply.ok}:${'$'}{reply.error?.code}`;
+                            }
+                          };
+                          port.postMessage(JSON.stringify({
+                            version: 1,
+                            id,
+                            method: 'saveWorkspaceFile',
+                            payload: {
+                              fileName: 'Labels.lbl',
+                              gzipBase64: 'bm90LWd6aXA=',
+                              saveAs: true,
+                            },
+                          }));
+                        })();
+                    """.trimIndent(),
+                    null,
+                )
+            }
+
+            waitUntil(scenario) { webView -> webView.title == "invalid-save:false:INVALID_GZIP" }
+        }
+    }
+
+    @Test
     fun rejectsExternalNavigation() {
         ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             waitForApplication(scenario)
@@ -59,6 +126,24 @@ class MainActivityTest {
             waitUntil(scenario) { webView -> webView.title == "before-external" }
             scenario.onActivity { activity ->
                 activity.findViewById<WebView>(R.id.labelmaker_web_view).loadUrl("https://example.com/blocked")
+            }
+            waitUntil(scenario) { webView -> webView.url == APP_URL && webView.title == "Label Maker" }
+        }
+    }
+
+    @Test
+    fun rejectsAnotherMainFrameUrlOnTheLocalOrigin() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            waitForApplication(scenario)
+            scenario.onActivity { activity ->
+                activity.findViewById<WebView>(R.id.labelmaker_web_view).evaluateJavascript(
+                    "document.title = 'before-local-navigation';",
+                    null,
+                )
+            }
+            waitUntil(scenario) { webView -> webView.title == "before-local-navigation" }
+            scenario.onActivity { activity ->
+                activity.findViewById<WebView>(R.id.labelmaker_web_view).loadUrl("$APP_URL?blocked=1")
             }
             waitUntil(scenario) { webView -> webView.url == APP_URL && webView.title == "Label Maker" }
         }

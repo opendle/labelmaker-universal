@@ -9,6 +9,11 @@ import android.provider.OpenableColumns
 import android.util.Base64
 import androidx.activity.result.ActivityResultLauncher
 import com.opendle.labelmaker.bridge.BridgeFailure
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.time.Instant
 import java.util.UUID
@@ -17,11 +22,14 @@ private const val MAXIMUM_WORKSPACE_BYTES = 25 * 1024 * 1024
 private const val ASSOCIATION_PREFERENCES = "workspace-association"
 private const val ASSOCIATION_URI_KEY = "uri-v1"
 private const val ASSOCIATION_FILE_NAME_KEY = "file-name-v1"
+private const val MAXIMUM_FILE_NAME_CHARACTERS = 255
 
 class WorkspaceCoordinator(
     context: Context,
     private val openLauncher: ActivityResultLauncher<Array<String>>,
     private val createLauncher: ActivityResultLauncher<String>,
+    private val scope: CoroutineScope,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private data class PendingSave(
         val data: ByteArray,
@@ -35,7 +43,7 @@ class WorkspaceCoordinator(
     private var pendingSave: PendingSave? = null
 
     val associatedFileName: String?
-        get() = preferences.getString(ASSOCIATION_FILE_NAME_KEY, null)
+        get() = preferences.getString(ASSOCIATION_FILE_NAME_KEY, null)?.let(::boundedFileName)
 
     fun openWorkspace(completion: (Result<JSONObject>) -> Unit) {
         if (pendingOpen != null || pendingSave != null) {
@@ -48,35 +56,54 @@ class WorkspaceCoordinator(
 
     fun onOpenResult(uri: Uri?) {
         val completion = pendingOpen ?: return
-        pendingOpen = null
         if (uri == null) {
+            pendingOpen = null
             completion(Result.success(JSONObject().put("status", "canceled")))
             return
         }
-        completion(
-            runCatching {
-                val fileName = displayName(uri)
-                if (!fileName.lowercase().endsWith(".lbl")) {
-                    throw BridgeFailure("INVALID_FILE_TYPE", "Select a Label Maker workspace file.")
+        scope.launch {
+            val result = withContext(ioDispatcher) {
+                runCatching {
+                    val fileName = displayName(uri)
+                    if (!fileName.lowercase().endsWith(".lbl")) {
+                        throw BridgeFailure("INVALID_FILE_TYPE", "Select a Label Maker workspace file.")
+                    }
+                    val data = readBounded(uri)
+                    requireGzip(data)
+                    JSONObject()
+                        .put("status", "selected")
+                        .put("selectionId", "selection-${UUID.randomUUID()}")
+                        .put("fileName", fileName)
+                        .put("gzipBase64", Base64.encodeToString(data, Base64.NO_WRAP))
                 }
-                val data = readBounded(uri)
-                requireGzip(data)
-                val selectionId = "selection-${UUID.randomUUID()}"
+            }
+            pendingOpen = null
+            result.onSuccess { selected ->
+                val selectionId = selected.getString("selectionId")
                 pendingSelections.clear()
                 pendingSelections[selectionId] = uri
-                JSONObject()
-                    .put("status", "selected")
-                    .put("selectionId", selectionId)
-                    .put("fileName", fileName)
-                    .put("gzipBase64", Base64.encodeToString(data, Base64.NO_WRAP))
-            },
-        )
+            }
+            completion(result)
+        }
     }
 
-    fun acceptSelection(selectionId: String) {
+    fun acceptSelection(selectionId: String, completion: (Result<Unit>) -> Unit) {
         val uri = pendingSelections.remove(selectionId)
-            ?: throw BridgeFailure("INVALID_SELECTION", "The selected workspace is no longer available.")
-        persistAssociation(uri, displayName(uri))
+        if (uri == null) {
+            completion(
+                Result.failure(
+                    BridgeFailure("INVALID_SELECTION", "The selected workspace is no longer available."),
+                ),
+            )
+            return
+        }
+        scope.launch {
+            completion(
+                withContext(ioDispatcher) {
+                    runCatching { persistAssociation(uri, displayName(uri)) }
+                },
+            )
+        }
     }
 
     fun saveWorkspace(
@@ -86,22 +113,27 @@ class WorkspaceCoordinator(
         completion: (Result<JSONObject>) -> Unit,
     ) {
         validateWorkspaceData(data)
-        if (!saveAs) {
-            val associationValue = preferences.getString(ASSOCIATION_URI_KEY, null)
-            if (associationValue != null) {
-                completion(
-                    runCatching {
-                        val uri = requireWritableAssociation(associationValue)
-                        write(uri, data)
-                        savedResult(uri)
-                    },
-                )
-                return
-            }
-        }
         if (pendingOpen != null || pendingSave != null) {
             completion(Result.failure(BridgeFailure("PICKER_BUSY", "Another file picker is already open.")))
             return
+        }
+        if (!saveAs) {
+            val associationValue = preferences.getString(ASSOCIATION_URI_KEY, null)
+            if (associationValue != null) {
+                pendingSave = PendingSave(data, completion)
+                scope.launch {
+                    val result = withContext(ioDispatcher) {
+                        runCatching {
+                            val uri = requireWritableAssociation(associationValue)
+                            write(uri, data)
+                            savedResult(uri)
+                        }
+                    }
+                    pendingSave = null
+                    completion(result)
+                }
+                return
+            }
         }
         pendingSave = PendingSave(data, completion)
         createLauncher.launch(normalizeFileName(suggestedFileName))
@@ -109,32 +141,37 @@ class WorkspaceCoordinator(
 
     fun onCreateResult(uri: Uri?) {
         val pending = pendingSave ?: return
-        pendingSave = null
         if (uri == null) {
+            pendingSave = null
             pending.completion(Result.success(JSONObject().put("status", "canceled")))
             return
         }
-        pending.completion(
-            runCatching {
-                write(uri, pending.data)
-                persistAssociation(uri, displayName(uri))
-                savedResult(uri)
-            },
-        )
+        scope.launch {
+            val result = withContext(ioDispatcher) {
+                runCatching {
+                    write(uri, pending.data)
+                    persistAssociation(uri, displayName(uri))
+                    savedResult(uri)
+                }
+            }
+            pendingSave = null
+            pending.completion(result)
+        }
     }
 
-    fun clearAssociation() {
-        associatedUri()?.let { uri ->
-            val permission = resolver.persistedUriPermissions.firstOrNull { it.uri == uri }
-            val flags =
-                (if (permission?.isReadPermission == true) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or
-                    (if (permission?.isWritePermission == true) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)
-            runCatching {
-                if (flags != 0) resolver.releasePersistableUriPermission(uri, flags)
+    fun clearAssociation(completion: (Result<Unit>) -> Unit) {
+        scope.launch {
+            val result = withContext(ioDispatcher) {
+                runCatching {
+                    associatedUri()?.let { uri ->
+                        releasePersistedPermission(uri)
+                    }
+                    preferences.edit().clear().apply()
+                }
             }
+            pendingSelections.clear()
+            completion(result)
         }
-        preferences.edit().clear().apply()
-        pendingSelections.clear()
     }
 
     private fun associatedUri(): Uri? {
@@ -167,6 +204,8 @@ class WorkspaceCoordinator(
         )
 
     private fun persistAssociation(uri: Uri, fileName: String) {
+        val previousUri = preferences.getString(ASSOCIATION_URI_KEY, null)
+            ?.let { runCatching { Uri.parse(it) }.getOrNull() }
         val readAndWrite = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
         try {
             resolver.takePersistableUriPermission(
@@ -185,8 +224,21 @@ class WorkspaceCoordinator(
         }
         preferences.edit()
             .putString(ASSOCIATION_URI_KEY, uri.toString())
-            .putString(ASSOCIATION_FILE_NAME_KEY, fileName)
+            .putString(ASSOCIATION_FILE_NAME_KEY, boundedFileName(fileName))
             .apply()
+        if (previousUri != null && previousUri != uri) {
+            releasePersistedPermission(previousUri)
+        }
+    }
+
+    private fun releasePersistedPermission(uri: Uri) {
+        val permission = resolver.persistedUriPermissions.firstOrNull { it.uri == uri }
+        val flags =
+            (if (permission?.isReadPermission == true) Intent.FLAG_GRANT_READ_URI_PERMISSION else 0) or
+                (if (permission?.isWritePermission == true) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0)
+        runCatching {
+            if (flags != 0) resolver.releasePersistableUriPermission(uri, flags)
+        }
     }
 
     private fun readBounded(uri: Uri): ByteArray {
@@ -239,13 +291,16 @@ class WorkspaceCoordinator(
                 val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                 if (index >= 0) {
                     val name = cursor.getString(index)
-                    if (!name.isNullOrBlank()) return name
+                    if (!name.isNullOrBlank()) return boundedFileName(name)
                 }
             }
         } finally {
             cursor?.close()
         }
-        return uri.lastPathSegment?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+        return uri.lastPathSegment
+            ?.substringAfterLast('/')
+            ?.takeIf { it.isNotBlank() }
+            ?.let(::boundedFileName)
             ?: "Untitled workspace.lbl"
     }
 
@@ -261,6 +316,17 @@ class WorkspaceCoordinator(
             .trim()
             .trimEnd('.', ' ')
         val present = safe.ifBlank { "Untitled workspace" }
-        return if (present.lowercase().endsWith(".lbl")) present else "$present.lbl"
+        val stem = if (present.lowercase().endsWith(".lbl")) present.dropLast(4) else present
+        return "${stem.take(MAXIMUM_FILE_NAME_CHARACTERS - 4)}.lbl"
+    }
+
+    private fun boundedFileName(value: String): String {
+        val safe = value.filterNot { it.isISOControl() }.trim().ifBlank { "Untitled workspace.lbl" }
+        if (safe.length <= MAXIMUM_FILE_NAME_CHARACTERS) return safe
+        return if (safe.lowercase().endsWith(".lbl")) {
+            "${safe.dropLast(4).take(MAXIMUM_FILE_NAME_CHARACTERS - 4)}.lbl"
+        } else {
+            safe.take(MAXIMUM_FILE_NAME_CHARACTERS)
+        }
     }
 }

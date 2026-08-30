@@ -38,14 +38,17 @@ grant must keep recovery data and return a safe failure.
 Workspace input is limited to 25 MiB and must have a gzip header. Recovery is
 valid JSON of at most 25 MiB. Store it in `noBackupFilesDir` with an atomic
 write. Flush pending recovery when the application leaves the foreground.
+Android image input is limited to 8 MiB. Transfer it to the WebView in bounded
+parts and decode each part before the next part arrives.
 
 ## Native bridge
 
 Bridge version 1 provides host information, workspace confirmation and file
 operations, recovery operations, and Bluetooth discover, connect, write, read,
-close, preserve, and release operations. Each request and reply uses the same
-bounded request ID. Reject unknown methods, invalid values, excess sizes, and
-wrong protocol families.
+close, cancel, preserve, and release operations. Cancel closes active native
+Bluetooth work so a shared print cancellation does not wait for an I/O timeout.
+Each request and reply uses the same bounded request ID. Reject unknown methods,
+invalid values, excess sizes, and wrong protocol families.
 
 Android bridge messages use parts of at most 128 KiB. A reconstructed message
 is limited to 40 MiB and expires after 60 seconds. Remove incomplete data after
@@ -91,16 +94,22 @@ the Bluetooth address, packet data, a signing key, or a device serial number.
 
 ## Automated acceptance
 
-Kotlin tests use fake bridge, file, clock, and Bluetooth boundaries. They cover
-message origin and correlation, chunk limits and expiry, recovery, document URI
-grants, Bluetooth permission states, discovery, endpoint selection, MTU
-chunking, write types, queues, timeouts, disconnects, and repeated Close.
+Kotlin tests cover message framing, reconstruction budgets, expiry, recovery,
+one lost document-grant case, image import, Bluetooth permission denial and a
+later grant, endpoint selection, GATT callback policy, and MTU chunking.
 
-Instrumented tests cover local startup without Internet access, rejected
-external navigation, workspace operations, image import, recovery, Android
-Back, rotation, resize, dark mode, keyboard layout, and fake-printer print work.
-Run the shared responsive suite at Android widths of 320, 393, 600, and 840 dp,
-and in short landscape mode.
+Android instrumented tests cover local startup and a host-information bridge
+round trip, external-navigation rejection, safe-area publication after reload,
+dark mode, bridge reload cleanup, image import, recovery, and one lost document
+grant. An optional supervised test covers MakeID E1 discovery, configuration,
+and one print.
+
+The shared browser suite checks the Android layouts at widths of 320, 393, 600,
+and 840 px and in short landscape mode. It also checks simulated software-
+keyboard states. Add deterministic native GATT operation, queue, timeout,
+disconnect, and repeated-close tests. Add Android instrumented tests for Back,
+rotation, resize, successful Open, Save, and Save As operations, keyboard
+layout, and fake-printer work before these cases become release claims.
 
 Continuous integration has separate jobs for shared Node and Electron gates,
 Android lint, unit tests and packaging, an API 31 phone emulator, an API 36
