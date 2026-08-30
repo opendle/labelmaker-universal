@@ -25,6 +25,13 @@ artifacts/screenshots/*
 .env.*
 !.env.example
 *.local
+*.p8
+*.cer
+*.key
+*.mobileprovision
+*.p12
+*.pem
+*.provisionprofile
 
 # Logs and runtime state
 *.log
@@ -39,10 +46,15 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+**/xcuserdata/
+*.xcuserstate
 
 # Electron packaging
 apps/desktop/.runtime/
 *.dmg
+*.ipa
+*.pkg
+*.xcarchive/
 *.AppImage
 *.exe
 *.msi
