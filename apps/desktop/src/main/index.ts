@@ -98,7 +98,16 @@ if (
   process.platform === "darwin" &&
   process.env.LABELMAKER_DISABLE_HARDWARE_PRINTERS !== "1"
 ) {
-  registry.register(new MakeIdE1Adapter(new MacOsMakeIdTransportProvider()));
+  const helperPath = app.isPackaged
+    ? join(process.resourcesPath, "makeid-bluetooth-helper")
+    : undefined;
+  registry.register(
+    new MakeIdE1Adapter(
+      new MacOsMakeIdTransportProvider(
+        helperPath === undefined ? {} : { helperPath },
+      ),
+    ),
+  );
 }
 let configuredPrinterIds = initialConfiguredPrinterIds(
   [],

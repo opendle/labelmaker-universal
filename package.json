@@ -23,6 +23,8 @@
     "iphone:simulator": "node apps/ipad/scripts/launch-simulator.mjs --iphone",
     "ipad:deploy": "node apps/ipad/scripts/deploy-device.mjs",
     "ipad:simulator": "node apps/ipad/scripts/launch-simulator.mjs",
+    "mas:development": "npm run mas:development --workspace @labelmaker/desktop",
+    "mas:distribution": "npm run mas:distribution --workspace @labelmaker/desktop",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "app-store:screenshots": "npm run app-store:screenshots:mobile && npm run app-store:screenshots:macos",
@@ -39,6 +41,8 @@
     "ui:video": "npm run video --workspace @labelmaker/desktop"
   },
   "devDependencies": {
+    "@electron/osx-sign": "2.7.0",
+    "@electron/packager": "20.3.0",
     "@playwright/test": "1.62.1",
     "@testing-library/jest-dom": "6.8.0",
     "@testing-library/react": "16.3.0",

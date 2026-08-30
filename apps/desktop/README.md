@@ -43,3 +43,27 @@ trims the current plate before it prints:
 ```bash
 npm run hardware:print --workspace @labelmaker/desktop -- --confirm-print
 ```
+
+## Mac App Store package
+
+The Mac App Store package uses Electron's `mas` runtime and the Apple App
+Sandbox. The visible product name is `Label Maker`. Internal package
+identifiers keep the existing `labelmaker` spelling for compatibility. The
+package needs Apple signing resources for team `32J9W47SH8` and bundle ID
+`com.opendle.labelmaker`.
+
+Build and test a development package with:
+
+```bash
+LABELMAKER_APPLE_TEAM_ID=32J9W47SH8 npm run mas:development
+```
+
+Build the distribution `.pkg` with a new build number:
+
+```bash
+LABELMAKER_APPLE_TEAM_ID=32J9W47SH8 LABELMAKER_MAS_BUILD=1 npm run mas:distribution
+```
+
+Neither command uploads to App Store Connect. See
+[`docs/distribution.md`](../../docs/distribution.md) for the certificate,
+profile, output, and manual test requirements.

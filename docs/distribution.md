@@ -73,17 +73,93 @@ The Mac App Store build is different from a normal Electron macOS build:
 - Create the App Store Connect app record before uploading the first build.
 - Upload with an Apple-supported tool and use a unique build number.
 
-The account holder must create a Mac App Distribution certificate and a Mac
-Installer Distribution certificate. The app also needs a Mac App Store
-provisioning profile for its App ID. Keep these items in the login keychain and
-the local provisioning-profile directory. Do not copy them into this
-repository.
+The repository has separate development and distribution targets. Both targets
+use Electron's `mas` runtime. They make a universal app for Apple silicon and
+Intel by default. They put the native Bluetooth helper outside ASAR, sign all
+child code with inherited sandbox rights, compile the current Label Maker icon,
+remove unused Electron privacy permissions, and verify the bundle,
+architectures, entitlements, and signatures.
 
-This repository does not yet have the Electron `mas` packaging target. Add and
-test that target before an upload. The target must use the Electron `mas`
-runtime, the App Sandbox, child-process entitlements, the Mac App Store profile,
-and the two distribution identities. Test Bluetooth printing and user-selected
-workspace files from the signed sandboxed application before package upload.
+### Apple resources
+
+Create these resources for team `32J9W47SH8` and the explicit App ID
+`com.opendle.labelmaker`:
+
+- an Apple Development certificate with its private key on the build Mac;
+- a registered development Mac;
+- a Mac App Development profile that includes that Mac;
+- an Apple Distribution certificate with its private key;
+- a Mac Installer Distribution certificate with its private key; and
+- a Mac App Store distribution profile.
+
+The two profiles are different. A Mac App Development profile can run only on
+its registered Macs. The Mac App Store profile has no provisioned devices and
+is only for store distribution.
+
+Install certificates and their private keys in the login keychain. Install the
+profiles in one of these folders:
+
+- `~/Library/Developer/Xcode/UserData/Provisioning Profiles`; or
+- `~/Library/MobileDevice/Provisioning Profiles`.
+
+Do not copy a certificate, private key, or profile into the repository.
+
+### Development package and sandbox tests
+
+Run this command from the repository root:
+
+```bash
+LABELMAKER_APPLE_TEAM_ID=32J9W47SH8 npm run mas:development
+```
+
+The command builds, signs, verifies, and starts a smoke test. The smoke test
+checks the MAS runtime, the renderer isolation boundary, and a sandboxed
+recovery-file write. The development app has a local-server entitlement only
+for the Playwright automation connection. The distribution app does not have
+this entitlement. Its output app is under
+`release/macos-app-store/development`.
+
+The smoke test disables physical printers. Before release, start the same app
+normally and complete these manual tests:
+
+1. Allow Bluetooth when macOS asks.
+2. Find a MakeID E1 printer and print one label.
+3. Save a workspace in a user-selected folder.
+4. Close the workspace, use the app's Open command, change the saved workspace,
+   and save it again.
+
+These tests prove the two hardware and file-access paths that automation cannot
+fully prove.
+
+### Distribution package
+
+Use a new build number for each App Store Connect upload:
+
+```bash
+LABELMAKER_APPLE_TEAM_ID=32J9W47SH8 \
+LABELMAKER_MAS_VERSION=1.0 \
+LABELMAKER_MAS_BUILD=1 \
+npm run mas:distribution
+```
+
+The command creates a signed `.pkg` under
+`release/macos-app-store/distribution`. It verifies the application signature,
+the App Store signing requirement, and the installer signature. It does not
+upload the package. A distribution app is not a local test build. Use the
+development package for Bluetooth and file tests.
+
+The scripts select profiles by bundle ID, team, platform, purpose, and expiry.
+They select signing identities by certificate Team ID. Use these variables only
+when more than one valid item still matches:
+
+- `LABELMAKER_MAS_DEVELOPMENT_IDENTITY`;
+- `LABELMAKER_MAS_DEVELOPMENT_PROFILE`;
+- `LABELMAKER_MAS_APPLICATION_IDENTITY`;
+- `LABELMAKER_MAS_INSTALLER_IDENTITY`; and
+- `LABELMAKER_MAS_PROVISIONING_PROFILE`.
+
+`LABELMAKER_MAS_ARCH` can be `arm64`, `x64`, or `universal`. The default is
+`universal`. `LABELMAKER_MAS_COPYRIGHT` changes the bundle copyright text.
 
 Do not store certificates, provisioning profiles, private keys, App Store
 Connect API keys, or account identifiers in the repository.
@@ -113,11 +189,9 @@ Do not export or commit the distribution private key, certificate, or profile.
 
 ## Release blockers
 
-- The Apple Developer membership, Team ID, bundle ID, and signing identities are
-  not available in this repository.
-- Bluetooth Low Energy has not been tested from an Electron `mas` build.
+- Bluetooth Low Energy and user-selected workspace files have not been tested
+  from the signed Electron `mas` development build.
 - Bluetooth Low Energy on iPhone and iPad needs a physical MakeID E1 hardware test.
-- A Mac App Store package and its sandboxed Bluetooth path are not ready.
 - Store contact information, copyright ownership, age rating, availability,
   and Digital Services Act status need the account holder's confirmation.
 
