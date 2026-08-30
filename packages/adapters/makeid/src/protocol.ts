@@ -300,9 +300,7 @@ export function parseMakeIdAbf0Profile(
     protocolMajor > 1 || (protocolMajor === 1 && protocolMinor >= 3);
   const rasterAlignmentCode = hasExtendedCapabilities
     ? (bytes[38] ?? 0) & 0x03
-    : kind === "e1"
-      ? 0
-      : 1;
+    : 1;
   if (rasterAlignmentCode === 3) {
     throw new MakeIdProtocolError(
       `The MakeID ${kind.toUpperCase()} reported an invalid raster alignment`,

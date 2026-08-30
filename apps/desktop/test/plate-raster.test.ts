@@ -38,9 +38,9 @@ describe("desktop plate rasterization", () => {
   });
 
   it("keeps centered artwork centered on 16 mm MakeID E1 media", () => {
-    const svg = buildPlateSvg(plate, 320, 96, 12, 2, 2, "start");
+    const svg = buildPlateSvg(plate, 320, 96, 12, 2, 2, "center");
 
-    expect(svg).toContain('viewBox="0 0 40 12"');
+    expect(svg).toContain('viewBox="0 2 40 12"');
   });
 
   it.each([
@@ -73,6 +73,8 @@ describe("desktop plate rasterization", () => {
     expect(svg).toMatch(
       /<tspan[^>]+>FIRST<\/tspan><tspan[^>]+>SECOND<\/tspan>/,
     );
+    expect(svg.match(/dominant-baseline="central"/g)).toHaveLength(2);
+    expect(svg).not.toContain('dominant-baseline="middle"');
   });
 
   it("uses fixed line height and vertical alignment in printed text", () => {
@@ -94,8 +96,12 @@ describe("desktop plate rasterization", () => {
     const svg = buildPlateSvg(changed, 320, 96);
 
     expect(svg).toContain('<text text-anchor="end"');
-    expect(svg).toContain('<tspan x="36" y="5.763888888888889">FIRST');
-    expect(svg).toContain('<tspan x="36" y="9.291666666666668">SECOND');
+    expect(svg).toContain(
+      '<tspan x="36" y="5.763888888888889" dominant-baseline="central">FIRST',
+    );
+    expect(svg).toContain(
+      '<tspan x="36" y="9.291666666666668" dominant-baseline="central">SECOND',
+    );
   });
 
   it("mirrors only the printed artwork when print mirroring is on", () => {

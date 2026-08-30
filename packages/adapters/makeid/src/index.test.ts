@@ -89,7 +89,7 @@ describe("MakeIdAdapter", () => {
       dpi: 203,
       rasterWidthPixels: 96,
       printableWidthMm: 12,
-      rasterAlignment: "start",
+      rasterAlignment: "center",
       printHeadMarginTopMm: 2,
       printHeadMarginBottomMm: 2,
       darkness: { minimum: 0, maximum: 31, step: 1, defaultValue: 20 },

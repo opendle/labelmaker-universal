@@ -306,10 +306,10 @@ function renderElement(element: LabelElement): string {
       const tspans = lines
         .map(
           (line, index) =>
-            `<tspan x="${number(x)}" y="${number(firstLineY + index * lineHeightMm)}">${line.length === 0 ? "&#160;" : text(line)}</tspan>`,
+            `<tspan x="${number(x)}" y="${number(firstLineY + index * lineHeightMm)}" dominant-baseline="central">${line.length === 0 ? "&#160;" : text(line)}</tspan>`,
         )
         .join("");
-      return `<text text-anchor="${anchor}" dominant-baseline="middle" font-family="${attribute(element.fontFamily)}" font-size="${number(fontSizeMm)}" font-weight="${element.fontWeight}" font-style="${element.fontStyle ?? "normal"}" fill="black"${transform}>${tspans}</text>`;
+      return `<text text-anchor="${anchor}" font-family="${attribute(element.fontFamily)}" font-size="${number(fontSizeMm)}" font-weight="${element.fontWeight}" font-style="${element.fontStyle ?? "normal"}" fill="black"${transform}>${tspans}</text>`;
     }
     case "image": {
       validateImageSource(element.source);

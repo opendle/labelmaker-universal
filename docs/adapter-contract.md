@@ -95,9 +95,8 @@ An L1 name does not identify the 203-DPI or 300-DPI version. The adapter must
 connect and read the printer response before it stores the DPI. The P31 family
 must use the same rule because public evidence contains both 288-DPI and
 300-DPI values. For protocol 1.3 or later, the same response gives the raster
-alignment. Older L1 and P31 profiles use center alignment. The old MakeID E1
-profile uses start alignment because its 12 mm head starts at the top edge of
-16 mm media. An unresolved descriptor has no offline DPI and cannot print.
+alignment. Older E1, L1, and P31 profiles use center alignment. An unresolved
+descriptor has no offline DPI and cannot print.
 These rules apply to macOS, iPadOS, and future Android and Windows transports.
 The implementation belongs in `packages/adapters/makeid`; model assumptions
 must not enter the shared UI.

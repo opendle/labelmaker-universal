@@ -10,6 +10,13 @@ describe("printer margin layout", () => {
     });
   });
 
+  it("shows two 2 mm guides for centered MakeID E1 media", () => {
+    expect(nonPrintableMarginsMm(16, 12, 2, 2, "center")).toEqual({
+      topMm: 2,
+      bottomMm: 2,
+    });
+  });
+
   it("removes both margins when a narrow label fits under the print head", () => {
     expect(nonPrintableMarginsMm(10, 12, 2, 2)).toEqual({
       topMm: 0,

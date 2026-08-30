@@ -111,10 +111,10 @@ describe("MakeID protocol primitives", () => {
     });
   });
 
-  it("uses start alignment for an old MakeID E1 status reply", () => {
+  it("uses center alignment for an old MakeID E1 status reply", () => {
     expect(parseMakeIdAbf0Profile(response({}), "e1")).toMatchObject({
       profileId: "e1-abf0-203",
-      rasterAlignment: "start",
+      rasterAlignment: "center",
     });
   });
 
