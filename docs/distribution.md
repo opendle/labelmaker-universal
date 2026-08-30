@@ -179,8 +179,10 @@ LABELMAKER_MAS_VERSION=1.0.1 LABELMAKER_MAS_BUILD=2 npm run mas:upload
 ```
 
 The upload command gets the key from the login Keychain and sends it to Apple's
-tool through standard input. It does not create a temporary `.p8` file. It then
-runs the distribution build, validates the `.pkg` with Apple, and uploads it.
+tool through a mode-600 file in a short-lived AES-256 encrypted disk image. The
+command removes the file and detaches the image after each Apple command. It
+then runs the distribution build, validates the `.pkg` with Apple, and uploads
+it.
 It does not change the price, release method, metadata, or other App Store
 Connect settings. Do not run this command until the build is ready for upload.
 
@@ -245,9 +247,10 @@ LABELMAKER_IOS_VERSION=1.0.1 LABELMAKER_IOS_BUILD=2 npm run ios:upload
 ```
 
 The upload command performs the same archive and export steps, validates the
-`.ipa` with Apple, and uploads it to App Store Connect. It does not create a
-temporary `.p8` file or change the price, release method, or store metadata.
-Do not run it until the iPhone and iPad build is ready for upload.
+`.ipa` with Apple, and uploads it to App Store Connect. It uses the same
+short-lived encrypted disk image for the API key. It does not change the price,
+release method, or store metadata. Do not run it until the iPhone and iPad build
+is ready for upload.
 
 ## Release blockers
 

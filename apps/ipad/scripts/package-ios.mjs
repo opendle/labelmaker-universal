@@ -13,7 +13,10 @@ import { resolve, sep } from "node:path";
 
 import plist from "plist";
 
-import { readAppStoreConnectApiKey } from "../../../scripts/app-store-connect-key.mjs";
+import {
+  readAppStoreConnectApiKey,
+  runAltoolWithAppStoreConnectApiKey,
+} from "../../../scripts/app-store-connect-key.mjs";
 
 const BUNDLE_IDENTIFIER = "com.opendle.labelmaker";
 const APP_VERSION = requiredEnvironmentValue("LABELMAKER_IOS_VERSION");
@@ -189,45 +192,16 @@ async function validateIpa(path, stagingRoot) {
 }
 
 async function uploadIpa(path, credentials) {
-  const authenticationArguments = [
-    "--api-key",
-    credentials.keyId,
-    "--api-issuer",
-    credentials.issuerId,
-    "--p8-file-path",
-    "/dev/stdin",
-  ];
-  const apiPrivateKey = readAppStoreConnectApiKey(credentials.keyId);
-  try {
-    console.log(`Validating ${path} with App Store Connect.`);
-    run(
-      "/usr/bin/xcrun",
-      [
-        "altool",
-        "--validate-app",
-        path,
-        ...authenticationArguments,
-        "--output-format",
-        "json",
-      ],
-      { input: apiPrivateKey },
-    );
-    console.log(`Uploading ${path} to App Store Connect.`);
-    run(
-      "/usr/bin/xcrun",
-      [
-        "altool",
-        "--upload-app",
-        "-f",
-        path,
-        ...authenticationArguments,
-        "--show-progress",
-      ],
-      { input: apiPrivateKey },
-    );
-  } finally {
-    apiPrivateKey.fill(0);
-  }
+  console.log(`Validating ${path} with App Store Connect.`);
+  await runAltoolWithAppStoreConnectApiKey(
+    ["--validate-app", path, "--output-format", "json"],
+    { ...credentials, cwd: repositoryRoot },
+  );
+  console.log(`Uploading ${path} to App Store Connect.`);
+  await runAltoolWithAppStoreConnectApiKey(
+    ["--upload-app", "-f", path, "--show-progress"],
+    { ...credentials, cwd: repositoryRoot },
+  );
   console.log(
     "Label Maker for iPhone and iPad was uploaded. App Store Connect can take time to process the build.",
   );
@@ -272,13 +246,11 @@ function readMode(arguments_) {
   throw new Error("Use exactly one of --distribution or --upload.");
 }
 
-function run(command, args, options = {}) {
-  const hasInput = options.input !== undefined;
+function run(command, args) {
   const result = spawnSync(command, args, {
     cwd: repositoryRoot,
     env: process.env,
-    ...(hasInput ? { input: options.input } : {}),
-    stdio: hasInput ? ["pipe", "inherit", "inherit"] : "inherit",
+    stdio: "inherit",
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {

@@ -2,7 +2,10 @@ import { spawnSync } from "node:child_process";
 import { accessSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { readAppStoreConnectApiKey } from "../../../scripts/app-store-connect-key.mjs";
+import {
+  readAppStoreConnectApiKey,
+  runAltoolWithAppStoreConnectApiKey,
+} from "../../../scripts/app-store-connect-key.mjs";
 
 const arguments_ = process.argv.slice(2);
 
@@ -58,47 +61,25 @@ run(process.execPath, [
 ]);
 accessSync(packagePath);
 
-const authenticationArguments = [
-  "--api-key",
-  API_KEY_ID,
-  "--api-issuer",
-  API_ISSUER_ID,
-  "--p8-file-path",
-  "/dev/stdin",
-];
+console.log(`Validating ${packagePath} with App Store Connect.`);
+await runAltoolWithAppStoreConnectApiKey(
+  ["--validate-app", packagePath, "--output-format", "json"],
+  {
+    keyId: API_KEY_ID,
+    issuerId: API_ISSUER_ID,
+    cwd: repositoryRoot,
+  },
+);
 
-const apiPrivateKey = readAppStoreConnectApiKey(API_KEY_ID);
-try {
-  console.log(`Validating ${packagePath} with App Store Connect.`);
-  run(
-    "/usr/bin/xcrun",
-    [
-      "altool",
-      "--validate-app",
-      packagePath,
-      ...authenticationArguments,
-      "--output-format",
-      "json",
-    ],
-    { input: apiPrivateKey },
-  );
-
-  console.log(`Uploading ${packagePath} to App Store Connect.`);
-  run(
-    "/usr/bin/xcrun",
-    [
-      "altool",
-      "--upload-app",
-      "-f",
-      packagePath,
-      ...authenticationArguments,
-      "--show-progress",
-    ],
-    { input: apiPrivateKey },
-  );
-} finally {
-  apiPrivateKey.fill(0);
-}
+console.log(`Uploading ${packagePath} to App Store Connect.`);
+await runAltoolWithAppStoreConnectApiKey(
+  ["--upload-app", "-f", packagePath, "--show-progress"],
+  {
+    keyId: API_KEY_ID,
+    issuerId: API_ISSUER_ID,
+    cwd: repositoryRoot,
+  },
+);
 
 console.log(
   "Label Maker was uploaded. App Store Connect can take time to process the build.",
@@ -110,12 +91,10 @@ function requiredEnvironmentValue(name) {
   return value;
 }
 
-function run(command, args, options = {}) {
-  const hasInput = options.input !== undefined;
+function run(command, args) {
   const result = spawnSync(command, args, {
     env: process.env,
-    ...(hasInput ? { input: options.input } : {}),
-    stdio: hasInput ? ["pipe", "inherit", "inherit"] : "inherit",
+    stdio: "inherit",
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
