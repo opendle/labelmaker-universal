@@ -32,7 +32,8 @@ each of these store groups:
 
 The fifth image in each group uses dark mode. The mobile capture CSS removes
 number-input controls that iOS and iPadOS do not show. The iPad portrait capture
-moves the canvas clear of the right inspector.
+moves the canvas clear of the right inspector. The image order is editor, icon
+library, add printer, printer settings, and dark-mode flag label.
 
 Run `npm run app-store:previews` to generate one 20-second H.264 MP4 app preview
 for iPhone, iPad, and Mac. FFmpeg and FFprobe must be on `PATH`. The command

@@ -78,7 +78,14 @@ try {
     await page.getByRole("button", { name: "Icons" }).click();
     await page.getByRole("dialog", { name: "Icon library" }).waitFor();
   });
-  await capture("03-printer-settings.png", async (page) => {
+  await capture("03-add-bluetooth-printer.png", async (page) => {
+    await page
+      .getByRole("button", { name: "Selected printer: Workshop printer" })
+      .click();
+    await page.getByRole("menuitem", { name: "Add a printer" }).click();
+    await page.getByText("MakeID E1-Office").waitFor();
+  });
+  await capture("04-printer-settings.png", async (page) => {
     await page
       .getByRole("button", { name: "Selected printer: Workshop printer" })
       .click();
@@ -86,13 +93,6 @@ try {
       .getByRole("button", { name: "Settings for Workshop printer" })
       .click();
     await page.getByRole("dialog", { name: "Printer settings" }).waitFor();
-  });
-  await capture("04-add-bluetooth-printer.png", async (page) => {
-    await page
-      .getByRole("button", { name: "Selected printer: Workshop printer" })
-      .click();
-    await page.getByRole("menuitem", { name: "Add a printer" }).click();
-    await page.getByText("MakeID E1-Office").waitFor();
   });
   await capture(
     "05-flag-label.png",

@@ -15,8 +15,10 @@ await mkdir(screenshotDirectory, { recursive: true });
 for (const name of [
   "01-label-editor.png",
   "02-icon-library.png",
+  "03-add-bluetooth-printer.png",
   "03-printer-settings.png",
   "04-add-bluetooth-printer.png",
+  "04-printer-settings.png",
   "05-flag-label.png",
 ]) {
   await rm(resolve(screenshotDirectory, name), { force: true });
@@ -50,7 +52,15 @@ try {
     await page.getByRole("button", { name: "Icons" }).click();
     await page.getByRole("dialog", { name: "Icon library" }).waitFor();
   });
-  await capture(page, "03-printer-settings.png", async () => {
+  await capture(page, "03-add-bluetooth-printer.png", async () => {
+    await page
+      .getByRole("button", { name: "Selected printer: Studio Labeler" })
+      .click();
+    await page.getByRole("menuitem", { name: "Add a printer" }).click();
+    await page.getByRole("dialog", { name: "Add a printer" }).waitFor();
+    await page.getByText("Workshop Printer").waitFor();
+  });
+  await capture(page, "04-printer-settings.png", async () => {
     await page
       .getByRole("button", { name: "Selected printer: Studio Labeler" })
       .click();
@@ -58,14 +68,6 @@ try {
       .getByRole("button", { name: "Settings for Studio Labeler" })
       .click();
     await page.getByRole("dialog", { name: "Printer settings" }).waitFor();
-  });
-  await capture(page, "04-add-bluetooth-printer.png", async () => {
-    await page
-      .getByRole("button", { name: "Selected printer: Studio Labeler" })
-      .click();
-    await page.getByRole("menuitem", { name: "Add a printer" }).click();
-    await page.getByRole("dialog", { name: "Add a printer" }).waitFor();
-    await page.getByText("Workshop Printer").waitFor();
   });
   await capture(
     page,
