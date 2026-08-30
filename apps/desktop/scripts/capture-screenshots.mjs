@@ -678,10 +678,18 @@ await capture(
         }
         if (
           Math.abs(editorBounds.top - before.text.top) > 0.1 ||
-          Math.abs(editorBounds.height - before.text.height) > 0.1
+          editorBounds.height + 0.1 < before.text.height
         ) {
           throw new Error(
             `Text moved during editing: ${JSON.stringify({ before: before.text, editing: { top: editorBounds.top, height: editorBounds.height } })}`,
+          );
+        }
+        if (
+          editor.scrollTop !== 0 ||
+          editor.scrollHeight > editor.clientHeight
+        ) {
+          throw new Error(
+            `Text editor scrolls during editing: ${JSON.stringify({ scrollTop: editor.scrollTop, scrollHeight: editor.scrollHeight, clientHeight: editor.clientHeight })}`,
           );
         }
         const font = {

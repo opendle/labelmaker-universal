@@ -1860,6 +1860,59 @@ describe("LabelmakerApp", () => {
     expect(editor).toHaveStyle({ height: "64px" });
   });
 
+  it("keeps aligned text stable while the native editor shows its caret", async () => {
+    vi.spyOn(
+      HTMLTextAreaElement.prototype,
+      "scrollHeight",
+      "get",
+    ).mockReturnValue(42);
+    const getComputedStyle = globalThis.getComputedStyle.bind(globalThis);
+    vi.spyOn(globalThis, "getComputedStyle").mockImplementation(
+      (element, pseudoElement) => {
+        if (element.classList.contains("inline-text-measure")) {
+          return { height: "30px" } as CSSStyleDeclaration;
+        }
+        return getComputedStyle(element, pseudoElement);
+      },
+    );
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost()} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Text element: RESISTORS" }),
+    );
+    const editor = screen.getByRole("textbox", {
+      name: "Edit text on label",
+    });
+    editor.scrollTop = 12;
+    fireEvent.change(editor, { target: { value: "CENTERED" } });
+
+    expect(editor).toHaveStyle({
+      height: "42px",
+      transform: "translateY(6px)",
+    });
+    expect(editor.scrollTop).toBe(0);
+
+    await user.click(screen.getByRole("button", { name: "Align top" }));
+    await user.click(
+      screen.getByRole("button", { name: "Text element: CENTERED" }),
+    );
+    expect(
+      screen.getByRole("textbox", { name: "Edit text on label" }),
+    ).toHaveStyle({ height: "42px", transform: "" });
+
+    await user.click(screen.getByRole("button", { name: "Align bottom" }));
+    await user.click(
+      screen.getByRole("button", { name: "Text element: CENTERED" }),
+    );
+    expect(
+      screen.getByRole("textbox", { name: "Edit text on label" }),
+    ).toHaveStyle({
+      height: "42px",
+      transform: "translateY(12px)",
+    });
+  });
+
   it("snaps a dragged element to printable left and top limits", async () => {
     render(<LabelmakerApp host={createHost()} />);
     await screen.findByText("Studio Labeler");

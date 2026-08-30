@@ -81,7 +81,24 @@ export function CanvasElementView({
     const measuredHeight = Number.parseFloat(
       globalThis.getComputedStyle(measure).height,
     );
-    editor.style.height = `${measuredHeight > 0 ? measuredHeight : editor.scrollHeight}px`;
+    if (!(measuredHeight > 0)) {
+      editor.style.height = `${editor.scrollHeight}px`;
+      editor.style.transform = "";
+      return;
+    }
+    editor.style.height = `${measuredHeight}px`;
+    const editorHeight = Math.max(measuredHeight, editor.scrollHeight);
+    const overflowHeight = editorHeight - measuredHeight;
+    const verticalOffset =
+      (element.verticalAlign ?? "middle") === "top"
+        ? 0
+        : element.verticalAlign === "bottom"
+          ? overflowHeight
+          : overflowHeight / 2;
+    editor.style.height = `${editorHeight}px`;
+    editor.style.transform =
+      verticalOffset > 0 ? `translateY(${verticalOffset}px)` : "";
+    editor.scrollTop = 0;
   }, [canvasScale, editing, element]);
   const frameStyle: ElementStyle = {
     "--element-left": `${(element.xMm / plate.size.widthMm) * 100}%`,
