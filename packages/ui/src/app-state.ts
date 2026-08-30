@@ -37,6 +37,7 @@ export interface AppState {
 
 export type AppAction =
   | { readonly type: "edit-workspace"; readonly workspace: LabelDocument }
+  | { readonly type: "apply-automatic-trim"; readonly workspace: LabelDocument }
   | {
       readonly type: "load-workspace";
       readonly workspace: LabelDocument;
@@ -46,6 +47,7 @@ export type AppAction =
       readonly type: "mark-saved";
       readonly savedAt: string;
       readonly fileName: string;
+      readonly workspace: LabelDocument;
     }
   | { readonly type: "undo" }
   | { readonly type: "redo" }
@@ -133,6 +135,12 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         future: [],
         dirty: true,
       };
+    case "apply-automatic-trim":
+      return {
+        ...state,
+        ...selectionForWorkspace(state, action.workspace),
+        workspace: action.workspace,
+      };
     case "load-workspace":
       return {
         ...state,
@@ -148,7 +156,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "mark-saved":
       return {
         ...state,
-        dirty: false,
+        dirty: state.workspace !== action.workspace,
         savedAt: action.savedAt,
         workspaceFileName: action.fileName,
       };

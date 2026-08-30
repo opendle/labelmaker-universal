@@ -1,4 +1,4 @@
-import type { LabelDocument, LabelPlate } from "@labelmaker/domain";
+import type { LabelPlate } from "@labelmaker/domain";
 import {
   useCallback,
   useEffect,
@@ -15,7 +15,6 @@ import { EditorCanvas } from "./EditorCanvas.js";
 import {
   editableElementCount,
   moveElementLayer,
-  trimPlate,
   updateElementAndFlagPeer,
 } from "./editor-operations.js";
 import type { LabelmakerHost } from "./host.js";
@@ -57,14 +56,6 @@ function AppPlateStrip({
         const workspace = movePlate(state.workspace, plateId, targetIndex);
         if (workspace !== state.workspace) controller.editWorkspace(workspace);
       }}
-      onRenamePlate={(plateId, name) =>
-        controller.editWorkspace(
-          replacePlate(state.workspace, plateId, (plate) => ({
-            ...plate,
-            name,
-          })),
-        )
-      }
       onSelectPlate={(plateId, elementId) =>
         dispatch({ type: "select-plate", plateId, elementId })
       }
@@ -74,33 +65,6 @@ function AppPlateStrip({
       workspace={state.workspace}
     />
   );
-}
-
-async function trimLatestWorkspace(
-  plateId: string,
-  getWorkspace: () => LabelDocument,
-  applyWorkspace: (workspace: LabelDocument) => void,
-): Promise<void> {
-  const trimSnapshot = async () => {
-    const source = getWorkspace();
-    return { source, workspace: await trimPlate(source, plateId) };
-  };
-  const first = await trimSnapshot();
-  if (getWorkspace() === first.source) {
-    applyWorkspace(first.workspace);
-    return;
-  }
-  const second = await trimSnapshot();
-  if (getWorkspace() === second.source) {
-    applyWorkspace(second.workspace);
-    return;
-  }
-  const third = await trimSnapshot();
-  if (getWorkspace() === third.source) {
-    applyWorkspace(third.workspace);
-    return;
-  }
-  throw new Error("The label changed while trim was running.");
 }
 
 function createHeaderProps(
@@ -123,11 +87,11 @@ function createHeaderProps(
     onPrint: (all) => void controller.print(all),
     onPrintMenuChange: (open) => dispatch({ type: "set-print-menu", open }),
     onPrinterMenuChange: setPrinterMenuOpen,
-    onRedo: () => dispatch({ type: "redo" }),
+    onRedo: controller.redo,
     onRemovePrinter: (printerId) => void controller.removePrinter(printerId),
     onSave: () => void controller.save(false),
     onSelectPrinter: controller.selectPrinter,
-    onUndo: () => dispatch({ type: "undo" }),
+    onUndo: controller.undo,
     plateCount: state.workspace.plates.length,
     platform,
     printMenuOpen: state.printMenuOpen,
@@ -154,7 +118,6 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
     selectedShape,
     dispatch,
   } = controller;
-  const workspaceRef = useRef(state.workspace);
   const shellRef = useRef<HTMLDivElement>(null);
   const [iconLibraryOpen, setIconLibraryOpen] = useState(false);
   const [printerMenuOpen, setPrinterMenuOpen] = useState(false);
@@ -183,11 +146,10 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
     activePlate,
     workspace: state.workspace,
     addDrawing: controller.addDrawing,
-    editWorkspace: controller.editWorkspace,
+    editWorkspace: (workspace) => {
+      if (activePlate) controller.editPrintedPixels(workspace, activePlate.id);
+    },
   });
-  useEffect(() => {
-    workspaceRef.current = state.workspace;
-  }, [state.workspace]);
   const closeAddPrinter = useCallback(
     () => dispatch({ type: "close-add-printer" }),
     [dispatch],
@@ -228,45 +190,34 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   const settingsPrinter = state.printers.find(
     (printer) => printer.id === state.printerSettingsId,
   );
-  const trimActivePlate = () => {
-    void trimLatestWorkspace(
-      activePlate.id,
-      () => workspaceRef.current,
-      controller.editWorkspace,
-    ).catch(() =>
-      dispatch({
-        type: "set-toast",
-        toast: {
-          tone: "error",
-          message: "The label could not be trimmed.",
-        },
-      }),
-    );
-  };
   const updateText = (text: NonNullable<typeof selectedText>) =>
-    controller.editWorkspace(
+    controller.editPrintedPixels(
       replacePlate(state.workspace, activePlate.id, (plate) =>
         updateElementAndFlagPeer(plate, text),
       ),
+      activePlate.id,
     );
   const updateImage = (image: NonNullable<typeof selectedImage>) =>
-    controller.editWorkspace(
+    controller.editPrintedPixels(
       replacePlate(state.workspace, activePlate.id, (plate) =>
         updateElementAndFlagPeer(plate, image),
       ),
+      activePlate.id,
     );
   const updateShape = (shape: NonNullable<typeof selectedShape>) =>
-    controller.editWorkspace(
+    controller.editPrintedPixels(
       replacePlate(state.workspace, activePlate.id, (plate) =>
         updateElementAndFlagPeer(plate, shape),
       ),
+      activePlate.id,
     );
   const moveLayer = (direction: "back" | "front") => {
     if (!state.selectedElementId) return;
-    controller.editWorkspace(
+    controller.editPrintedPixels(
       replacePlate(state.workspace, activePlate.id, (plate) =>
         moveElementLayer(plate, state.selectedElementId!, direction),
       ),
+      activePlate.id,
     );
   };
   const headerProps = createHeaderProps(
@@ -310,11 +261,26 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             onAddSpecial={controller.addSpecial}
             onAddText={controller.addText}
             onChangeElement={(element) =>
-              controller.editWorkspace(
+              controller.editPrintedPixels(
                 replacePlate(state.workspace, activePlate.id, (plate) =>
                   updateElementAndFlagPeer(plate, element),
                 ),
+                activePlate.id,
               )
+            }
+            onChangeElementDuringInteraction={(element) =>
+              controller.editPrintedPixelsDuringInteraction(
+                replacePlate(state.workspace, activePlate.id, (plate) =>
+                  updateElementAndFlagPeer(plate, element),
+                ),
+                activePlate.id,
+              )
+            }
+            onElementInteractionEnd={() =>
+              controller.finishPrintedPixelInteraction(activePlate.id)
+            }
+            onElementInteractionStart={() =>
+              controller.beginPrintedPixelInteraction(activePlate.id)
             }
             onSelectElement={(elementId) =>
               dispatch({ type: "select-element", elementId })
@@ -325,10 +291,10 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
               setPhonePlateDraft(activePlate);
               setPhoneSheet("plate");
             }}
-            onTrim={trimActivePlate}
             onUpdatePlate={(plate) =>
-              controller.editWorkspace(
+              controller.editPrintedPixels(
                 replacePlate(state.workspace, activePlate.id, () => plate),
+                activePlate.id,
               )
             }
             onZoom={(zoom) => dispatch({ type: "set-zoom", zoom })}
@@ -388,8 +354,9 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             onDelete={() => controller.deletePlate(activePlate.id)}
             onSave={(plate) => {
               if (plate === activePlate) return;
-              controller.editWorkspace(
+              controller.editPrintedPixels(
                 replacePlate(state.workspace, activePlate.id, () => plate),
+                activePlate.id,
               );
             }}
           />

@@ -259,6 +259,25 @@ async function capture(viewport, platform) {
           `${viewport.width}x${viewport.height} overlaps the printer settings and delete actions.`,
         );
       }
+      if (Math.abs(inspection.stripHeight - 82) > 0.5) {
+        throw new Error(
+          `${viewport.width}x${viewport.height} has a ${inspection.stripHeight} px label strip.`,
+        );
+      }
+      if (inspection.visiblePlateNames !== 0) {
+        throw new Error(
+          `${viewport.width}x${viewport.height} shows saved label names in the strip.`,
+        );
+      }
+      if (
+        inspection.deleteButtonSize === null ||
+        Math.abs(inspection.deleteButtonSize.width - 18) > 0.5 ||
+        Math.abs(inspection.deleteButtonSize.height - 18) > 0.5
+      ) {
+        throw new Error(
+          `${viewport.width}x${viewport.height} has the wrong label delete button size: ${JSON.stringify(inspection.deleteButtonSize)}.`,
+        );
+      }
       if (failures.length > 0) {
         throw new Error(
           `The mobile app reported an error: ${failures.join("; ")}`,
@@ -392,7 +411,7 @@ async function capture(viewport, platform) {
         `${viewport.width}x${viewport.height} does not show the selected-element row.`,
       );
     }
-    const expectedStripHeight = expectedLayout === "phone-short" ? 54 : 68;
+    const expectedStripHeight = expectedLayout === "phone-short" ? 44 : 56;
     if (Math.abs(inspection.stripHeight - expectedStripHeight) > 0.5) {
       throw new Error(
         `${viewport.width}x${viewport.height} has a ${inspection.stripHeight} px label strip.`,
@@ -502,13 +521,17 @@ async function inspectStandardIPad(page) {
     const output = document.querySelector(".header-output-actions");
     const toolbar = document.querySelector(".editor-toolbar");
     const inspector = document.querySelector(".inspector");
+    const strip = document.querySelector(".plate-strip");
+    const deleteButton = document.querySelector(".plate-delete");
     if (
       !(shell instanceof HTMLElement) ||
       !(header instanceof HTMLElement) ||
       !(history instanceof HTMLElement) ||
       !(output instanceof HTMLElement) ||
       !(toolbar instanceof HTMLElement) ||
-      !(inspector instanceof HTMLElement)
+      !(inspector instanceof HTMLElement) ||
+      !(strip instanceof HTMLElement) ||
+      !(deleteButton instanceof HTMLElement)
     ) {
       throw new Error("The standard iPad editor is incomplete.");
     }
@@ -518,6 +541,7 @@ async function inspectStandardIPad(page) {
     const outputBounds = output.getBoundingClientRect();
     const toolbarBounds = toolbar.getBoundingClientRect();
     const inspectorBounds = inspector.getBoundingClientRect();
+    const deleteButtonBounds = deleteButton.getBoundingClientRect();
     const propertyStack = inspector.querySelector(".property-stack");
     const propertyStackBounds = propertyStack?.getBoundingClientRect();
     const propertyStackStyle = propertyStack
@@ -545,6 +569,10 @@ async function inspectStandardIPad(page) {
         innerWidth: window.innerWidth,
         shellWidth: shell.getBoundingClientRect().width,
         visualWidth: window.visualViewport?.width,
+      },
+      deleteButtonSize: {
+        height: deleteButtonBounds.height,
+        width: deleteButtonBounds.width,
       },
       editorActionsAreIconOnly: editorActionLabels.every(
         (label) => label.getBoundingClientRect().width === 0,
@@ -602,6 +630,10 @@ async function inspectStandardIPad(page) {
               scroll: propertyStack.scrollWidth,
             }
           : null,
+      stripHeight: strip.getBoundingClientRect().height,
+      visiblePlateNames: Array.from(
+        strip.querySelectorAll(".thumb-name, .thumb-name-input"),
+      ).filter((name) => name.getBoundingClientRect().height > 0).length,
       outputIsRightAligned:
         Math.abs(headerBounds.right - outputBounds.right) <= 14,
       overflow:

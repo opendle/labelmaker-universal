@@ -28,14 +28,21 @@ const makeId = (prefix: string) =>
 export function createPlate(
   workspace: LabelDocument,
   printableMargins?: PrintableMargins,
+  settingsSource?: LabelPlate,
 ): LabelPlate {
   const number = workspace.plates.length + 1;
-  const size = workspace.defaultPlateSize;
+  const size = {
+    ...workspace.defaultPlateSize,
+    heightMm:
+      settingsSource?.size.heightMm ?? workspace.defaultPlateSize.heightMm,
+  };
   const plate: LabelPlate = {
     id: makeId("plate"),
     name: `Label ${number}`,
     size,
-    margins: { leftMm: 0, rightMm: 0 },
+    margins: settingsSource
+      ? { ...settingsSource.margins }
+      : { leftMm: 0, rightMm: 0 },
     elements: [],
   };
   return {

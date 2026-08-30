@@ -13,8 +13,8 @@ and excessive decoration.
   undo, redo, a printer menu with an add-printer action, and print.
 - **Center:** one WYSIWYG label canvas with a neutral work surface.
 - **Editor toolbar:** element actions on the left and always-visible plate
-  width, height, and margin controls on the right. Put a separated Trim action
-  at the far right. It spans the center and inspector columns.
+  height and margin controls on the right. It spans the center and inspector
+  columns. Do not show a manual Trim action or width input.
 - Use one shared field style for the editor toolbar, selected-element inspector,
   and printer settings. Put each field label inside the top edge of the border.
   Keep control height, input text, borders, and units consistent in all three
@@ -27,9 +27,10 @@ and excessive decoration.
   that the canvas keeps its full size and does not move. Start it below the
   editor toolbar, and do not cover the toolbar border. Plate settings do not
   need a separate inspector mode or button.
-- **Bottom plate strip:** a compact row of ordered plate thumbnails, delete
-  actions, and one large `+` plate. Use one physical scale for all thumbnails
-  and fit each thumbnail control to its label width.
+- **Bottom plate strip:** a compact row of ordered plate thumbnails, small
+  delete actions, and one large `+` plate. Do not show plate names. Use one
+  physical scale for all thumbnails and fit each thumbnail control to its
+  label width.
 
 The center canvas keeps priority when the window becomes narrow. Printer status
 and the plate strip remain reachable.
@@ -46,7 +47,9 @@ appearances so that they show the physical label and printed result accurately.
   the last selected printer on the next launch. When there is no configured
   printer, replace the menu with a direct `Add printer` action.
 - Align the Phone printer menu and Print menu to the same right edge. Show an
-  icon for each Print menu action on all platforms.
+  icon for each Print menu action on all platforms. Keep printer rows compact,
+  keep status text such as `Connects on print` on one line, and keep each
+  status indicator round.
 - Restore the last editor session on launch. Restore the workspace, unsaved
   state, active label, selected element, zoom, last save time, and saved `.lbl`
   file association. Store recovery state outside the `.lbl` file. If recovery
@@ -59,21 +62,21 @@ appearances so that they show the physical label and printed result accurately.
   actions. Close the dialog after success and keep it open after failure.
 - Do not show controls that have no action.
 - Select plate thumbnails.
-- Double-click a plate name in the plate strip to rename it. Keep the rename
-  action available from the keyboard.
 - Drag a plate in the plate strip to change the plate order without a hold
   delay. Show the moved plate as a translucent ghost in its proposed final
   position, and shift the other plates to show the resulting order. Keep an
   equivalent keyboard action available.
 - Delete a plate from its thumbnail. Keep at least one plate in the workspace.
-- Add a plate with the large `+` control. Name each new plate `Label N`, where
-  `N` is its position when it is added.
+- Add a plate with the large `+` control. Use the current plate height and left
+  and right trim margins for the new plate. Keep the default new-plate width.
 - Select, move, and edit a text element.
 - Edit text directly on the plate. Double-click an unselected text element, or
   single-click a selected text element, to enter text-edit mode.
 - Let text remain visible outside its frame while it is edited, as it is on the
   canvas and in printed output. Resize the edit control to show wrapped text.
-- Preserve text line breaks on the canvas and in printed output.
+- Preserve all text line breaks, including final empty lines, on the canvas and
+  in printed output. Give the iOS direct editor enough lower paint space for
+  multiline glyph descenders. Clear native text selection when edit mode ends.
 - Scale text in the canvas, printed output, and plate strip from the same
   physical point size.
 - Use the same element frame, horizontal and vertical alignment, line-height,
@@ -82,11 +85,14 @@ appearances so that they show the physical label and printed result accurately.
 - Allow canvas zoom from 60% through 300%. Use wheel or trackpad scroll and
   touch pinch for zoom. Do not show an on-screen zoom control.
 - Align every 5 mm background grid line to the center of its ruler tick.
-- Show capability-reported top and bottom non-printable areas on the canvas and
-  plate thumbnails. Calculate each area from the current label height and the
-  printer's physical printable width. A label that fits inside the printable
-  width has no non-printable label area. Do not scale a narrow label to the full
-  print-head width.
+- Show capability-reported top and bottom non-printable areas on the canvas.
+  Calculate each area from the current label height and the printer's physical
+  printable width. A label that fits inside the printable width has no
+  non-printable label area. Do not scale a narrow label to the full print-head
+  width. Crop the top and bottom non-printable regions from plate thumbnails.
+  Scale the remaining printable artwork to the existing thumbnail height and
+  increase the thumbnail width by the same factor. Do not show non-printable
+  hatch overlays in thumbnails.
 - Resize text, image, and shape elements from corner handles and rotate them
   from a separate rotation handle. Hold Shift during a resize to preserve the
   frame's current proportions. Rotate freely, but snap to each 45-degree angle
@@ -104,10 +110,12 @@ appearances so that they show the physical label and printed result accurately.
   alignment, or layer-order buttons. Keep an accessible name for each group.
 - Keep font size in whole points. Put its compact input on the same aligned row
   as the wider line-height input. Put the automatic line-height toggle as an
-  icon at the start of the line-height input.
+  icon at the start of the line-height input. Keep the two fields close to an
+  equal split, with line height wider. Keep the full `LINE HEIGHT` label on one
+  line without truncation or an ellipsis.
 - Offer twelve useful system typefaces in alphabetical order. Use Avenir
   Next, with a Segoe UI fallback, for new text.
-- Change plate width and height.
+- Change plate height. Automatic trim owns plate width.
 - Resize label height equally from the top and bottom, so existing elements keep
   the same position relative to the label center.
 - Add a text element.
@@ -160,18 +168,20 @@ appearances so that they show the physical label and printed result accurately.
   and use 1-degree steps for visible rotation controls. Apply the same 3-degree
   snap zone around each 45-degree angle.
 - Set left and right plate margins, with zero as the default.
-- Adjust the plate width, larger or smaller, to the first and last black
-  pixels of the final monochrome raster plus the selected margins. Apply
-  elements in document
-  order, so a white image can hide earlier content. A fully white image and an
-  element frame must not add blank trim space. Round the result up to a whole
-  millimeter and divide only the rounding remainder equally between the left
-  and right sides.
-- Keep the plate width field in whole millimeters.
-- Accept the current plate width, height, left margin, or right margin when the
-  user presses Enter, then remove focus from the field. Also remove focus when
-  the user clicks or taps another part of the application. Run trim-to-content
-  only from the Trim action.
+- After a UI edit that can change printed pixels, automatically adjust the
+  plate width, larger or smaller, to the first and last black pixels of the
+  final monochrome raster plus the selected margins. Keep the trim operation as
+  a separate callable application function so a later Auto or Manual setting
+  can use the same behavior. Apply elements in document order, so a white image
+  can hide earlier content. A fully white image and an element frame must not
+  add blank trim space. Round the result up to a whole millimeter and divide
+  only the rounding remainder equally between the left and right sides. During
+  a held move, resize, or rotation, keep the label width stable. Run queued
+  automatic trim only after pointer release or pointer cancellation.
+- Keep automatic plate width in whole millimeters.
+- Accept the current plate height, left margin, or right margin when the user
+  presses Enter, then remove focus from the field. Also remove focus when the
+  user clicks or taps another part of the application.
 - Align the work-surface dots to the label grid at 1 mm intervals. Fade the
   5 mm grid in all directions over 10 mm outside the label.
 - Open printer settings from each configured printer. Keep the current label
@@ -195,9 +205,9 @@ appearances so that they show the physical label and printed result accurately.
   canvas and plate-strip artwork unchanged.
 - Keep the two printed sides of a flag identical. Editing either visible side
   updates the other side immediately, or expose only one editable source side.
-- In flag mode, the width field controls one half. The complete output width is
-  two halves plus the 2 mm separation. Turning flag mode on and off without an
-  edit must restore the original label exactly.
+- In flag mode, automatic trim measures one editable half. The complete output
+  width is two halves plus the 2 mm separation. Turning flag mode on and off
+  without an edit must restore the original label exactly.
 - Show unsaved state, save state, and a mock print result.
 - Disable all print actions while a print job is active.
 - Show the safe printer or render error from a failed print job.
@@ -244,7 +254,12 @@ add a separate editor.
 - At 850 CSS pixels or less, show only icons for the editor element actions.
   Keep undo and redo centered in the top bar. Align the printer and print
   controls to the right edge.
-- Keep each main touch target at least 44 CSS pixels wide and high.
+- Keep each main touch target at least 44 CSS pixels wide and high. The plate
+  delete action is an intentional exception: use the same small visible and
+  interactive size as desktop to reduce accidental label deletion.
+- When the iPad application returns to the foreground, repaint each plate
+  thumbnail and its delete action. Keep the open workspace and the horizontal
+  plate-strip scroll position unchanged.
 - Keep resize and rotation marks small. Give each mark an invisible 44 CSS
   pixel touch area.
 - Drag one finger on any empty part of the work surface to move the canvas. A
@@ -297,16 +312,15 @@ less. The software keyboard must not change an iPad from its normal layout to
 Phone mode.
 
 - Keep the label strip visible while the software keyboard is closed. Use a
-  68-pixel strip in Phone mode and a 54-pixel strip in short Phone mode.
+  56-pixel strip in Phone mode and a 44-pixel strip in short Phone mode.
 - Use an icon-only header for New, Open, Save, undo, redo, printer, and print.
   Align the file actions left, the history actions in the center, and the
   printer actions right. Do not show the workspace name. Mark the Save icon
   when the workspace needs its first save or has edits.
 - Use a 48-pixel editor command row with icon-only Text, Image, Draw, Icons,
   and Shapes actions. Keep this row visible when an element is selected. Keep
-  Label settings and Trim fixed. Scroll the other controls in the horizontal
-  direction. Do not put a separator before the fixed actions. Style Trim as an
-  action, not as an enabled toggle.
+  Label settings fixed. Scroll the other controls in the horizontal direction.
+  Do not put a separator before the fixed action.
 - When an element is selected, add a second 48-pixel row below the command
   row. For selected text, show font size and horizontal alignment. For a
   selected image, show Contrast. For a selected shape, show stroke width. Keep
@@ -316,9 +330,9 @@ Phone mode.
 - Open complete element properties and label settings in modal sheets that
   stay at the top of the visual viewport.
   Keep all element properties available. The label-settings sheet contains
-  width, height, margins, Flag, Mirror, Delete label, and a Save settings
-  footer. Keep Flag and Mirror only in this Phone sheet. Keep Trim in the Phone
-  command controls. Do not show label delete buttons in the Phone label strip.
+  height, margins, Flag, Mirror, Delete label, and a Save settings
+  footer. Keep Flag and Mirror only in this Phone sheet. Do not show label
+  delete buttons in the Phone label strip.
 - Show printer settings and Add printer as top sheets that use the same shape,
   spacing, field style, and footer style as the other Phone property sheets.
   Put two printer fields in each row when the fields fit.

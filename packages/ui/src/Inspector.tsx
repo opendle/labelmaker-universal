@@ -12,7 +12,6 @@ import {
   AlignVerticalJustifyCenter,
   AlignVerticalJustifyStart,
   BringToFront,
-  Crop,
   Italic,
   RotateCcw,
   SendToBack,
@@ -22,11 +21,7 @@ import {
 import { useEffect, useId, useRef, useState } from "react";
 
 import { IconButton } from "./controls.js";
-import {
-  plateEditorWidthMm,
-  updatePlateEditorHeight,
-  updatePlateEditorWidth,
-} from "./editor-operations.js";
+import { updatePlateEditorHeight } from "./editor-operations.js";
 import { TYPEFACES } from "./typefaces.js";
 import { MonochromeImage } from "./MonochromeImage.js";
 import { NumberInput } from "./NumberInput.js";
@@ -547,13 +542,9 @@ function ShapeInspector({
 export function PlateToolbarSettings({
   plate,
   onChange,
-  onTrim,
-  showTrim = true,
 }: {
   readonly plate: LabelPlate;
   readonly onChange: (plate: LabelPlate) => void;
-  readonly onTrim: () => void;
-  readonly showTrim?: boolean;
 }) {
   const inputIdPrefix = useId();
   const settingsRef = useRef<HTMLDivElement>(null);
@@ -579,33 +570,6 @@ export function PlateToolbarSettings({
   }, []);
   return (
     <div className="plate-toolbar-settings" ref={settingsRef}>
-      <label
-        className="toolbar-field width-field"
-        htmlFor={`${inputIdPrefix}-width`}
-      >
-        <span>WIDTH</span>
-        <div className="toolbar-unit-input">
-          <NumberInput
-            aria-label="Plate width"
-            id={`${inputIdPrefix}-width`}
-            inputMode="numeric"
-            min={1}
-            onValueChange={(value) =>
-              onChange(
-                updatePlateEditorWidth(plate, Math.max(1, Math.round(value))),
-              )
-            }
-            onKeyDown={(event) => {
-              if (event.key !== "Enter") return;
-              event.preventDefault();
-              event.currentTarget.blur();
-            }}
-            step={1}
-            value={plateEditorWidthMm(plate)}
-          />
-          <b>mm</b>
-        </div>
-      </label>
       {[
         ["Plate height", "HEIGHT", plate.size.heightMm],
         ["Left margin", "LEFT", plate.margins.leftMm],
@@ -648,17 +612,6 @@ export function PlateToolbarSettings({
           </div>
         </label>
       ))}
-      {showTrim && (
-        <button
-          aria-label="Trim plate to content"
-          className="tool-button toolbar-trim-button"
-          onClick={onTrim}
-          title="Adjust the width to the printed content and margins"
-          type="button"
-        >
-          <Crop size={15} /> Trim
-        </button>
-      )}
     </div>
   );
 }

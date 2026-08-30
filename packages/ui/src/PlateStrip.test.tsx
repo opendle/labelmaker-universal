@@ -17,6 +17,7 @@ import { sampleDocument } from "./sample.js";
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
 function dispatchPointer(
@@ -40,7 +41,6 @@ function dispatchPointer(
 function renderStrip(
   overrides: {
     readonly onMovePlate?: (plateId: string, targetIndex: number) => void;
-    readonly onRenamePlate?: (plateId: string, name: string) => void;
     readonly onSelectPlate?: (
       plateId: string,
       elementId: string | null,
@@ -48,7 +48,6 @@ function renderStrip(
   } = {},
 ) {
   const onMovePlate = overrides.onMovePlate ?? vi.fn();
-  const onRenamePlate = overrides.onRenamePlate ?? vi.fn();
   const onSelectPlate = overrides.onSelectPlate ?? vi.fn();
   const result = render(
     <PlateStrip
@@ -58,28 +57,99 @@ function renderStrip(
       onAddPlate={vi.fn()}
       onDeletePlate={vi.fn()}
       onMovePlate={onMovePlate}
-      onRenamePlate={onRenamePlate}
       onSelectPlate={onSelectPlate}
       printHeadSizeMm={undefined}
       workspace={sampleDocument}
     />,
   );
-  return { ...result, onMovePlate, onRenamePlate, onSelectPlate };
+  return { ...result, onMovePlate, onSelectPlate };
 }
 
 describe("PlateStrip", () => {
-  it("renames a plate after a double click or keyboard action", () => {
-    const onRenamePlate = vi.fn();
-    renderStrip({ onRenamePlate });
+  it("does not show plate names", () => {
+    const { container } = renderStrip();
 
-    fireEvent.doubleClick(
-      screen.getByRole("button", { name: "Rename label 1: Resistors" }),
+    expect(container.querySelector(".thumb-name")).toBeNull();
+    expect(screen.queryByLabelText("Label name")).toBeNull();
+  });
+
+  it("shows full thumbnail artwork without non-printable overlays", () => {
+    const { container } = renderStrip();
+
+    expect(container.querySelectorAll(".mini-label")).toHaveLength(3);
+    expect(container.querySelector(".artwork-nonprintable")).toBeNull();
+  });
+
+  it("crops non-printable rows and scales printable artwork to full height", () => {
+    const { container } = render(
+      <PlateStrip
+        activePlateId="plate-resistors"
+        marginBottomMm={0}
+        marginTopMm={0}
+        onAddPlate={vi.fn()}
+        onDeletePlate={vi.fn()}
+        onMovePlate={vi.fn()}
+        onSelectPlate={vi.fn()}
+        printHeadSizeMm={12}
+        workspace={sampleDocument}
+      />,
     );
-    const input = screen.getByLabelText("Label name");
-    fireEvent.change(input, { target: { value: "Parts" } });
-    fireEvent.keyDown(input, { key: "Enter" });
+    const thumbnail = container.querySelector<HTMLElement>(".plate-thumb")!;
+    const artwork = thumbnail.querySelector<HTMLElement>(".mini-label")!;
+    const text = artwork.querySelector<HTMLElement>(".label-artwork-text")!;
 
-    expect(onRenamePlate).toHaveBeenCalledWith("plate-resistors", "Parts");
+    expect(thumbnail.style.getPropertyValue("--label-preview-height")).toBe(
+      "52px",
+    );
+    expect(
+      Number.parseFloat(
+        thumbnail.style.getPropertyValue("--label-preview-width"),
+      ),
+    ).toBeCloseTo((62 * 3.25 * 16) / 12);
+    expect(artwork).toHaveStyle({ aspectRatio: String(62 / 12) });
+    expect(text.style.top).toBe(`${((3.2 - 2) / 12) * 100}%`);
+    expect(text.style.height).toBe(`${(9.6 / 12) * 100}%`);
+  });
+
+  it("remounts thumbnail paint nodes after the page returns to the foreground", () => {
+    let paintFrame: FrameRequestCallback | undefined;
+    vi.stubGlobal(
+      "requestAnimationFrame",
+      vi.fn((callback: FrameRequestCallback) => {
+        paintFrame = callback;
+        return 1;
+      }),
+    );
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    Object.defineProperty(globalThis.document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+    const { container } = renderStrip();
+    const scroller = container.querySelector<HTMLElement>(".plate-thumbnails")!;
+    const oldArtwork = container.querySelector<HTMLElement>(".mini-label")!;
+    const oldDelete = screen.getByRole("button", {
+      name: "Delete label Resistors",
+    });
+    scroller.scrollLeft = 37;
+
+    fireEvent(globalThis.document, new Event("visibilitychange"));
+    fireEvent(globalThis.window, new PageTransitionEvent("pageshow"));
+    fireEvent.focus(globalThis.window);
+
+    expect(globalThis.requestAnimationFrame).toHaveBeenCalledTimes(1);
+    act(() => paintFrame?.(0));
+
+    const newArtwork = container.querySelector<HTMLElement>(".mini-label")!;
+    const newDelete = screen.getByRole("button", {
+      name: "Delete label Resistors",
+    });
+    expect(newArtwork).toBeVisible();
+    expect(newDelete).toBeVisible();
+    expect(newArtwork).not.toBe(oldArtwork);
+    expect(newDelete).not.toBe(oldDelete);
+    expect(scroller).toBe(container.querySelector(".plate-thumbnails"));
+    expect(scroller.scrollLeft).toBe(37);
   });
 
   it("moves a plate as soon as a mouse pointer starts to drag", () => {
@@ -115,13 +185,19 @@ describe("PlateStrip", () => {
     });
     expect(source).toHaveAttribute("aria-grabbed", "true");
     expect(
-      Array.from(container.querySelectorAll(".thumb-name"), (name) =>
-        name.textContent?.trim(),
+      Array.from(container.querySelectorAll(".plate-thumb-select"), (button) =>
+        button.getAttribute("aria-label"),
       ),
-    ).toEqual(["Capacitors", "Connectors", "Resistors"]);
+    ).toEqual([
+      "Select label 1: Capacitors",
+      "Select label 2: Connectors",
+      "Select label 3: Resistors",
+    ]);
     expect(
-      container.querySelector(".plate-thumb.dragging .thumb-name"),
-    ).toHaveTextContent("Resistors");
+      container
+        .querySelector(".plate-thumb.dragging .plate-thumb-select")
+        ?.getAttribute("aria-label"),
+    ).toBe("Select label 3: Resistors");
     dispatchPointer(source, "pointerup", {
       clientX: 275,
       clientY: 25,
@@ -252,8 +328,8 @@ describe("PlateStrip", () => {
     expect(onMovePlate).toHaveBeenCalledWith("plate-capacitors", 0);
   });
 
-  it("renames the active label from one Phone name tap", () => {
-    const onRenamePlate = vi.fn();
+  it("selects a label from one Phone thumbnail tap", () => {
+    const onSelectPlate = vi.fn();
     render(
       <PlateStrip
         activePlateId="plate-resistors"
@@ -262,22 +338,18 @@ describe("PlateStrip", () => {
         onAddPlate={vi.fn()}
         onDeletePlate={vi.fn()}
         onMovePlate={vi.fn()}
-        onRenamePlate={onRenamePlate}
-        onSelectPlate={vi.fn()}
-        phoneMode
+        onSelectPlate={onSelectPlate}
         printHeadSizeMm={undefined}
+        phoneMode
         workspace={sampleDocument}
       />,
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Rename label 1: Resistors" }),
+      screen.getByRole("button", { name: "Select label 1: Resistors" }),
     );
-    const input = screen.getByLabelText("Label name");
-    fireEvent.change(input, { target: { value: "Parts" } });
-    fireEvent.keyDown(input, { key: "Enter" });
 
-    expect(onRenamePlate).toHaveBeenCalledWith("plate-resistors", "Parts");
+    expect(onSelectPlate).toHaveBeenCalledWith("plate-resistors", null);
   });
 
   it("does not show label delete buttons in Phone mode", () => {
@@ -289,10 +361,9 @@ describe("PlateStrip", () => {
         onAddPlate={vi.fn()}
         onDeletePlate={vi.fn()}
         onMovePlate={vi.fn()}
-        onRenamePlate={vi.fn()}
         onSelectPlate={vi.fn()}
-        phoneMode
         printHeadSizeMm={undefined}
+        phoneMode
         workspace={sampleDocument}
       />,
     );

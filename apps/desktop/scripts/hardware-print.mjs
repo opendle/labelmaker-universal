@@ -45,7 +45,8 @@ try {
   }
   await page.getByLabel("Left margin").fill("0");
   await page.getByLabel("Right margin").fill("0");
-  await page.getByRole("button", { name: "Trim plate to content" }).click();
+  await page.getByLabel("Right margin").blur();
+  await page.waitForTimeout(250);
   await page.getByRole("button", { name: /^Print$/ }).click();
   await page.getByText(successMessage).waitFor({ timeout: 90_000 });
   process.stdout.write("The trimmed desktop hardware print completed.\n");

@@ -232,19 +232,29 @@ await capture(1440, 960, "labelmaker-primary-1440x960.png", async (page) => {
     );
   }
 
-  if ((await page.getByLabel("Label name").count()) !== 0) {
-    throw new Error("The label name input is still in the editor toolbar");
+  if ((await page.locator(".thumb-name, .thumb-name-input").count()) !== 0) {
+    throw new Error("The plate strip still shows label names");
   }
-  await page.getByRole("button", { name: /^Rename label 1:/ }).dblclick();
-  const labelNameWidth = await page
-    .getByLabel("Label name")
-    .evaluate((input) => input.getBoundingClientRect().width);
-  if (labelNameWidth < 100) {
+  if ((await page.locator(".artwork-nonprintable").count()) !== 0) {
+    throw new Error("The plate strip still shows non-printable overlays");
+  }
+  const lineHeightLabel = await page
+    .locator(".line-height-field > span")
+    .evaluate((label) => ({
+      clientWidth: label.clientWidth,
+      scrollWidth: label.scrollWidth,
+      text: label.textContent?.trim(),
+      whiteSpace: getComputedStyle(label).whiteSpace,
+    }));
+  if (
+    lineHeightLabel.text !== "LINE HEIGHT" ||
+    lineHeightLabel.whiteSpace !== "nowrap" ||
+    lineHeightLabel.scrollWidth > lineHeightLabel.clientWidth
+  ) {
     throw new Error(
-      `Plate strip label name input is too narrow: ${labelNameWidth}`,
+      `The Line Height label does not fit: ${JSON.stringify(lineHeightLabel)}`,
     );
   }
-  await page.getByLabel("Label name").press("Escape");
 
   const before = await page.locator(".label-canvas").boundingBox();
   await page
@@ -393,8 +403,8 @@ await capture(1101, 700, "labelmaker-standard-1101x700.png", async (page) => {
     const toolbar = document
       .querySelector(".editor-toolbar")
       ?.getBoundingClientRect();
-    const trim = document
-      .querySelector(".toolbar-trim-button")
+    const settings = document
+      .querySelector(".plate-toolbar-settings")
       ?.getBoundingClientRect();
     return {
       header: Boolean(
@@ -405,8 +415,8 @@ await capture(1101, 700, "labelmaker-standard-1101x700.png", async (page) => {
       ),
       toolbar: Boolean(
         toolbar &&
-        trim &&
-        (trim.left < toolbar.left || trim.right > toolbar.right),
+        settings &&
+        (settings.left < toolbar.left || settings.right > toolbar.right),
       ),
     };
   });
@@ -437,13 +447,15 @@ await capture(
     );
     await page.waitForFunction(() => {
       const names = Array.from(
-        document.querySelectorAll(".plate-thumb .thumb-name"),
-        (name) => name.textContent?.trim(),
+        document.querySelectorAll(".plate-thumb .plate-thumb-select"),
+        (button) => button.getAttribute("aria-label"),
       );
       return (
-        names.join(",") === "Capacitors,Connectors,Resistors" &&
-        document.querySelector(".plate-thumb.dragging .thumb-name")
-          ?.textContent === "Resistors"
+        names.join(",") ===
+          "Select label 1: Capacitors,Select label 2: Connectors,Select label 3: Resistors" &&
+        document
+          .querySelector(".plate-thumb.dragging .plate-thumb-select")
+          ?.getAttribute("aria-label") === "Select label 3: Resistors"
       );
     });
     return async () => page.mouse.up();
@@ -715,14 +727,25 @@ await capture(
   960,
   "labelmaker-plate-settings-1440x960.png",
   async (page) => {
-    await page.getByLabel("Plate width").focus();
+    await page.getByLabel("Plate height").focus();
   },
 );
 await capture(1440, 960, "labelmaker-flag-1440x960.png", async (page) => {
   await page.getByRole("button", { name: "Flag" }).click();
 });
 await capture(1440, 960, "labelmaker-trim-1440x960.png", async (page) => {
-  await page.getByRole("button", { name: "Trim plate to content" }).click();
+  const widthBeforeTrim = await page
+    .locator(".label-canvas")
+    .getAttribute("data-plate-width-mm");
+  await page.getByLabel("Left margin").fill("2");
+  await page.getByLabel("Left margin").blur();
+  await page.waitForFunction((previousWidth) => {
+    const label = document.querySelector(".label-canvas");
+    return (
+      label instanceof HTMLElement &&
+      label.dataset.plateWidthMm !== previousWidth
+    );
+  }, widthBeforeTrim);
   await page.evaluate(() => {
     const label = document.querySelector(".label-canvas");
     const frame = document.querySelector(".canvas-element");
@@ -748,16 +771,26 @@ await capture(1440, 960, "labelmaker-trim-1440x960.png", async (page) => {
       originX - metrics.actualBoundingBoxLeft - labelBounds.left;
     const rightError =
       originX + metrics.actualBoundingBoxRight - labelBounds.right;
-    const plateWidth = Number.parseFloat(
-      document.querySelector('[aria-label="Plate width"]')?.value ?? "NaN",
-    );
+    const plateWidth = Number.parseFloat(label.dataset.plateWidthMm ?? "NaN");
+    const leftMargin = document.querySelector('[aria-label="Left margin"]');
+    const rightMargin = document.querySelector('[aria-label="Right margin"]');
+    const leftMarginMm =
+      leftMargin instanceof HTMLInputElement
+        ? Number.parseFloat(leftMargin.value)
+        : Number.NaN;
+    const rightMarginMm =
+      rightMargin instanceof HTMLInputElement
+        ? Number.parseFloat(rightMargin.value)
+        : Number.NaN;
+    const pixelsPerMm = labelBounds.width / plateWidth;
+    const expectedGapDifference = (leftMarginMm - rightMarginMm) * pixelsPerMm;
     // Trim uses an 8 px/mm monochrome raster. The DOM glyph bounds can differ
     // by one raster pixel on each side.
     if (
       !Number.isInteger(plateWidth) ||
       leftError < -1.6 ||
       rightError > 1.6 ||
-      Math.abs(leftError + rightError) > 0.2
+      Math.abs(leftError + rightError - expectedGapDifference) > 0.2
     ) {
       throw new Error(
         `Trim rounding is invalid: ${plateWidth}, ${leftError}, ${rightError}`,
@@ -771,10 +804,11 @@ await capture(1440, 960, "labelmaker-trim-grow-1440x960.png", async (page) => {
   await page
     .getByRole("textbox", { name: "Edit text on label" })
     .fill("RESISTORS RESISTORS RESISTORS");
-  await page.getByRole("button", { name: "Trim plate to content" }).click();
   await page.waitForFunction(() => {
-    const input = document.querySelector('[aria-label="Plate width"]');
-    return input instanceof HTMLInputElement && Number(input.value) > 62;
+    const label = document.querySelector(".label-canvas");
+    return (
+      label instanceof HTMLElement && Number(label.dataset.plateWidthMm) > 62
+    );
   });
   await page
     .locator(".canvas-clear-selection")
@@ -822,10 +856,11 @@ await capture(
     });
     await page.getByLabel("Image fit").selectOption("stretch");
     await setHiddenNumberControl(page, "Image width", "80");
-    await page.getByRole("button", { name: "Trim plate to content" }).click();
     await page.waitForFunction(() => {
-      const input = document.querySelector('[aria-label="Plate width"]');
-      return input instanceof HTMLInputElement && Number(input.value) > 62;
+      const label = document.querySelector(".label-canvas");
+      return (
+        label instanceof HTMLElement && Number(label.dataset.plateWidthMm) > 62
+      );
     });
   },
 );

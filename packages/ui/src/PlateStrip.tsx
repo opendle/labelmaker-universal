@@ -3,20 +3,61 @@ import type { RasterAlignment } from "@labelmaker/printing";
 import { Plus, Trash2 } from "lucide-react";
 import {
   type CSSProperties,
-  type Dispatch,
   type PointerEvent as ReactPointerEvent,
-  type SetStateAction,
   useEffect,
   useRef,
   useState,
 } from "react";
 
 import { LabelArtwork } from "./LabelArtwork.js";
-import { nonPrintableMarginsMm } from "./label-layout.js";
+import {
+  nonPrintableMarginsMm,
+  printableVerticalCrop,
+} from "./label-layout.js";
 
 const THUMBNAIL_PIXELS_PER_MM = 3.25;
 const MOVE_TOLERANCE_PX = 8;
 const TOUCH_REORDER_DELAY_MS = 425;
+
+function useForegroundPaintRevision(): number {
+  const [paintRevision, setPaintRevision] = useState(0);
+
+  useEffect(() => {
+    let paintFrame: number | null = null;
+    const scheduleForegroundPaint = () => {
+      if (
+        globalThis.document.visibilityState !== "visible" ||
+        paintFrame !== null
+      ) {
+        return;
+      }
+      paintFrame = globalThis.requestAnimationFrame(() => {
+        paintFrame = null;
+        setPaintRevision((current) => current + 1);
+      });
+    };
+
+    globalThis.document.addEventListener(
+      "visibilitychange",
+      scheduleForegroundPaint,
+    );
+    globalThis.addEventListener("pageshow", scheduleForegroundPaint);
+    globalThis.addEventListener("focus", scheduleForegroundPaint);
+    return () => {
+      globalThis.document.removeEventListener(
+        "visibilitychange",
+        scheduleForegroundPaint,
+      );
+      globalThis.removeEventListener("pageshow", scheduleForegroundPaint);
+      globalThis.removeEventListener("focus", scheduleForegroundPaint);
+      if (paintFrame !== null) {
+        globalThis.cancelAnimationFrame(paintFrame);
+      }
+    };
+  }, []);
+
+  return paintRevision;
+}
 
 interface PressState {
   readonly plateId: string;
@@ -36,11 +77,6 @@ interface DragState {
   targetIndex: number;
 }
 
-interface RenameState {
-  readonly plateId: string;
-  readonly value: string;
-}
-
 function platesForDragPreview(
   plates: readonly LabelPlate[],
   plateId: string | null,
@@ -54,99 +90,6 @@ function platesForDragPreview(
   if (!plate) return plates;
   preview.splice(targetIndex, 0, plate);
   return preview;
-}
-
-function PlateName({
-  index,
-  plate,
-  rename,
-  setRename,
-  ignoreSuppressedClick,
-  onRenamePlate,
-  onSelectPlate,
-  active,
-  phoneMode,
-}: {
-  readonly index: number;
-  readonly plate: LabelPlate;
-  readonly rename: RenameState | null;
-  readonly setRename: Dispatch<SetStateAction<RenameState | null>>;
-  readonly ignoreSuppressedClick: () => boolean;
-  readonly onRenamePlate: (plateId: string, name: string) => void;
-  readonly onSelectPlate: (plateId: string, elementId: string | null) => void;
-  readonly active: boolean;
-  readonly phoneMode: boolean;
-}) {
-  const editing = rename?.plateId === plate.id;
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (!editing) return;
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, [editing]);
-
-  if (editing) {
-    return (
-      <input
-        aria-label="Label name"
-        className="thumb-name-input"
-        onBlur={(event) => {
-          if (event.currentTarget.value !== plate.name) {
-            onRenamePlate(plate.id, event.currentTarget.value);
-          }
-          setRename((current) =>
-            current?.plateId === plate.id ? null : current,
-          );
-        }}
-        onChange={(event) =>
-          setRename({ plateId: plate.id, value: event.target.value })
-        }
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            event.currentTarget.blur();
-          } else if (event.key === "Escape") {
-            event.preventDefault();
-            setRename(null);
-          }
-        }}
-        ref={inputRef}
-        value={rename.value}
-      />
-    );
-  }
-
-  return (
-    <button
-      aria-label={`Rename label ${index + 1}: ${plate.name}`}
-      className="thumb-name-control"
-      onClick={(event) => {
-        if (ignoreSuppressedClick()) {
-          event.preventDefault();
-          return;
-        }
-        if (phoneMode && active) {
-          setRename({ plateId: plate.id, value: plate.name });
-        } else {
-          onSelectPlate(plate.id, null);
-        }
-      }}
-      onDoubleClick={(event) => {
-        event.preventDefault();
-        setRename({ plateId: plate.id, value: plate.name });
-      }}
-      onKeyDown={(event) => {
-        if (event.key !== "Enter" && event.key !== "F2") return;
-        event.preventDefault();
-        onSelectPlate(plate.id, null);
-        setRename({ plateId: plate.id, value: plate.name });
-      }}
-      title="Double-click to rename"
-      type="button"
-    >
-      <span className="thumb-name">{plate.name}</span>
-    </button>
-  );
 }
 
 function PlateDeleteButton({
@@ -294,10 +237,7 @@ function usePlateReorder({
   ) => {
     if (event.button !== 0 || event.isPrimary === false) return;
     const target = event.target;
-    if (
-      target instanceof Element &&
-      Boolean(target.closest(".plate-delete, .thumb-name-input"))
-    ) {
+    if (target instanceof Element && Boolean(target.closest(".plate-delete"))) {
       return;
     }
     clearPointerListeners();
@@ -388,7 +328,6 @@ export function PlateStrip({
   onAddPlate,
   onDeletePlate,
   onMovePlate,
-  onRenamePlate,
   printHeadSizeMm,
   marginTopMm,
   marginBottomMm,
@@ -402,7 +341,6 @@ export function PlateStrip({
   readonly onAddPlate: () => void;
   readonly onDeletePlate: (plateId: string) => void;
   readonly onMovePlate: (plateId: string, targetIndex: number) => void;
-  readonly onRenamePlate: (plateId: string, name: string) => void;
   readonly printHeadSizeMm: number | undefined;
   readonly marginTopMm: number | undefined;
   readonly marginBottomMm: number | undefined;
@@ -410,7 +348,7 @@ export function PlateStrip({
   readonly phoneMode?: boolean;
   readonly short?: boolean;
 }) {
-  const [rename, setRename] = useState<RenameState | null>(null);
+  const paintRevision = useForegroundPaintRevision();
   const {
     draggingPlateId,
     dropTargetIndex,
@@ -433,16 +371,33 @@ export function PlateStrip({
     >
       <div className="plate-thumbnails">
         {displayedPlates.map((plate, index) => {
+          const printableMargins = nonPrintableMarginsMm(
+            plate.size.heightMm,
+            printHeadSizeMm,
+            marginTopMm,
+            marginBottomMm,
+            rasterAlignment,
+          );
+          const crop = printableVerticalCrop(
+            plate.size.heightMm,
+            printableMargins,
+          );
+          const pixelsPerMm = phoneMode
+            ? short
+              ? 1.75
+              : 2.35
+            : THUMBNAIL_PIXELS_PER_MM;
+          const croppedScale = plate.size.heightMm / crop.heightMm;
           return (
             <div
               aria-grabbed={draggingPlateId === plate.id}
               className={`plate-thumb${plate.id === activePlateId ? " selected" : ""}${draggingPlateId === plate.id ? " dragging" : ""}`}
-              key={plate.id}
+              key={`${plate.id}:${paintRevision}`}
               onPointerDown={(event) => handlePointerDown(event, plate.id)}
               style={
                 {
-                  "--label-preview-height": `${plate.size.heightMm * (phoneMode ? (short ? 1.75 : 2.35) : THUMBNAIL_PIXELS_PER_MM)}px`,
-                  "--label-preview-width": `${plate.size.widthMm * (phoneMode ? (short ? 1.75 : 2.35) : THUMBNAIL_PIXELS_PER_MM)}px`,
+                  "--label-preview-height": `${plate.size.heightMm * pixelsPerMm}px`,
+                  "--label-preview-width": `${plate.size.widthMm * pixelsPerMm * croppedScale}px`,
                 } as CSSProperties & Record<`--${string}`, string>
               }
             >
@@ -493,26 +448,9 @@ export function PlateStrip({
                 <LabelArtwork
                   className="mini-label"
                   plate={plate}
-                  printableMargins={nonPrintableMarginsMm(
-                    plate.size.heightMm,
-                    printHeadSizeMm,
-                    marginTopMm,
-                    marginBottomMm,
-                    rasterAlignment,
-                  )}
+                  printableMargins={printableMargins}
                 />
               </button>
-              <PlateName
-                active={plate.id === activePlateId}
-                ignoreSuppressedClick={ignoreSuppressedClick}
-                index={index}
-                onRenamePlate={onRenamePlate}
-                onSelectPlate={onSelectPlate}
-                phoneMode={phoneMode}
-                plate={plate}
-                rename={rename}
-                setRename={setRename}
-              />
               {!phoneMode && (
                 <PlateDeleteButton
                   disabled={workspace.plates.length === 1}

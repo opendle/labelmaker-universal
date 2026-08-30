@@ -3,11 +3,12 @@ import type { CSSProperties } from "react";
 
 import {
   containerFontSize,
-  printableMarginPercent,
+  printableVerticalCrop,
   type PrintableMargins,
 } from "./label-layout.js";
 import { MonochromeImage } from "./MonochromeImage.js";
 import { ShapeArtwork } from "./ShapeArtwork.js";
+import { textWithTrailingLineMarker } from "./text-layout.js";
 
 type ArtworkStyle = CSSProperties & Record<`--${string}`, string | number>;
 
@@ -22,15 +23,8 @@ export function LabelArtwork({
   readonly className: string;
   readonly mirrorArtwork?: boolean;
 }) {
-  const topMarginPercent = printableMarginPercent(
-    printableMargins.topMm,
-    plate.size.heightMm,
-  );
-  const bottomMarginPercent = printableMarginPercent(
-    printableMargins.bottomMm,
-    plate.size.heightMm,
-  );
-  const aspectRatio = plate.size.widthMm / plate.size.heightMm;
+  const crop = printableVerticalCrop(plate.size.heightMm, printableMargins);
+  const aspectRatio = plate.size.widthMm / crop.heightMm;
   return (
     <span
       className={`label-artwork ${className}`}
@@ -45,9 +39,9 @@ export function LabelArtwork({
       {plate.elements.map((element) => {
         const frame: ArtworkStyle = {
           left: `${(element.xMm / plate.size.widthMm) * 100}%`,
-          top: `${(element.yMm / plate.size.heightMm) * 100}%`,
+          top: `${((element.yMm - crop.topMm) / crop.heightMm) * 100}%`,
           width: `${(element.widthMm / plate.size.widthMm) * 100}%`,
-          height: `${(element.heightMm / plate.size.heightMm) * 100}%`,
+          height: `${(element.heightMm / crop.heightMm) * 100}%`,
           transform: `rotate(${element.rotationDeg}deg)`,
         };
         if (element.kind === "text") {
@@ -76,7 +70,9 @@ export function LabelArtwork({
                 textAlign: element.align,
               }}
             >
-              <span className="label-artwork-text-content">{element.text}</span>
+              <span className="label-artwork-text-content">
+                {textWithTrailingLineMarker(element.text)}
+              </span>
             </span>
           );
         }
@@ -102,16 +98,6 @@ export function LabelArtwork({
         }
         return null;
       })}
-      <span
-        aria-hidden="true"
-        className="artwork-nonprintable top"
-        style={{ height: `${topMarginPercent}%` }}
-      />
-      <span
-        aria-hidden="true"
-        className="artwork-nonprintable bottom"
-        style={{ height: `${bottomMarginPercent}%` }}
-      />
     </span>
   );
 }

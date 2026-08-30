@@ -21,6 +21,7 @@ import {
   replacePlate,
   type Toast,
 } from "./app-state.js";
+import { trimLatestWorkspace } from "./automatic-trim.js";
 import {
   appendElementAndFlagPeer,
   clamp,
@@ -55,6 +56,8 @@ function toastAction(tone: Toast["tone"], message: string, busy = false) {
   };
 }
 
+const AUTOMATIC_TRIM_DELAY_MS = 150;
+
 export function useLabelmakerController(host: LabelmakerHost) {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -62,6 +65,18 @@ export function useLabelmakerController(host: LabelmakerHost) {
   const printCancellationRequested = useRef(false);
   const printerMutationGeneration = useRef(0);
   const workspaceRef = useRef(state.workspace);
+  const automaticTrimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const automaticTrimPlateIdsRef = useRef(new Set<string>());
+  const heldPrintedPixelPlateIdsRef = useRef(new Set<string>());
+  const heldInteractionWaitersRef = useRef(new Set<() => void>());
+  const automaticTrimGenerationRef = useRef(0);
+  const automaticTrimRunRef = useRef<Promise<boolean> | null>(null);
+  const automaticTrimActivePlateIdRef = useRef<string | null>(null);
+  const automaticTrimRunnerRef = useRef<() => Promise<boolean>>(
+    async () => true,
+  );
   workspaceRef.current = state.workspace;
   const activePlate = useMemo(
     () =>
@@ -241,38 +256,212 @@ export function useLabelmakerController(host: LabelmakerHost) {
     return () => globalThis.clearTimeout(timer);
   }, [state.toast]);
 
-  const editWorkspace = useCallback(
-    (workspace: typeof state.workspace) =>
-      dispatch({ type: "edit-workspace", workspace }),
-    [],
+  const runAutomaticTrim = useCallback((): Promise<boolean> => {
+    const activeRun = automaticTrimRunRef.current;
+    if (activeRun) return activeRun;
+    const generation = automaticTrimGenerationRef.current;
+    let runPromise!: Promise<boolean>;
+    runPromise = (async () => {
+      await Promise.resolve();
+      const trimNextPlate = async (): Promise<void> => {
+        if (automaticTrimGenerationRef.current !== generation) return;
+        const nextPlateId = automaticTrimPlateIdsRef.current.values().next();
+        if (nextPlateId.done) return;
+        automaticTrimPlateIdsRef.current.delete(nextPlateId.value);
+        automaticTrimActivePlateIdRef.current = nextPlateId.value;
+        try {
+          await trimLatestWorkspace(
+            nextPlateId.value,
+            () => workspaceRef.current,
+            (workspace) => {
+              if (automaticTrimGenerationRef.current !== generation) return;
+              workspaceRef.current = workspace;
+              dispatch({ type: "apply-automatic-trim", workspace });
+            },
+          );
+        } finally {
+          if (automaticTrimActivePlateIdRef.current === nextPlateId.value) {
+            automaticTrimActivePlateIdRef.current = null;
+          }
+        }
+        await trimNextPlate();
+      };
+      try {
+        await trimNextPlate();
+        return true;
+      } catch {
+        if (automaticTrimGenerationRef.current === generation) {
+          dispatch(
+            toastAction(
+              "error",
+              "The label could not be trimmed automatically.",
+            ),
+          );
+        }
+        return false;
+      } finally {
+        if (automaticTrimRunRef.current === runPromise) {
+          automaticTrimRunRef.current = null;
+        }
+        if (
+          automaticTrimPlateIdsRef.current.size > 0 &&
+          heldPrintedPixelPlateIdsRef.current.size === 0 &&
+          automaticTrimTimerRef.current === null
+        ) {
+          automaticTrimTimerRef.current = globalThis.setTimeout(() => {
+            automaticTrimTimerRef.current = null;
+            void automaticTrimRunnerRef.current();
+          }, 0);
+        }
+      }
+    })();
+    automaticTrimRunRef.current = runPromise;
+    return runPromise;
+  }, []);
+  automaticTrimRunnerRef.current = runAutomaticTrim;
+  const scheduleAutomaticTrim = useCallback(() => {
+    if (
+      heldPrintedPixelPlateIdsRef.current.size > 0 ||
+      automaticTrimPlateIdsRef.current.size === 0
+    ) {
+      return;
+    }
+    if (automaticTrimTimerRef.current !== null) {
+      globalThis.clearTimeout(automaticTrimTimerRef.current);
+    }
+    automaticTrimTimerRef.current = globalThis.setTimeout(() => {
+      automaticTrimTimerRef.current = null;
+      void runAutomaticTrim();
+    }, AUTOMATIC_TRIM_DELAY_MS);
+  }, [runAutomaticTrim]);
+  const requestAutomaticTrim = useCallback(
+    (plateId: string) => {
+      automaticTrimPlateIdsRef.current.add(plateId);
+      scheduleAutomaticTrim();
+    },
+    [scheduleAutomaticTrim],
+  );
+  const clearAutomaticTrimTimer = useCallback(() => {
+    if (automaticTrimTimerRef.current === null) return;
+    globalThis.clearTimeout(automaticTrimTimerRef.current);
+    automaticTrimTimerRef.current = null;
+  }, []);
+  const flushAutomaticTrim = useCallback(async () => {
+    if (heldPrintedPixelPlateIdsRef.current.size > 0) {
+      await new Promise<void>((resolve) => {
+        heldInteractionWaitersRef.current.add(resolve);
+      });
+    }
+    clearAutomaticTrimTimer();
+    const flushNext = async (): Promise<typeof workspaceRef.current | null> => {
+      const succeeded = await runAutomaticTrim();
+      if (!succeeded) return null;
+      clearAutomaticTrimTimer();
+      if (
+        automaticTrimRunRef.current !== null ||
+        automaticTrimPlateIdsRef.current.size > 0
+      ) {
+        return flushNext();
+      }
+      return workspaceRef.current;
+    };
+    return flushNext();
+  }, [clearAutomaticTrimTimer, runAutomaticTrim]);
+  const cancelAutomaticTrim = useCallback(() => {
+    automaticTrimGenerationRef.current += 1;
+    clearAutomaticTrimTimer();
+    automaticTrimPlateIdsRef.current.clear();
+    heldPrintedPixelPlateIdsRef.current.clear();
+    heldInteractionWaitersRef.current.forEach((resolve) => resolve());
+    heldInteractionWaitersRef.current.clear();
+  }, [clearAutomaticTrimTimer]);
+  useEffect(
+    () => () => {
+      automaticTrimGenerationRef.current += 1;
+      clearAutomaticTrimTimer();
+      automaticTrimPlateIdsRef.current.clear();
+      heldPrintedPixelPlateIdsRef.current.clear();
+      heldInteractionWaitersRef.current.forEach((resolve) => resolve());
+      heldInteractionWaitersRef.current.clear();
+    },
+    [clearAutomaticTrimTimer],
+  );
+  const editWorkspace = useCallback((workspace: typeof state.workspace) => {
+    workspaceRef.current = workspace;
+    dispatch({ type: "edit-workspace", workspace });
+  }, []);
+  const editPrintedPixels = useCallback(
+    (workspace: typeof state.workspace, plateId: string) => {
+      editWorkspace(workspace);
+      requestAutomaticTrim(plateId);
+    },
+    [editWorkspace, requestAutomaticTrim],
+  );
+  const beginPrintedPixelInteraction = useCallback(
+    (plateId: string) => {
+      if (heldPrintedPixelPlateIdsRef.current.size === 0) {
+        automaticTrimGenerationRef.current += 1;
+        clearAutomaticTrimTimer();
+        const activeTrimPlateId = automaticTrimActivePlateIdRef.current;
+        if (activeTrimPlateId) {
+          automaticTrimPlateIdsRef.current.add(activeTrimPlateId);
+        }
+      }
+      heldPrintedPixelPlateIdsRef.current.add(plateId);
+    },
+    [clearAutomaticTrimTimer],
+  );
+  const editPrintedPixelsDuringInteraction = useCallback(
+    (workspace: typeof state.workspace, plateId: string) => {
+      automaticTrimPlateIdsRef.current.add(plateId);
+      editWorkspace(workspace);
+    },
+    [editWorkspace],
+  );
+  const finishPrintedPixelInteraction = useCallback(
+    (plateId: string) => {
+      heldPrintedPixelPlateIdsRef.current.delete(plateId);
+      if (heldPrintedPixelPlateIdsRef.current.size > 0) return;
+      heldInteractionWaitersRef.current.forEach((resolve) => resolve());
+      heldInteractionWaitersRef.current.clear();
+      scheduleAutomaticTrim();
+    },
+    [scheduleAutomaticTrim],
   );
   const updatePlate = useCallback(
     (plateId: string, update: (plate: LabelPlate) => LabelPlate) => {
-      editWorkspace(replacePlate(state.workspace, plateId, update));
+      editPrintedPixels(
+        replacePlate(state.workspace, plateId, update),
+        plateId,
+      );
     },
-    [editWorkspace, state.workspace],
+    [editPrintedPixels, state.workspace],
   );
   const updateElement = useCallback(
     (elementId: string, update: (element: LabelElement) => LabelElement) => {
       if (!activePlate) return;
-      editWorkspace(
+      editPrintedPixels(
         replaceElement(state.workspace, activePlate.id, elementId, update),
+        activePlate.id,
       );
     },
-    [activePlate, editWorkspace, state.workspace],
+    [activePlate, editPrintedPixels, state.workspace],
   );
 
   const save = useCallback(
     async (saveAs = false) => {
       try {
+        const workspace = await flushAutomaticTrim();
+        if (!workspace) return;
         const result = saveAs
-          ? await host.saveWorkspaceAs(state.workspace)
-          : await host.saveWorkspace(state.workspace);
+          ? await host.saveWorkspaceAs(workspace)
+          : await host.saveWorkspace(workspace);
         if (result.status === "saved") {
           dispatch({
             type: "mark-saved",
             savedAt: result.savedAt,
             fileName: result.fileName,
+            workspace,
           });
           dispatch(toastAction("success", `Saved ${result.fileName}`));
         } else if (result.status === "failed") {
@@ -286,13 +475,16 @@ export function useLabelmakerController(host: LabelmakerHost) {
         );
       }
     },
-    [host, state.workspace],
+    [flushAutomaticTrim, host],
   );
 
   const newWorkspace = useCallback(async () => {
     try {
-      const result = await host.newWorkspace(state.dirty, state.workspace);
+      const workspace = await flushAutomaticTrim();
+      if (!workspace) return;
+      const result = await host.newWorkspace(state.dirty, workspace);
       if (result.status === "created") {
+        cancelAutomaticTrim();
         dispatch({
           type: "load-workspace",
           workspace: result.document,
@@ -312,12 +504,15 @@ export function useLabelmakerController(host: LabelmakerHost) {
         ),
       );
     }
-  }, [host, state.dirty, state.workspace]);
+  }, [cancelAutomaticTrim, flushAutomaticTrim, host, state.dirty]);
 
   const openWorkspace = useCallback(async () => {
     try {
-      const result = await host.openWorkspace(state.dirty, state.workspace);
+      const workspace = await flushAutomaticTrim();
+      if (!workspace) return;
+      const result = await host.openWorkspace(state.dirty, workspace);
       if (result.status === "opened") {
+        cancelAutomaticTrim();
         dispatch({
           type: "load-workspace",
           workspace: result.document,
@@ -334,7 +529,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
         toastAction("error", "The workspace could not be opened. Try again."),
       );
     }
-  }, [host, state.dirty, state.workspace]);
+  }, [cancelAutomaticTrim, flushAutomaticTrim, host, state.dirty]);
 
   const startDiscovery = useCallback(async () => {
     dispatch({ type: "discovery-started" });
@@ -426,11 +621,13 @@ export function useLabelmakerController(host: LabelmakerHost) {
         ),
       );
       try {
+        const workspace = await flushAutomaticTrim();
+        if (!workspace) return;
         const result = await host.print({
-          document: state.workspace,
+          document: workspace,
           printerId: activePrinter.id,
           plateIds: all
-            ? state.workspace.plates.map((plate) => plate.id)
+            ? workspace.plates.map((plate) => plate.id)
             : [activePlate.id],
         });
         dispatch(toastAction("success", result.message));
@@ -451,7 +648,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
         setIsPrinting(false);
       }
     },
-    [activePlate, activePrinter, host, state.workspace],
+    [activePlate, activePrinter, flushAutomaticTrim, host],
   );
 
   const cancelPrint = useCallback(async () => {
@@ -466,26 +663,34 @@ export function useLabelmakerController(host: LabelmakerHost) {
   }, [host]);
 
   const addPlate = useCallback(() => {
+    const settingsSource = activePlate;
+    const heightMm =
+      settingsSource?.size.heightMm ??
+      state.workspace.defaultPlateSize.heightMm;
     const plate = createPlate(
       state.workspace,
       nonPrintableMarginsMm(
-        state.workspace.defaultPlateSize.heightMm,
+        heightMm,
         activePrinter?.printableWidthMm,
         activePrinter?.marginTopMm,
         activePrinter?.marginBottomMm,
         activePrinter?.rasterAlignment,
       ),
+      settingsSource,
     );
-    editWorkspace({
-      ...state.workspace,
-      plates: [...state.workspace.plates, plate],
-    });
+    editPrintedPixels(
+      {
+        ...state.workspace,
+        plates: [...state.workspace.plates, plate],
+      },
+      plate.id,
+    );
     dispatch({
       type: "select-plate",
       plateId: plate.id,
       elementId: plate.elements[0]?.id ?? null,
     });
-  }, [activePrinter, editWorkspace, state.workspace]);
+  }, [activePlate, activePrinter, editPrintedPixels, state.workspace]);
   const deletePlate = useCallback(
     (plateId: string) => {
       if (state.workspace.plates.length === 1) return;
@@ -524,11 +729,12 @@ export function useLabelmakerController(host: LabelmakerHost) {
   const addSpecial = useCallback(
     (kind: "flag") => {
       if (!activePlate || kind !== "flag") return;
-      editWorkspace(
+      editPrintedPixels(
         replacePlate(state.workspace, activePlate.id, toggleFlagPlate),
+        activePlate.id,
       );
     },
-    [activePlate, editWorkspace, state.workspace],
+    [activePlate, editPrintedPixels, state.workspace],
   );
 
   const addShape = useCallback(
@@ -574,15 +780,16 @@ export function useLabelmakerController(host: LabelmakerHost) {
             insertionMargins(sourcePlate),
           )
         : baseElement;
-      editWorkspace(
+      editPrintedPixels(
         replacePlate(workspace, plateId, (plate) =>
           appendElementAndFlagPeer(plate, element),
         ),
+        plateId,
       );
       dispatch({ type: "select-element", elementId: element.id });
       return element.id;
     },
-    [editWorkspace, insertionMargins],
+    [editPrintedPixels, insertionMargins],
   );
 
   const addDrawing = useCallback(
@@ -674,8 +881,23 @@ export function useLabelmakerController(host: LabelmakerHost) {
     dispatch({ type: "select-element", elementId: null });
   }, [activePlate, selectedElement, updatePlate]);
 
-  const shortcutRef = useRef({ save, deleteSelected, zoom: state.zoom });
-  shortcutRef.current = { save, deleteSelected, zoom: state.zoom };
+  const undo = useCallback(() => {
+    cancelAutomaticTrim();
+    dispatch({ type: "undo" });
+  }, [cancelAutomaticTrim]);
+  const redo = useCallback(() => {
+    cancelAutomaticTrim();
+    dispatch({ type: "redo" });
+  }, [cancelAutomaticTrim]);
+
+  const shortcutRef = useRef({
+    save,
+    deleteSelected,
+    undo,
+    redo,
+    zoom: state.zoom,
+  });
+  shortcutRef.current = { save, deleteSelected, undo, redo, zoom: state.zoom };
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const command = event.metaKey || event.ctrlKey;
@@ -691,10 +913,11 @@ export function useLabelmakerController(host: LabelmakerHost) {
         void shortcutRef.current.save(event.shiftKey);
       } else if (command && event.key.toLowerCase() === "z") {
         event.preventDefault();
-        dispatch({ type: event.shiftKey ? "redo" : "undo" });
+        if (event.shiftKey) shortcutRef.current.redo();
+        else shortcutRef.current.undo();
       } else if (command && event.key.toLowerCase() === "y") {
         event.preventDefault();
-        dispatch({ type: "redo" });
+        shortcutRef.current.redo();
       } else if (command && ["+", "="].includes(event.key)) {
         event.preventDefault();
         dispatch({
@@ -754,6 +977,12 @@ export function useLabelmakerController(host: LabelmakerHost) {
     updatePlate,
     updateElement,
     editWorkspace,
+    editPrintedPixels,
+    beginPrintedPixelInteraction,
+    editPrintedPixelsDuringInteraction,
+    finishPrintedPixelInteraction,
+    undo,
+    redo,
   };
 }
 

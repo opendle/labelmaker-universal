@@ -73,6 +73,22 @@ describe("createPlate", () => {
       createPlate(document, { topMm: 2, bottomMm: 3 }).elements[0],
     ).toMatchObject({ xMm: 30, yMm: 2, widthMm: 40, heightMm: 11 });
   });
+
+  it("copies the current height and margins but keeps the default width", () => {
+    const source = {
+      ...document.plates[0]!,
+      size: { widthMm: 47, heightMm: 24 },
+      margins: { leftMm: 4, rightMm: 5 },
+    };
+
+    expect(
+      createPlate(document, { topMm: 2, bottomMm: 3 }, source),
+    ).toMatchObject({
+      size: { widthMm: 100, heightMm: 24 },
+      margins: { leftMm: 4, rightMm: 5 },
+      elements: [{ yMm: 2, heightMm: 19 }],
+    });
+  });
 });
 
 describe("createText", () => {

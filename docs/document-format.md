@@ -63,7 +63,10 @@ The TypeScript types can include planned element kinds before the editor exposes
 them. The loader must still reject unknown schema versions and invalid values.
 
 Plate margins are part of the saved document. They define the horizontal space
-that the trim-to-content action keeps before and after printed elements.
+that automatic trim keeps before and after printed elements.
+
+Plate names remain part of schema version 1 for compatibility with old saved
+files. The editor does not show plate names in the plate strip.
 
 `mirrorPrint` is optional in schema version 1. When it is `true`, the shell
 mirrors the print raster across the label width. The editor and label strip do

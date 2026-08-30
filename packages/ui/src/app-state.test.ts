@@ -34,6 +34,26 @@ describe("app session recovery", () => {
   });
 });
 
+describe("saved state", () => {
+  it("keeps a newer workspace edit dirty after an older save completes", () => {
+    const savedWorkspace = { ...sampleDocument, name: "Saved version" };
+    const newerWorkspace = { ...sampleDocument, name: "Newer edit" };
+    const state = appReducer(
+      { ...initialAppState, workspace: newerWorkspace, dirty: true },
+      {
+        type: "mark-saved",
+        fileName: "labels.lbl",
+        savedAt: "2026-08-30T00:00:00.000Z",
+        workspace: savedWorkspace,
+      },
+    );
+
+    expect(state.dirty).toBe(true);
+    expect(state.workspace).toBe(newerWorkspace);
+    expect(state.workspaceFileName).toBe("labels.lbl");
+  });
+});
+
 describe("plate order", () => {
   it("moves one plate to a bounded target position", () => {
     const moved = movePlate(sampleDocument, "plate-resistors", 2);

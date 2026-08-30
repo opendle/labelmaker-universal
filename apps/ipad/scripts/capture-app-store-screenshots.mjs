@@ -104,7 +104,7 @@ try {
         await settings.getByRole("button", { name: "Flag" }).click();
         await settings.getByRole("button", { name: "Save settings" }).click();
         await page
-          .getByRole("button", { name: "Rename label 1: Flag Resistors" })
+          .getByRole("button", { name: "Select label 1: Flag Resistors" })
           .waitFor();
       } else {
         await page.getByRole("button", { name: "Flag" }).click();

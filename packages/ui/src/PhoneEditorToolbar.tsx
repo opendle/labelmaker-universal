@@ -10,7 +10,6 @@ import {
   AlignRight,
   ChevronDown,
   Circle,
-  Crop,
   Image as ImageIcon,
   Minus,
   MoreHorizontal,
@@ -53,7 +52,6 @@ export function PhoneEditorToolbar({
   onDeleteSelection,
   onOpenElementProperties,
   onOpenPlateSettings,
-  onTrim,
 }: {
   readonly selectedText: TextElement | undefined;
   readonly selectedImage: ImageElement | undefined;
@@ -67,7 +65,6 @@ export function PhoneEditorToolbar({
   readonly onDeleteSelection: () => void;
   readonly onOpenElementProperties: () => void;
   readonly onOpenPlateSettings: () => void;
-  readonly onTrim: () => void;
 }) {
   const selectedElement = selectedText ?? selectedImage ?? selectedShape;
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -158,15 +155,6 @@ export function PhoneEditorToolbar({
             type="button"
           >
             <Settings2 size={18} />
-          </button>
-          <button
-            aria-label="Trim label to content"
-            className="phone-command-icon trim"
-            onClick={onTrim}
-            title="Trim label to content"
-            type="button"
-          >
-            <Crop size={18} />
           </button>
         </div>
       </div>

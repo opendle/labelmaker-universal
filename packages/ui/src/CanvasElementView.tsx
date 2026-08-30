@@ -18,6 +18,7 @@ import { pointsToMillimeters } from "./label-layout.js";
 import { MonochromeImage } from "./MonochromeImage.js";
 import { isFlagGuideElement } from "./editor-operations.js";
 import { ShapeArtwork } from "./ShapeArtwork.js";
+import { textWithTrailingLineMarker } from "./text-layout.js";
 
 type ResizeCorner = "nw" | "ne" | "sw" | "se";
 type FramedElement = TextElement | ImageElement | ShapeElement;
@@ -81,21 +82,22 @@ export function CanvasElementView({
     const measuredHeight = Number.parseFloat(
       globalThis.getComputedStyle(measure).height,
     );
+    const paintAllowance = editor.closest(".platform-ipados") ? 2 : 0;
     if (!(measuredHeight > 0)) {
-      editor.style.height = `${editor.scrollHeight}px`;
+      editor.style.height = `${Math.ceil(editor.scrollHeight + paintAllowance)}px`;
       editor.style.transform = "";
       return;
     }
     editor.style.height = `${measuredHeight}px`;
-    const editorHeight = Math.max(measuredHeight, editor.scrollHeight);
-    const overflowHeight = editorHeight - measuredHeight;
+    const textHeight = Math.max(measuredHeight, editor.scrollHeight);
+    const overflowHeight = textHeight - measuredHeight;
     const verticalOffset =
       (element.verticalAlign ?? "middle") === "top"
         ? 0
         : element.verticalAlign === "bottom"
           ? overflowHeight
           : overflowHeight / 2;
-    editor.style.height = `${editorHeight}px`;
+    editor.style.height = `${Math.ceil(textHeight + paintAllowance)}px`;
     editor.style.transform =
       verticalOffset > 0 ? `translateY(${verticalOffset}px)` : "";
     editor.scrollTop = 0;
@@ -147,12 +149,8 @@ export function CanvasElementView({
       : {};
   const editorLineCount =
     element.kind === "text" ? element.text.split(/\r\n?|\n/).length : 1;
-  const measurementText =
-    element.kind === "text" && /(?:\r\n?|\n)$/.test(element.text)
-      ? `${element.text}\u200b`
-      : element.kind === "text"
-        ? element.text
-        : "";
+  const displayText =
+    element.kind === "text" ? textWithTrailingLineMarker(element.text) : "";
   return (
     <div
       className={`canvas-element ${element.kind === "image" ? "canvas-image" : element.kind === "rectangle" ? "canvas-shape-element" : "canvas-text"} ${selected ? "selected" : ""} ${editing ? "editing" : ""}`}
@@ -165,14 +163,19 @@ export function CanvasElementView({
             className="inline-text-editor inline-text-measure"
             ref={inlineMeasureRef}
           >
-            {measurementText}
+            {displayText}
           </span>
           <textarea
             aria-label="Edit text on label"
             className="inline-text-editor"
             data-element-id={element.id}
             ref={inlineEditorRef}
-            onBlur={onEndEdit}
+            onBlur={(event) => {
+              const caret = event.currentTarget.selectionEnd ?? 0;
+              event.currentTarget.setSelectionRange(caret, caret);
+              globalThis.document.getSelection()?.removeAllRanges();
+              onEndEdit();
+            }}
             onChange={(event) =>
               onTextInput(element, event.currentTarget.value)
             }
@@ -207,7 +210,7 @@ export function CanvasElementView({
           {element.kind === "image" ? (
             <MonochromeImage element={element} />
           ) : element.kind === "text" ? (
-            <span className="inline-text-editor">{element.text}</span>
+            <span className="inline-text-editor">{displayText}</span>
           ) : element.kind === "rectangle" ? (
             <ShapeArtwork className="shape-artwork" element={element} />
           ) : null}

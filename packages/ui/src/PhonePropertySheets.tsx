@@ -98,12 +98,7 @@ export function PhonePlatePropertySheet({
           </IconButton>
         </div>
         <div className="phone-plate-settings-content">
-          <PlateToolbarSettings
-            onChange={onChange}
-            onTrim={() => undefined}
-            plate={draft}
-            showTrim={false}
-          />
+          <PlateToolbarSettings onChange={onChange} plate={draft} />
           <div
             aria-label="Special label settings"
             className="phone-special-settings"

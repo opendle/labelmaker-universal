@@ -27,6 +27,22 @@ export interface PrintableMargins {
   readonly bottomMm: number;
 }
 
+export function printableVerticalCrop(
+  plateHeightMm: number,
+  margins: PrintableMargins,
+) {
+  const topMm = Math.min(plateHeightMm, Math.max(0, margins.topMm));
+  const bottomMm = Math.min(
+    plateHeightMm - topMm,
+    Math.max(0, margins.bottomMm),
+  );
+  return {
+    topMm,
+    bottomMm,
+    heightMm: Math.max(0.01, plateHeightMm - topMm - bottomMm),
+  };
+}
+
 export function nonPrintableMarginsMm(
   plateHeightMm: number,
   printHeadSizeMm: number | undefined,

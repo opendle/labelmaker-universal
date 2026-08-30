@@ -106,7 +106,6 @@ function CanvasToolbar({
   onAddShape,
   onAddSpecial,
   onUpdatePlate,
-  onTrim,
   presentation,
 }: {
   readonly plate: LabelPlate;
@@ -117,7 +116,6 @@ function CanvasToolbar({
   readonly onAddShape: (shape: "line" | "rectangle" | "circle") => void;
   readonly onAddSpecial: (kind: "flag") => void;
   readonly onUpdatePlate: (plate: LabelPlate) => void;
-  readonly onTrim: () => void;
   readonly presentation: HostPresentation;
 }) {
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -334,18 +332,14 @@ function CanvasToolbar({
           <span className="tool-button-label">Mirror</span>
         </button>
       </div>
-      <PlateToolbarSettings
-        onChange={onUpdatePlate}
-        onTrim={onTrim}
-        plate={plate}
-      />
+      <PlateToolbarSettings onChange={onUpdatePlate} plate={plate} />
     </div>
   );
 }
 
 function useCommitInlineEdit(
   editingElementId: string | null,
-  setEditingElementId: (id: string | null) => void,
+  endInlineEdit: () => void,
 ) {
   useEffect(() => {
     if (!editingElementId) return;
@@ -354,7 +348,7 @@ function useCommitInlineEdit(
       if (!(target instanceof Element)) return;
       const editor = target.closest<HTMLElement>(".inline-text-editor");
       if (editor?.dataset.elementId !== editingElementId) {
-        setEditingElementId(null);
+        endInlineEdit();
       }
     };
     globalThis.document.addEventListener("pointerdown", onPointerDown, true);
@@ -364,7 +358,7 @@ function useCommitInlineEdit(
         onPointerDown,
         true,
       );
-  }, [editingElementId, setEditingElementId]);
+  }, [editingElementId, endInlineEdit]);
 }
 
 function NonprintableZones({
@@ -403,8 +397,10 @@ export function EditorCanvas({
   onSelectElement,
   onEditImage,
   onChangeElement,
+  onChangeElementDuringInteraction,
+  onElementInteractionStart,
+  onElementInteractionEnd,
   onUpdatePlate,
-  onTrim,
   onZoom,
   printableMargins,
   platform,
@@ -431,8 +427,10 @@ export function EditorCanvas({
     image: Extract<LabelElement, { kind: "image" }>,
   ) => void;
   readonly onChangeElement: (element: LabelElement) => void;
+  readonly onChangeElementDuringInteraction: (element: LabelElement) => void;
+  readonly onElementInteractionStart: () => void;
+  readonly onElementInteractionEnd: () => void;
   readonly onUpdatePlate: (plate: LabelPlate) => void;
-  readonly onTrim: () => void;
   readonly onZoom: (zoom: number) => void;
   readonly printableMargins: PrintableMargins;
   readonly platform: HostPlatform;
@@ -448,7 +446,20 @@ export function EditorCanvas({
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   const workSurfaceRef = useRef<HTMLDivElement>(null);
   const workSurfaceSize = useElementSize(workSurfaceRef);
-  useCommitInlineEdit(editingElementId, setEditingElementId);
+  const endInlineEdit = useCallback(() => {
+    if (editingElementId) {
+      const editor = globalThis.document.querySelector<HTMLTextAreaElement>(
+        `.inline-text-editor[data-element-id="${CSS.escape(editingElementId)}"]`,
+      );
+      if (editor) {
+        const caret = editor.selectionEnd ?? 0;
+        editor.setSelectionRange(caret, caret);
+      }
+    }
+    globalThis.document.getSelection()?.removeAllRanges();
+    setEditingElementId(null);
+  }, [editingElementId]);
+  useCommitInlineEdit(editingElementId, endInlineEdit);
   const phoneLayout = layout !== "standard";
   const fallbackPhoneWidth = Math.max(1, globalThis.innerWidth - 84);
   const fallbackPhoneHeight = Math.max(1, globalThis.innerHeight - 210);
@@ -491,6 +502,9 @@ export function EditorCanvas({
   } = useCanvasInteractions({
     editingElementId,
     onChangeElement,
+    onChangeElementDuringInteraction,
+    onInteractionEnd: onElementInteractionEnd,
+    onInteractionStart: onElementInteractionStart,
     onSelectElement,
     plate,
     printableMargins,
@@ -521,7 +535,6 @@ export function EditorCanvas({
           onOpenElementProperties={onOpenElementProperties}
           onOpenIcons={onOpenIcons}
           onOpenPlateSettings={onOpenPlateSettings}
-          onTrim={onTrim}
           selectedImage={selectedImage}
           selectedShape={selectedShape}
           selectedText={selectedText}
@@ -534,7 +547,6 @@ export function EditorCanvas({
           onAddShape={onAddShape}
           onAddSpecial={onAddSpecial}
           onAddText={onAddText}
-          onTrim={onTrim}
           onUpdatePlate={onUpdatePlate}
           plate={plate}
           presentation={presentation}
@@ -557,7 +569,7 @@ export function EditorCanvas({
             !target.closest(".canvas-element, button") ||
             target.closest(".canvas-clear-selection")
           ) {
-            setEditingElementId(null);
+            endInlineEdit();
             onSelectElement(null);
             if (!touchGestureStarted) startPan(event);
           }
@@ -588,6 +600,7 @@ export function EditorCanvas({
           <section
             aria-label={`${plate.name} label canvas`}
             className="label-canvas"
+            data-plate-width-mm={plate.size.widthMm}
             style={{
               width: `${plate.size.widthMm * canvasScale}px`,
               height: `${plate.size.heightMm * canvasScale}px`,
@@ -621,7 +634,7 @@ export function EditorCanvas({
                   if (target.kind === "text") setEditingElementId(target.id);
                   if (target.kind === "image") onEditImage(target);
                 }}
-                onEndEdit={() => setEditingElementId(null)}
+                onEndEdit={endInlineEdit}
                 onFocus={(target) => onSelectElement(target.id)}
                 onMoveKey={moveWithKeyboard}
                 onMoveStart={startMove}

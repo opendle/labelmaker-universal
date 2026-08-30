@@ -21,13 +21,22 @@ import { snapRotationDegrees } from "./rotation.js";
 export type ResizeCorner = "nw" | "ne" | "sw" | "se";
 type FramedElement = TextElement | ImageElement | ShapeElement;
 
-function trackPointerMovement(onMove: (event: PointerEvent) => void): void {
-  const finish = () => {
-    globalThis.removeEventListener("pointermove", onMove);
+function trackPointerMovement(
+  pointerId: number,
+  onMove: (event: PointerEvent) => void,
+  onFinish: () => void,
+): void {
+  const move = (event: PointerEvent) => {
+    if (event.pointerId === pointerId) onMove(event);
+  };
+  const finish = (event: PointerEvent) => {
+    if (event.pointerId !== pointerId) return;
+    globalThis.removeEventListener("pointermove", move);
     globalThis.removeEventListener("pointerup", finish);
     globalThis.removeEventListener("pointercancel", finish);
+    onFinish();
   };
-  globalThis.addEventListener("pointermove", onMove);
+  globalThis.addEventListener("pointermove", move);
   globalThis.addEventListener("pointerup", finish);
   globalThis.addEventListener("pointercancel", finish);
 }
@@ -280,6 +289,9 @@ export function useCanvasInteractions({
   editingElementId,
   onSelectElement,
   onChangeElement,
+  onChangeElementDuringInteraction,
+  onInteractionStart,
+  onInteractionEnd,
   printableMargins,
   touchNavigation = false,
   zoom,
@@ -290,6 +302,9 @@ export function useCanvasInteractions({
   readonly editingElementId: string | null;
   readonly onSelectElement: (id: string | null) => void;
   readonly onChangeElement: (element: LabelElement) => void;
+  readonly onChangeElementDuringInteraction: (element: LabelElement) => void;
+  readonly onInteractionStart: () => void;
+  readonly onInteractionEnd: () => void;
   readonly printableMargins: PrintableMargins;
   readonly touchNavigation?: boolean;
   readonly zoom: number;
@@ -427,6 +442,7 @@ export function useCanvasInteractions({
     const startY = event.clientY;
     const bounds = canvasBounds(event.currentTarget);
     if (!bounds) return;
+    onInteractionStart();
     const thresholds = {
       xMm: (6 / bounds.width) * plate.size.widthMm,
       yMm: (6 / bounds.height) * plate.size.heightMm,
@@ -436,7 +452,7 @@ export function useCanvasInteractions({
       if (moveEvent.clientX !== startX || moveEvent.clientY !== startY) {
         editOnClickRef.current = null;
       }
-      onChangeElement(
+      onChangeElementDuringInteraction(
         snapMovedElement(
           {
             ...element,
@@ -455,7 +471,7 @@ export function useCanvasInteractions({
         ),
       );
     };
-    trackPointerMovement(onMove);
+    trackPointerMovement(event.pointerId, onMove, onInteractionEnd);
   };
 
   const startResize = (
@@ -469,6 +485,7 @@ export function useCanvasInteractions({
     const startY = event.clientY;
     const bounds = canvasBounds(event.currentTarget);
     if (!bounds) return;
+    onInteractionStart();
     const thresholds = {
       xMm: (6 / bounds.width) * plate.size.widthMm,
       yMm: (6 / bounds.height) * plate.size.heightMm,
@@ -479,7 +496,7 @@ export function useCanvasInteractions({
         ((moveEvent.clientX - startX) / bounds.width) * plate.size.widthMm;
       const dy =
         ((moveEvent.clientY - startY) / bounds.height) * plate.size.heightMm;
-      onChangeElement(
+      onChangeElementDuringInteraction(
         resizeFrameFromDrag(
           element,
           corner,
@@ -492,7 +509,7 @@ export function useCanvasInteractions({
         ),
       );
     };
-    trackPointerMovement(onMove);
+    trackPointerMovement(event.pointerId, onMove, onInteractionEnd);
   };
 
   const startRotate = (
@@ -503,6 +520,7 @@ export function useCanvasInteractions({
     event.stopPropagation();
     const bounds = event.currentTarget.parentElement?.getBoundingClientRect();
     if (!bounds) return;
+    onInteractionStart();
     const centerX = bounds.left + bounds.width / 2;
     const centerY = bounds.top + bounds.height / 2;
     const onMove = (moveEvent: PointerEvent) => {
@@ -513,9 +531,9 @@ export function useCanvasInteractions({
           Math.PI +
           90,
       );
-      onChangeElement({ ...element, rotationDeg });
+      onChangeElementDuringInteraction({ ...element, rotationDeg });
     };
-    trackPointerMovement(onMove);
+    trackPointerMovement(event.pointerId, onMove, onInteractionEnd);
   };
 
   const moveWithKeyboard = (

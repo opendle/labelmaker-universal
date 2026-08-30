@@ -113,16 +113,10 @@ try {
   );
   await pause(page, 800);
 
-  const plateWidth = page.getByLabel("Plate width");
-  const widthBeforeTrim = await plateWidth.inputValue();
-  await clickWithVisibleMouse(
-    page,
-    page.getByRole("button", { name: "Trim plate to content" }),
-  );
-  await page.waitForFunction((previousWidth) => {
-    const input = document.querySelector('[aria-label="Plate width"]');
-    return input instanceof HTMLInputElement && input.value !== previousWidth;
-  }, widthBeforeTrim);
+  await page.waitForFunction(() => {
+    const label = document.querySelector(".label-canvas");
+    return label instanceof HTMLElement && label.dataset.plateWidthMm !== "62";
+  });
   await pause(page, 900);
 
   await clickWithVisibleMouse(
