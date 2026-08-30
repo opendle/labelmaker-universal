@@ -6,8 +6,9 @@ This note records the evidence used for E1, L1, and P31-family support. It is a
 clean-room implementation record. Do not add vendor source, a decompiled APK,
 device identifiers, or captured vendor print jobs to this repository.
 
-The implementation uses one stable adapter ID, `makeid`. It stores one of
-these resolved profiles after a safe device query:
+The implementation uses one stable adapter ID, `makeid`. The E1 uses its one
+verified fixed profile. The adapter stores an L1 or P31-family resolved profile
+only after a safe device query:
 
 | Profile        | DPI | Raster width | Protocol       |   Raster block |
 | -------------- | --: | -----------: | -------------- | -------------: |

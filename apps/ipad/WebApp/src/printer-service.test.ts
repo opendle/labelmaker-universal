@@ -248,8 +248,6 @@ describe("iPad printer configuration", () => {
       "bluetoothConnect",
       "bluetoothWrite",
       "bluetoothRead",
-      "bluetoothWrite",
-      "bluetoothRead",
       "bluetoothClose",
       "bluetoothDiscover",
     ]);

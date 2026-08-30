@@ -889,6 +889,7 @@ static void ConnectBLE(NSString *deviceId, NSString *protocolFamily) {
     bridge.serviceUUID = MakeIdABF0ServiceUUID();
     bridge.writeUUID = [CBUUID UUIDWithString:@"ABF1"];
     bridge.notifyUUID = [CBUUID UUIDWithString:@"ABF2"];
+    bridge.forwardNotifications = YES;
   } else if ([protocolFamily isEqualToString:@"ff00-escpos"]) {
     bridge.serviceUUID = MakeIdFF00ServiceUUID();
     bridge.writeUUID = [CBUUID UUIDWithString:@"FF02"];
@@ -956,22 +957,24 @@ static void ConnectBLE(NSString *deviceId, NSString *protocolFamily) {
     Fail(message, 9);
   }
 
-  // The public FF00 capture waits 400 ms after notification setup so startup
-  // notifications cannot become the reply to the first model query. Apply the
-  // same one-time drain to both families. Reconnect keeps forwarding enabled,
-  // because an active TypeScript session can already have a pending command.
-  NSDate *startupDrainDeadline =
-      [NSDate dateWithTimeIntervalSinceNow:0.4];
-  while (!bridge.failed && [startupDrainDeadline timeIntervalSinceNow] > 0) {
-    [[NSRunLoop currentRunLoop]
-        runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+  if ([protocolFamily isEqualToString:@"ff00-escpos"]) {
+    // The public FF00 capture waits 400 ms after notification setup so startup
+    // notifications cannot become the reply to the first model query. ABF0
+    // forwards notifications immediately, as the verified E1 path did.
+    NSDate *startupDrainDeadline =
+        [NSDate dateWithTimeIntervalSinceNow:0.4];
+    while (!bridge.failed && [startupDrainDeadline timeIntervalSinceNow] > 0) {
+      [[NSRunLoop currentRunLoop]
+          runUntilDate:[NSDate dateWithTimeIntervalSinceNow:0.05]];
+    }
+    if (bridge.failed) {
+      NSString *message =
+          bridge.errorMessage ?: @"Bluetooth connection failed.";
+      TearDownBLE(bridge, [NSFileHandle fileHandleWithStandardInput]);
+      Fail(message, 9);
+    }
+    bridge.forwardNotifications = YES;
   }
-  if (bridge.failed) {
-    NSString *message = bridge.errorMessage ?: @"Bluetooth connection failed.";
-    TearDownBLE(bridge, [NSFileHandle fileHandleWithStandardInput]);
-    Fail(message, 9);
-  }
-  bridge.forwardNotifications = YES;
 
   [[NSFileHandle fileHandleWithStandardError]
       writeData:[@"READY\n" dataUsingEncoding:NSUTF8StringEncoding]];

@@ -119,7 +119,7 @@ describe("MakeIdAdapter", () => {
     ).toMatchObject({ dpi: 300, darkness: expect.any(Object) });
   });
 
-  it("connects a discovered BLE descriptor with its saved peripheral ID", async () => {
+  it("connects a known E1 profile without a model query", async () => {
     const transport = recording();
     const provider = new FakeProvider([], transport);
     provider.connect = vi.fn(async () => transport);
@@ -146,6 +146,7 @@ describe("MakeIdAdapter", () => {
       { protocolFamily: "abf0-66" },
       undefined,
     );
+    expect(transport.writes).toEqual([]);
   });
 
   it("reports a useful recovery action when Bluetooth cannot connect", async () => {
@@ -190,10 +191,10 @@ describe("MakeIdAdapter", () => {
     );
 
     expect(transport.writes.map((write) => write[3])).toEqual([
-      0x10, 0x10, 0x1b, 0x1b, 0x1b, 0x10, 0x10, 0x10,
+      0x10, 0x1b, 0x1b, 0x1b, 0x10, 0x10, 0x10,
     ]);
-    expect(transport.writes[3]).toEqual(transport.writes[4]);
-    expect(transport.writes[2]?.[4]).toBe(0x20 | 18);
+    expect(transport.writes[2]).toEqual(transport.writes[3]);
+    expect(transport.writes[1]?.[4]).toBe(0x20 | 18);
     expect(onProgress).toHaveBeenCalledWith({
       completedPages: 1,
       totalPages: 1,
@@ -218,7 +219,6 @@ describe("MakeIdAdapter", () => {
     await session.print(printJob("job-second"));
 
     expect(transport.writes.map((write) => [write[3], write[4]])).toEqual([
-      [0x10, 0x00],
       [0x10, 0x00],
       [0x1b, 0x34],
       [0x10, 0x00],
@@ -261,7 +261,7 @@ describe("MakeIdAdapter", () => {
   );
 
   it("serializes status and close operations behind a print", async () => {
-    const transport = new ControlledTransport([response(), response()]);
+    const transport = new ControlledTransport([response()]);
     const session = await connectSession(transport);
     const printPromise = session.print(printJob("job-serialized"));
     await transport.rasterWritten;
@@ -270,9 +270,7 @@ describe("MakeIdAdapter", () => {
     const closePromise = session.close();
     await Promise.resolve();
 
-    expect(transport.writes.map((write) => write[3])).toEqual([
-      0x10, 0x10, 0x1b,
-    ]);
+    expect(transport.writes.map((write) => write[3])).toEqual([0x10, 0x1b]);
     expect(transport.open).toBe(true);
 
     transport.queueResponse(response()); // Raster ACK.
@@ -288,7 +286,6 @@ describe("MakeIdAdapter", () => {
     await expect(closePromise).resolves.toBeUndefined();
     expect(transport.open).toBe(false);
     expect(transport.writes.map((write) => [write[3], write[4]])).toEqual([
-      [0x10, 0x00],
       [0x10, 0x00],
       [0x1b, 0x34],
       [0x10, 0x00],
@@ -317,10 +314,7 @@ describe("MakeIdAdapter", () => {
 
   it("sends a best-effort reset when a transfer is cancelled", async () => {
     const controller = new AbortController();
-    const transport = new CancellingTransport(controller, [
-      response(),
-      response(),
-    ]);
+    const transport = new CancellingTransport(controller, [response()]);
     const session = await connectSession(transport);
 
     await expect(
@@ -613,7 +607,7 @@ async function connectSession(transport: MakeIdTransport) {
 function recording(
   responses: readonly Uint8Array[] = [],
 ): RecordingMakeIdTransport {
-  return new RecordingMakeIdTransport([response(), ...responses]);
+  return new RecordingMakeIdTransport(responses);
 }
 
 function makePrinter(

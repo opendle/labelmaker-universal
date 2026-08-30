@@ -199,20 +199,25 @@ export class MakeIdAdapter implements PrinterAdapter {
           signal,
         );
         throwIfAborted(signal);
+        // E1 has one verified fixed profile. Do not add a model probe before
+        // the normal readiness query. L1 and P31 remain response-driven
+        // because their names do not identify DPI or head geometry.
         const profile =
-          protocolFamily === "abf0-66"
-            ? await probeAbf0Profile(
-                transport,
-                kind,
-                connection.advertisedName,
-                this.#options.responseTimeoutMs,
-                signal,
-              )
-            : await probeFf00Profile(
-                transport,
-                this.#options.responseTimeoutMs,
-                signal,
-              );
+          connection.profileId === MAKEID_E1_PROFILE.profileId
+            ? MAKEID_E1_PROFILE
+            : protocolFamily === "abf0-66"
+              ? await probeAbf0Profile(
+                  transport,
+                  kind,
+                  connection.advertisedName,
+                  this.#options.responseTimeoutMs,
+                  signal,
+                )
+              : await probeFf00Profile(
+                  transport,
+                  this.#options.responseTimeoutMs,
+                  signal,
+                );
         const resolvedPrinter = resolvedDescriptor(
           printer,
           connection,
