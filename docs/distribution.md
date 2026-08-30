@@ -223,6 +223,32 @@ Identifiers & Profiles.
 
 Do not export or commit the distribution private key, certificate, or profile.
 
+### iOS distribution and upload commands
+
+The iOS package is universal. One build serves both iPhone and iPad. Create and
+verify the signed `.ipa` without uploading it:
+
+```bash
+LABELMAKER_IOS_VERSION=1.0 LABELMAKER_IOS_BUILD=1 npm run ios:distribution
+```
+
+The command builds the current web application, makes a Release archive with
+Xcode automatic signing, exports an App Store `.ipa`, and verifies its bundle
+ID, version, build, arm64 code, signature, and distribution profile. Xcode can
+refresh the iOS provisioning profile when necessary. It does not change the
+Mac profiles.
+
+When the build is ready, use a new build number and the same Keychain API key:
+
+```bash
+LABELMAKER_IOS_VERSION=1.0.1 LABELMAKER_IOS_BUILD=2 npm run ios:upload
+```
+
+The upload command performs the same archive and export steps, validates the
+`.ipa` with Apple, and uploads it to App Store Connect. It does not create a
+temporary `.p8` file or change the price, release method, or store metadata.
+Do not run it until the iPhone and iPad build is ready for upload.
+
 ## Release blockers
 
 - Bluetooth Low Energy and user-selected workspace files have not been tested

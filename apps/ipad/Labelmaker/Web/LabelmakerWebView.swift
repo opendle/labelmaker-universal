@@ -66,7 +66,7 @@ struct LabelmakerWebView: UIViewRepresentable {
     }
 
     private static let missingBundlePage = """
-    <!doctype html><meta name="viewport" content="width=device-width"><style>body{font:17px -apple-system;padding:40px;color:#333}</style><h1>Labelmaker could not start</h1><p>The shared web application is missing. Run <code>npm run build:web --workspace @labelmaker/ipad</code>, then build the Apple mobile target again.</p>
+    <!doctype html><meta name="viewport" content="width=device-width"><style>body{font:17px -apple-system;padding:40px;color:#333}</style><h1>Label Maker could not start</h1><p>The shared web application is missing. Run <code>npm run build:web --workspace @labelmaker/ipad</code>, then build the Apple mobile target again.</p>
     """
 
     @MainActor

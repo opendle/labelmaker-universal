@@ -9,6 +9,8 @@
     "app-store:screenshots": "playwright install webkit && npm run build:web && node scripts/capture-app-store-screenshots.mjs && LABELMAKER_APP_STORE_SCREENSHOT_ORIENTATION=portrait node scripts/capture-app-store-screenshots.mjs && LABELMAKER_APP_STORE_SCREENSHOT_DEVICE=iphone node scripts/capture-app-store-screenshots.mjs",
     "build": "npm run build:web",
     "build:web": "vite build",
+    "ios:distribution": "node scripts/package-ios.mjs --distribution",
+    "ios:upload": "node scripts/package-ios.mjs --upload",
     "responsive:screenshots": "playwright install webkit && npm run build:web && node scripts/capture-responsive-screenshots.mjs",
     "typecheck": "tsc --project tsconfig.web.json --pretty false"
   },

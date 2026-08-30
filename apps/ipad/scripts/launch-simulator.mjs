@@ -10,7 +10,7 @@ const buildDirectory = resolve(
 );
 const appPath = resolve(
   buildDirectory,
-  "Build/Products/Debug-iphonesimulator/LabelMaker for MakeID.app",
+  "Build/Products/Debug-iphonesimulator/Label Maker.app",
 );
 const iphone = process.argv.includes("--iphone");
 const deviceName = iphone ? "iPhone" : "iPad";
@@ -19,7 +19,7 @@ const defaultSimulator = iphone ? "iPhone 17 Pro" : "iPad Pro 13-inch (M5)";
 
 if (process.argv.includes("--help")) {
   console.log(
-    `Build, install, and start Labelmaker in the ${deviceName} simulator selected by ${simulatorVariable}. The default is ${defaultSimulator}.`,
+    `Build, install, and start Label Maker in the ${deviceName} simulator selected by ${simulatorVariable}. The default is ${defaultSimulator}.`,
   );
   process.exit(0);
 }

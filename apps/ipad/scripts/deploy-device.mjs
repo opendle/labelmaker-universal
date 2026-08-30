@@ -7,7 +7,7 @@ const projectPath = resolve(repositoryRoot, "apps/ipad/Labelmaker.xcodeproj");
 const buildDirectory = resolve(tmpdir(), "labelmaker-ipad-derived-data");
 const appPath = resolve(
   buildDirectory,
-  "Build/Products/Debug-iphoneos/LabelMaker for MakeID.app",
+  "Build/Products/Debug-iphoneos/Label Maker.app",
 );
 const iphone = process.argv.includes("--iphone");
 const deviceName = iphone ? "iPhone" : "iPad";
@@ -15,7 +15,7 @@ const deviceVariable = iphone ? "IPHONE_ID" : "IPAD_ID";
 
 if (process.argv.includes("--help")) {
   console.log(
-    `Build, install, and start Labelmaker on the ${deviceName} in the ${deviceVariable} environment variable.`,
+    `Build, install, and start Label Maker on the ${deviceName} in the ${deviceVariable} environment variable.`,
   );
   process.exit(0);
 }

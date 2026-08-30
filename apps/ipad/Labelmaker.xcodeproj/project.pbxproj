@@ -21,7 +21,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		A10000000000000000000007 /* LabelMaker for MakeID.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "LabelMaker for MakeID.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000007 /* Label Maker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Label Maker.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000008 /* LabelmakerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LabelmakerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1000000000000000000000A /* WebApp */ = {isa = PBXFileReference; explicitFileType = folder; name = WebApp; path = Labelmaker/Resources/WebApp; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
@@ -83,7 +83,7 @@
 		A10000000000000000000003 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A10000000000000000000007 /* LabelMaker for MakeID.app */,
+				A10000000000000000000007 /* Label Maker.app */,
 				A10000000000000000000008 /* LabelmakerTests.xctest */,
 			);
 			name = Products;
@@ -112,7 +112,7 @@
 			packageProductDependencies = (
 			);
 			productName = Labelmaker;
-			productReference = A10000000000000000000007 /* LabelMaker for MakeID.app */;
+			productReference = A10000000000000000000007 /* Label Maker.app */;
 			productType = "com.apple.product-type.application";
 		};
 		A10000000000000000000011 /* LabelmakerTests */ = {
@@ -286,7 +286,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.opendle.labelmaker;
 				PRODUCT_MODULE_NAME = Labelmaker;
-				PRODUCT_NAME = "LabelMaker for MakeID";
+				PRODUCT_NAME = "Label Maker";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -313,7 +313,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.opendle.labelmaker;
 				PRODUCT_MODULE_NAME = Labelmaker;
-				PRODUCT_NAME = "LabelMaker for MakeID";
+				PRODUCT_NAME = "Label Maker";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -335,7 +335,7 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LabelMaker for MakeID.app/LabelMaker for MakeID";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Label Maker.app/Label Maker";
 			};
 			name = Debug;
 		};
@@ -352,7 +352,7 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/LabelMaker for MakeID.app/LabelMaker for MakeID";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Label Maker.app/Label Maker";
 			};
 			name = Release;
 		};

@@ -5,12 +5,12 @@
   <key>CFBundleDevelopmentRegion</key>
   <string>$(DEVELOPMENT_LANGUAGE)</string>
   <key>CFBundleDisplayName</key>
-  <string>Labelmaker</string>
+  <string>Label Maker</string>
   <key>CFBundleDocumentTypes</key>
   <array>
     <dict>
       <key>CFBundleTypeName</key>
-      <string>Labelmaker workspace</string>
+      <string>Label Maker workspace</string>
       <key>CFBundleTypeRole</key>
       <string>Editor</string>
       <key>LSHandlerRank</key>
@@ -40,9 +40,9 @@
   <key>LSSupportsOpeningDocumentsInPlace</key>
   <true/>
   <key>NSBluetoothAlwaysUsageDescription</key>
-  <string>Labelmaker uses Bluetooth to find and print to your label printer.</string>
+  <string>Label Maker uses Bluetooth to find and print to your label printer.</string>
   <key>NSCameraUsageDescription</key>
-  <string>Labelmaker uses the camera to take photos for labels.</string>
+  <string>Label Maker uses the camera to take photos for labels.</string>
   <key>UIApplicationSupportsIndirectInputEvents</key>
   <true/>
   <key>UILaunchScreen</key>
@@ -70,7 +70,7 @@
         <string>public.data</string>
       </array>
       <key>UTTypeDescription</key>
-      <string>Labelmaker workspace</string>
+      <string>Label Maker workspace</string>
       <key>UTTypeIdentifier</key>
       <string>com.opendle.labelmaker.workspace</string>
       <key>UTTypeTagSpecification</key>

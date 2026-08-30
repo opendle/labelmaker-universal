@@ -686,7 +686,7 @@ public final class MakeIDBluetoothTransport: NSObject {
     case .unauthorized:
       return error(
         .bluetoothUnauthorized,
-        "Bluetooth access is not allowed. Allow Bluetooth access for Labelmaker, then try again."
+        "Bluetooth access is not allowed. Allow Bluetooth access for Label Maker, then try again."
       )
     case .poweredOff:
       return error(.bluetoothOff, "Bluetooth is off. Turn on Bluetooth, then try again.")
