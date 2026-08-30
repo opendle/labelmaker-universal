@@ -13,8 +13,8 @@ Read these files before you change behavior:
 
 Use the `labelmaker-desktop-ui` skill for editor or desktop UI work. Use the
 `printer-adapter-development` skill for printer support. Use the `selfreview`
-skill in automode at the end of each task that changes the repository, after
-the first checks and before the commit.
+skill in automode through a subagent at the end of each task that changes the
+repository, after the first checks and before the commit.
 
 ## Product rules
 
@@ -76,8 +76,10 @@ the first checks and before the commit.
 
 ## Task completion
 
-- Run `selfreview` in automode. Fix all material findings and complete its
-  quality gates before you commit.
+- After you finish the main task and the first checks, ask a subagent to run
+  `selfreview` in automode on the task changes. The subagent must fix all
+  task-owned material findings and complete the quality gates. Wait for the
+  subagent to finish before you commit.
 - After all requested work and checks are complete, make a signed commit that
   contains the integrated task changes and push it to the `main` branch.
 - Do not commit partial work while another agent still changes the shared
