@@ -286,12 +286,34 @@ describe("drawing image frames", () => {
       elements: [],
     };
 
-    expect(fitNewImageFrame(image, plate, 100, 25)).toMatchObject({
-      xMm: 23.75,
-      yMm: 13.4375,
-      widthMm: 12.5,
-      heightMm: 3.125,
+    expect(
+      fitNewImageFrame(image, plate, 100, 25, {
+        topMm: 2,
+        bottomMm: 3,
+      }),
+    ).toMatchObject({
+      xMm: -20,
+      yMm: 2,
+      widthMm: 100,
+      heightMm: 25,
       fit: "stretch",
+    });
+  });
+
+  it("keeps an extreme source aspect inside the document size limit", () => {
+    const plate = {
+      id: "plate",
+      name: "Plate",
+      size: { widthMm: 60, heightMm: 30 },
+      margins: { leftMm: 0, rightMm: 0 },
+      elements: [],
+    };
+
+    expect(fitNewImageFrame(image, plate, 100_000, 1)).toMatchObject({
+      xMm: -4_970,
+      yMm: 0,
+      widthMm: 10_000,
+      heightMm: 30,
     });
   });
 });

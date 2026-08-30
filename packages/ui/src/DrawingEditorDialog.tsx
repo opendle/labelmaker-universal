@@ -49,10 +49,12 @@ const NEW_DRAWING_HEIGHT = 120 * DRAWING_RESOLUTION_SCALE;
 const PEN_WIDTH = 3;
 const ERASER_WIDTH = 10;
 
-function canvasPoint(
-  canvas: HTMLCanvasElement,
-  event: ReactPointerEvent<HTMLCanvasElement>,
-) {
+interface DrawingPointerSample {
+  readonly clientX: number;
+  readonly clientY: number;
+}
+
+function canvasPoint(canvas: HTMLCanvasElement, event: DrawingPointerSample) {
   const bounds = canvas.getBoundingClientRect();
   return {
     x:
@@ -82,6 +84,7 @@ export function DrawingEditorDialog({
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef(false);
+  const activePointerIdRef = useRef<number | null>(null);
   const previousPointRef = useRef<{ x: number; y: number } | null>(null);
   const [state, dispatch] = useReducer(drawingReducer, {
     tool: "pen",
@@ -143,7 +146,7 @@ export function DrawingEditorDialog({
   }, [image]);
 
   const drawTo = useCallback(
-    (event: ReactPointerEvent<HTMLCanvasElement>, startNewStroke: boolean) => {
+    (event: DrawingPointerSample, startNewStroke: boolean) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const context = canvas.getContext("2d");
@@ -175,19 +178,36 @@ export function DrawingEditorDialog({
   );
 
   const startDrawing = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (!state.ready) return;
+    if (!state.ready || activePointerIdRef.current !== null) return;
     event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // WebKit can reject pointer capture for an Apple Pencil contact. The
+      // pointer events still contain valid drawing coordinates.
+    }
+    activePointerIdRef.current = event.pointerId;
     drawingRef.current = true;
-    drawTo(event, true);
+    drawTo(event.nativeEvent, true);
   };
   const continueDrawing = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    if (!drawingRef.current) return;
+    if (!drawingRef.current || activePointerIdRef.current !== event.pointerId) {
+      return;
+    }
     event.preventDefault();
-    drawTo(event, false);
+    const nativeEvent = event.nativeEvent;
+    const coalescedSamples =
+      typeof nativeEvent.getCoalescedEvents === "function"
+        ? nativeEvent.getCoalescedEvents()
+        : [];
+    const samples =
+      coalescedSamples.length > 0 ? coalescedSamples : [nativeEvent];
+    for (const sample of samples) drawTo(sample, false);
   };
-  const stopDrawing = () => {
+  const stopDrawing = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (activePointerIdRef.current !== event.pointerId) return;
     drawingRef.current = false;
+    activePointerIdRef.current = null;
     previousPointRef.current = null;
   };
 
@@ -296,6 +316,7 @@ export function DrawingEditorDialog({
             className="drawing-canvas"
             onPointerCancel={stopDrawing}
             onPointerDown={startDrawing}
+            onLostPointerCapture={stopDrawing}
             onPointerMove={continueDrawing}
             onPointerUp={stopDrawing}
             ref={canvasRef}

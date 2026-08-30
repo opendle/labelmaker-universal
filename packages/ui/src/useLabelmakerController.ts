@@ -42,6 +42,7 @@ import {
   rememberDrawingEditorSource,
 } from "./drawing-image.js";
 import type { LabelmakerHost, PrinterSettings } from "./host.js";
+import { nonPrintableMarginsMm } from "./label-layout.js";
 import {
   printerFailureMessage,
   remotePrinterFailureMessage,
@@ -77,6 +78,17 @@ export function useLabelmakerController(host: LabelmakerHost) {
     selectedElement?.kind === "rectangle" ? selectedElement : undefined;
   const activePrinter = state.printers.find(
     (printer) => printer.id === state.activePrinterId,
+  );
+  const insertionMargins = useCallback(
+    (plate: LabelPlate) =>
+      nonPrintableMarginsMm(
+        plate.size.heightMm,
+        activePrinter?.printableWidthMm,
+        activePrinter?.marginTopMm,
+        activePrinter?.marginBottomMm,
+        activePrinter?.rasterAlignment,
+      ),
+    [activePrinter],
   );
   // The main process performs a fresh status check and reconnect before the
   // job. Keep print enabled for a configured printer so a stale renderer
@@ -435,7 +447,16 @@ export function useLabelmakerController(host: LabelmakerHost) {
   );
 
   const addPlate = useCallback(() => {
-    const plate = createPlate(state.workspace);
+    const plate = createPlate(
+      state.workspace,
+      nonPrintableMarginsMm(
+        state.workspace.defaultPlateSize.heightMm,
+        activePrinter?.printableWidthMm,
+        activePrinter?.marginTopMm,
+        activePrinter?.marginBottomMm,
+        activePrinter?.rasterAlignment,
+      ),
+    );
     editWorkspace({
       ...state.workspace,
       plates: [...state.workspace.plates, plate],
@@ -445,7 +466,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
       plateId: plate.id,
       elementId: plate.elements[0]?.id ?? null,
     });
-  }, [editWorkspace, state.workspace]);
+  }, [activePrinter, editWorkspace, state.workspace]);
   const deletePlate = useCallback(
     (plateId: string) => {
       if (state.workspace.plates.length === 1) return;
@@ -475,12 +496,12 @@ export function useLabelmakerController(host: LabelmakerHost) {
     const sourcePlate = isFlagPlate(activePlate)
       ? toggleFlagPlate(activePlate)
       : activePlate;
-    const element = createText(sourcePlate);
+    const element = createText(sourcePlate, insertionMargins(sourcePlate));
     updatePlate(activePlate.id, (plate) =>
       appendElementAndFlagPeer(plate, element),
     );
     dispatch({ type: "select-element", elementId: element.id });
-  }, [activePlate, updatePlate]);
+  }, [activePlate, insertionMargins, updatePlate]);
   const addSpecial = useCallback(
     (kind: "flag") => {
       if (!activePlate || kind !== "flag") return;
@@ -522,7 +543,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
         ? toggleFlagPlate(currentPlate)
         : currentPlate;
       const baseElement = {
-        ...createImage(sourcePlate, source),
+        ...createImage(sourcePlate, source, insertionMargins(sourcePlate)),
         ...(editorSource ? { editorSource } : {}),
       };
       const element = dimensions
@@ -531,6 +552,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
             sourcePlate,
             dimensions.width,
             dimensions.height,
+            insertionMargins(sourcePlate),
           )
         : baseElement;
       editWorkspace(
@@ -541,7 +563,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
       dispatch({ type: "select-element", elementId: element.id });
       return element.id;
     },
-    [editWorkspace],
+    [editWorkspace, insertionMargins],
   );
 
   const addDrawing = useCallback(

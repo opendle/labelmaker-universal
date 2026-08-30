@@ -12,6 +12,8 @@ import {
   renderPlateBlackBounds,
   type BlackPixelBounds,
 } from "./browser-raster.js";
+import type { PrintableMargins } from "./label-layout.js";
+import { NEW_TEXT_WIDTH_MM, newElementFrame } from "./new-element-frame.js";
 import { DEFAULT_TYPEFACE } from "./typefaces.js";
 
 export const clamp = (value: number, min: number, max: number) =>
@@ -23,42 +25,40 @@ export const MAX_ZOOM = 300;
 const makeId = (prefix: string) =>
   `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 
-export function createPlate(workspace: LabelDocument): LabelPlate {
+export function createPlate(
+  workspace: LabelDocument,
+  printableMargins?: PrintableMargins,
+): LabelPlate {
   const number = workspace.plates.length + 1;
-  const textId = makeId("element");
   const size = workspace.defaultPlateSize;
-  return {
+  const plate: LabelPlate = {
     id: makeId("plate"),
     name: `Label ${number}`,
     size,
     margins: { leftMm: 0, rightMm: 0 },
+    elements: [],
+  };
+  return {
+    ...plate,
     elements: [
       {
-        id: textId,
-        kind: "text",
-        xMm: 4,
-        yMm: 4,
-        widthMm: size.widthMm - 8,
-        heightMm: Math.max(5, size.heightMm - 8),
-        rotationDeg: 0,
+        ...createText(plate, printableMargins),
         text: "NEW LABEL",
-        fontFamily: DEFAULT_TYPEFACE,
         fontSizePt: 16,
         fontWeight: 600,
-        align: "center",
       },
     ],
   };
 }
 
-export function createText(plate: LabelPlate): TextElement {
+export function createText(
+  plate: LabelPlate,
+  printableMargins?: PrintableMargins,
+): TextElement {
   return {
     id: makeId("element"),
     kind: "text",
-    xMm: plate.size.widthMm * 0.2,
-    yMm: plate.size.heightMm * 0.3,
-    widthMm: plate.size.widthMm * 0.6,
-    heightMm: plate.size.heightMm * 0.4,
+    ...newElementFrame(plate, NEW_TEXT_WIDTH_MM, printableMargins),
     rotationDeg: 0,
     text: "Text",
     fontFamily: DEFAULT_TYPEFACE,
@@ -68,16 +68,21 @@ export function createText(plate: LabelPlate): TextElement {
   };
 }
 
-export function createImage(plate: LabelPlate, source: string): ImageElement {
-  const widthMm = Math.min(24, plate.size.widthMm * 0.45);
-  const heightMm = Math.min(12, plate.size.heightMm * 0.7);
+export function createImage(
+  plate: LabelPlate,
+  source: string,
+  printableMargins?: PrintableMargins,
+): ImageElement {
+  const printableFrame = newElementFrame(plate, 1, printableMargins);
+  const frame = newElementFrame(
+    plate,
+    printableFrame.heightMm,
+    printableMargins,
+  );
   return {
     id: makeId("element"),
     kind: "image",
-    xMm: Math.max(0, (plate.size.widthMm - widthMm) / 2),
-    yMm: Math.max(0, (plate.size.heightMm - heightMm) / 2),
-    widthMm,
-    heightMm,
+    ...frame,
     rotationDeg: 0,
     source,
     fit: "contain",

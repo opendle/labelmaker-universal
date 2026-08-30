@@ -78,9 +78,17 @@ describe("DrawingEditorDialog", () => {
       clientX: 10,
       clientY: 10,
       pointerId: 2,
+      pointerType: "pen",
     });
     expect(context.lineWidth).toBe(40);
-    fireEvent.pointerUp(canvas, { pointerId: 2 });
+    fireEvent.pointerMove(canvas, {
+      clientX: 20,
+      clientY: 20,
+      pointerId: 2,
+      pointerType: "pen",
+    });
+    expect(context.stroke).toHaveBeenCalled();
+    fireEvent.pointerUp(canvas, { pointerId: 2, pointerType: "pen" });
     await user.click(screen.getByRole("button", { name: "Add drawing" }));
     expect(screen.getByText("Draw something before you save.")).toBeVisible();
 

@@ -113,6 +113,10 @@ appearances so that they show the physical label and printed result accurately.
 - Add a text element.
 - Add an image element. Text and image are separate actions, and both element
   types can move and resize on the plate.
+- Align each new text, image, drawing, and icon frame with the top and bottom
+  limits of the printable area. Center each new frame on the label. Use a 40 mm
+  width for new text. Set image, drawing, and icon width from the source aspect
+  ratio without changing the printable-area height.
 - Put a Draw action next to Image. It opens a basic monochrome drawing
   editor. Saving adds the exact non-white drawing bounds as an image. A double
   click on any image opens the same editor and saves the changed image in the
@@ -245,6 +249,7 @@ not add a separate editor.
 - Drag one finger on any empty part of the work surface to move the canvas. A
   drag that starts on an element moves that element. Use two fingers on the
   work surface to move the canvas and to change the zoom.
+- Let Apple Pencil draw in the drawing editor with the same tools as touch input.
 - A first tap selects an element. A second tap on selected text starts text
   edit. Keep double-click and keyboard edit behavior for desktop input.
 - Show a Delete action when an element is selected. Do not require a hardware

@@ -6,6 +6,7 @@ import {
   createImage,
   createPlate,
   createShape,
+  createText,
   deleteElementAndFlagPeer,
   editableElementCount,
   moveElementLayer,
@@ -66,6 +67,20 @@ describe("createPlate", () => {
   it("names a new label by its position", () => {
     expect(createPlate(document).name).toBe("Label 2");
   });
+
+  it("aligns its initial text with the printable area", () => {
+    expect(
+      createPlate(document, { topMm: 2, bottomMm: 3 }).elements[0],
+    ).toMatchObject({ xMm: 30, yMm: 2, widthMm: 40, heightMm: 11 });
+  });
+});
+
+describe("createText", () => {
+  it("uses a centered 40 mm frame with the printable-area height", () => {
+    expect(
+      createText(document.plates[0]!, { topMm: 2, bottomMm: 3 }),
+    ).toMatchObject({ xMm: 30, yMm: 2, widthMm: 40, heightMm: 11 });
+  });
 });
 
 describe("createImage", () => {
@@ -76,6 +91,21 @@ describe("createImage", () => {
     );
 
     expect(image.transparentBackground).toBe(true);
+  });
+
+  it("uses a centered printable-area frame before the source loads", () => {
+    const image = createImage(
+      document.plates[0]!,
+      "data:image/png;base64,image",
+      { topMm: 2, bottomMm: 3 },
+    );
+
+    expect(image).toMatchObject({
+      xMm: 44.5,
+      yMm: 2,
+      widthMm: 11,
+      heightMm: 11,
+    });
   });
 });
 

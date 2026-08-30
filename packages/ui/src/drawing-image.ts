@@ -4,6 +4,9 @@ import type {
   LabelPlate,
 } from "@labelmaker/domain";
 
+import type { PrintableMargins } from "./label-layout.js";
+import { newElementFrame } from "./new-element-frame.js";
+
 export interface PixelBounds {
   readonly left: number;
   readonly top: number;
@@ -183,25 +186,18 @@ export function fitNewImageFrame(
   plate: LabelPlate,
   widthPixels: number,
   heightPixels: number,
+  printableMargins?: PrintableMargins,
 ): ImageElement {
-  const pixelsPerMillimeter = 8;
-  const naturalWidthMm = Math.max(1, widthPixels) / pixelsPerMillimeter;
-  const naturalHeightMm = Math.max(1, heightPixels) / pixelsPerMillimeter;
-  const maxWidth = element.widthMm;
-  const maxHeight = element.heightMm;
-  const scale = Math.min(
-    1,
-    maxWidth / naturalWidthMm,
-    maxHeight / naturalHeightMm,
+  const aspectRatio = Math.max(1, widthPixels) / Math.max(1, heightPixels);
+  const printableFrame = newElementFrame(plate, 1, printableMargins);
+  const frame = newElementFrame(
+    plate,
+    printableFrame.heightMm * aspectRatio,
+    printableMargins,
   );
-  const widthMm = naturalWidthMm * scale;
-  const heightMm = naturalHeightMm * scale;
   return {
     ...element,
-    xMm: Math.max(0, (plate.size.widthMm - widthMm) / 2),
-    yMm: Math.max(0, (plate.size.heightMm - heightMm) / 2),
-    widthMm,
-    heightMm,
+    ...frame,
     fit: "stretch",
   };
 }
