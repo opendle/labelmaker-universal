@@ -1363,6 +1363,7 @@ textarea.inline-text-editor:focus-visible {
   width: var(--field-control-height);
   height: 100%;
   border-left: 1px solid var(--field-control-border);
+  border-right: 0;
 }
 .text-style-buttons .weight-300 {
   color: #aaa59b;
