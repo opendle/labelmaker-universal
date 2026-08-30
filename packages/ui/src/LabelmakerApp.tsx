@@ -1,5 +1,4 @@
 import type { LabelDocument, LabelPlate } from "@labelmaker/domain";
-import { Check, CircleAlert, Info } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -10,7 +9,8 @@ import {
 
 import { AddPrinterDialog } from "./AppDialogs.js";
 import { AppHeader, type AppHeaderProps } from "./AppHeader.js";
-import { movePlate, replacePlate, type Toast } from "./app-state.js";
+import { movePlate, replacePlate } from "./app-state.js";
+import { AppToast } from "./AppToast.js";
 import { EditorCanvas } from "./EditorCanvas.js";
 import {
   editableElementCount,
@@ -35,6 +35,7 @@ import {
   useResponsiveLayout,
   type ResponsiveLayout,
 } from "./useResponsiveLayout.js";
+import { useLabelmakerSystemBack } from "./useSystemBackHandler.js";
 
 function AppPlateStrip({
   controller,
@@ -102,22 +103,45 @@ async function trimLatestWorkspace(
   throw new Error("The label changed while trim was running.");
 }
 
-function AppToast({ toast }: { readonly toast: Toast | null }) {
-  if (!toast) return null;
-  return (
-    <output aria-live="polite" className={`toast ${toast.tone}`}>
-      {toast.busy ? (
-        <span aria-hidden="true" className="mini-spinner" />
-      ) : toast.tone === "success" ? (
-        <Check size={17} />
-      ) : toast.tone === "error" ? (
-        <CircleAlert size={17} />
-      ) : (
-        <Info size={17} />
-      )}{" "}
-      {toast.message}
-    </output>
-  );
+function createHeaderProps(
+  controller: ReturnType<typeof useLabelmakerController>,
+  platform: LabelmakerHost["platform"],
+  printerMenuOpen: boolean,
+  setPrinterMenuOpen: (open: boolean) => void,
+): AppHeaderProps {
+  const { dispatch, state } = controller;
+  return {
+    activePrinterId: state.activePrinterId,
+    canPrint: controller.canPrint,
+    canRedo: state.future.length > 0,
+    canUndo: state.past.length > 0,
+    onAddPrinter: () => void controller.startDiscovery(),
+    onNew: () => void controller.newWorkspace(),
+    onOpen: () => void controller.openWorkspace(),
+    onOpenPrinterSettings: (printerId) =>
+      dispatch({ type: "open-printer-settings", printerId }),
+    onPrint: (all) => void controller.print(all),
+    onPrintMenuChange: (open) => dispatch({ type: "set-print-menu", open }),
+    onPrinterMenuChange: setPrinterMenuOpen,
+    onRedo: () => dispatch({ type: "redo" }),
+    onRemovePrinter: (printerId) => void controller.removePrinter(printerId),
+    onSave: () => void controller.save(false),
+    onSelectPrinter: controller.selectPrinter,
+    onUndo: () => dispatch({ type: "undo" }),
+    plateCount: state.workspace.plates.length,
+    platform,
+    printMenuOpen: state.printMenuOpen,
+    printerMenuOpen,
+    printers: state.printers,
+    saveState: state.dirty
+      ? "Edited"
+      : state.savedAt
+        ? "Saved just now"
+        : state.workspaceFileName
+          ? "Saved"
+          : "Not saved",
+    workspaceName: state.workspace.name,
+  };
 }
 
 export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
@@ -133,13 +157,16 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   const workspaceRef = useRef(state.workspace);
   const shellRef = useRef<HTMLDivElement>(null);
   const [iconLibraryOpen, setIconLibraryOpen] = useState(false);
+  const [printerMenuOpen, setPrinterMenuOpen] = useState(false);
   const [phoneSheet, setPhoneSheet] = useState<"element" | "plate" | null>(
     null,
   );
   const [phonePlateDraft, setPhonePlateDraft] = useState<
     LabelPlate | undefined
   >();
-  const { layout, softwareKeyboardOpen } = useResponsiveLayout(host.platform);
+  const { layout, softwareKeyboardOpen } = useResponsiveLayout(
+    host.presentation,
+  );
   const closePhoneSheetDuringRender =
     phoneSheet !== null &&
     (layout === "standard" ||
@@ -169,6 +196,26 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
     () => dispatch({ type: "close-printer-settings" }),
     [dispatch],
   );
+  useLabelmakerSystemBack(host.registerSystemBackHandler, {
+    drawingEditorOpen: drawingEditor.isOpen,
+    closeDrawingEditor: drawingEditor.close,
+    iconLibraryOpen,
+    closeIconLibrary: () => setIconLibraryOpen(false),
+    printerSettingsOpen: state.printerSettingsId !== null,
+    closePrinterSettings,
+    addPrinterOpen: state.addPrinterOpen,
+    discovering: state.discovering,
+    closeAddPrinter,
+    phoneSheetOpen: phoneSheet !== null,
+    closePhoneSheet: () => {
+      setPhonePlateDraft(undefined);
+      setPhoneSheet(null);
+    },
+    printMenuOpen: state.printMenuOpen,
+    closePrintMenu: () => dispatch({ type: "set-print-menu", open: false }),
+    printerMenuOpen,
+    closePrinterMenu: () => setPrinterMenuOpen(false),
+  });
 
   if (!activePlate) return null;
   const printableMargins = nonPrintableMarginsMm(
@@ -181,13 +228,6 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   const settingsPrinter = state.printers.find(
     (printer) => printer.id === state.printerSettingsId,
   );
-  const saveState = state.dirty
-    ? "Edited"
-    : state.savedAt
-      ? "Saved just now"
-      : state.workspaceFileName
-        ? "Saved"
-        : "Not saved";
   const trimActivePlate = () => {
     void trimLatestWorkspace(
       activePlate.id,
@@ -229,38 +269,20 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
       ),
     );
   };
-  const headerProps: AppHeaderProps = {
-    activePrinterId: state.activePrinterId,
-    canPrint: controller.canPrint,
-    canRedo: state.future.length > 0,
-    canUndo: state.past.length > 0,
-    onAddPrinter: () => void controller.startDiscovery(),
-    onNew: () => void controller.newWorkspace(),
-    onOpen: () => void controller.openWorkspace(),
-    onOpenPrinterSettings: (printerId) =>
-      dispatch({ type: "open-printer-settings", printerId }),
-    onPrint: (all) => void controller.print(all),
-    onPrintMenuChange: (open) => dispatch({ type: "set-print-menu", open }),
-    onRedo: () => dispatch({ type: "redo" }),
-    onRemovePrinter: (printerId) => void controller.removePrinter(printerId),
-    onSave: () => void controller.save(false),
-    onSelectPrinter: controller.selectPrinter,
-    onUndo: () => dispatch({ type: "undo" }),
-    plateCount: state.workspace.plates.length,
-    platform: host.platform,
-    printMenuOpen: state.printMenuOpen,
-    printers: state.printers,
-    saveState,
-    workspaceName: state.workspace.name,
-  };
+  const headerProps = createHeaderProps(
+    controller,
+    host.platform,
+    printerMenuOpen,
+    setPrinterMenuOpen,
+  );
 
   return (
     <div
       ref={shellRef}
-      className={`app-shell platform-${host.platform} layout-${layout}`}
+      className={`app-shell platform-${host.platform} presentation-${host.presentation} layout-${layout}`}
       data-software-keyboard={softwareKeyboardOpen ? "open" : undefined}
       onFocusCapture={(event: FocusEvent<HTMLDivElement>) => {
-        if (host.platform !== "ipados") return;
+        if (host.presentation !== "mobile-touch") return;
         const input = event.target;
         if (!(input instanceof HTMLInputElement) || input.type !== "number") {
           return;
@@ -311,6 +333,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             }
             onZoom={(zoom) => dispatch({ type: "set-zoom", zoom })}
             platform={host.platform}
+            presentation={host.presentation}
             plate={activePlate}
             selectedElementId={state.selectedElementId}
             selectedImage={selectedImage}
@@ -403,7 +426,12 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
           }
         />
       )}
-      <AppToast toast={state.toast} />
+      <AppToast
+        {...(controller.canCancelPrint
+          ? { onCancelPrint: () => void controller.cancelPrint() }
+          : {})}
+        toast={state.toast}
+      />
     </div>
   );
 }

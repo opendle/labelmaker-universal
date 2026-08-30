@@ -31,6 +31,8 @@ export function useDrawingEditor({
   );
   const close = useCallback(() => setImage(undefined), []);
   return {
+    close,
+    isOpen: image !== undefined,
     openNew: useCallback(() => setImage(null), []),
     openImage: useCallback(
       (target: ImageElement) => setImage(frameForDrawingEditor(target)),

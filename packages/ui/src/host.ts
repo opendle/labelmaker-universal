@@ -38,7 +38,9 @@ export interface PrintRequest {
   readonly plateIds: readonly string[];
 }
 
-export type HostPlatform = "macos" | "windows" | "linux" | "ipados";
+export type HostPlatform = "macos" | "windows" | "linux" | "ipados" | "android";
+
+export type HostPresentation = "desktop" | "mobile-touch";
 
 export interface WorkspaceRecoveryState {
   readonly document: LabelDocument;
@@ -79,6 +81,8 @@ export type WorkspaceSaveResult =
 
 export interface LabelmakerHost {
   readonly platform: HostPlatform;
+  readonly presentation: HostPresentation;
+  registerSystemBackHandler?(handler: () => boolean): () => void;
   listPrinters(): Promise<readonly PrinterSummary[]>;
   discoverPrinters(): Promise<readonly PrinterSummary[]>;
   addPrinter(printerId: string): Promise<readonly PrinterSummary[]>;
@@ -103,4 +107,6 @@ export interface LabelmakerHost {
   saveWorkspace(document: LabelDocument): Promise<WorkspaceSaveResult>;
   saveWorkspaceAs(document: LabelDocument): Promise<WorkspaceSaveResult>;
   print(request: PrintRequest): Promise<{ readonly message: string }>;
+  /** Cancel the active print when the host can stop an in-progress job. */
+  cancelPrint?(): Promise<void>;
 }

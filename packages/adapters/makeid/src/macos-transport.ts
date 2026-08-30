@@ -97,7 +97,9 @@ export class MacOsMakeIdTransportProvider implements MakeIdTransportProvider {
       (device) => {
         const id = platformDeviceId(device.id);
         this.#nativeDeviceIds.set(id, device.id);
-        return device.name === undefined ? { id } : { id, name: device.name };
+        return device.name === undefined
+          ? { id, transport: device.transport }
+          : { id, name: device.name, transport: device.transport };
       },
     );
   }
@@ -457,9 +459,13 @@ export function parseDiscoveryOutput(
       throw new TypeError("The MakeID Bluetooth discovery result is invalid");
     }
     const id = normalizeNativeDeviceId(item.id);
+    const transport =
+      isBluetoothAddress(item.id) || isClassicOpaqueDeviceId(id)
+        ? "bluetooth-classic"
+        : "bluetooth-low-energy";
     return "name" in item && typeof item.name === "string"
-      ? { id, name: item.name }
-      : { id };
+      ? { id, name: item.name, transport }
+      : { id, transport };
   });
 }
 

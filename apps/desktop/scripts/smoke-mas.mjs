@@ -1,5 +1,6 @@
 import { _electron as electron } from "playwright";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { access, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -11,6 +12,13 @@ const appPath = process.argv[2]
       "../../../release/macos-app-store/development/Label Maker-mas-universal/Label Maker.app",
     );
 const infoPath = resolve(appPath, "Contents/Info.plist");
+const releaseVersion = JSON.parse(
+  readFileSync(
+    new URL("../../../distribution/version.json", import.meta.url),
+    "utf8",
+  ),
+);
+const expectedVersion = releaseVersion.productVersion;
 const bundleIdentifier = readPlistValue(infoPath, "CFBundleIdentifier");
 const executableName = readPlistValue(infoPath, "CFBundleExecutable");
 if (!/^[A-Za-z0-9.-]+$/.test(bundleIdentifier)) {
@@ -69,7 +77,7 @@ try {
     !runtime.isMas ||
     !runtime.isPackaged ||
     runtime.name !== "Labelmaker" ||
-    runtime.version !== (process.env.LABELMAKER_MAS_VERSION ?? "1.0")
+    runtime.version !== expectedVersion
   ) {
     throw new Error(
       `The packaged runtime is invalid: ${JSON.stringify(runtime)}.`,

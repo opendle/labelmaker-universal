@@ -59,6 +59,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
   const [state, dispatch] = useReducer(appReducer, initialAppState);
   const [isPrinting, setIsPrinting] = useState(false);
   const printInProgress = useRef(false);
+  const printCancellationRequested = useRef(false);
   const printerMutationGeneration = useRef(0);
   const workspaceRef = useRef(state.workspace);
   workspaceRef.current = state.workspace;
@@ -94,6 +95,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
   // job. Keep print enabled for a configured printer so a stale renderer
   // status does not block a recoverable connection.
   const canPrint = activePrinter !== undefined && !isPrinting;
+  const canCancelPrint = isPrinting && host.cancelPrint !== undefined;
 
   useEffect(() => {
     let active = true;
@@ -411,6 +413,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
         return;
       }
       printInProgress.current = true;
+      printCancellationRequested.current = false;
       setIsPrinting(true);
       dispatch({ type: "set-print-menu", open: false });
       dispatch(
@@ -432,19 +435,35 @@ export function useLabelmakerController(host: LabelmakerHost) {
         });
         dispatch(toastAction("success", result.message));
       } catch (error) {
-        dispatch(
-          toastAction(
-            "error",
-            `${activePrinter.name}: ${printFailureMessage(error)}`,
-          ),
-        );
+        if (printCancellationRequested.current) {
+          dispatch(toastAction("neutral", "Print canceled"));
+        } else {
+          dispatch(
+            toastAction(
+              "error",
+              `${activePrinter.name}: ${printFailureMessage(error)}`,
+            ),
+          );
+        }
       } finally {
         printInProgress.current = false;
+        printCancellationRequested.current = false;
         setIsPrinting(false);
       }
     },
     [activePlate, activePrinter, host, state.workspace],
   );
+
+  const cancelPrint = useCallback(async () => {
+    if (!printInProgress.current || !host.cancelPrint) return;
+    printCancellationRequested.current = true;
+    try {
+      await host.cancelPrint();
+    } catch {
+      printCancellationRequested.current = false;
+      dispatch(toastAction("error", "The print job could not be canceled."));
+    }
+  }, [host]);
 
   const addPlate = useCallback(() => {
     const plate = createPlate(
@@ -712,6 +731,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
     selectedShape,
     activePrinter,
     canPrint,
+    canCancelPrint,
     dispatch,
     save,
     newWorkspace,
@@ -722,6 +742,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
     selectPrinter,
     updatePrinterSettings,
     print,
+    cancelPrint,
     addPlate,
     deletePlate,
     addText,

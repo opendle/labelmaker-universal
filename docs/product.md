@@ -3,12 +3,13 @@
 ## Purpose
 
 Labelmaker lets a user design labels and print them on devices from different
-manufacturers. It runs on desktop operating systems, iPhone, and iPad. The product
-must hide printer protocol details behind adapters.
+manufacturers. It runs on desktop operating systems, iPhone, iPad, and Android
+phones and tablets. The product must hide printer protocol details behind
+adapters.
 
 ## First-release user flow
 
-1. Open the desktop, iPhone, or iPad application.
+1. Open the desktop, Apple mobile, or Android application.
 2. Select a saved printer or add a printer.
 3. Open or create a label workspace.
 4. Select one plate in that workspace.
@@ -68,5 +69,5 @@ must hide printer protocol details behind adapters.
 - The editor canvas matches the generated raster within one printer pixel.
 - A printer failure cannot corrupt the open workspace.
 - Unsupported printer capabilities are disabled or explained before printing.
-- A user can complete the first-release flow on an iPhone or iPad without a physical
-  keyboard. A connected keyboard keeps the normal shortcuts.
+- A user can complete the first-release flow on a supported phone or tablet
+  without a physical keyboard. A connected keyboard keeps the normal shortcuts.

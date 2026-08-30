@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "productVersion": "1.0.0",
+  "buildNumbers": {
+    "android": 1,
+    "ios": 3,
+    "macos": 3,
+    "windows": 0,
+    "linux": 0
+  }
+}

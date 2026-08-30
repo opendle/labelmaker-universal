@@ -9,7 +9,7 @@ documents -> domain <- rendering <- printing <- concrete adapters
                 +---- application ports ---- shared UI
                                       ^
                                       |
-                    desktop, Apple mobile, or server shell
+                 desktop, Apple mobile, Android, or server shell
 ```
 
 Dependencies point toward stable contracts. The UI knows application ports,
@@ -66,6 +66,15 @@ document pickers, recovery storage, and native
 CoreBluetooth transport operations through a narrow request and reply bridge.
 The TypeScript MakeID adapter still owns printer protocol behavior.
 
+`apps/android` is the Android 12 or later shell. It embeds the same local React
+application in a restricted Android `WebView`. Its Kotlin host provides the
+Storage Access Framework, recovery storage, and Android Bluetooth Low Energy
+transport operations through the same versioned request and reply contract.
+
+`apps/mobile-web` is the one local React composition for Apple and Android
+mobile shells. It owns no native API. Each native shell packages the same
+generated web bundle and supplies only its bridge implementation.
+
 `apps/server` can later expose the same application operations over an
 authenticated API. A remote server still needs a local bridge near a Bluetooth
 or USB printer.
@@ -74,7 +83,8 @@ or USB printer.
 
 `@labelmaker/rendering` owns plate SVG construction and transport-neutral raster
 conversion. A shell injects only the platform rasterizer that converts SVG into
-RGBA pixels. This keeps desktop, iPhone, and iPad print output on the same tested path.
+RGBA pixels. This keeps desktop, Apple mobile, and Android print output on the
+same tested path.
 
 ## Composition
 

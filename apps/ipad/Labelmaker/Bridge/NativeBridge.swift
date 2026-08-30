@@ -27,18 +27,88 @@ final class NativeBridge: NSObject, WKScriptMessageHandlerWithReply {
     func userContentController(
         _ userContentController: WKUserContentController,
         didReceive message: WKScriptMessage,
-        replyHandler: @escaping (Any?, String?) -> Void
+        replyHandler originalReplyHandler: @escaping (Any?, String?) -> Void
     ) {
+        guard let request = message.body as? [String: Any] else {
+            originalReplyHandler([
+                "version": 1,
+                "id": "invalid-request",
+                "ok": false,
+                "error": [
+                    "code": "INVALID_REQUEST",
+                    "message": "The native request is invalid.",
+                ],
+            ], nil)
+            return
+        }
+        let failureRequestID = (request["id"] as? String).flatMap {
+            validBridgeIdentifier($0) ? $0 : nil
+        } ?? "invalid-request"
         guard
-            let request = message.body as? [String: Any],
+            let version = request["version"] as? NSNumber,
+            CFGetTypeID(version) != CFBooleanGetTypeID(),
+            version.intValue == 1,
+            version.doubleValue == 1,
+            let requestID = request["id"] as? String,
+            validBridgeIdentifier(requestID),
             let method = request["method"] as? String,
+            validBridgeIdentifier(method),
             let payload = request["payload"] as? [String: Any]
         else {
-            replyFailure(NativeBridgeFailure(code: "INVALID_REQUEST", message: "The native request is invalid."), to: replyHandler)
+            originalReplyHandler([
+                "version": 1,
+                "id": failureRequestID,
+                "ok": false,
+                "error": [
+                    "code": "INVALID_REQUEST",
+                    "message": "The native request is invalid.",
+                ],
+            ], nil)
+            return
+        }
+        let replyHandler: (Any?, String?) -> Void = { value, error in
+            guard var reply = value as? [String: Any] else {
+                originalReplyHandler(value, error)
+                return
+            }
+            reply["version"] = 1
+            reply["id"] = requestID
+            originalReplyHandler(reply, error)
+        }
+        let payloadKeys: [String: Set<String>] = [
+            "getHostInfo": [],
+            "confirmWorkspaceReplacement": [],
+            "openWorkspaceFile": [],
+            "acceptOpenedWorkspaceFile": ["selectionId"],
+            "saveWorkspaceFile": ["fileName", "gzipBase64", "saveAs"],
+            "clearWorkspaceAssociation": [],
+            "loadWorkspaceRecovery": [],
+            "storeWorkspaceRecovery": ["state"],
+            "bluetoothDiscover": ["timeoutMs", "includeUnpaired"],
+            "bluetoothConnect": ["deviceId", "protocolFamily"],
+            "bluetoothWrite": ["connectionId", "bytesBase64"],
+            "bluetoothRead": ["connectionId", "timeoutMs"],
+            "bluetoothClose": ["connectionId"],
+            "bluetoothPreserve": ["deviceId"],
+            "bluetoothRelease": ["deviceId"],
+        ]
+        if let expectedKeys = payloadKeys[method], Set(payload.keys) != expectedKeys {
+            replyFailure(
+                NativeBridgeFailure(code: "INVALID_REQUEST", message: "The native request has invalid fields."),
+                to: replyHandler
+            )
             return
         }
 
         switch method {
+        case "getHostInfo":
+            replySuccess([
+                "version": 1,
+                "platform": "ipados",
+                "presentation": "mobile-touch",
+                "printerStorageKey": "labelmaker.ipados.printers.v1",
+                "jobIdPrefix": "ipados",
+            ], to: replyHandler)
         case "confirmWorkspaceReplacement":
             workspace.confirmWorkspaceReplacement { result in
                 self.reply(result, to: replyHandler)
@@ -63,8 +133,8 @@ final class NativeBridge: NSObject, WKScriptMessageHandlerWithReply {
             }
         case "saveWorkspaceFile":
             do {
-                let fileName = try requiredString(payload, "fileName")
-                let base64 = try requiredString(payload, "gzipBase64")
+                let fileName = try requiredString(payload, "fileName", maximumLength: 255)
+                let base64 = try requiredString(payload, "gzipBase64", maximumLength: 40 * 1_024 * 1_024)
                 let saveAs = try requiredBool(payload, "saveAs")
                 guard let data = Data(base64Encoded: base64) else {
                     throw NativeBridgeFailure(code: "INVALID_BASE64", message: "The workspace data is invalid.")
@@ -125,7 +195,7 @@ final class NativeBridge: NSObject, WKScriptMessageHandlerWithReply {
         case "bluetoothWrite":
             do {
                 let connectionID = try requiredString(payload, "connectionId")
-                let base64 = try requiredString(payload, "bytesBase64")
+                let base64 = try requiredString(payload, "bytesBase64", maximumLength: 40 * 1_024 * 1_024)
                 guard let data = Data(base64Encoded: base64) else {
                     throw NativeBridgeFailure(code: "INVALID_BASE64", message: "The Bluetooth data is invalid.")
                 }
@@ -147,6 +217,11 @@ final class NativeBridge: NSObject, WKScriptMessageHandlerWithReply {
                 bluetooth.close(connectionID: connectionID) { result in
                     self.reply(result.map { NSNull() as Any }, to: replyHandler)
                 }
+            } catch { replyFailure(error, to: replyHandler) }
+        case "bluetoothPreserve", "bluetoothRelease":
+            do {
+                _ = try requiredString(payload, "deviceId")
+                replySuccess(NSNull(), to: replyHandler)
             } catch { replyFailure(error, to: replyHandler) }
         default:
             replyFailure(
@@ -196,11 +271,25 @@ final class NativeBridge: NSObject, WKScriptMessageHandlerWithReply {
     }
 }
 
-private func requiredString(_ payload: [String: Any], _ key: String) throws -> String {
-    guard let value = payload[key] as? String, !value.isEmpty else {
+private func requiredString(
+    _ payload: [String: Any],
+    _ key: String,
+    maximumLength: Int = 300
+) throws -> String {
+    guard
+        let value = payload[key] as? String,
+        !value.isEmpty,
+        value.count <= maximumLength
+    else {
         throw NativeBridgeFailure(code: "INVALID_REQUEST", message: "The native request is missing \(key).")
     }
     return value
+}
+
+private func validBridgeIdentifier(_ value: String) -> Bool {
+    guard !value.isEmpty, value.count <= 64 else { return false }
+    let allowed = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._:-")
+    return value.unicodeScalars.allSatisfy { allowed.contains($0) }
 }
 
 private func requiredBool(_ payload: [String: Any], _ key: String) throws -> Bool {
@@ -214,8 +303,11 @@ private func requiredPositiveInteger(_ payload: [String: Any], _ key: String) th
     guard let number = payload[key] as? NSNumber else {
         throw NativeBridgeFailure(code: "INVALID_REQUEST", message: "The native request is missing \(key).")
     }
+    guard CFGetTypeID(number) != CFBooleanGetTypeID() else {
+        throw NativeBridgeFailure(code: "INVALID_REQUEST", message: "The native request has an invalid \(key).")
+    }
     let value = number.intValue
-    guard value > 0, Double(value) == number.doubleValue else {
+    guard value > 0, value <= 60_000, Double(value) == number.doubleValue else {
         throw NativeBridgeFailure(code: "INVALID_REQUEST", message: "The native request has an invalid \(key).")
     }
     return value

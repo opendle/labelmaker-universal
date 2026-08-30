@@ -14,6 +14,7 @@ export function PhoneHeader({
   canRedo,
   canPrint,
   printMenuOpen,
+  printerMenuOpen,
   plateCount,
   onNew,
   onOpen,
@@ -26,6 +27,7 @@ export function PhoneHeader({
   onRedo,
   onPrint,
   onPrintMenuChange,
+  onPrinterMenuChange,
   platform,
 }: AppHeaderProps) {
   const onPrintMenuChangeRef = useRef(onPrintMenuChange);
@@ -94,8 +96,10 @@ export function PhoneHeader({
           <AppHeaderPrinterPicker
             activePrinterId={activePrinterId}
             compactStatus
+            menuOpen={printerMenuOpen}
             onAddPrinter={onAddPrinter}
             onOpenPrinterSettings={onOpenPrinterSettings}
+            onMenuChange={onPrinterMenuChange}
             onRemovePrinter={onRemovePrinter}
             onSelectPrinter={onSelectPrinter}
             printers={printers}

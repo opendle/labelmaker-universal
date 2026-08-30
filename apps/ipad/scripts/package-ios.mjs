@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { accessSync } from "node:fs";
+import { accessSync, readFileSync } from "node:fs";
 import {
   mkdir,
   mkdtemp,
@@ -19,8 +19,14 @@ import {
 } from "../../../scripts/app-store-connect-key.mjs";
 
 const BUNDLE_IDENTIFIER = "com.opendle.labelmaker";
-const APP_VERSION = requiredEnvironmentValue("LABELMAKER_IOS_VERSION");
-const BUILD_VERSION = requiredEnvironmentValue("LABELMAKER_IOS_BUILD");
+const releaseVersion = JSON.parse(
+  readFileSync(
+    new URL("../../../distribution/version.json", import.meta.url),
+    "utf8",
+  ),
+);
+const APP_VERSION = releaseVersion.productVersion;
+const BUILD_VERSION = String(releaseVersion.buildNumbers?.ios);
 const TEAM_IDENTIFIER = requiredEnvironmentValue("LABELMAKER_APPLE_TEAM_ID");
 const mode = readMode(process.argv.slice(2));
 
@@ -28,10 +34,14 @@ if (process.platform !== "darwin") {
   throw new Error("The iOS App Store package must be built on macOS.");
 }
 if (!/^\d+(?:\.\d+){0,2}$/.test(APP_VERSION)) {
-  throw new Error("LABELMAKER_IOS_VERSION must contain one to three numbers.");
+  throw new Error(
+    "The product version in distribution/version.json is invalid.",
+  );
 }
 if (!/^\d+(?:\.\d+){0,2}$/.test(BUILD_VERSION)) {
-  throw new Error("LABELMAKER_IOS_BUILD must contain one to three numbers.");
+  throw new Error(
+    "The iOS build number in distribution/version.json is invalid.",
+  );
 }
 if (!/^[A-Z0-9]{10}$/.test(TEAM_IDENTIFIER)) {
   throw new Error("LABELMAKER_APPLE_TEAM_ID is invalid.");

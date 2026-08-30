@@ -1,5 +1,5 @@
 import { ChevronDown, Plus, Printer, Settings, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 import { IconButton } from "./controls.js";
 import type { PrinterSummary } from "./host.js";
@@ -16,6 +16,8 @@ export function AppHeaderPrinterPicker({
   onRemovePrinter,
   onOpenPrinterSettings,
   compactStatus = false,
+  menuOpen,
+  onMenuChange,
 }: {
   readonly printers: readonly PrinterSummary[];
   readonly activePrinterId: string;
@@ -24,18 +26,19 @@ export function AppHeaderPrinterPicker({
   readonly onRemovePrinter: ((printerId: string) => void) | undefined;
   readonly onOpenPrinterSettings: (printerId: string) => void;
   readonly compactStatus?: boolean;
+  readonly menuOpen: boolean;
+  readonly onMenuChange: (open: boolean) => void;
 }) {
   const activePrinter = printers.find(
     (printer) => printer.id === activePrinterId,
   );
-  const [menuOpen, setMenuOpen] = useState(false);
   const controlRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const onDocumentPointerDown = (event: PointerEvent) => {
       if (!controlRef.current?.contains(event.target as Node)) {
-        setMenuOpen(false);
+        onMenuChange(false);
       }
     };
     globalThis.document.addEventListener("pointerdown", onDocumentPointerDown);
@@ -44,7 +47,7 @@ export function AppHeaderPrinterPicker({
         "pointerdown",
         onDocumentPointerDown,
       );
-  }, []);
+  }, [onMenuChange]);
 
   if (printers.length === 0) {
     return (
@@ -71,7 +74,7 @@ export function AppHeaderPrinterPicker({
         aria-expanded={menuOpen}
         aria-haspopup="menu"
         className="printer-trigger"
-        onClick={() => setMenuOpen((open) => !open)}
+        onClick={() => onMenuChange(!menuOpen)}
         ref={triggerRef}
         type="button"
       >
@@ -108,7 +111,7 @@ export function AppHeaderPrinterPicker({
                 className="header-printer-option"
                 onClick={() => {
                   onSelectPrinter(printer.id);
-                  setMenuOpen(false);
+                  onMenuChange(false);
                 }}
                 role="menuitemradio"
                 type="button"
@@ -128,7 +131,7 @@ export function AppHeaderPrinterPicker({
                 label={`Settings for ${printer.name}`}
                 onClick={() => {
                   onOpenPrinterSettings(printer.id);
-                  setMenuOpen(false);
+                  onMenuChange(false);
                 }}
               >
                 <Settings size={14} />
@@ -146,7 +149,7 @@ export function AppHeaderPrinterPicker({
           <button
             className="printer-menu-add"
             onClick={() => {
-              setMenuOpen(false);
+              onMenuChange(false);
               triggerRef.current?.focus();
               onAddPrinter();
             }}

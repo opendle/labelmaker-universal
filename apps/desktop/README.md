@@ -58,10 +58,11 @@ Build and test a development package with:
 LABELMAKER_APPLE_TEAM_ID=32J9W47SH8 npm run mas:development
 ```
 
-Build the distribution `.pkg` with a new build number:
+Set the macOS build number in `distribution/version.json`. Then, build the
+distribution `.pkg`:
 
 ```bash
-LABELMAKER_APPLE_TEAM_ID=32J9W47SH8 LABELMAKER_MAS_BUILD=1 npm run mas:distribution
+LABELMAKER_APPLE_TEAM_ID=32J9W47SH8 npm run mas:distribution
 ```
 
 Store the App Store Connect API key in the login Keychain once:
@@ -70,10 +71,11 @@ Store the App Store Connect API key in the login Keychain once:
 npm run mas:store-api-key -- /path/to/AuthKey_EXAMPLE123.p8 --delete-source
 ```
 
-Upload a new version after you set the API-key ID and issuer variables:
+Increase the macOS build number in `distribution/version.json`. Set the API-key
+ID and issuer variables. Then, upload the new version:
 
 ```bash
-LABELMAKER_MAS_VERSION=1.0.1 LABELMAKER_MAS_BUILD=2 npm run mas:upload
+npm run mas:upload
 ```
 
 The upload command builds and signs a fresh package, validates it with Apple,

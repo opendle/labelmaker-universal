@@ -67,6 +67,10 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
 }
 
 .app-shell {
+  --mobile-safe-area-top: 0px;
+  --mobile-safe-area-right: 0px;
+  --mobile-safe-area-bottom: 0px;
+  --mobile-safe-area-left: 0px;
   width: 100%;
   height: 100%;
   min-width: 900px;
@@ -2297,6 +2301,23 @@ textarea.inline-text-editor:focus-visible {
 .toast.error svg {
   color: white;
 }
+.toast-action {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.toast-action:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+.toast-action:focus-visible {
+  outline: 2px solid white;
+  outline-offset: 2px;
+}
 .mini-spinner {
   width: 13px;
   height: 13px;
@@ -2377,10 +2398,26 @@ textarea.inline-text-editor:focus-visible {
 }
 
 /* iPadOS uses the same editor structure with touch-sized platform adjustments. */
-.platform-ipados {
+.presentation-mobile-touch {
   --field-control-height: 44px;
   --field-label-gap: 0;
   --keyboard-layout-transition: 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  --mobile-safe-area-top: max(
+    env(safe-area-inset-top),
+    var(--labelmaker-safe-area-top, 0px)
+  );
+  --mobile-safe-area-right: max(
+    env(safe-area-inset-right),
+    var(--labelmaker-safe-area-right, 0px)
+  );
+  --mobile-safe-area-bottom: max(
+    env(safe-area-inset-bottom),
+    var(--labelmaker-safe-area-bottom, 0px)
+  );
+  --mobile-safe-area-left: max(
+    env(safe-area-inset-left),
+    var(--labelmaker-safe-area-left, 0px)
+  );
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -2392,78 +2429,78 @@ textarea.inline-text-editor:focus-visible {
     transform var(--keyboard-layout-transition);
 }
 
-.platform-ipados[data-software-keyboard="open"] {
+.presentation-mobile-touch[data-software-keyboard="open"] {
   height: var(--visual-viewport-height, 100%);
   transform: translateY(var(--visual-viewport-offset-top, 0));
 }
 
-.platform-ipados .application-content {
+.presentation-mobile-touch .application-content {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows:
-    calc(64px + env(safe-area-inset-top)) minmax(0, 1fr)
-    calc(100px + env(safe-area-inset-bottom));
+    calc(64px + var(--mobile-safe-area-top)) minmax(0, 1fr)
+    calc(100px + var(--mobile-safe-area-bottom));
   transition: grid-template-rows var(--keyboard-layout-transition);
 }
 
-.platform-ipados .titlebar {
+.presentation-mobile-touch .titlebar {
   -webkit-app-region: none;
   min-width: 0;
-  padding: env(safe-area-inset-top) max(10px, env(safe-area-inset-right)) 0
-    max(10px, env(safe-area-inset-left));
+  padding: var(--mobile-safe-area-top) max(10px, var(--mobile-safe-area-right))
+    0 max(10px, var(--mobile-safe-area-left));
 }
 
-.platform-ipados .window-drag-spacer,
-.platform-ipados .window-drag-spacer.macos {
+.presentation-mobile-touch .window-drag-spacer,
+.presentation-mobile-touch .window-drag-spacer.macos {
   flex-basis: 0;
 }
 
-.platform-ipados .header-action {
+.presentation-mobile-touch .header-action {
   width: 48px;
   height: 48px;
   font-size: 10px;
 }
 
-.platform-ipados .title-actions {
+.presentation-mobile-touch .title-actions {
   gap: 4px;
 }
 
-.platform-ipados .icon-button,
-.platform-ipados .header-printer-row > .icon-button {
+.presentation-mobile-touch .icon-button,
+.presentation-mobile-touch .header-printer-row > .icon-button {
   width: 44px;
   height: 44px;
 }
 
-.platform-ipados .printer-trigger,
-.platform-ipados .button,
-.platform-ipados .button.small,
-.platform-ipados .printer-menu-add,
-.platform-ipados .popup-menu button {
+.presentation-mobile-touch .printer-trigger,
+.presentation-mobile-touch .button,
+.presentation-mobile-touch .button.small,
+.presentation-mobile-touch .printer-menu-add,
+.presentation-mobile-touch .popup-menu button {
   min-height: 44px;
 }
 
-.platform-ipados .printer-trigger {
+.presentation-mobile-touch .printer-trigger {
   width: 150px;
 }
 
-.platform-ipados .popup-menu,
-.platform-ipados .printer-menu {
+.presentation-mobile-touch .popup-menu,
+.presentation-mobile-touch .printer-menu {
   top: 49px;
 }
 
-.platform-ipados .header-printer-option {
+.presentation-mobile-touch .header-printer-option {
   min-height: 48px;
   padding-right: 104px;
 }
 
-.platform-ipados .header-printer-row > .icon-button {
+.presentation-mobile-touch .header-printer-row > .icon-button {
   right: 55px;
 }
 
-.platform-ipados .header-printer-row > .icon-button:last-child {
+.presentation-mobile-touch .header-printer-row > .icon-button:last-child {
   right: 5px;
 }
 
-.platform-ipados .desktop-body {
+.presentation-mobile-touch .desktop-body {
   --editor-toolbar-height: 50px;
   width: 100%;
   min-width: 0;
@@ -2471,11 +2508,11 @@ textarea.inline-text-editor:focus-visible {
   grid-template-rows: var(--editor-toolbar-height) minmax(0, 1fr);
 }
 
-.platform-ipados .inspector {
+.presentation-mobile-touch .inspector {
   width: 288px;
 }
 
-.platform-ipados .editor-toolbar {
+.presentation-mobile-touch .editor-toolbar {
   gap: 10px;
   overflow-x: auto;
   overflow-y: hidden;
@@ -2483,66 +2520,68 @@ textarea.inline-text-editor:focus-visible {
   scrollbar-width: none;
 }
 
-.platform-ipados .editor-toolbar::-webkit-scrollbar {
+.presentation-mobile-touch .editor-toolbar::-webkit-scrollbar {
   display: none;
 }
 
-.platform-ipados .editor-tools,
-.platform-ipados .plate-toolbar-settings {
+.presentation-mobile-touch .editor-tools,
+.presentation-mobile-touch .plate-toolbar-settings {
   flex: 0 0 auto;
 }
 
-.platform-ipados .tool-button,
-.shape-menu-ipados button {
+.presentation-mobile-touch .tool-button,
+.shape-menu-mobile-touch button {
   min-height: 44px;
   padding-right: 12px;
   padding-left: 12px;
   font-size: 12px;
 }
 
-.shape-menu-ipados {
+.shape-menu-mobile-touch {
   width: 160px;
 }
 
-.platform-ipados .toolbar-field > input,
-.platform-ipados .toolbar-unit-input,
-.platform-ipados .toolbar-trim-button,
-.platform-ipados .field > input:not([type="checkbox"]):not([type="range"]),
-.platform-ipados .field select,
-.platform-ipados .unit-input,
-.platform-ipados .printer-name-setting input,
-.platform-ipados .printer-readonly-setting output,
-.platform-ipados .printer-name-control .button.small,
-.platform-ipados .trim-button,
-.platform-ipados .layer-buttons button,
-.platform-ipados .segmented,
-.platform-ipados .text-style-buttons,
-.platform-ipados .weight-group,
-.platform-ipados .text-style-buttons .italic-button {
+.presentation-mobile-touch .toolbar-field > input,
+.presentation-mobile-touch .toolbar-unit-input,
+.presentation-mobile-touch .toolbar-trim-button,
+.presentation-mobile-touch
+  .field
+  > input:not([type="checkbox"]):not([type="range"]),
+.presentation-mobile-touch .field select,
+.presentation-mobile-touch .unit-input,
+.presentation-mobile-touch .printer-name-setting input,
+.presentation-mobile-touch .printer-readonly-setting output,
+.presentation-mobile-touch .printer-name-control .button.small,
+.presentation-mobile-touch .trim-button,
+.presentation-mobile-touch .layer-buttons button,
+.presentation-mobile-touch .segmented,
+.presentation-mobile-touch .text-style-buttons,
+.presentation-mobile-touch .weight-group,
+.presentation-mobile-touch .text-style-buttons .italic-button {
   min-height: var(--field-control-height);
 }
 
-.platform-ipados input,
-.platform-ipados select,
-.platform-ipados textarea {
+.presentation-mobile-touch input,
+.presentation-mobile-touch select,
+.presentation-mobile-touch textarea {
   font-size: 16px;
 }
 
-.platform-ipados .property-stack {
+.presentation-mobile-touch .property-stack {
   padding: 14px;
   gap: 12px;
   overscroll-behavior: contain;
 }
 
-.platform-ipados .inspector-header {
+.presentation-mobile-touch .inspector-header {
   min-height: 48px;
 }
 
-.platform-ipados .work-surface {
+.presentation-mobile-touch .work-surface {
   cursor: default;
 }
 
-.platform-ipados .canvas-element-control {
+.presentation-mobile-touch .canvas-element-control {
   cursor: default;
   -webkit-appearance: none;
   appearance: none;
@@ -2551,7 +2590,7 @@ textarea.inline-text-editor:focus-visible {
   -webkit-tap-highlight-color: transparent;
 }
 
-.platform-ipados textarea.inline-text-editor {
+.presentation-mobile-touch textarea.inline-text-editor {
   -webkit-appearance: none;
   appearance: none;
   border-radius: 0;
@@ -2559,7 +2598,7 @@ textarea.inline-text-editor:focus-visible {
   box-shadow: none;
 }
 
-.platform-ipados .handle {
+.presentation-mobile-touch .handle {
   width: 44px;
   height: 44px;
   border: 0;
@@ -2567,7 +2606,7 @@ textarea.inline-text-editor:focus-visible {
   background: transparent;
 }
 
-.platform-ipados .handle::after {
+.presentation-mobile-touch .handle::after {
   content: "";
   position: absolute;
   top: 50%;
@@ -2580,49 +2619,49 @@ textarea.inline-text-editor:focus-visible {
   background: white;
 }
 
-.platform-ipados .handle.nw {
+.presentation-mobile-touch .handle.nw {
   top: -22px;
   left: -22px;
 }
 
-.platform-ipados .handle.ne {
+.presentation-mobile-touch .handle.ne {
   top: -22px;
   right: -22px;
 }
 
-.platform-ipados .handle.sw {
+.presentation-mobile-touch .handle.sw {
   bottom: -22px;
   left: -22px;
 }
 
-.platform-ipados .handle.se {
+.presentation-mobile-touch .handle.se {
   right: -22px;
   bottom: -22px;
 }
 
-.platform-ipados .handle.rotate {
+.presentation-mobile-touch .handle.rotate {
   top: -50px;
   left: calc(50% - 22px);
   width: 44px;
   height: 44px;
 }
 
-.platform-ipados .handle.rotate::after {
+.presentation-mobile-touch .handle.rotate::after {
   border-radius: 50%;
 }
 
-.platform-ipados .rotation-stem {
+.presentation-mobile-touch .rotation-stem {
   top: -29px;
   height: 29px;
 }
 
-.platform-ipados .plate-strip {
-  padding-right: max(12px, env(safe-area-inset-right));
-  padding-bottom: max(7px, env(safe-area-inset-bottom));
-  padding-left: max(12px, env(safe-area-inset-left));
+.presentation-mobile-touch .plate-strip {
+  padding-right: max(12px, var(--mobile-safe-area-right));
+  padding-bottom: max(7px, var(--mobile-safe-area-bottom));
+  padding-left: max(12px, var(--mobile-safe-area-left));
 }
 
-.platform-ipados .plate-delete {
+.presentation-mobile-touch .plate-delete {
   top: 0;
   right: 0;
   width: 28px;
@@ -2631,65 +2670,65 @@ textarea.inline-text-editor:focus-visible {
   background: rgba(255, 254, 250, 0.92);
 }
 
-.platform-ipados .add-plate {
+.presentation-mobile-touch .add-plate {
   flex-basis: 88px;
   min-width: 88px;
 }
 
-.platform-ipados .dialog {
+.presentation-mobile-touch .dialog {
   width: min(560px, calc(100vw - 32px));
   max-height: calc(var(--visual-viewport-height, 100vh) - 32px);
 }
 
-.platform-ipados .dialog-header {
+.presentation-mobile-touch .dialog-header {
   min-height: 52px;
   padding: 4px 8px 4px 14px;
   align-items: center;
 }
 
-.platform-ipados .dialog-footer .button,
-.platform-ipados .text-button {
+.presentation-mobile-touch .dialog-footer .button,
+.presentation-mobile-touch .text-button {
   min-height: 44px;
 }
-.platform-ipados .icon-library-search input {
+.presentation-mobile-touch .icon-library-search input {
   height: 44px;
   font-size: 16px;
 }
-.platform-ipados .icon-library-item {
+.presentation-mobile-touch .icon-library-item {
   min-height: 72px;
 }
-.platform-ipados .icon-library-list {
+.presentation-mobile-touch .icon-library-list {
   height: min(460px, calc(var(--visual-viewport-height, 100vh) - 250px));
 }
 
-.platform-ipados[data-software-keyboard="open"]
+.presentation-mobile-touch[data-software-keyboard="open"]
   .application-content:has(input:focus, textarea:focus) {
-  grid-template-rows: calc(64px + env(safe-area-inset-top)) minmax(0, 1fr) 0;
+  grid-template-rows: calc(64px + var(--mobile-safe-area-top)) minmax(0, 1fr) 0;
 }
 
-.platform-ipados[data-software-keyboard="open"]
+.presentation-mobile-touch[data-software-keyboard="open"]
   .application-content:has(input:focus, textarea:focus)
   .plate-strip {
   display: none;
 }
 
 @media (max-width: 850px) {
-  .platform-ipados .titlebar {
+  .presentation-mobile-touch .titlebar {
     position: relative;
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   }
 
-  .platform-ipados .document-identity {
+  .presentation-mobile-touch .document-identity {
     display: none;
   }
 
-  .platform-ipados .title-actions {
+  .presentation-mobile-touch .title-actions {
     display: contents;
   }
 
-  .platform-ipados .title-actions .toolbar-cluster {
+  .presentation-mobile-touch .title-actions .toolbar-cluster {
     position: absolute;
-    top: env(safe-area-inset-top);
+    top: var(--mobile-safe-area-top);
     bottom: 0;
     left: 50%;
     align-items: center;
@@ -2697,44 +2736,44 @@ textarea.inline-text-editor:focus-visible {
     margin: 0;
   }
 
-  .platform-ipados .header-output-actions {
+  .presentation-mobile-touch .header-output-actions {
     grid-column: 3;
     justify-self: end;
     gap: 4px;
   }
 
-  .platform-ipados .printer-trigger {
+  .presentation-mobile-touch .printer-trigger {
     width: 132px;
   }
 
-  .platform-ipados .desktop-body {
+  .presentation-mobile-touch .desktop-body {
     position: relative;
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 50px minmax(0, 1fr);
   }
 
-  .platform-ipados .editor-toolbar {
+  .presentation-mobile-touch .editor-toolbar {
     grid-column: 1;
     gap: 6px;
   }
 
-  .platform-ipados .editor-tools .tool-button {
+  .presentation-mobile-touch .editor-tools .tool-button {
     width: 44px;
     padding: 0;
     justify-content: center;
   }
 
-  .platform-ipados .editor-tools .tool-button-label,
-  .platform-ipados .editor-tools .tool-button-disclosure {
+  .presentation-mobile-touch .editor-tools .tool-button-label,
+  .presentation-mobile-touch .editor-tools .tool-button-disclosure {
     display: none;
   }
 
-  .platform-ipados .work-surface {
+  .presentation-mobile-touch .work-surface {
     grid-column: 1;
     grid-row: 2;
   }
 
-  .platform-ipados .inspector {
+  .presentation-mobile-touch .inspector {
     top: auto;
     right: 0;
     bottom: 0;
@@ -2749,7 +2788,7 @@ textarea.inline-text-editor:focus-visible {
     box-shadow: 0 -8px 24px rgba(40, 35, 25, 0.12);
   }
 
-  .platform-ipados .property-stack {
+  .presentation-mobile-touch .property-stack {
     min-width: 0;
     min-height: 0;
     flex: 1 1 auto;
@@ -2758,38 +2797,38 @@ textarea.inline-text-editor:focus-visible {
     align-content: start;
   }
 
-  .platform-ipados .property-stack > * {
+  .presentation-mobile-touch .property-stack > * {
     min-width: 0;
   }
 
-  .platform-ipados.layout-standard[data-software-keyboard="open"]
+  .presentation-mobile-touch.layout-standard[data-software-keyboard="open"]
     .application-content:has(.inline-text-editor:focus)
     .titlebar,
-  .platform-ipados.layout-standard[data-software-keyboard="open"]
+  .presentation-mobile-touch.layout-standard[data-software-keyboard="open"]
     .application-content:has(.inline-text-editor:focus)
     .plate-strip,
-  .platform-ipados.layout-standard[data-software-keyboard="open"]
+  .presentation-mobile-touch.layout-standard[data-software-keyboard="open"]
     .application-content:has(.inline-text-editor:focus)
     .inspector {
     display: none;
   }
 
-  .platform-ipados.layout-standard[data-software-keyboard="open"]
+  .presentation-mobile-touch.layout-standard[data-software-keyboard="open"]
     .application-content:has(.inline-text-editor:focus) {
     grid-template-rows: 0 minmax(0, 1fr) 0;
   }
 
-  .platform-ipados.layout-standard[data-software-keyboard="open"]
+  .presentation-mobile-touch.layout-standard[data-software-keyboard="open"]
     .application-content:has(.inline-text-editor:focus)
     .desktop-body {
     grid-row: 2;
     grid-template-rows: 50px minmax(0, 1fr);
-    padding-top: env(safe-area-inset-top);
+    padding-top: var(--mobile-safe-area-top);
   }
 }
 
 @media (orientation: portrait) {
-  .platform-ipados.layout-standard .inspector {
+  .presentation-mobile-touch.layout-standard .inspector {
     top: var(--editor-toolbar-height);
     right: 0;
     bottom: auto;
@@ -2804,7 +2843,7 @@ textarea.inline-text-editor:focus-visible {
     box-shadow: 0 8px 24px rgba(40, 35, 25, 0.12);
   }
 
-  .platform-ipados.layout-standard .property-stack {
+  .presentation-mobile-touch.layout-standard .property-stack {
     min-width: 0;
     min-height: 0;
     flex: 1 1 auto;
@@ -2813,7 +2852,7 @@ textarea.inline-text-editor:focus-visible {
     align-content: start;
   }
 
-  .platform-ipados.layout-standard .property-stack > * {
+  .presentation-mobile-touch.layout-standard .property-stack > * {
     min-width: 0;
   }
 }
@@ -2835,13 +2874,16 @@ textarea.inline-text-editor:focus-visible {
 
 .layout-phone .application-content,
 .layout-phone-short .application-content,
-.platform-ipados.layout-phone .application-content,
-.platform-ipados.layout-phone-short .application-content {
+.presentation-mobile-touch.layout-phone .application-content,
+.presentation-mobile-touch.layout-phone-short .application-content {
   min-width: 0;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows:
-    calc(var(--phone-header-height) + env(safe-area-inset-top)) minmax(0, 1fr)
-    calc(var(--phone-strip-height) + env(safe-area-inset-bottom));
+    calc(var(--phone-header-height) + var(--mobile-safe-area-top)) minmax(
+      0,
+      1fr
+    )
+    calc(var(--phone-strip-height) + var(--mobile-safe-area-bottom));
 }
 
 .phone-titlebar {
@@ -2849,8 +2891,8 @@ textarea.inline-text-editor:focus-visible {
   z-index: 20;
   width: 100%;
   min-width: 0;
-  padding: env(safe-area-inset-top) max(8px, env(safe-area-inset-right)) 0
-    max(8px, env(safe-area-inset-left));
+  padding: var(--mobile-safe-area-top) max(8px, var(--mobile-safe-area-right)) 0
+    max(8px, var(--mobile-safe-area-left));
   display: flex;
   align-items: center;
   border-bottom: 1px solid var(--line);
@@ -2870,7 +2912,7 @@ textarea.inline-text-editor:focus-visible {
   flex-basis: 74px;
 }
 
-.platform-ipados .phone-window-drag-spacer.macos {
+.presentation-mobile-touch .phone-window-drag-spacer.macos {
   flex-basis: 0;
 }
 
@@ -3028,8 +3070,8 @@ textarea.inline-text-editor:focus-visible {
 
 .layout-phone .desktop-body,
 .layout-phone-short .desktop-body,
-.platform-ipados.layout-phone .desktop-body,
-.platform-ipados.layout-phone-short .desktop-body {
+.presentation-mobile-touch.layout-phone .desktop-body,
+.presentation-mobile-touch.layout-phone-short .desktop-body {
   --editor-toolbar-height: 48px;
   min-width: 0;
   grid-template-columns: minmax(0, 1fr);
@@ -3062,7 +3104,7 @@ textarea.inline-text-editor:focus-visible {
 .phone-command-scroll {
   min-width: 0;
   flex: 1 1 auto;
-  padding: 2px 4px 2px max(5px, env(safe-area-inset-left));
+  padding: 2px 4px 2px max(5px, var(--mobile-safe-area-left));
   display: flex;
   align-items: center;
   gap: 2px;
@@ -3078,7 +3120,7 @@ textarea.inline-text-editor:focus-visible {
 .phone-quick-scroll {
   min-width: 0;
   flex: 1 1 auto;
-  padding: 2px 4px 2px max(7px, env(safe-area-inset-left));
+  padding: 2px 4px 2px max(7px, var(--mobile-safe-area-left));
   display: flex;
   align-items: center;
   gap: 7px;
@@ -3093,7 +3135,7 @@ textarea.inline-text-editor:focus-visible {
 
 .phone-command-fixed {
   flex: 0 0 auto;
-  padding-right: max(3px, env(safe-area-inset-right));
+  padding-right: max(3px, var(--mobile-safe-area-right));
   display: flex;
   align-items: center;
   background: #f7f6f2;
@@ -3224,8 +3266,9 @@ textarea.inline-text-editor:focus-visible {
 
 .phone-plate-strip {
   height: 100%;
-  padding: 4px max(6px, env(safe-area-inset-right))
-    max(3px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+  padding: 4px max(6px, var(--mobile-safe-area-right))
+    max(3px, var(--mobile-safe-area-bottom))
+    max(6px, var(--mobile-safe-area-left));
 }
 
 .phone-plate-strip .plate-thumbnails {
@@ -3287,13 +3330,13 @@ textarea.inline-text-editor:focus-visible {
 
 :is(.layout-phone, .layout-phone-short)
   :is(.phone-property-modal, .phone-form-modal).modal-backdrop {
-  --phone-sheet-top-gap: max(8px, env(safe-area-inset-top));
+  --phone-sheet-top-gap: max(8px, var(--mobile-safe-area-top));
   --phone-sheet-bottom-gap: calc(
-    var(--phone-strip-height) + env(safe-area-inset-bottom)
+    var(--phone-strip-height) + var(--mobile-safe-area-bottom)
   );
   align-items: flex-start;
-  padding: var(--phone-sheet-top-gap) max(8px, env(safe-area-inset-right))
-    var(--phone-sheet-bottom-gap) max(8px, env(safe-area-inset-left));
+  padding: var(--phone-sheet-top-gap) max(8px, var(--mobile-safe-area-right))
+    var(--phone-sheet-bottom-gap) max(8px, var(--mobile-safe-area-left));
 }
 
 :is(.layout-phone, .layout-phone-short)
@@ -3438,8 +3481,8 @@ textarea.inline-text-editor:focus-visible {
   .modal-backdrop:not(.phone-property-modal):not(.phone-form-modal) {
   align-items: stretch;
   justify-content: stretch;
-  padding: env(safe-area-inset-top) env(safe-area-inset-right)
-    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding: var(--mobile-safe-area-top) var(--mobile-safe-area-right)
+    var(--mobile-safe-area-bottom) var(--mobile-safe-area-left);
   backdrop-filter: none;
 }
 
@@ -3497,12 +3540,15 @@ textarea.inline-text-editor:focus-visible {
 
 .layout-phone[data-software-keyboard="open"] .application-content,
 .layout-phone-short[data-software-keyboard="open"] .application-content,
-.platform-ipados.layout-phone[data-software-keyboard="open"]
+.presentation-mobile-touch.layout-phone[data-software-keyboard="open"]
   .application-content,
-.platform-ipados.layout-phone-short[data-software-keyboard="open"]
+.presentation-mobile-touch.layout-phone-short[data-software-keyboard="open"]
   .application-content {
   grid-template-rows:
-    calc(var(--phone-header-height) + env(safe-area-inset-top)) minmax(0, 1fr)
+    calc(var(--phone-header-height) + var(--mobile-safe-area-top)) minmax(
+      0,
+      1fr
+    )
     0;
 }
 
@@ -3511,16 +3557,20 @@ textarea.inline-text-editor:focus-visible {
   display: none;
 }
 
-.platform-ipados.layout-phone .toast,
-.platform-ipados.layout-phone-short .toast {
-  right: max(20px, env(safe-area-inset-right));
-  left: max(20px, env(safe-area-inset-left));
+.presentation-mobile-touch.layout-phone .toast,
+.presentation-mobile-touch.layout-phone-short .toast {
+  right: max(20px, var(--mobile-safe-area-right));
+  left: max(20px, var(--mobile-safe-area-left));
   width: auto;
   min-height: 44px;
   height: auto;
   justify-content: center;
   transform: none;
   text-align: center;
+}
+
+.presentation-mobile-touch .toast-action {
+  min-height: 44px;
 }
 
 .layout-phone[data-software-keyboard="open"]
@@ -4087,7 +4137,7 @@ textarea.inline-text-editor:focus-visible {
   }
 }
 
-.platform-ipados .typeface-select {
+.presentation-mobile-touch .typeface-select {
   -webkit-appearance: none;
   appearance: none;
   padding-right: 34px;

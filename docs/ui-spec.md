@@ -1,4 +1,4 @@
-# Desktop, iPhone, and iPad UI specification
+# Desktop and mobile UI specification
 
 ## Character
 
@@ -227,11 +227,12 @@ set of traffic-light controls in the application header.
 Cmd+Q must quit on the first command. Save recovery state before exit. Close
 printer sessions as best effort, but do not let a transport hold the app open.
 
-## iPad layout and touch input
+## Mobile layout and touch input
 
-Use the same React editor and document behavior on desktop and iPad. The iPad
-host sets the platform to `ipados`. This value adds an iPad style layer. It does
-not add a separate editor.
+Use the same React editor and document behavior on desktop, Apple mobile, and
+Android. Mobile hosts use the `mobile-touch` presentation. Operating-system
+classes add only behavior that is specific to Apple or Android. They do not
+add a separate editor.
 
 - Respect the safe area on each edge of the screen.
 - Use a right inspector in landscape. In every standard portrait layout, show a
@@ -249,7 +250,8 @@ not add a separate editor.
 - Drag one finger on any empty part of the work surface to move the canvas. A
   drag that starts on an element moves that element. Use two fingers on the
   work surface to move the canvas and to change the zoom.
-- Let Apple Pencil draw in the drawing editor with the same tools as touch input.
+- Let a supported pen draw in the drawing editor with the same tools as touch
+  input.
 - A first tap selects an element. A second tap on selected text starts text
   edit. Keep double-click and keyboard edit behavior for desktop input.
 - Show a Delete action when an element is selected. Do not require a hardware
@@ -260,7 +262,7 @@ not add a separate editor.
   from a physical keyboard must not hide the strip. Keep the Phone header and
   command row visible during direct text edit with the on-screen keyboard.
 - Move the label smoothly when the on-screen keyboard opens or closes. Animate
-  only the iPadOS viewport and layout rows. Keep canvas drag and zoom immediate,
+  only mobile viewport and layout rows. Keep canvas drag and zoom immediate,
   and respect the reduced-motion setting.
 - Use the numeric keyboard for each number field. Do not show the unused web
   form assistant row above the iOS keyboard suggestions. A small visual
@@ -288,8 +290,8 @@ not add a separate editor.
 ## Phone layout
 
 Use Phone mode at 1100 CSS pixels wide or less in a desktop host. Use Phone mode
-at 600 CSS pixels wide or less in the Apple mobile host, so the current iPad
-portrait and Split View layouts stay unchanged. Also use Phone mode when the
+at 600 CSS pixels wide or less in a mobile-touch host, so the current tablet
+portrait and split-screen layouts stay unchanged. Also use Phone mode when the
 unobscured height is 500 CSS pixels or less and the width is 1,000 CSS pixels or
 less. The software keyboard must not change an iPad from its normal layout to
 Phone mode.

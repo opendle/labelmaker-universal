@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Label Maker</string>
+    <string name="unsaved_workspace_title">Unsaved workspace</string>
+    <string name="unsaved_workspace_message">Save changes to this workspace? Unsaved changes will be lost if you discard them.</string>
+    <string name="save">Save</string>
+    <string name="discard_changes">Discard changes</string>
+    <string name="cancel">Cancel</string>
+</resources>

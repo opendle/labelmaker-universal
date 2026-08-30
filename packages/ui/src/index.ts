@@ -1,6 +1,7 @@
 export { LabelmakerApp } from "./LabelmakerApp.js";
 export type {
   HostPlatform,
+  HostPresentation,
   LabelmakerHost,
   PrinterSettings,
   PrinterSummary,

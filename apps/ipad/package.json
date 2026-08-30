@@ -8,11 +8,11 @@
     "app-store:previews": "playwright install webkit ffmpeg && npm run build:web && node scripts/capture-app-store-previews.mjs",
     "app-store:screenshots": "playwright install webkit && npm run build:web && node scripts/capture-app-store-screenshots.mjs && LABELMAKER_APP_STORE_SCREENSHOT_ORIENTATION=portrait node scripts/capture-app-store-screenshots.mjs && LABELMAKER_APP_STORE_SCREENSHOT_DEVICE=iphone node scripts/capture-app-store-screenshots.mjs",
     "build": "npm run build:web",
-    "build:web": "vite build",
+    "build:web": "npm run build --workspace @labelmaker/mobile-web && rm -rf Labelmaker/Resources/WebApp && cp -R ../mobile-web/dist Labelmaker/Resources/WebApp",
     "ios:distribution": "node scripts/package-ios.mjs --distribution",
     "ios:upload": "node scripts/package-ios.mjs --upload",
     "responsive:screenshots": "playwright install webkit && npm run build:web && node scripts/capture-responsive-screenshots.mjs",
-    "typecheck": "tsc --project tsconfig.web.json --pretty false"
+    "typecheck": "npm run typecheck --workspace @labelmaker/mobile-web"
   },
   "dependencies": {
     "@labelmaker/adapter-makeid": "0.0.0",

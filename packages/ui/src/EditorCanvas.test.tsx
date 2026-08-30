@@ -56,6 +56,7 @@ function createProps(
     onZoom: vi.fn(),
     plate,
     platform: "linux",
+    presentation: "desktop",
     printableMargins: { topMm: 0, bottomMm: 0 },
     selectedElementId: null,
     selectedImage: undefined,

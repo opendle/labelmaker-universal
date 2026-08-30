@@ -62,6 +62,12 @@ Discovery returns transient descriptors. Saved printer configuration uses a
 generated application ID plus adapter-owned connection data. Display names and
 operating-system device addresses are not stable identity on their own.
 
+A platform MakeID transport reports `bluetooth-low-energy` or
+`bluetooth-classic` for each discovered device. Shared code must not infer the
+transport from an operating-system device-ID prefix. A transport can preserve
+or release an opaque device mapping when its operating system needs a private
+stable identifier.
+
 A configured printer must remain resolvable after an application restart. A
 routine print must not depend on a nearby-device inquiry. An adapter can resolve
 a saved opaque device ID in its platform transport.
@@ -97,6 +103,7 @@ must use the same rule because public evidence contains both 288-DPI and
 300-DPI values. For protocol 1.3 or later, the same response gives the raster
 alignment. Older E1, L1, and P31 profiles use center alignment. An unresolved
 descriptor has no offline DPI and cannot print.
-These rules apply to macOS, iPadOS, and future Android and Windows transports.
+These rules apply to macOS, Apple mobile, Android, and future Windows
+transports.
 The implementation belongs in `packages/adapters/makeid`; model assumptions
 must not enter the shared UI.

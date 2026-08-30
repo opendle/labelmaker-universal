@@ -69,7 +69,13 @@ extension MakeIDBluetoothTransport: BluetoothTransportHandling {
                     timeoutMs: timeoutMilliseconds,
                     includeUnpaired: includeUnpaired
                 )
-                completion(.success(devices.map { ["id": $0.id, "name": $0.name] }))
+                completion(.success(devices.map {
+                    [
+                        "id": $0.id,
+                        "name": $0.name,
+                        "transport": "bluetooth-low-energy",
+                    ]
+                }))
             } catch {
                 completion(.failure(error))
             }

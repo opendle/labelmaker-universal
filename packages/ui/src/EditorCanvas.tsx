@@ -41,7 +41,7 @@ import {
   type PrintableMargins,
 } from "./label-layout.js";
 import { useCanvasInteractions } from "./useCanvasInteractions.js";
-import type { HostPlatform } from "./host.js";
+import type { HostPlatform, HostPresentation } from "./host.js";
 import type { ResponsiveLayout } from "./useResponsiveLayout.js";
 
 type WorkSurfaceStyle = CSSProperties & Record<`--${string}`, string | number>;
@@ -103,7 +103,7 @@ function CanvasToolbar({
   onAddSpecial,
   onUpdatePlate,
   onTrim,
-  platform,
+  presentation,
 }: {
   readonly plate: LabelPlate;
   readonly onAddText: () => void;
@@ -114,7 +114,7 @@ function CanvasToolbar({
   readonly onAddSpecial: (kind: "flag") => void;
   readonly onUpdatePlate: (plate: LabelPlate) => void;
   readonly onTrim: () => void;
-  readonly platform: HostPlatform;
+  readonly presentation: HostPresentation;
 }) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const shapeControlRef = useRef<HTMLDivElement>(null);
@@ -240,7 +240,7 @@ function CanvasToolbar({
               const nextOpen = !shapeMenuOpen;
               if (nextOpen) {
                 const bounds = event.currentTarget.getBoundingClientRect();
-                const menuWidth = platform === "ipados" ? 160 : 132;
+                const menuWidth = presentation === "mobile-touch" ? 160 : 132;
                 setShapeMenuPosition({
                   left: Math.max(
                     8,
@@ -281,7 +281,7 @@ function CanvasToolbar({
             createPortal(
               <div
                 aria-label="Add shape"
-                className={`shape-menu${platform === "ipados" ? " shape-menu-ipados" : ""}`}
+                className={`shape-menu${presentation === "mobile-touch" ? " shape-menu-mobile-touch" : ""}`}
                 onKeyDown={onShapeMenuKeyDown}
                 ref={shapeMenuRef}
                 role="menu"
@@ -403,6 +403,7 @@ export function EditorCanvas({
   onZoom,
   printableMargins,
   platform,
+  presentation,
   layout,
   selectedText,
   selectedImage,
@@ -430,6 +431,7 @@ export function EditorCanvas({
   readonly onZoom: (zoom: number) => void;
   readonly printableMargins: PrintableMargins;
   readonly platform: HostPlatform;
+  readonly presentation: HostPresentation;
   readonly layout: ResponsiveLayout;
   readonly selectedText: TextElement | undefined;
   readonly selectedImage: ImageElement | undefined;
@@ -488,7 +490,7 @@ export function EditorCanvas({
     plate,
     printableMargins,
     selectedElementId,
-    touchNavigation: platform === "ipados",
+    touchNavigation: presentation === "mobile-touch",
     zoom,
     onZoom,
   });
@@ -530,7 +532,7 @@ export function EditorCanvas({
           onTrim={onTrim}
           onUpdatePlate={onUpdatePlate}
           plate={plate}
-          platform={platform}
+          presentation={presentation}
         />
       )}
       <div

@@ -15,6 +15,7 @@ export interface AppHeaderProps {
   readonly canRedo: boolean;
   readonly canPrint: boolean;
   readonly printMenuOpen: boolean;
+  readonly printerMenuOpen: boolean;
   readonly onNew: () => void;
   readonly onOpen: () => void;
   readonly onSave: () => void;
@@ -26,6 +27,7 @@ export interface AppHeaderProps {
   readonly onRedo: () => void;
   readonly onPrint: (all: boolean) => void;
   readonly onPrintMenuChange: (open: boolean) => void;
+  readonly onPrinterMenuChange: (open: boolean) => void;
   readonly platform: HostPlatform;
 }
 
@@ -39,6 +41,7 @@ export function AppHeader({
   canRedo,
   canPrint,
   printMenuOpen,
+  printerMenuOpen,
   onNew,
   onOpen,
   onSave,
@@ -50,6 +53,7 @@ export function AppHeader({
   onRedo,
   onPrint,
   onPrintMenuChange,
+  onPrinterMenuChange,
   platform,
 }: AppHeaderProps) {
   return (
@@ -94,8 +98,10 @@ export function AppHeader({
         <div className="header-output-actions">
           <AppHeaderPrinterPicker
             activePrinterId={activePrinterId}
+            menuOpen={printerMenuOpen}
             onAddPrinter={onAddPrinter}
             onOpenPrinterSettings={onOpenPrinterSettings}
+            onMenuChange={onPrinterMenuChange}
             onRemovePrinter={onRemovePrinter}
             onSelectPrinter={onSelectPrinter}
             printers={printers}

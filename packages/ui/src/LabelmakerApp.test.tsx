@@ -54,6 +54,11 @@ afterEach(() => {
 function createHost(overrides: Partial<LabelmakerHost> = {}): LabelmakerHost {
   return {
     platform: "linux",
+    presentation:
+      overrides.presentation ??
+      (overrides.platform === "ipados" || overrides.platform === "android"
+        ? "mobile-touch"
+        : "desktop"),
     listPrinters: vi.fn().mockResolvedValue([
       {
         id: "mock-studio",
@@ -1281,7 +1286,7 @@ describe("LabelmakerApp", () => {
     const menu = screen.getByRole("menu", { name: "Add shape" });
     expect(menu.closest(".editor-toolbar")).toBeNull();
     expect(menu.parentElement).toBe(document.body);
-    expect(menu).toHaveClass("shape-menu-ipados");
+    expect(menu).toHaveClass("shape-menu-mobile-touch");
   });
 
   it("hides pointer-only focus rings on the element actions", async () => {
@@ -1613,7 +1618,7 @@ describe("LabelmakerApp", () => {
     ).toBeInTheDocument();
   });
 
-  it("adds the iPad style layer and a touch-accessible delete action", async () => {
+  it("adds the mobile touch style layer and an accessible delete action", async () => {
     const user = userEvent.setup();
     const { container } = render(
       <LabelmakerApp host={createHost({ platform: "ipados" })} />,
@@ -1621,12 +1626,60 @@ describe("LabelmakerApp", () => {
 
     expect(container.querySelector(".app-shell")).toHaveClass(
       "platform-ipados",
+      "presentation-mobile-touch",
     );
     await user.click(
       screen.getByRole("button", { name: "Delete selected element" }),
     );
     expect(
       screen.queryByRole("button", { name: "Text element: RESISTORS" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("lets the mobile host close the active property sheet with Back", async () => {
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 852);
+    let backHandler: (() => boolean) | undefined;
+    const user = userEvent.setup();
+    render(
+      <LabelmakerApp
+        host={createHost({
+          platform: "android",
+          presentation: "mobile-touch",
+          registerSystemBackHandler: (handler) => {
+            backHandler = handler;
+            return () => {
+              if (backHandler === handler) backHandler = undefined;
+            };
+          },
+        })}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Label settings" }));
+    expect(
+      screen.getByRole("dialog", { name: "Label settings" }),
+    ).toBeVisible();
+
+    act(() => expect(backHandler?.()).toBe(true));
+
+    expect(
+      screen.queryByRole("dialog", { name: "Label settings" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Print options" }));
+    expect(screen.getByRole("menu", { name: "Print options" })).toBeVisible();
+    act(() => expect(backHandler?.()).toBe(true));
+    expect(
+      screen.queryByRole("menu", { name: "Print options" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Selected printer: Studio Labeler" }),
+    );
+    expect(screen.getByRole("menu", { name: "Printers" })).toBeVisible();
+    act(() => expect(backHandler?.()).toBe(true));
+    expect(
+      screen.queryByRole("menu", { name: "Printers" }),
     ).not.toBeInTheDocument();
   });
 
@@ -2246,6 +2299,9 @@ describe("LabelmakerApp", () => {
       sending.closest("output")?.querySelector(".mini-spinner"),
     ).not.toBeNull();
     expect(screen.getByRole("button", { name: /^Print$/ })).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Cancel print" }),
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /^Print$/ }));
     expect(host.print).toHaveBeenCalledOnce();
     finishPrint?.({ message: "Printed" });
@@ -2256,6 +2312,74 @@ describe("LabelmakerApp", () => {
         .closest("output")
         ?.querySelector(".mini-spinner"),
     ).toBeNull();
+  });
+
+  it("offers print cancellation only while a cancellable print is active", async () => {
+    let finishPrint:
+      | ((value: { readonly message: string }) => void)
+      | undefined;
+    const cancelPrint = vi.fn().mockResolvedValue(undefined);
+    const host = createHost({
+      platform: "android",
+      cancelPrint,
+      print: vi.fn().mockImplementation(
+        () =>
+          new Promise<{ readonly message: string }>((resolve) => {
+            finishPrint = resolve;
+          }),
+      ),
+    });
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={host} />);
+    await screen.findByText("Studio Labeler");
+
+    expect(
+      screen.queryByRole("button", { name: "Cancel print" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /^Print$/ }));
+    await user.click(
+      await screen.findByRole("button", { name: "Cancel print" }),
+    );
+    expect(cancelPrint).toHaveBeenCalledOnce();
+
+    finishPrint?.({ message: "Printed" });
+    await screen.findByText("Printed");
+    expect(
+      screen.queryByRole("button", { name: "Cancel print" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("reports a canceled print without a printer failure", async () => {
+    let rejectPrint: ((reason: unknown) => void) | undefined;
+    const host = createHost({
+      platform: "android",
+      print: vi.fn().mockImplementation(
+        () =>
+          new Promise<never>((_resolve, reject) => {
+            rejectPrint = reject;
+          }),
+      ),
+      cancelPrint: vi.fn().mockImplementation(() => {
+        rejectPrint?.(new DOMException("Canceled", "AbortError"));
+        return Promise.resolve();
+      }),
+    });
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={host} />);
+    await screen.findByText("Studio Labeler");
+
+    await user.click(screen.getByRole("button", { name: /^Print$/ }));
+    await user.click(
+      await screen.findByRole("button", { name: "Cancel print" }),
+    );
+
+    expect(await screen.findByText("Print canceled")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Cancel print" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Studio Labeler:.*could not be printed/),
+    ).not.toBeInTheDocument();
   });
 
   it("shows macOS window controls only on macOS", () => {

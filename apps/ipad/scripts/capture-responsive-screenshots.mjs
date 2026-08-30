@@ -1,7 +1,7 @@
 import { mkdir, rm } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { webkit } from "playwright";
+import { chromium, webkit } from "playwright";
 
 import {
   installCaptureHost,
@@ -29,6 +29,13 @@ const viewports = [
   { width: 430, height: 800, save: false },
   { width: 320, height: 667, save: false },
 ];
+const androidViewports = [
+  { width: 320, height: 667, save: false },
+  { width: 393, height: 852, save: false },
+  { width: 600, height: 800, save: false },
+  { width: 840, height: 1024, save: false },
+  { width: 840, height: 393, save: false },
+];
 
 await mkdir(screenshotDirectory, { recursive: true });
 await Promise.all(
@@ -46,9 +53,21 @@ const server = await startStaticServer(buildDirectory);
 
 let browser;
 try {
-  browser = await webkit.launch();
-  for (const viewport of viewports) {
-    await capture(viewport);
+  for (const target of [
+    { engine: webkit, launchOptions: {}, platform: "ipados", viewports },
+    {
+      engine: chromium,
+      launchOptions: { channel: "chrome" },
+      platform: "android",
+      viewports: androidViewports,
+    },
+  ]) {
+    browser = await target.engine.launch(target.launchOptions);
+    for (const viewport of target.viewports) {
+      await capture(viewport, target.platform);
+    }
+    await browser.close();
+    browser = undefined;
   }
 } finally {
   await browser?.close();
@@ -57,7 +76,7 @@ try {
 
 console.log(`Responsive screenshots saved to ${screenshotDirectory}.`);
 
-async function capture(viewport) {
+async function capture(viewport, platform) {
   if (!browser) throw new Error("The screenshot browser is not available.");
   const context = await browser.newContext({
     colorScheme: "light",
@@ -67,7 +86,10 @@ async function capture(viewport) {
     screen: { width: viewport.width, height: viewport.height },
     viewport: { width: viewport.width, height: viewport.height },
   });
-  await context.addInitScript(installCaptureHost, false);
+  await context.addInitScript(installCaptureHost, {
+    includeBluetoothPrinter: false,
+    platform,
+  });
   const page = await context.newPage();
   const failures = watchPageFailures(page);
   try {
@@ -239,7 +261,7 @@ async function capture(viewport) {
       }
       if (failures.length > 0) {
         throw new Error(
-          `The iPad app reported an error: ${failures.join("; ")}`,
+          `The mobile app reported an error: ${failures.join("; ")}`,
         );
       }
       if (viewport.save) {

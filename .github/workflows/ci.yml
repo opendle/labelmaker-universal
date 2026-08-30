@@ -22,3 +22,82 @@ jobs:
         run: npm run check
       - name: Electron UI smoke test
         run: npm run ui:screenshot
+      - name: Mobile responsive checks
+        run: npm run responsive:screenshots && npm run mobile:image-print-check
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - name: Install Android SDK packages
+        run: sdkmanager "platforms;android-31" "platforms;android-36" "build-tools;36.0.0"
+      - name: Android gates
+        run: npm run android:check
+      - name: Android release packages
+        run: apps/android/gradlew -p apps/android bundlePlayRelease assembleDirectRelease
+
+  android-emulator:
+    needs: android
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api-level: 31
+            profile: pixel_6
+          - api-level: 36
+            profile: pixel_tablet
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - run: npm ci
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api-level }}
+          arch: x86_64
+          profile: ${{ matrix.profile }}
+          disable-animations: true
+          script: npm run android:connected-check
+
+  apple-mobile:
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        device:
+          - iPhone 16 Pro
+          - iPad Pro 13-inch (M4)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: Apple mobile simulator tests
+        run: >-
+          xcodebuild
+          -project apps/ipad/Labelmaker.xcodeproj
+          -scheme Labelmaker
+          -destination 'platform=iOS Simulator,name=${{ matrix.device }}'
+          CODE_SIGNING_ALLOWED=NO
+          test

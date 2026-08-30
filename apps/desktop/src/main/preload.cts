@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } =
   require("electron") as typeof import("electron");
 
 contextBridge.exposeInMainWorld("labelmakerHost", {
+  presentation: "desktop",
   platform:
     process.platform === "darwin"
       ? "macos"

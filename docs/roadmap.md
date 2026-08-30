@@ -42,13 +42,22 @@
 - Crash-safe document recovery and recent files.
 - Adapter diagnostics and user-safe error reporting.
 
-## Milestone 4A — iPad application
+## Milestone 4A — Apple mobile application
 
 - Shared React editor in a native iPadOS shell.
 - Touch controls that do not require a physical keyboard.
 - iPad Files open and save flows with workspace recovery.
 - Native CoreBluetooth transport for the shared MakeID E1 adapter.
 - Signed development build on a physical iPad.
+
+## Milestone 4B — Android application
+
+- One shared mobile React bundle for Apple and Android shells.
+- Native Android 12 or later shell with secure local WebView content.
+- Android document picker, Save, Save As, and crash-safe recovery.
+- Native Android Bluetooth Low Energy transport for the shared MakeID adapter.
+- Signed Play AAB and direct APK release paths.
+- Physical MakeID E1 proof on the recorded Samsung test phone.
 
 ## Milestone 5 — optional server mode
 

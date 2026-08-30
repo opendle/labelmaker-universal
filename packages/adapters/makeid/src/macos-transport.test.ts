@@ -15,7 +15,13 @@ describe("MacOsMakeIdTransportProvider", () => {
       parseDiscoveryOutput(
         JSON.stringify([{ id: "01-23-45-67-89-ab", name: "YichipFPGA-1308" }]),
       ),
-    ).toEqual([{ id: "01:23:45:67:89:AB", name: "YichipFPGA-1308" }]);
+    ).toEqual([
+      {
+        id: "01:23:45:67:89:AB",
+        name: "YichipFPGA-1308",
+        transport: "bluetooth-classic",
+      },
+    ]);
     expect(
       parseDiscoveryOutput(
         JSON.stringify([
@@ -30,8 +36,12 @@ describe("MacOsMakeIdTransportProvider", () => {
       {
         id: "macos-ble-01234567-89ab-cdef-0123-456789abcdef",
         name: "YichipFPGA-1308",
+        transport: "bluetooth-low-energy",
       },
-      { id: "macos-bt-0123456789abcdef01234567" },
+      {
+        id: "macos-bt-0123456789abcdef01234567",
+        transport: "bluetooth-classic",
+      },
     ]);
     expect(() => parseDiscoveryOutput('[{"id":"not-an-address"}]')).toThrow(
       /invalid/,
@@ -54,7 +64,13 @@ describe("MacOsMakeIdTransportProvider", () => {
     });
 
     const devices = await provider.discover({ timeoutMs: 1_000 });
-    expect(devices).toEqual([{ id: peripheralId, name: "YichipFPGA-1308" }]);
+    expect(devices).toEqual([
+      {
+        id: peripheralId,
+        name: "YichipFPGA-1308",
+        transport: "bluetooth-low-energy",
+      },
+    ]);
     const device = devices[0];
     if (!device) throw new Error("Expected a discovery result");
     const transport = await provider.connect(device.id, ABF0);
@@ -91,6 +107,7 @@ describe("MacOsMakeIdTransportProvider", () => {
       {
         id: expect.stringMatching(/^macos-bt-[0-9a-f]{24}$/),
         name: "YichipFPGA-1308",
+        transport: "bluetooth-classic",
       },
     ]);
     const device = devices[0];
@@ -268,6 +285,7 @@ describe("MacOsMakeIdTransportProvider", () => {
       {
         id: expect.stringMatching(/^macos-bt-[0-9a-f]{24}$/),
         name: "YichipFPGA-1308",
+        transport: "bluetooth-classic",
       },
     ]);
   });

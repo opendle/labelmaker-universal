@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import type { HostPlatform } from "./host.js";
+import type { HostPresentation } from "./host.js";
 
 export type ResponsiveLayout = "standard" | "phone" | "phone-short";
 
@@ -23,11 +23,12 @@ function editableHasFocus(): boolean {
   );
 }
 
-export function useResponsiveLayout(platform: HostPlatform): {
+export function useResponsiveLayout(presentation: HostPresentation): {
   readonly layout: ResponsiveLayout;
   readonly softwareKeyboardOpen: boolean;
 } {
-  const phoneWidth = platform === "ipados" ? 600 : 1_100;
+  const mobileTouch = presentation === "mobile-touch";
+  const phoneWidth = mobileTouch ? 600 : 1_100;
   const [layout, setLayout] = useState<ResponsiveLayout>(() =>
     responsiveLayoutForViewport(
       globalThis.innerWidth,
@@ -38,7 +39,7 @@ export function useResponsiveLayout(platform: HostPlatform): {
   const [softwareKeyboardOpen, setSoftwareKeyboardOpen] = useState(false);
 
   useEffect(() => {
-    const viewport = platform === "ipados" ? globalThis.visualViewport : null;
+    const viewport = mobileTouch ? globalThis.visualViewport : null;
     let viewportWidth = globalThis.innerWidth;
     let unobscuredHeight = Math.max(
       viewport?.height ?? 0,
@@ -64,7 +65,7 @@ export function useResponsiveLayout(platform: HostPlatform): {
       }
 
       const keyboardOpen =
-        platform === "ipados" &&
+        mobileTouch &&
         unobscuredHeight - visibleHeight > 80 &&
         (hasEditableFocus || keyboardWasOpen);
       keyboardWasOpen = keyboardOpen;
@@ -90,12 +91,14 @@ export function useResponsiveLayout(platform: HostPlatform): {
     viewport?.addEventListener("resize", update);
     viewport?.addEventListener("scroll", update, { passive: true });
     globalThis.addEventListener("resize", update);
+    globalThis.addEventListener("labelmaker-native-insets", update);
     globalThis.document.addEventListener("focusin", update);
     globalThis.document.addEventListener("focusout", update);
     return () => {
       viewport?.removeEventListener("resize", update);
       viewport?.removeEventListener("scroll", update);
       globalThis.removeEventListener("resize", update);
+      globalThis.removeEventListener("labelmaker-native-insets", update);
       globalThis.document.removeEventListener("focusin", update);
       globalThis.document.removeEventListener("focusout", update);
       globalThis.document.documentElement.style.removeProperty(
@@ -105,7 +108,7 @@ export function useResponsiveLayout(platform: HostPlatform): {
         "--visual-viewport-offset-top",
       );
     };
-  }, [phoneWidth, platform]);
+  }, [mobileTouch, phoneWidth]);
 
   return { layout, softwareKeyboardOpen };
 }

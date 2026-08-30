@@ -29,17 +29,23 @@ describe("MakeIdAdapter", () => {
         {
           id: "macos-ble-01234567-89ab-cdef-0123-456789abcdef",
           name: "E124H00894",
+          transport: "bluetooth-low-energy",
         },
         {
           id: "ipad-ble-fedcba98-7654-3210-fedc-ba9876543210",
           name: "MakeID E1-iPad",
+          transport: "bluetooth-low-energy",
         },
-        { id: "e1-b", name: "MakeID E1" },
-        { id: "e1-c", name: "YichipFPGA-42A1" },
-        { id: "l1", name: "MakeID L1" },
-        { id: "p31s", name: "P31S-Office" },
-        { id: "q31", name: "MakeID Q31" },
-        { id: "speaker", name: "Kitchen speaker" },
+        { id: "e1-b", name: "MakeID E1", transport: "bluetooth-classic" },
+        { id: "e1-c", name: "YichipFPGA-42A1", transport: "bluetooth-classic" },
+        { id: "l1", name: "MakeID L1", transport: "bluetooth-classic" },
+        { id: "p31s", name: "P31S-Office", transport: "bluetooth-classic" },
+        { id: "q31", name: "MakeID Q31", transport: "bluetooth-classic" },
+        {
+          id: "speaker",
+          name: "Kitchen speaker",
+          transport: "bluetooth-classic",
+        },
       ],
       new RecordingMakeIdTransport(),
     );
@@ -65,6 +71,7 @@ describe("MakeIdAdapter", () => {
     expect(printers[5]?.connection["profileId"]).toBe("unresolved-p31");
     expect(printers[0]?.transport).toBe("bluetooth-low-energy");
     expect(printers[1]?.transport).toBe("bluetooth-low-energy");
+    expect(printers[2]?.transport).toBe("bluetooth-classic");
     expect(adapter.manifest.transports).toEqual([
       "bluetooth-low-energy",
       "bluetooth-classic",
@@ -147,6 +154,30 @@ describe("MakeIdAdapter", () => {
       undefined,
     );
     expect(transport.writes).toEqual([]);
+  });
+
+  it("assembles one ABF0 response from wrapped BLE notifications", async () => {
+    const frame = response();
+    const first = new Uint8Array(20);
+    first.set([0x23, 0x23, 1, 0]);
+    first.set(frame.subarray(0, 16), 4);
+    const second = new Uint8Array(24);
+    second.set([0x23, 0x23, 2, 0]);
+    second.set(frame.subarray(16), 4);
+    const transport = recording([first, second]);
+    const session = await connectSession(transport);
+
+    await expect(session.status()).resolves.toMatchObject({ state: "ready" });
+  });
+
+  it("rejects an oversized ABF0 notification stream", async () => {
+    const transport = recording([new Uint8Array(8_193)]);
+    const session = await connectSession(transport);
+
+    await expect(session.status()).rejects.toMatchObject({
+      code: "makeid.protocol",
+      retryable: false,
+    });
   });
 
   it("reports a useful recovery action when Bluetooth cannot connect", async () => {
@@ -477,6 +508,21 @@ describe("MakeIdAdapter", () => {
       supportsStatus: false,
     });
     expect(capabilities).not.toHaveProperty("darkness");
+  });
+
+  it("assembles an FF00 model reply from separate notifications", async () => {
+    const transport = new RecordingMakeIdTransport([
+      new TextEncoder().encode("L1-"),
+      new TextEncoder().encode("300"),
+    ]);
+    const adapter = new MakeIdAdapter(new FakeProvider([], transport));
+
+    const session = await adapter.connect(
+      makePrinter("l1", "l1-ff00-300", "MakeID L1"),
+      context,
+    );
+
+    expect(session.printer.connection["profileId"]).toBe("l1-ff00-300");
   });
 
   it("rejects more than one copy on the FF00 L1 path", async () => {

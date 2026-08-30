@@ -55,6 +55,11 @@ export async function startStaticServer(rootDirectory) {
 export function watchPageFailures(page) {
   const failures = [];
   page.on("pageerror", (error) => failures.push(error.message));
+  page.on("response", (response) => {
+    if (response.status() >= 400) {
+      failures.push(`${response.status()} ${response.url()}`);
+    }
+  });
   page.on("console", (message) => {
     const text = message.text();
     if (
@@ -63,7 +68,12 @@ export function watchPageFailures(page) {
         'Viewport argument key "interactive-widget" not recognized',
       )
     ) {
-      failures.push(text);
+      const location = message.location();
+      failures.push(
+        location.url
+          ? `${text} (${location.url}:${location.lineNumber})`
+          : text,
+      );
     }
   });
   return failures;
@@ -79,6 +89,10 @@ export function settlePage(page) {
 }
 
 export function installCaptureHost(options) {
+  const platform =
+    typeof options === "object" && options?.platform === "android"
+      ? "android"
+      : "ipados";
   const includeBluetoothPrinter =
     typeof options === "boolean"
       ? options
@@ -87,20 +101,38 @@ export function installCaptureHost(options) {
     typeof options === "boolean"
       ? true
       : (options?.startWithConfiguredPrinter ?? true);
+  const printerStorageKey = `labelmaker.${platform}.printers.v1`;
+  const transportDeviceId = `${platform === "android" ? "android" : "ipad"}-ble-workshop`;
+  const printerId = `makeid:${transportDeviceId}`;
   localStorage.setItem(
-    "labelmaker.ipados.printers.v1",
+    printerStorageKey,
     JSON.stringify(
       startWithConfiguredPrinter
         ? {
-            printerIds: ["makeid:ipad-ble-workshop"],
-            activePrinterId: "makeid:ipad-ble-workshop",
+            version: 2,
+            printerIds: [printerId],
+            activePrinterId: printerId,
             settings: {
-              "makeid:ipad-ble-workshop": {
+              [printerId]: {
                 displayName: "Workshop printer",
                 darkness: 20,
                 printHeadSizeMm: 12,
                 marginTopMm: 2,
                 marginBottomMm: 2,
+              },
+            },
+            printerRecords: {
+              [printerId]: {
+                id: printerId,
+                adapterId: "makeid",
+                displayName: "MakeID E1",
+                model: "MakeID E1",
+                transport: "bluetooth-low-energy",
+                connection: {
+                  transportDeviceId,
+                  profileId: "e1-abf0-203",
+                  advertisedName: "MakeID E1",
+                },
               },
             },
           }
@@ -120,52 +152,90 @@ export function installCaptureHost(options) {
     statusBinary += String.fromCharCode(byte);
   }
   const statusBytesBase64 = btoa(statusBinary);
-  Object.defineProperty(window, "webkit", {
-    configurable: true,
-    value: {
-      messageHandlers: {
-        labelmaker: {
-          async postMessage(request) {
-            switch (request?.method) {
-              case "loadWorkspaceRecovery":
-                return { ok: true, result: null };
-              case "storeWorkspaceRecovery":
-              case "clearWorkspaceAssociation":
-                return { ok: true, result: null };
-              case "bluetoothDiscover":
-                if (includeBluetoothPrinter) {
-                  return {
-                    ok: true,
-                    result: [
-                      { id: "ipad-ble-office", name: "MakeID E1-Office" },
-                    ],
-                  };
-                }
-                break;
-              case "bluetoothConnect":
-                return {
-                  ok: true,
-                  result: { connectionId: "capture-makeid-e1" },
-                };
-              case "bluetoothWrite":
-              case "bluetoothClose":
-                return { ok: true, result: null };
-              case "bluetoothRead":
-                return {
-                  ok: true,
-                  result: { bytesBase64: statusBytesBase64 },
-                };
-            }
-            return {
-              ok: false,
-              error: {
-                code: "CAPTURE_METHOD_UNAVAILABLE",
-                message: `The screenshot host does not support ${String(request?.method)}.`,
-              },
-            };
+  async function replyTo(request) {
+    const reply = (value) => ({
+      version: 1,
+      id: request?.id,
+      ...value,
+    });
+    switch (request?.method) {
+      case "getHostInfo":
+        return reply({
+          ok: true,
+          result: {
+            version: 1,
+            platform,
+            presentation: "mobile-touch",
+            printerStorageKey,
+            jobIdPrefix: platform,
           },
+        });
+      case "loadWorkspaceRecovery":
+        return reply({ ok: true, result: null });
+      case "storeWorkspaceRecovery":
+      case "clearWorkspaceAssociation":
+      case "bluetoothPreserve":
+      case "bluetoothRelease":
+        return reply({ ok: true, result: null });
+      case "bluetoothDiscover":
+        if (includeBluetoothPrinter) {
+          return reply({
+            ok: true,
+            result: [
+              {
+                id: `${platform === "android" ? "android" : "ipad"}-ble-office`,
+                name: "MakeID E1-Office",
+                transport: "bluetooth-low-energy",
+              },
+            ],
+          });
+        }
+        break;
+      case "bluetoothConnect":
+        return reply({
+          ok: true,
+          result: { connectionId: "capture-makeid-e1" },
+        });
+      case "bluetoothWrite":
+      case "bluetoothClose":
+        return reply({ ok: true, result: null });
+      case "bluetoothRead":
+        return reply({
+          ok: true,
+          result: { bytesBase64: statusBytesBase64 },
+        });
+    }
+    return reply({
+      ok: false,
+      error: {
+        code: "CAPTURE_METHOD_UNAVAILABLE",
+        message: `The screenshot host does not support ${String(request?.method)}.`,
+      },
+    });
+  }
+
+  if (platform === "ipados") {
+    Object.defineProperty(window, "webkit", {
+      configurable: true,
+      value: {
+        messageHandlers: {
+          labelmaker: { postMessage: replyTo },
         },
       },
+    });
+    return;
+  }
+
+  const androidPort = {
+    onmessage: null,
+    async postMessage(serialized) {
+      const request = JSON.parse(serialized);
+      const response = await replyTo(request);
+      androidPort.onmessage?.({ data: JSON.stringify(response) });
     },
+  };
+  Object.defineProperty(window, "labelmakerAndroid", {
+    configurable: true,
+    value: androidPort,
   });
 }

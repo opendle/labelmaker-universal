@@ -7,10 +7,11 @@ The package has no React, Electron, canvas, filesystem, or native dependency. A
 browser renderer can draw a plate on a canvas, get its `ImageData`, and pass its
 `width`, `height`, and `data` to `renderPlateRgba`.
 
-Desktop and iPad shells call `renderPlateForPrinter` with the same label and
-printer target. Each shell supplies only an SVG-to-RGBA function for its
-platform. Image black-level conversion, print-head layout, mirroring, raster
-packing, and feed-line order stay shared.
+Desktop, Apple mobile, and Android shells call `renderPlateForPrinter` with the
+same label and printer target. Each shell supplies an SVG-to-RGBA function. A
+mobile shell can also supply a direct image-frame rasterizer so WebKit does not
+need to decode a nested image inside an SVG. Image black-level conversion,
+print-head layout, mirroring, raster packing, and feed-line order stay shared.
 
 ## Canonical raster format
 

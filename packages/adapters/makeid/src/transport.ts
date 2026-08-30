@@ -6,6 +6,7 @@ export interface MakeIdTransportDevice {
   /** An opaque device key which the platform transport can use to reconnect. */
   readonly id: string;
   readonly name?: string;
+  readonly transport: "bluetooth-low-energy" | "bluetooth-classic";
 }
 
 export interface MakeIdTransportReadOptions {
@@ -30,6 +31,10 @@ export interface MakeIdTransportProvider {
     options: MakeIdTransportConnectionOptions,
     signal?: AbortSignal,
   ): Promise<MakeIdTransport>;
+  /** Retain a transient discovery identity after the user saves a printer. */
+  preserveDevice?(deviceId: string): Promise<void>;
+  /** Release native identity state after the user removes a saved printer. */
+  releaseDevice?(deviceId: string): Promise<void>;
 }
 
 export interface MakeIdTransportConnectionOptions {

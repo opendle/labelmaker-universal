@@ -1,0 +1,29 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "paths": {
+      "@labelmaker/adapter-makeid": [
+        "../../packages/adapters/makeid/src/index.ts"
+      ],
+      "@labelmaker/documents": ["../../packages/documents/src/index.ts"],
+      "@labelmaker/domain": ["../../packages/domain/src/index.ts"],
+      "@labelmaker/printing": ["../../packages/printing/src/index.ts"],
+      "@labelmaker/rendering": ["../../packages/rendering/src/index.ts"],
+      "@labelmaker/ui": ["../../packages/ui/src/index.ts"]
+    },
+    "types": ["vite/client"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "../../packages/ui/src/**/*.ts",
+    "../../packages/ui/src/**/*.tsx"
+  ]
+}

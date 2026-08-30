@@ -43,7 +43,7 @@ describe("responsiveLayoutForViewport", () => {
   it("updates Phone mode across breakpoint and orientation changes", () => {
     vi.stubGlobal("innerWidth", 1_101);
     vi.stubGlobal("innerHeight", 1_024);
-    const { result } = renderHook(() => useResponsiveLayout("linux"));
+    const { result } = renderHook(() => useResponsiveLayout("desktop"));
     expect(result.current.layout).toBe("standard");
 
     act(() => {
@@ -64,11 +64,11 @@ describe("responsiveLayoutForViewport", () => {
   it("uses the wider Phone breakpoint only for desktop hosts", () => {
     vi.stubGlobal("innerWidth", 900);
     vi.stubGlobal("innerHeight", 800);
-    const desktop = renderHook(() => useResponsiveLayout("macos"));
+    const desktop = renderHook(() => useResponsiveLayout("desktop"));
     expect(desktop.result.current.layout).toBe("phone");
     desktop.unmount();
 
-    const ipad = renderHook(() => useResponsiveLayout("ipados"));
+    const ipad = renderHook(() => useResponsiveLayout("mobile-touch"));
     expect(ipad.result.current.layout).toBe("standard");
   });
 
@@ -79,7 +79,7 @@ describe("responsiveLayoutForViewport", () => {
     vi.stubGlobal("visualViewport", viewport);
     const input = document.createElement("input");
     document.body.append(input);
-    const { result } = renderHook(() => useResponsiveLayout("ipados"));
+    const { result } = renderHook(() => useResponsiveLayout("mobile-touch"));
 
     act(() => input.focus());
     act(() => {
@@ -129,7 +129,7 @@ describe("responsiveLayoutForViewport", () => {
     vi.stubGlobal("visualViewport", viewport);
     const input = document.createElement("input");
     document.body.append(input);
-    const { result } = renderHook(() => useResponsiveLayout("ipados"));
+    const { result } = renderHook(() => useResponsiveLayout("mobile-touch"));
 
     act(() => input.focus());
     act(() => {

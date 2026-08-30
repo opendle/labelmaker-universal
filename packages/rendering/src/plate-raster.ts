@@ -31,11 +31,18 @@ export type SvgRasterizer = (
   heightPixels: number,
 ) => RgbaImage | Promise<RgbaImage>;
 
+export type ImageRasterizer = (
+  image: ImageElement,
+  widthPixels: number,
+  heightPixels: number,
+) => RgbaImage | Promise<RgbaImage>;
+
 /** Render a plate and transpose it into head-line order for printer adapters. */
 export async function renderPlateForPrinter(
   plate: LabelPlate,
   target: PlateRasterTarget,
   rasterize: SvgRasterizer,
+  rasterizeImage?: ImageRasterizer,
 ): Promise<RasterPage> {
   if (
     !Number.isSafeInteger(target.rasterWidthPixels) ||
@@ -44,7 +51,12 @@ export async function renderPlateForPrinter(
     throw new RangeError("Printer raster width must be a positive integer");
   }
   const feedLengthPixels = millimetersToPixels(plate.size.widthMm, target.dpi);
-  const preparedPlate = await preparePlateImages(plate, target.dpi, rasterize);
+  const preparedPlate = await preparePlateImages(
+    plate,
+    target.dpi,
+    rasterize,
+    rasterizeImage,
+  );
   const source = await rasterize(
     buildPlateSvg(
       preparedPlate,
@@ -87,6 +99,7 @@ async function preparePlateImages(
   plate: LabelPlate,
   dpi: number,
   rasterize: SvgRasterizer,
+  rasterizeImage?: ImageRasterizer,
 ): Promise<LabelPlate> {
   const elements: LabelElement[] = [];
   for (const element of plate.elements) {
@@ -97,11 +110,13 @@ async function preparePlateImages(
     validateImageSource(element.source);
     const width = Math.max(1, millimetersToPixels(element.widthMm, dpi));
     const height = Math.max(1, millimetersToPixels(element.heightMm, dpi));
-    const source = await rasterize(
-      buildImageFrameSvg(element, width, height),
-      width,
-      height,
-    );
+    const source = rasterizeImage
+      ? await rasterizeImage(element, width, height)
+      : await rasterize(
+          buildImageFrameSvg(element, width, height),
+          width,
+          height,
+        );
     if (source.widthPixels !== width || source.heightPixels !== height) {
       throw new RangeError(
         "The image rasterizer returned the wrong dimensions",

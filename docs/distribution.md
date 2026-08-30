@@ -140,13 +140,11 @@ fully prove.
 
 ### Distribution package
 
+Set the product version and macOS build number in `distribution/version.json`.
 Use a new build number for each App Store Connect upload:
 
 ```bash
-LABELMAKER_APPLE_TEAM_ID=32J9W47SH8 \
-LABELMAKER_MAS_VERSION=1.0 \
-LABELMAKER_MAS_BUILD=1 \
-npm run mas:distribution
+LABELMAKER_APPLE_TEAM_ID=32J9W47SH8 npm run mas:distribution
 ```
 
 The command creates a signed `.pkg` under
@@ -179,10 +177,10 @@ Check the Keychain item without contacting Apple:
 npm run mas:check-api-key
 ```
 
-Use an explicit version and a new build number for each upload:
+Increase the macOS build number in `distribution/version.json` for each upload:
 
 ```bash
-LABELMAKER_MAS_VERSION=1.0.1 LABELMAKER_MAS_BUILD=2 npm run mas:upload
+npm run mas:upload
 ```
 
 The upload command gets the key from the login Keychain and sends it to Apple's
@@ -235,10 +233,11 @@ Do not export or commit the distribution private key, certificate, or profile.
 ### iOS distribution and upload commands
 
 The iOS package is universal. One build serves both iPhone and iPad. Create and
-verify the signed `.ipa` without uploading it:
+verify the signed `.ipa` without uploading it. Set the product version and iOS
+build number in `distribution/version.json`, then run:
 
 ```bash
-LABELMAKER_IOS_VERSION=1.0 LABELMAKER_IOS_BUILD=1 npm run ios:distribution
+npm run ios:distribution
 ```
 
 The command builds the current web application, makes a Release archive with
@@ -247,10 +246,11 @@ ID, version, build, arm64 code, signature, and distribution profile. Xcode can
 refresh the iOS provisioning profile when necessary. It does not change the
 Mac profiles.
 
-When the build is ready, use a new build number and the same Keychain API key:
+When the build is ready, increase the iOS build number and use the same Keychain
+API key:
 
 ```bash
-LABELMAKER_IOS_VERSION=1.0.1 LABELMAKER_IOS_BUILD=2 npm run ios:upload
+npm run ios:upload
 ```
 
 The upload command performs the same archive and export steps, validates the
@@ -259,11 +259,89 @@ short-lived encrypted disk image for the API key. It does not change the price,
 release method, or store metadata. Do not run it until the iPhone and iPad build
 is ready for upload.
 
+## Android build and distribution
+
+Android builds use Java 17, Android API 36, and Build Tools 36.0.0. Install the
+Android SDK and set `ANDROID_HOME` before you use these commands:
+
+```bash
+npm run android:build
+npm run android:check
+npm run android:connected-check
+```
+
+`android:check` runs lint, Kotlin unit tests, and a debug package. It stays
+separate from `npm run check`. Thus, desktop work does not need an Android SDK.
+`android:connected-check` needs a running emulator or an attached Android
+device.
+
+The tracked `distribution/version.json` file is the source for the public
+product version and each platform build number. Increase the Android build
+number before each upload. Run `npm run release:version:check` after a version
+change.
+
+### Signing keys
+
+Use one offline Android application-signing key for Play App Signing and the
+direct APK. Use a separate Play upload key for each AAB upload. Keep all key
+files, aliases, and passwords outside the repository. The direct APK must use
+the same application-signing certificate that Google Play uses for installed
+application identity.
+
+Set these values for a Play AAB:
+
+```bash
+export LABELMAKER_ANDROID_UPLOAD_KEYSTORE="/secure/path/play-upload.jks"
+export LABELMAKER_ANDROID_UPLOAD_KEY_ALIAS="labelmaker-upload"
+export LABELMAKER_ANDROID_UPLOAD_KEYSTORE_PASSWORD="..."
+export LABELMAKER_ANDROID_UPLOAD_KEY_PASSWORD="..."
+npm run android:bundle
+```
+
+Set these values for a direct APK:
+
+```bash
+export LABELMAKER_ANDROID_APP_KEYSTORE="/secure/path/app-signing.jks"
+export LABELMAKER_ANDROID_APP_KEY_ALIAS="labelmaker"
+export LABELMAKER_ANDROID_APP_KEYSTORE_PASSWORD="..."
+export LABELMAKER_ANDROID_APP_KEY_PASSWORD="..."
+npm run android:apk
+```
+
+The release commands refuse a dirty worktree and missing signing values. They
+put output under `release/android/<version>-<build>/<channel>`. Each run produces one
+signed artifact, its SHA-256 file, third-party notices, and a JSON manifest.
+The manifest records the source commit, versions, tool versions, web-bundle
+hash, and artifact hashes. The output stays outside Git.
+
+The Play command makes one AAB. The direct command makes one universal APK. Do
+not put a private key, password, APK, or AAB in Git. Android has no analytics,
+remote application code, or direct-APK update service.
+
+Use the Play internal track first. Complete the required closed test before a
+staged production release. Use 5%, 25%, and 100% stages, with 48 hours of
+observation between stages. Stop the rollout for a blocking crash, an
+application-not-responding error, a document problem, or a print regression.
+
+### Android hardware acceptance
+
+Run `npm run android:hardware-smoke` only with the Samsung test phone and a
+MakeID E1 ready. The command needs explicit confirmation and records non-secret
+device and software versions. Complete the physical acceptance list in
+`docs/android.md` before release.
+
+The release statement can say that MakeID E1 is verified only after the real
+Samsung test passes. L1 and P31 use the shared adapter logic, but they must stay
+listed as not physically verified on Android until each model passes the same
+test. Emulator and Play pre-launch results are UI evidence only.
+
 ## Release blockers
 
 - Bluetooth Low Energy and user-selected workspace files have not been tested
   from the signed Electron `mas` development build.
 - Bluetooth Low Energy on iPhone and iPad needs a physical MakeID E1 hardware test.
+- Android MakeID E1 printing needs the recorded Samsung hardware test.
+- Signed Android release output needs the two external signing-key sets.
 - Store contact information, copyright ownership, age rating, availability,
   and Digital Services Act status need the account holder's confirmation.
 

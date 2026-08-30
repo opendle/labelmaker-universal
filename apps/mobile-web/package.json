@@ -1,0 +1,21 @@
+{
+  "name": "@labelmaker/mobile-web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "test:apple-image-print": "node scripts/test-apple-image-print.mjs",
+    "typecheck": "tsc --project tsconfig.json --pretty false"
+  },
+  "dependencies": {
+    "@labelmaker/adapter-makeid": "0.0.0",
+    "@labelmaker/documents": "0.0.0",
+    "@labelmaker/domain": "0.0.0",
+    "@labelmaker/printing": "0.0.0",
+    "@labelmaker/rendering": "0.0.0",
+    "@labelmaker/ui": "0.0.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1"
+  }
+}

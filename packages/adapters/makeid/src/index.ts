@@ -18,6 +18,7 @@ import {
   MakeIdControlState,
   parseMakeIdResponse,
   parseMakeIdAbf0Profile,
+  stripMakeIdNotificationWrapper,
   type MakeIdResponse,
 } from "./protocol.js";
 import {
@@ -62,6 +63,12 @@ const DEFAULT_CHUNK_LINES = 170;
 const DEFAULT_RESPONSE_TIMEOUT_MS = 5_000;
 const DEFAULT_COMPLETION_POLLS = 60;
 const DEFAULT_COMPLETION_POLL_INTERVAL_MS = 500;
+const MAKEID_FRAME_MARKER = 0x66;
+const MIN_ABF0_FRAME_BYTES = 6;
+const MAX_ABF0_FRAME_BYTES = 4_096;
+const MAX_ABF0_BUFFER_BYTES = MAX_ABF0_FRAME_BYTES * 2;
+const MAX_FF00_PROBE_BYTES = 4_096;
+const MAX_FF00_PROBE_CHUNKS = 8;
 
 export type MakeIdAdapterErrorCode =
   | "makeid.cancelled"
@@ -170,9 +177,7 @@ export class MakeIdAdapter implements PrinterAdapter {
         adapterId: MAKEID_ADAPTER_ID,
         displayName: device.name ?? "MakeID printer",
         ...(kind === "e1" ? { model: "MakeID E1" } : {}),
-        transport: /^(?:macos|ipad)-ble-/i.test(device.id)
-          ? "bluetooth-low-energy"
-          : "bluetooth-classic",
+        transport: device.transport,
         connection,
       };
     });
@@ -202,12 +207,17 @@ export class MakeIdAdapter implements PrinterAdapter {
         // E1 has one verified fixed profile. Do not add a model probe before
         // the normal readiness query. L1 and P31 remain response-driven
         // because their names do not identify DPI or head geometry.
+        const abf0Reader =
+          protocolFamily === "abf0-66"
+            ? new MakeIdAbf0StreamReader()
+            : undefined;
         const profile =
           connection.profileId === MAKEID_E1_PROFILE.profileId
             ? MAKEID_E1_PROFILE
             : protocolFamily === "abf0-66"
               ? await probeAbf0Profile(
                   transport,
+                  abf0Reader!,
                   kind,
                   connection.advertisedName,
                   this.#options.responseTimeoutMs,
@@ -227,15 +237,22 @@ export class MakeIdAdapter implements PrinterAdapter {
           model: profile.model,
           profileId: profile.profileId,
         });
-        const Session =
-          protocolFamily === "abf0-66" ? MakeId66Session : MakeIdFf00Session;
-        return new Session(
-          resolvedPrinter,
-          transport,
-          context,
-          this.#options,
-          profile,
-        );
+        return protocolFamily === "abf0-66"
+          ? new MakeId66Session(
+              resolvedPrinter,
+              transport,
+              context,
+              this.#options,
+              profile,
+              abf0Reader!,
+            )
+          : new MakeIdFf00Session(
+              resolvedPrinter,
+              transport,
+              context,
+              this.#options,
+              profile,
+            );
       } catch (error) {
         lastError = error;
         try {
@@ -311,6 +328,7 @@ function resolvedDescriptor(
 
 async function probeAbf0Profile(
   transport: MakeIdTransport,
+  reader: MakeIdAbf0StreamReader,
   kind: MakeIdDiscoveryKind,
   advertisedName: string | undefined,
   timeoutMs: number,
@@ -320,9 +338,7 @@ async function probeAbf0Profile(
     buildMakeIdControlFrame(MakeIdControlState.Query),
     signal,
   );
-  const response = await transport.read(
-    signal ? { timeoutMs, signal } : { timeoutMs },
-  );
+  const response = await reader.read(transport, timeoutMs, signal);
   return parseMakeIdAbf0Profile(response, kind, advertisedName);
 }
 
@@ -332,10 +348,160 @@ async function probeFf00Profile(
   signal?: AbortSignal,
 ): Promise<MakeIdResolvedProfile> {
   await transport.write(MAKEID_FF00_MODEL_QUERY, signal);
-  const response = await transport.read(
-    signal ? { timeoutMs, signal } : { timeoutMs },
-  );
-  return parseMakeIdFf00Model(response);
+  return readSplitFf00ModelReply(transport, timeoutMs, signal);
+}
+
+class MakeIdAbf0StreamReader {
+  #buffer = new Uint8Array();
+  #usesNotificationWrapper: boolean | undefined;
+
+  async read(
+    transport: MakeIdTransport,
+    timeoutMs: number,
+    signal?: AbortSignal,
+  ): Promise<Uint8Array> {
+    const deadline = Date.now() + timeoutMs;
+    while (true) {
+      const frame = this.#takeFrame();
+      if (frame) return frame;
+      throwIfAborted(signal);
+      const remainingMs = deadline - Date.now();
+      if (remainingMs < 1) throw new MakeIdTransportTimeoutError(timeoutMs);
+      const chunk = this.#normalizeChunk(
+        await transport.read(
+          signal
+            ? { timeoutMs: remainingMs, signal }
+            : { timeoutMs: remainingMs },
+        ),
+      );
+      if (chunk.length === 0) continue;
+      if (this.#buffer.length + chunk.length > MAX_ABF0_BUFFER_BYTES) {
+        this.#buffer = new Uint8Array();
+        throw new MakeIdAdapterError(
+          "makeid.protocol",
+          "The MakeID response stream is too large",
+          false,
+        );
+      }
+      this.#buffer = appendBytes(this.#buffer, chunk);
+    }
+  }
+
+  #normalizeChunk(chunk: Uint8Array): Uint8Array {
+    const hasWrapper =
+      chunk.length >= 4 && chunk[0] === 0x23 && chunk[1] === 0x23;
+    this.#usesNotificationWrapper ??= hasWrapper;
+    return this.#usesNotificationWrapper && hasWrapper
+      ? stripMakeIdNotificationWrapper(chunk)
+      : chunk;
+  }
+
+  #takeFrame(): Uint8Array | undefined {
+    while (this.#buffer.length > 0) {
+      const markerIndex = this.#buffer.indexOf(MAKEID_FRAME_MARKER);
+      if (markerIndex < 0) {
+        this.#buffer = new Uint8Array();
+        return undefined;
+      }
+      if (markerIndex > 0) this.#buffer = this.#buffer.subarray(markerIndex);
+      if (this.#buffer.length < 3) return undefined;
+      const frameLength =
+        (this.#buffer[1] ?? 0) | ((this.#buffer[2] ?? 0) << 8);
+      if (
+        frameLength < MIN_ABF0_FRAME_BYTES ||
+        frameLength > MAX_ABF0_FRAME_BYTES
+      ) {
+        this.#buffer = this.#buffer.subarray(1);
+        continue;
+      }
+      if (this.#buffer.length >= frameLength) {
+        const frame = this.#buffer.slice(0, frameLength);
+        this.#buffer = this.#buffer.subarray(frameLength);
+        return frame;
+      }
+      const laterFrame = this.#findCompleteFrame(1);
+      if (laterFrame !== undefined) {
+        this.#buffer = this.#buffer.subarray(laterFrame);
+        continue;
+      }
+      return undefined;
+    }
+    return undefined;
+  }
+
+  #findCompleteFrame(start: number): number | undefined {
+    let marker = this.#buffer.indexOf(MAKEID_FRAME_MARKER, start);
+    while (marker >= 0) {
+      if (this.#buffer.length - marker < 3) return undefined;
+      const length =
+        (this.#buffer[marker + 1] ?? 0) |
+        ((this.#buffer[marker + 2] ?? 0) << 8);
+      if (
+        length >= MIN_ABF0_FRAME_BYTES &&
+        length <= MAX_ABF0_FRAME_BYTES &&
+        this.#buffer.length - marker >= length
+      ) {
+        return marker;
+      }
+      marker = this.#buffer.indexOf(MAKEID_FRAME_MARKER, marker + 1);
+    }
+    return undefined;
+  }
+}
+
+async function readSplitFf00ModelReply(
+  transport: MakeIdTransport,
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<MakeIdResolvedProfile> {
+  const deadline = Date.now() + timeoutMs;
+  let bytes = new Uint8Array();
+  let lastParseError: unknown;
+  for (
+    let chunkIndex = 0;
+    chunkIndex < MAX_FF00_PROBE_CHUNKS;
+    chunkIndex += 1
+  ) {
+    throwIfAborted(signal);
+    const remainingMs = deadline - Date.now();
+    if (remainingMs < 1) break;
+    let chunk: Uint8Array;
+    try {
+      chunk = await transport.read(
+        signal
+          ? { timeoutMs: remainingMs, signal }
+          : { timeoutMs: remainingMs },
+      );
+    } catch (error) {
+      if (lastParseError !== undefined) throw lastParseError;
+      throw error;
+    }
+    if (bytes.length + chunk.length > MAX_FF00_PROBE_BYTES) {
+      throw new MakeIdAdapterError(
+        "makeid.protocol",
+        "The MakeID FF00 model reply is too large",
+        false,
+      );
+    }
+    bytes = appendBytes(bytes, chunk);
+    try {
+      return parseMakeIdFf00Model(bytes);
+    } catch (error) {
+      lastParseError = error;
+    }
+  }
+  if (lastParseError !== undefined) throw lastParseError;
+  throw new MakeIdTransportTimeoutError(timeoutMs);
+}
+
+function appendBytes(
+  first: Uint8Array,
+  second: Uint8Array,
+): Uint8Array<ArrayBuffer> {
+  const combined = new Uint8Array(first.length + second.length);
+  combined.set(first);
+  combined.set(second, first.length);
+  return combined;
 }
 
 export function isMakeIdE1Name(name: string | undefined): boolean {
@@ -495,6 +661,17 @@ abstract class MakeIdSession implements PrinterSession {
 }
 
 class MakeId66Session extends MakeIdSession {
+  constructor(
+    printer: PrinterDescriptor,
+    transport: MakeIdTransport,
+    context: AdapterContext,
+    options: ResolvedOptions,
+    profile: MakeIdResolvedProfile,
+    private readonly streamReader: MakeIdAbf0StreamReader,
+  ) {
+    super(printer, transport, context, options, profile);
+  }
+
   async status(signal?: AbortSignal): Promise<PrinterStatus> {
     return this.runExclusive(async () => {
       this.assertOpen(signal);
@@ -581,10 +758,11 @@ class MakeId66Session extends MakeIdSession {
   }
 
   async #readResponse(signal?: AbortSignal): Promise<MakeIdResponse> {
-    const readOptions = signal
-      ? { timeoutMs: this.options.responseTimeoutMs, signal }
-      : { timeoutMs: this.options.responseTimeoutMs };
-    const bytes = await this.transport.read(readOptions);
+    const bytes = await this.streamReader.read(
+      this.transport,
+      this.options.responseTimeoutMs,
+      signal,
+    );
     return parseMakeIdResponse(bytes);
   }
 

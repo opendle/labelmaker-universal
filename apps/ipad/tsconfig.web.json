@@ -1,5 +1,5 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../mobile-web/tsconfig.json",
   "compilerOptions": {
     "composite": false,
     "declaration": false,
@@ -8,23 +8,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "noEmit": true,
-    "paths": {
-      "@labelmaker/adapter-makeid": [
-        "../../packages/adapters/makeid/src/index.ts"
-      ],
-      "@labelmaker/adapter-mock": ["../../packages/adapters/mock/src/index.ts"],
-      "@labelmaker/documents": ["../../packages/documents/src/index.ts"],
-      "@labelmaker/domain": ["../../packages/domain/src/index.ts"],
-      "@labelmaker/printing": ["../../packages/printing/src/index.ts"],
-      "@labelmaker/rendering": ["../../packages/rendering/src/index.ts"],
-      "@labelmaker/ui": ["../../packages/ui/src/index.ts"]
-    },
     "types": ["vite/client"]
   },
-  "include": [
-    "WebApp/**/*.ts",
-    "WebApp/**/*.tsx",
-    "../../packages/ui/src/**/*.ts",
-    "../../packages/ui/src/**/*.tsx"
-  ]
+  "include": ["../mobile-web/src/**/*.ts", "../mobile-web/src/**/*.tsx"]
 }
