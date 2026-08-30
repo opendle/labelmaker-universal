@@ -11,7 +11,7 @@ import {
   type OpenDialogOptions,
   type SaveDialogOptions,
 } from "electron";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { MockPrinterAdapter } from "@labelmaker/adapter-mock";
 import { MakeIdE1Adapter } from "@labelmaker/adapter-makeid";
@@ -60,6 +60,7 @@ import {
   writeConfiguredPrinterIds,
 } from "./printer-configuration.js";
 import { readWorkspaceFile, writeWorkspaceFile } from "./workspace-files.js";
+import { withTemporarySvgFile } from "./temporary-svg-file.js";
 import {
   createWorkspaceRecoveryRecord,
   readWorkspaceRecoveryFile,
@@ -836,50 +837,51 @@ async function rasterizeSvg(
   widthPixels: number,
   heightPixels: number,
 ) {
-  const encoded = Buffer.from(svg, "utf8").toString("base64");
-  const surface = new BrowserWindow({
-    show: false,
-    width: widthPixels,
-    height: heightPixels,
-    useContentSize: true,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      offscreen: true,
-      sandbox: true,
-    },
+  return withTemporarySvgFile(svg, async (filePath) => {
+    const surface = new BrowserWindow({
+      show: false,
+      width: widthPixels,
+      height: heightPixels,
+      useContentSize: true,
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+        offscreen: true,
+        sandbox: true,
+      },
+    });
+    try {
+      await surface.loadURL(pathToFileURL(filePath).href);
+      const image = await surface.webContents.capturePage({
+        x: 0,
+        y: 0,
+        width: widthPixels,
+        height: heightPixels,
+      });
+      const resized = image.resize({
+        width: widthPixels,
+        height: heightPixels,
+        quality: "best",
+      });
+      const bitmap = resized.toBitmap();
+      if (bitmap.length !== widthPixels * heightPixels * 4) {
+        throw new Error("The label bitmap has an invalid size");
+      }
+      const rgba = Uint8Array.from(bitmap);
+      for (let offset = 0; offset < rgba.length; offset += 4) {
+        const blue = rgba[offset] ?? 0;
+        rgba[offset] = rgba[offset + 2] ?? 0;
+        rgba[offset + 2] = blue;
+      }
+      return {
+        widthPixels,
+        heightPixels,
+        data: rgba,
+      };
+    } finally {
+      surface.destroy();
+    }
   });
-  try {
-    await surface.loadURL(`data:image/svg+xml;base64,${encoded}`);
-    const image = await surface.webContents.capturePage({
-      x: 0,
-      y: 0,
-      width: widthPixels,
-      height: heightPixels,
-    });
-    const resized = image.resize({
-      width: widthPixels,
-      height: heightPixels,
-      quality: "best",
-    });
-    const bitmap = resized.toBitmap();
-    if (bitmap.length !== widthPixels * heightPixels * 4) {
-      throw new Error("The label bitmap has an invalid size");
-    }
-    const rgba = Uint8Array.from(bitmap);
-    for (let offset = 0; offset < rgba.length; offset += 4) {
-      const blue = rgba[offset] ?? 0;
-      rgba[offset] = rgba[offset + 2] ?? 0;
-      rgba[offset + 2] = blue;
-    }
-    return {
-      widthPixels,
-      heightPixels,
-      data: rgba,
-    };
-  } finally {
-    surface.destroy();
-  }
 }
 
 function createWindow(): void {
