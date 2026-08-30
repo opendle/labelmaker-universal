@@ -140,21 +140,6 @@ async function demonstrateEditor(page, addPrinter) {
       .getByRole("button", { name: "Selected printer: MakeID E1-Office" })
       .waitFor();
     await pause();
-
-    await page
-      .getByRole("button", { name: "Selected printer: MakeID E1-Office" })
-      .tap();
-    await page
-      .getByRole("button", { name: "Settings for MakeID E1-Office" })
-      .tap();
-    const printerSettings = page.getByRole("dialog", {
-      name: "Printer settings",
-    });
-    await printerSettings.waitFor();
-    await pause();
-    await printerSettings.getByRole("button", { name: "Save" }).tap();
-    await printerSettings.waitFor({ state: "hidden" });
-    await pause();
   }
 
   await page.getByRole("button", { name: "Add label" }).tap();
@@ -164,8 +149,6 @@ async function demonstrateEditor(page, addPrinter) {
   const newLabelText = page.getByRole("button", {
     name: "Text element: NEW LABEL",
   });
-  await newLabelText.tap();
-  await pause(350);
   await newLabelText.tap();
   // WebKit sends the click after the touch pointer sequence. Playwright's tap
   // stops before that click when the canvas prevents pointer-down defaults.
@@ -185,9 +168,7 @@ async function demonstrateEditor(page, addPrinter) {
     .tap();
   await pause();
 
-  await page.getByRole("button", { name: "Print options" }).tap();
-  await pause();
-  await page.getByRole("menuitem", { name: "Print current label" }).tap();
+  await page.getByRole("button", { name: "Print", exact: true }).tap();
   await page
     .getByText(
       `1 label sent to ${addPrinter ? "MakeID E1-Office" : "Workshop printer"}`,
