@@ -64,6 +64,13 @@ Build the distribution `.pkg` with a new build number:
 LABELMAKER_APPLE_TEAM_ID=32J9W47SH8 LABELMAKER_MAS_BUILD=1 npm run mas:distribution
 ```
 
-Neither command uploads to App Store Connect. See
+Upload a new version after you set the App Store Connect API-key variables:
+
+```bash
+LABELMAKER_MAS_VERSION=1.0.1 LABELMAKER_MAS_BUILD=2 npm run mas:upload
+```
+
+The upload command builds and signs a fresh package, validates it with Apple,
+and uploads it. The development and distribution commands do not upload. See
 [`docs/distribution.md`](../../docs/distribution.md) for the certificate,
-profile, output, and manual test requirements.
+profile, API-key, output, and manual test requirements.

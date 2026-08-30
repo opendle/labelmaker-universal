@@ -25,6 +25,7 @@
     "ipad:simulator": "node apps/ipad/scripts/launch-simulator.mjs",
     "mas:development": "npm run mas:development --workspace @labelmaker/desktop",
     "mas:distribution": "npm run mas:distribution --workspace @labelmaker/desktop",
+    "mas:upload": "npm run mas:upload --workspace @labelmaker/desktop",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "app-store:screenshots": "npm run app-store:screenshots:mobile && npm run app-store:screenshots:macos",
