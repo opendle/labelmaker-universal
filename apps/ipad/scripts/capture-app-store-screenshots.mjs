@@ -125,6 +125,10 @@ console.log(
 
 async function capture(name, setup, colorScheme = "light") {
   if (!browser) throw new Error("The screenshot browser is not available.");
+  const showPortraitTextProperties =
+    device === "ipad" &&
+    orientation === "portrait" &&
+    name === "01-label-editor.png";
   const context = await browser.newContext({
     colorScheme,
     deviceScaleFactor,
@@ -158,8 +162,14 @@ async function capture(name, setup, colorScheme = "light") {
     await page
       .getByRole("button", { name: "Selected printer: Workshop printer" })
       .waitFor();
+    if (showPortraitTextProperties) {
+      await selectTextAndWaitForProperties(page);
+    }
     if (device === "ipad" && orientation === "portrait") {
       await panCanvasLeftOfInspector(page);
+    }
+    if (showPortraitTextProperties) {
+      await selectTextAndWaitForProperties(page);
     }
     await setup?.(page);
     await settlePage(page);
@@ -173,6 +183,12 @@ async function capture(name, setup, colorScheme = "light") {
   } finally {
     await context.close();
   }
+}
+
+async function selectTextAndWaitForProperties(page) {
+  await page.getByRole("button", { name: "Text element: RESISTORS" }).click();
+  await page.locator(".inspector:not(.is-hidden)").waitFor();
+  await page.getByLabel("Font size").waitFor();
 }
 
 async function panCanvasLeftOfInspector(page) {
