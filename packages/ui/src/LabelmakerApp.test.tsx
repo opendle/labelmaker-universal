@@ -131,6 +131,15 @@ function createHost(overrides: Partial<LabelmakerHost> = {}): LabelmakerHost {
   };
 }
 
+const trimmedSampleDocument = {
+  ...sampleDocument,
+  plates: sampleDocument.plates.map((plate) => ({
+    ...plate,
+    size: { ...plate.size, widthMm: 31 },
+    elements: plate.elements.map((element) => ({ ...element, xMm: -11.5 })),
+  })),
+};
+
 function expectLabelCount(count: number): void {
   expect(
     screen.getAllByRole("button", { name: /^Select label / }),
@@ -209,24 +218,39 @@ describe("LabelmakerApp", () => {
     );
   });
 
-  it("uses the default workspace when recovery loading fails", async () => {
-    const storeWorkspaceRecovery = vi.fn().mockResolvedValue(undefined);
-    render(
-      <LabelmakerApp
-        host={createHost({
-          loadWorkspaceRecovery: vi.fn().mockRejectedValue(new Error("bad")),
-          storeWorkspaceRecovery,
-        })}
-      />,
-    );
+  it.each(["missing", "failed"])(
+    "trims the default workspace when recovery is %s",
+    async (recoveryState) => {
+      const storeWorkspaceRecovery = vi.fn().mockResolvedValue(undefined);
+      render(
+        <LabelmakerApp
+          host={createHost({
+            loadWorkspaceRecovery:
+              recoveryState === "failed"
+                ? vi.fn().mockRejectedValue(new Error("bad"))
+                : vi.fn().mockResolvedValue(null),
+            storeWorkspaceRecovery,
+          })}
+        />,
+      );
 
-    expect(await screen.findByText("Labels")).toBeInTheDocument();
-    await waitFor(() =>
-      expect(storeWorkspaceRecovery).toHaveBeenCalledWith(
-        expect.objectContaining({ document: sampleDocument }),
-      ),
-    );
-  });
+      expect(await screen.findByText("Labels")).toBeInTheDocument();
+      await waitFor(() =>
+        expect(storeWorkspaceRecovery).toHaveBeenCalledWith(
+          expect.objectContaining({
+            document: trimmedSampleDocument,
+            dirty: false,
+          }),
+        ),
+      );
+      expect(storeWorkspaceRecovery.mock.calls[0]?.[0].document).toEqual(
+        trimmedSampleDocument,
+      );
+      expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
+      expect(screen.getByLabelText("Left margin")).toHaveValue(0);
+      expect(screen.getByLabelText("Right margin")).toHaveValue(0);
+    },
+  );
 
   it("shows the configured printer and adds a plate", async () => {
     const user = userEvent.setup();
@@ -307,7 +331,7 @@ describe("LabelmakerApp", () => {
       Number.parseFloat(
         resistorPreview.style.getPropertyValue("--label-preview-width"),
       ),
-    ).toBeCloseTo((62 * 3.25 * 16) / 12);
+    ).toBeCloseTo((31 * 3.25 * 16) / 12);
     expect(
       resistorPreview.style.getPropertyValue("--label-preview-height"),
     ).toBe("52px");
@@ -385,7 +409,7 @@ describe("LabelmakerApp", () => {
     )!;
     expect(miniText.style.fontSize).toContain("cqi");
     expect(document.querySelector(".dimension-ruler-width")).toHaveTextContent(
-      "62 mm",
+      "31 mm",
     );
     expect(
       document.querySelector(".dimension-ruler-printable-height"),
@@ -1111,7 +1135,10 @@ describe("LabelmakerApp", () => {
     await user.click(screen.getByRole("button", { name: "New" }));
 
     await waitFor(() =>
-      expect(host.newWorkspace).toHaveBeenCalledWith(false, sampleDocument),
+      expect(host.newWorkspace).toHaveBeenCalledWith(
+        false,
+        trimmedSampleDocument,
+      ),
     );
     expect(screen.getByText("Untitled workspace")).toBeInTheDocument();
     expect(screen.getByText("Not saved")).toBeInTheDocument();
@@ -1125,9 +1152,15 @@ describe("LabelmakerApp", () => {
     await user.click(screen.getByRole("button", { name: "Open" }));
 
     await waitFor(() =>
-      expect(host.openWorkspace).toHaveBeenCalledWith(false, sampleDocument),
+      expect(host.openWorkspace).toHaveBeenCalledWith(
+        false,
+        trimmedSampleDocument,
+      ),
     );
     expect(screen.getByText("Opened workspace")).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Resistors label canvas" }),
+    ).toHaveAttribute("data-plate-width-mm", "62");
     expect(screen.getByRole("status")).toHaveTextContent("Opened opened.lbl");
   });
 
@@ -1401,7 +1434,7 @@ describe("LabelmakerApp", () => {
     await user.click(
       screen.getByRole("button", { name: "Text element: RESISTORS" }),
     );
-    expect(screen.getByLabelText("X position")).toHaveValue(-9.5);
+    expect(screen.getByLabelText("X position")).toHaveValue(-25);
   });
 
   it("finishes automatic trim before it saves", async () => {
@@ -1446,6 +1479,12 @@ describe("LabelmakerApp", () => {
     const renderBounds = vi.mocked(renderPlateBlackBounds);
     renderBounds.mockClear();
     render(<LabelmakerApp host={createHost()} />);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("region", { name: "Resistors label canvas" }),
+      ).toHaveAttribute("data-plate-width-mm", "31"),
+    );
+    renderBounds.mockClear();
     const canvas = screen.getByRole("region", {
       name: "Resistors label canvas",
     });
@@ -1460,7 +1499,7 @@ describe("LabelmakerApp", () => {
 
     expect(renderBounds).not.toHaveBeenCalled();
     expect(screen.getByLabelText("Left margin")).toHaveValue(0);
-    expect(canvas).toHaveAttribute("data-plate-width-mm", "62");
+    expect(canvas).toHaveAttribute("data-plate-width-mm", "31");
   });
 
   it("undoes a pixel edit and its automatic trim in one action", async () => {
@@ -1532,10 +1571,10 @@ describe("LabelmakerApp", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("region", { name: "Flag Resistors label canvas" }),
-    ).toHaveAttribute("data-plate-width-mm", "126");
+    ).toHaveAttribute("data-plate-width-mm", "64");
     expect(
       screen.getByRole("region", { name: "Flag Resistors label canvas" }),
-    ).toHaveStyle({ width: "720px" });
+    ).toHaveStyle({ width: "576px" });
     expect(screen.queryByText("Flag Resistors")).toBeNull();
     expect(
       screen.getAllByRole("button", { name: "Text element: RESISTORS" }),
@@ -1559,7 +1598,7 @@ describe("LabelmakerApp", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("region", { name: "Resistors label canvas" }),
-    ).toHaveAttribute("data-plate-width-mm", "62");
+    ).toHaveAttribute("data-plate-width-mm", "31");
     expect(
       screen.getAllByRole("button", { name: "Text element: SIGNAL" }),
     ).toHaveLength(1);
@@ -1913,6 +1952,12 @@ describe("LabelmakerApp", () => {
     renderBounds.mockClear();
     const user = userEvent.setup();
     render(<LabelmakerApp host={createHost()} />);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("region", { name: "Resistors label canvas" }),
+      ).toHaveAttribute("data-plate-width-mm", "31"),
+    );
+    renderBounds.mockClear();
     const element = screen.getByRole("button", {
       name: "Text element: RESISTORS",
     });
@@ -1920,9 +1965,9 @@ describe("LabelmakerApp", () => {
       screen.getByRole("button", { name: "Clear element selection" }),
     );
     await user.click(element);
-    expect(screen.getByLabelText("X position")).toHaveValue(4);
+    expect(screen.getByLabelText("X position")).toHaveValue(-11.5);
     await user.keyboard("{ArrowRight}");
-    expect(screen.getByLabelText("X position")).toHaveValue(4.1);
+    expect(screen.getByLabelText("X position")).toHaveValue(-11.4);
     await waitFor(() => expect(renderBounds).toHaveBeenCalledOnce());
   });
 
@@ -2010,6 +2055,12 @@ describe("LabelmakerApp", () => {
     const renderBounds = vi.mocked(renderPlateBlackBounds);
     renderBounds.mockClear();
     render(<LabelmakerApp host={createHost()} />);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("region", { name: "Resistors label canvas" }),
+      ).toHaveAttribute("data-plate-width-mm", "31"),
+    );
+    renderBounds.mockClear();
     const element = screen.getByRole("button", {
       name: "Text element: RESISTORS",
     });
@@ -2045,7 +2096,7 @@ describe("LabelmakerApp", () => {
     );
 
     expect(renderBounds).not.toHaveBeenCalled();
-    expect(canvas).toHaveAttribute("data-plate-width-mm", "62");
+    expect(canvas).toHaveAttribute("data-plate-width-mm", "31");
   });
 
   it("keeps editor overflow visible when the last line is empty", async () => {
@@ -2161,8 +2212,8 @@ describe("LabelmakerApp", () => {
     };
 
     fireEvent(element, pointerEvent("pointerdown", 0, 0));
-    fireEvent(window, pointerEvent("pointermove", -36, -9));
-    fireEvent(window, pointerEvent("pointerup", -36, -9));
+    fireEvent(window, pointerEvent("pointermove", 230, -9));
+    fireEvent(window, pointerEvent("pointerup", 230, -9));
 
     expect(screen.getByLabelText("X position")).toHaveValue(0);
     expect(screen.getByLabelText("Y position")).toHaveValue(2);

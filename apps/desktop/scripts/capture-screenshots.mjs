@@ -209,6 +209,54 @@ async function setHiddenNumberControl(page, label, value) {
 }
 
 await capture(1440, 960, "labelmaker-primary-1440x960.png", async (page) => {
+  await page.waitForFunction(() => {
+    const label = document.querySelector(".label-canvas");
+    return (
+      label instanceof HTMLElement && Number(label.dataset.plateWidthMm) < 62
+    );
+  });
+  await page.evaluate(() => {
+    const label = document.querySelector(".label-canvas");
+    const frame = document.querySelector(".canvas-element");
+    const text = frame?.querySelector(".inline-text-editor");
+    if (
+      !(label instanceof HTMLElement) ||
+      !(frame instanceof HTMLElement) ||
+      !(text instanceof HTMLElement)
+    ) {
+      throw new Error("Initial label geometry is missing");
+    }
+    const context = document.createElement("canvas").getContext("2d");
+    if (!context) throw new Error("Text measurement is not available");
+    const style = getComputedStyle(text);
+    context.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const metrics = context.measureText(text.textContent ?? "");
+    const labelBounds = label.getBoundingClientRect();
+    const frameBounds = frame.getBoundingClientRect();
+    const originX = frameBounds.left + (frameBounds.width - metrics.width) / 2;
+    const pixelsPerMm = labelBounds.width / Number(label.dataset.plateWidthMm);
+    const gapsMm = [
+      (originX - metrics.actualBoundingBoxLeft - labelBounds.left) /
+        pixelsPerMm,
+      (labelBounds.right - originX - metrics.actualBoundingBoxRight) /
+        pixelsPerMm,
+    ];
+    // Whole-millimeter rounding adds at most 0.5 mm per side. Allow two
+    // trim-raster pixels for differences between canvas and DOM glyph bounds.
+    for (const [index, name] of ["Left margin", "Right margin"].entries()) {
+      const field = document.querySelector(`[aria-label="${name}"]`);
+      if (
+        !(field instanceof HTMLInputElement) ||
+        field.value !== "0" ||
+        gapsMm[index] < -0.25 ||
+        gapsMm[index] > 0.75
+      ) {
+        throw new Error(
+          `Initial zero-margin label has incorrect ink gaps: ${gapsMm}`,
+        );
+      }
+    }
+  });
   const iconCatalogLoaded = await page.evaluate(() =>
     performance
       .getEntriesByType("resource")
@@ -782,11 +830,22 @@ await capture(
         throw new Error(`Enter did not remove focus from ${name}`);
       }
       if (
-        (await field.evaluate(
-          (input) => getComputedStyle(input).borderBottomStyle,
-        )) !== "dotted"
+        !(await field.evaluate((input) => {
+          const value = input.closest(".dimension-value");
+          const unit = value?.querySelector("b");
+          if (!(value instanceof HTMLElement) || !(unit instanceof HTMLElement))
+            return false;
+          const underline = getComputedStyle(value, "::after");
+          return (
+            underline.borderBottomStyle === "dashed" &&
+            Number.parseFloat(underline.width) >=
+              input.offsetWidth + unit.offsetWidth
+          );
+        }))
       ) {
-        throw new Error(`${name} does not have a dotted underline`);
+        throw new Error(
+          `${name} does not underline both its number and mm unit`,
+        );
       }
       if (name === "Plate height") {
         await page.waitForFunction(() => {

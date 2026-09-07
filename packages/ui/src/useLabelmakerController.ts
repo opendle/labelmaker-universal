@@ -113,35 +113,6 @@ export function useLabelmakerController(host: LabelmakerHost) {
   const canCancelPrint = isPrinting && host.cancelPrint !== undefined;
 
   useEffect(() => {
-    let active = true;
-    const load = host.loadWorkspaceRecovery?.() ?? Promise.resolve(null);
-    void load
-      .then((recovery) => {
-        if (!active) return;
-        if (recovery) {
-          dispatch({
-            type: "restore-session",
-            workspace: recovery.document,
-            activePlateId: recovery.activePlateId,
-            selectedElementId: recovery.selectedElementId,
-            dirty: recovery.dirty,
-            savedAt: recovery.savedAt,
-            fileName: recovery.fileName,
-            zoom: recovery.zoom,
-          });
-        } else {
-          dispatch({ type: "recovery-ready" });
-        }
-      })
-      .catch(() => {
-        if (active) dispatch({ type: "recovery-ready" });
-      });
-    return () => {
-      active = false;
-    };
-  }, [host]);
-
-  useEffect(() => {
     if (!state.recoveryReady || !host.storeWorkspaceRecovery) return;
     void host
       .storeWorkspaceRecovery({
@@ -367,6 +338,43 @@ export function useLabelmakerController(host: LabelmakerHost) {
     };
     return flushNext();
   }, [clearAutomaticTrimTimer, runAutomaticTrim]);
+  useEffect(() => {
+    let active = true;
+    const prepareDefaultWorkspace = async () => {
+      if (!active) return;
+      if (workspaceRef.current === initialAppState.workspace) {
+        for (const plate of workspaceRef.current.plates) {
+          automaticTrimPlateIdsRef.current.add(plate.id);
+        }
+        await flushAutomaticTrim();
+      }
+      if (active) dispatch({ type: "recovery-ready" });
+    };
+    const load = host.loadWorkspaceRecovery?.() ?? Promise.resolve(null);
+    void load
+      .then((recovery) => {
+        if (!active) return;
+        if (recovery) {
+          dispatch({
+            type: "restore-session",
+            workspace: recovery.document,
+            activePlateId: recovery.activePlateId,
+            selectedElementId: recovery.selectedElementId,
+            dirty: recovery.dirty,
+            savedAt: recovery.savedAt,
+            fileName: recovery.fileName,
+            zoom: recovery.zoom,
+          });
+        } else {
+          return prepareDefaultWorkspace();
+        }
+      })
+      .catch(() => prepareDefaultWorkspace());
+    return () => {
+      active = false;
+    };
+  }, [flushAutomaticTrim, host]);
+
   const cancelAutomaticTrim = useCallback(() => {
     automaticTrimGenerationRef.current += 1;
     clearAutomaticTrimTimer();

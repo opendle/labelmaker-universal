@@ -971,12 +971,20 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   pointer-events: auto;
   white-space: nowrap;
 }
+.dimension-value::after {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  left: 3px;
+  border-bottom: 1px dashed currentColor;
+  content: "";
+  pointer-events: none;
+}
 .dimension-value input {
   box-sizing: content-box;
   min-width: 1ch;
   padding: 0 0 2px;
   border: 0;
-  border-bottom: 1px dotted currentColor;
   border-radius: 0;
   appearance: textfield;
   background: transparent;
@@ -1005,13 +1013,13 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
     transparent calc(50% + 11px)
   );
 }
+.presentation-mobile-touch .dimension-value::after {
+  bottom: calc(50% - 11px);
+}
 .presentation-mobile-touch .dimension-value input {
   min-width: 44px;
   min-height: 44px;
   padding: 0;
-  border-bottom: 0;
-  text-decoration: underline dotted;
-  text-underline-offset: 3px;
 }
 .label-canvas {
   position: relative;

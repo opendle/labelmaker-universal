@@ -54,6 +54,10 @@ appearances so that they show the physical label and printed result accurately.
   state, active label, selected element, zoom, last save time, and saved `.lbl`
   file association. Store recovery state outside the `.lbl` file. If recovery
   data is missing or invalid, start with the default workspace named `Labels`.
+  Automatically trim each default plate to its printed pixels and selected
+  margins before storing its first recovery state. Keep the default workspace
+  clean and its undo history empty. Preserve the dimensions and content of
+  recovered sessions and opened workspace files.
 - Open an add-printer dialog with physical discovery results. Do not show mock
   or virtual printers in the user interface.
 - Close a modal with its close action, Escape, or a click or tap outside the
@@ -236,9 +240,10 @@ appearances so that they show the physical label and printed result accurately.
   printer resolution or printable-area metadata at the lower-left corner.
 - Edit total plate height directly in its dimension ruler. Below the label,
   show editable left and right trim-margin dimensions, including zero margins.
-  Underline editable values with dots. A click or keyboard focus selects the
-  complete number. Enter accepts the value and removes focus. Keep total width
-  and a separate printable height read-only.
+  Put one dashed underline below each editable number, space, and `mm` unit.
+  A click or keyboard focus selects the complete number. Enter accepts the
+  value and removes focus. Keep total width and a separate printable height
+  read-only.
 
 On macOS, use the native window controls from Electron. Do not draw a second
 set of traffic-light controls in the application header.
