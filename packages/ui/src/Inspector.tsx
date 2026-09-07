@@ -1,6 +1,5 @@
 import type {
   ImageElement,
-  LabelPlate,
   ShapeElement,
   TextElement,
 } from "@labelmaker/domain";
@@ -18,10 +17,9 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useState } from "react";
 
 import { IconButton } from "./controls.js";
-import { updatePlateEditorHeight } from "./editor-operations.js";
 import { TYPEFACES } from "./typefaces.js";
 import { MonochromeImage } from "./MonochromeImage.js";
 import { NumberInput } from "./NumberInput.js";
@@ -535,83 +533,6 @@ function ShapeInspector({
         onChange={onChange}
         onMoveLayer={onMoveLayer}
       />
-    </div>
-  );
-}
-
-export function PlateToolbarSettings({
-  plate,
-  onChange,
-}: {
-  readonly plate: LabelPlate;
-  readonly onChange: (plate: LabelPlate) => void;
-}) {
-  const inputIdPrefix = useId();
-  const settingsRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const blurActiveField = (event: PointerEvent) => {
-      const activeElement = globalThis.document.activeElement;
-      if (
-        !(activeElement instanceof HTMLInputElement) ||
-        !settingsRef.current?.contains(activeElement) ||
-        event.target === activeElement
-      ) {
-        return;
-      }
-      activeElement.blur();
-    };
-    globalThis.document.addEventListener("pointerdown", blurActiveField, true);
-    return () =>
-      globalThis.document.removeEventListener(
-        "pointerdown",
-        blurActiveField,
-        true,
-      );
-  }, []);
-  return (
-    <div className="plate-toolbar-settings" ref={settingsRef}>
-      {[
-        ["Plate height", "HEIGHT", plate.size.heightMm],
-        ["Left margin", "LEFT", plate.margins.leftMm],
-        ["Right margin", "RIGHT", plate.margins.rightMm],
-      ].map(([label, shortLabel, value]) => (
-        <label
-          className="toolbar-field"
-          htmlFor={`${inputIdPrefix}-${String(label).replaceAll(" ", "-")}`}
-          key={label}
-        >
-          <span>{shortLabel}</span>
-          <div className="toolbar-unit-input">
-            <NumberInput
-              aria-label={label as string}
-              id={`${inputIdPrefix}-${String(label).replaceAll(" ", "-")}`}
-              inputMode="decimal"
-              min={label === "Plate height" ? 1 : 0}
-              onValueChange={(value) => {
-                const next = Math.max(label === "Plate height" ? 1 : 0, value);
-                if (label === "Plate height") {
-                  onChange(updatePlateEditorHeight(plate, next));
-                } else {
-                  onChange({
-                    ...plate,
-                    margins: {
-                      ...plate.margins,
-                      [label === "Left margin" ? "leftMm" : "rightMm"]: next,
-                    },
-                  });
-                }
-              }}
-              onKeyDown={(event) => {
-                if (event.key !== "Enter") return;
-                event.preventDefault();
-                event.currentTarget.blur();
-              }}
-              value={Math.round((value as number) * 10) / 10}
-            />
-            <b>mm</b>
-          </div>
-        </label>
-      ))}
     </div>
   );
 }

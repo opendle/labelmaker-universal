@@ -2,11 +2,7 @@ import type { LabelPlate } from "@labelmaker/domain";
 import { Flag, FlipHorizontal2, Trash2, X } from "lucide-react";
 
 import { IconButton } from "./controls.js";
-import {
-  InspectorContent,
-  PlateToolbarSettings,
-  type InspectorContentProps,
-} from "./Inspector.js";
+import { InspectorContent, type InspectorContentProps } from "./Inspector.js";
 import { Modal } from "./Modal.js";
 import { isFlagPlate, toggleFlagPlate } from "./editor-operations.js";
 
@@ -98,7 +94,6 @@ export function PhonePlatePropertySheet({
           </IconButton>
         </div>
         <div className="phone-plate-settings-content">
-          <PlateToolbarSettings onChange={onChange} plate={draft} />
           <div
             aria-label="Special label settings"
             className="phone-special-settings"

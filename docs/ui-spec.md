@@ -349,10 +349,11 @@ Phone mode.
   element-property sheet.
 - Open complete element properties and label settings in modal sheets that
   stay at the top of the visual viewport.
-  Keep all element properties available. The label-settings sheet contains
-  height, margins, Flag, Mirror, Delete label, and a Save settings
-  footer. Keep Flag and Mirror only in this Phone sheet. Do not show label
-  delete buttons in the Phone label strip.
+  Keep all element properties available. Edit plate height and left and right
+  margins directly on the canvas with a click or tap, as in the standard view.
+  The label-settings sheet contains only Flag and Mirror settings, with Delete
+  label and Save settings actions in its footer. Keep Flag and Mirror only in
+  this Phone sheet. Do not show label delete buttons in the Phone label strip.
 - Show printer settings and Add printer as top sheets that use the same shape,
   spacing, field style, and footer style as the other Phone property sheets.
   Keep the printer dimension diagram within the sheet width.

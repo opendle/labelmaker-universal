@@ -2848,9 +2848,7 @@ describe("LabelmakerApp", () => {
     await user.click(screen.getByRole("button", { name: "Label settings" }));
     const labelSheet = screen.getByRole("dialog", { name: "Label settings" });
     expect(labelSheet).not.toHaveTextContent("WIDTH");
-    expect(labelSheet).toHaveTextContent("HEIGHT");
-    expect(labelSheet).toHaveTextContent("LEFT");
-    expect(labelSheet).toHaveTextContent("RIGHT");
+    expect(within(labelSheet).queryByRole("spinbutton")).toBeNull();
     expect(
       within(labelSheet).queryByRole("button", {
         name: "Trim plate to content",
@@ -2880,9 +2878,7 @@ describe("LabelmakerApp", () => {
     await user.pointer([{ keys: "[MouseLeft>]", target: settings }]);
     await user.pointer([{ keys: "[/MouseLeft]", target: settings }]);
     const sheet = screen.getByRole("dialog", { name: "Label settings" });
-    fireEvent.change(within(sheet).getByLabelText("Plate height"), {
-      target: { value: "20" },
-    });
+    await user.click(within(sheet).getByRole("button", { name: "Mirror" }));
     await user.click(
       within(sheet).getByRole("button", { name: "Save settings" }),
     );
@@ -2892,7 +2888,9 @@ describe("LabelmakerApp", () => {
 
     await user.click(settings);
     const reopened = screen.getByRole("dialog", { name: "Label settings" });
-    expect(within(reopened).getByLabelText("Plate height")).toHaveValue(20);
+    expect(
+      within(reopened).getByRole("button", { name: "Mirror" }),
+    ).toHaveAttribute("aria-pressed", "true");
     await user.click(
       within(reopened).getByRole("button", { name: "Delete label" }),
     );
@@ -2902,34 +2900,45 @@ describe("LabelmakerApp", () => {
     expect(screen.queryByRole("dialog", { name: "Label settings" })).toBeNull();
   });
 
-  it("accepts a Phone label value with Enter without saving the sheet", async () => {
-    vi.stubGlobal("innerWidth", 393);
-    vi.stubGlobal("innerHeight", 852);
-    const user = userEvent.setup();
-    render(<LabelmakerApp host={createHost()} />);
+  it.each(["linux", "ipados", "android"] as const)(
+    "edits Phone canvas dimensions directly on %s",
+    async (platform) => {
+      vi.stubGlobal("innerWidth", 393);
+      vi.stubGlobal("innerHeight", 852);
+      const user = userEvent.setup();
+      const select = vi.spyOn(HTMLInputElement.prototype, "select");
+      render(<LabelmakerApp host={createHost({ platform })} />);
+      await screen.findByRole("button", {
+        name: "Selected printer: Studio Labeler",
+      });
+      for (const [name, value] of [
+        ["Plate height", "20"],
+        ["Left margin", "2"],
+        ["Right margin", "3"],
+      ] as const) {
+        const input = screen.getByRole("spinbutton", { name });
+        expect(input.closest(".dimension-value")).not.toBeNull();
+        const before = select.mock.calls.length;
+        await user.pointer([
+          { keys: "[TouchA>]", target: input },
+          { keys: "[/TouchA]", target: input },
+        ]);
+        expect(input).toHaveFocus();
+        expect(select.mock.calls.length).toBeGreaterThan(before);
+        await act(async () => {
+          await new Promise<void>((resolve) => {
+            requestAnimationFrame(() => resolve());
+          });
+        });
+        await user.keyboard(`${value}{Enter}`);
+        expect(input).toHaveValue(Number(value));
+        expect(input).not.toHaveFocus();
+      }
+      expect(screen.queryByRole("dialog")).toBeNull();
+    },
+  );
 
-    await user.click(screen.getByRole("button", { name: "Label settings" }));
-    const sheet = screen.getByRole("dialog", { name: "Label settings" });
-    const height = within(sheet).getByLabelText("Plate height");
-    await user.clear(height);
-    await user.type(height, "20{Enter}");
-
-    expect(sheet).toBeInTheDocument();
-    expect(height).toHaveValue(20);
-    expect(height).not.toHaveFocus();
-
-    await user.click(
-      within(sheet).getByRole("button", { name: "Close label settings" }),
-    );
-    await user.click(screen.getByRole("button", { name: "Label settings" }));
-    expect(
-      within(
-        screen.getByRole("dialog", { name: "Label settings" }),
-      ).getByLabelText("Plate height"),
-    ).toHaveValue(16);
-  });
-
-  it("keeps a Phone settings input focused when the keyboard opens", async () => {
+  it("keeps a Phone canvas dimension focused when the keyboard opens", async () => {
     vi.stubGlobal("innerWidth", 393);
     vi.stubGlobal("innerHeight", 852);
     const viewport = new EventTarget() as EventTarget & {
@@ -2944,10 +2953,7 @@ describe("LabelmakerApp", () => {
       <LabelmakerApp host={createHost({ platform: "ipados" })} />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Label settings" }));
-    const height = within(
-      screen.getByRole("dialog", { name: "Label settings" }),
-    ).getByLabelText("Plate height");
+    const height = screen.getByLabelText("Plate height");
     await user.click(height);
     expect(height).toHaveFocus();
 
@@ -2989,7 +2995,7 @@ describe("LabelmakerApp", () => {
     for (const input of container.querySelectorAll('input[type="number"]')) {
       expect(["decimal", "numeric"]).toContain(input.getAttribute("inputmode"));
     }
-    expect(within(labelSheet).getByLabelText("Plate height")).toHaveAttribute(
+    expect(screen.getByLabelText("Plate height")).toHaveAttribute(
       "inputmode",
       "decimal",
     );

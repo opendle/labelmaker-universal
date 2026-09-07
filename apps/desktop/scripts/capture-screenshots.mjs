@@ -461,7 +461,31 @@ await capture(
   500,
   "labelmaker-phone-settings-600x500.png",
   async (page) => {
+    for (const [name, value] of [
+      ["Plate height", "20"],
+      ["Left margin", "2"],
+      ["Right margin", "3"],
+    ]) {
+      const dimension = page
+        .locator(".dimension-value")
+        .getByRole("spinbutton", { name });
+      await dimension.click();
+      await page.keyboard.type(value);
+      await page.keyboard.press("Enter");
+      if (
+        (await dimension.inputValue()) !== value ||
+        (await dimension.evaluate((input) => input === document.activeElement))
+      ) {
+        throw new Error(`Phone canvas dimension could not be edited: ${name}`);
+      }
+    }
     await page.getByRole("button", { name: "Label settings" }).click();
+    const settings = page.getByRole("dialog", { name: "Label settings" });
+    if (await settings.getByRole("spinbutton").count()) {
+      throw new Error("Phone label settings still contain dimension inputs");
+    }
+    await settings.getByRole("button", { name: "Flag" }).waitFor();
+    await settings.getByRole("button", { name: "Mirror" }).waitFor();
     await page
       .getByRole("dialog", { name: "Label settings" })
       .getByRole("button", { name: "Save settings" })
