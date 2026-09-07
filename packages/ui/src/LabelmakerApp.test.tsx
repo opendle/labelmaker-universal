@@ -414,9 +414,7 @@ describe("LabelmakerApp", () => {
     expect(
       document.querySelector(".dimension-ruler-printable-height"),
     ).not.toBeInTheDocument();
-    expect(document.querySelector(".dimension-ruler-height")).toHaveTextContent(
-      "10 mm",
-    );
+    expect(screen.getByLabelText("Plate height")).toHaveValue(10);
     expect(document.querySelector(".dimension-ruler-height")).toHaveClass(
       "dimension-ruler-height-merged",
     );
@@ -467,9 +465,7 @@ describe("LabelmakerApp", () => {
     expect(
       document.querySelector(".dimension-ruler-printable-height"),
     ).not.toBeInTheDocument();
-    expect(document.querySelector(".dimension-ruler-height")).toHaveTextContent(
-      "16 mm",
-    );
+    expect(screen.getByLabelText("Plate height")).toHaveValue(16);
   });
 
   it("scales the label and its text by the same zoom ratio", () => {
@@ -2896,7 +2892,9 @@ describe("LabelmakerApp", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Label settings" }));
-    const height = screen.getByLabelText("Plate height");
+    const height = within(
+      screen.getByRole("dialog", { name: "Label settings" }),
+    ).getByLabelText("Plate height");
     await user.click(height);
     expect(height).toHaveFocus();
 
@@ -2938,7 +2936,7 @@ describe("LabelmakerApp", () => {
     for (const input of container.querySelectorAll('input[type="number"]')) {
       expect(["decimal", "numeric"]).toContain(input.getAttribute("inputmode"));
     }
-    expect(screen.getByLabelText("Plate height")).toHaveAttribute(
+    expect(within(labelSheet).getByLabelText("Plate height")).toHaveAttribute(
       "inputmode",
       "decimal",
     );

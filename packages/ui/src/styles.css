@@ -918,8 +918,8 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
 .dimension-ruler-printable-height::after {
   bottom: 0;
 }
-.dimension-ruler-height span,
-.dimension-ruler-printable-height span {
+.dimension-ruler-height > span,
+.dimension-ruler-printable-height > span {
   position: absolute;
   left: -1px;
   top: 50%;
@@ -927,6 +927,91 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   background: #e6e5df;
   white-space: nowrap;
   transform: translate(-50%, -50%) rotate(-90deg);
+}
+.dimension-ruler-margin {
+  top: calc(100% + 26px);
+  height: 13px;
+  border-top: 1px solid #817e75;
+}
+.dimension-ruler-margin-left {
+  left: 0;
+}
+.dimension-ruler-margin-right {
+  right: 0;
+}
+.dimension-ruler-margin::before,
+.dimension-ruler-margin::after {
+  top: -4px;
+  width: 1px;
+  height: 7px;
+}
+.dimension-ruler-margin::before {
+  left: 0;
+}
+.dimension-ruler-margin::after {
+  right: 0;
+}
+.dimension-ruler-margin > span {
+  position: absolute;
+  top: 7px;
+  background: #e6e5df;
+}
+.dimension-ruler-margin-left > span {
+  left: 0;
+}
+.dimension-ruler-margin-right > span {
+  right: 0;
+}
+.dimension-ruler .dimension-value {
+  z-index: 2;
+  display: flex;
+  align-items: baseline;
+  gap: 0.4ch;
+  padding: 3px;
+  pointer-events: auto;
+  white-space: nowrap;
+}
+.dimension-value input {
+  box-sizing: content-box;
+  min-width: 1ch;
+  padding: 0 0 2px;
+  border: 0;
+  border-bottom: 1px dotted currentColor;
+  border-radius: 0;
+  appearance: textfield;
+  background: transparent;
+  color: inherit;
+  text-align: right;
+  cursor: text;
+}
+.dimension-value input::-webkit-inner-spin-button,
+.dimension-value input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+.dimension-value b {
+  font-weight: inherit;
+}
+.presentation-mobile-touch .dimension-ruler-margin {
+  top: calc(100% + 14px);
+}
+.presentation-mobile-touch .dimension-value {
+  align-items: center;
+  font-size: 16px;
+  background: linear-gradient(
+    transparent calc(50% - 11px),
+    var(--dimension-value-background, #e6e5df) calc(50% - 11px),
+    var(--dimension-value-background, #e6e5df) calc(50% + 11px),
+    transparent calc(50% + 11px)
+  );
+}
+.presentation-mobile-touch .dimension-value input {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-bottom: 0;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
 }
 .label-canvas {
   position: relative;
@@ -3813,6 +3898,7 @@ textarea.inline-text-editor {
   }
 
   .dimension-ruler span {
+    --dimension-value-background: #191a1c;
     background: #191a1c;
   }
 

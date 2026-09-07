@@ -99,6 +99,42 @@ async function capture(viewport, platform) {
       .getByRole("button", { name: "Selected printer: Workshop printer" })
       .waitFor();
     await settlePage(page);
+    await page.evaluate(() => {
+      const surface = document.querySelector(".work-surface");
+      if (!(surface instanceof HTMLElement)) {
+        throw new Error("The work surface is missing.");
+      }
+      const available = surface.getBoundingClientRect();
+      const fields = document.querySelectorAll(".dimension-value input");
+      if (fields.length !== 3) {
+        throw new Error("The canvas must have three editable dimensions.");
+      }
+      for (const field of fields) {
+        const bounds = field.getBoundingClientRect();
+        const target = document.elementFromPoint(
+          bounds.left + bounds.width / 2,
+          bounds.top + bounds.height / 2,
+        );
+        if (
+          bounds.left < available.left ||
+          bounds.right > available.right ||
+          bounds.top < available.top ||
+          bounds.bottom > available.bottom ||
+          target !== field
+        ) {
+          throw new Error(
+            `${field.getAttribute("aria-label")} is clipped or covered.`,
+          );
+        }
+        if (bounds.width < 44 || bounds.height < 44) {
+          throw new Error("A dimension touch target is smaller than 44 px.");
+        }
+        const style = getComputedStyle(field);
+        if (style.textDecorationStyle !== "dotted") {
+          throw new Error("An editable dimension has no dotted underline.");
+        }
+      }
+    });
 
     const expectedLayout =
       viewport.width > 600 &&

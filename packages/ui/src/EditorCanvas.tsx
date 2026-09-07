@@ -39,7 +39,6 @@ import {
   openImageFileInput,
 } from "./image-file-input.js";
 import { PhoneEditorToolbar } from "./PhoneEditorToolbar.js";
-import { PlateToolbarSettings } from "./Inspector.js";
 import {
   printableMarginPercent,
   type PrintableMargins,
@@ -332,7 +331,6 @@ function CanvasToolbar({
           <span className="tool-button-label">Mirror</span>
         </button>
       </div>
-      <PlateToolbarSettings onChange={onUpdatePlate} plate={plate} />
     </div>
   );
 }
@@ -461,15 +459,15 @@ export function EditorCanvas({
   }, [editingElementId]);
   useCommitInlineEdit(editingElementId, endInlineEdit);
   const phoneLayout = layout !== "standard";
-  const fallbackPhoneWidth = Math.max(1, globalThis.innerWidth - 84);
-  const fallbackPhoneHeight = Math.max(1, globalThis.innerHeight - 210);
+  const fallbackPhoneWidth = Math.max(1, globalThis.innerWidth - 100);
+  const fallbackPhoneHeight = Math.max(1, globalThis.innerHeight - 250);
   const availableWidth =
     workSurfaceSize && workSurfaceSize.width > 0
-      ? workSurfaceSize.width - 84
+      ? workSurfaceSize.width - 100
       : fallbackPhoneWidth;
   const availableHeight =
     workSurfaceSize && workSurfaceSize.height > 0
-      ? workSurfaceSize.height - 80
+      ? workSurfaceSize.height - 120
       : fallbackPhoneHeight;
   const baseCanvasScale = phoneLayout
     ? Math.max(
@@ -513,6 +511,9 @@ export function EditorCanvas({
     zoom,
     onZoom,
   });
+  // Reserve 88 px for the left rulers and 80 px for the bottom touch fields.
+  const canvasOffsetX = pan.x + (phoneLayout ? 38 : 0);
+  const canvasOffsetY = pan.y - (phoneLayout ? 20 : 0);
 
   useEffect(() => {
     if (!editingElementId) return;
@@ -558,11 +559,12 @@ export function EditorCanvas({
         style={
           {
             "--dot-grid-size": `${canvasScale}px`,
-            "--dot-grid-x": `calc(50% - ${(plate.size.widthMm * canvasScale) / 2}px + ${pan.x}px)`,
-            "--dot-grid-y": `calc(50% - ${(plate.size.heightMm * canvasScale) / 2}px + ${pan.y}px)`,
+            "--dot-grid-x": `calc(50% - ${(plate.size.widthMm * canvasScale) / 2}px + ${canvasOffsetX}px)`,
+            "--dot-grid-y": `calc(50% - ${(plate.size.heightMm * canvasScale) / 2}px + ${canvasOffsetY}px)`,
           } as WorkSurfaceStyle
         }
         onPointerDown={(event) => {
+          if ((event.target as HTMLElement).closest(".dimension-value")) return;
           const touchGestureStarted = trackTouchPointer(event);
           const target = event.target as HTMLElement;
           if (
@@ -583,7 +585,9 @@ export function EditorCanvas({
       >
         <div
           className="canvas-stage"
-          style={{ transform: `translate(${pan.x}px, ${pan.y}px)` }}
+          style={{
+            transform: `translate(${canvasOffsetX}px, ${canvasOffsetY}px)`,
+          }}
         >
           <CanvasGrid
             canvasScale={canvasScale}
@@ -592,6 +596,7 @@ export function EditorCanvas({
           />
           <CanvasRulers
             canvasScale={canvasScale}
+            editing={{ plate, onChange: onUpdatePlate }}
             heightMm={plate.size.heightMm}
             printableMargins={printableMargins}
             widthMm={plate.size.widthMm}

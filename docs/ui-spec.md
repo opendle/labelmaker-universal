@@ -12,9 +12,9 @@ and excessive decoration.
 - **Top bar:** large New, Open, and Save actions; workspace name and save state;
   undo, redo, a printer menu with an add-printer action, and print.
 - **Center:** one WYSIWYG label canvas with a neutral work surface.
-- **Editor toolbar:** element actions on the left and always-visible plate
-  height and margin controls on the right. It spans the center and inspector
-  columns. Do not show a manual Trim action or width input.
+- **Editor toolbar:** element actions, Flag, and Mirror. It spans the center
+  and inspector columns. Do not show plate height, margin, manual Trim, or
+  width inputs in this toolbar.
 - Use one shared field style for the editor toolbar, selected-element inspector,
   and printer settings. Put each field label inside the top edge of the border.
   Keep control height, input text, borders, and units consistent in all three
@@ -230,6 +230,11 @@ appearances so that they show the physical label and printed result accurately.
   the label itself. Keep readable minimum sizes and compact spacing. Keep the
   5 mm labels smaller than the total dimensions at every zoom. Do not show
   printer resolution or printable-area metadata at the lower-left corner.
+- Edit total plate height directly in its dimension ruler. Below the label,
+  show editable left and right trim-margin dimensions, including zero margins.
+  Underline editable values with dots. A click or keyboard focus selects the
+  complete number. Enter accepts the value and removes focus. Keep total width
+  and a separate printable height read-only.
 
 On macOS, use the native window controls from Electron. Do not draw a second
 set of traffic-light controls in the application header.

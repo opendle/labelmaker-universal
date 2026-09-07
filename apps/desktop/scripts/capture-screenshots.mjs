@@ -45,6 +45,7 @@ const screenshotDirectory = customScreenshotDirectory
   ? resolve(customScreenshotDirectory)
   : resolve(appDirectory, "../../artifacts/screenshots");
 const savedScreenshotNames = new Set([
+  "labelmaker-plate-settings-1440x960.png",
   "labelmaker-primary-1440x960.png",
   "labelmaker-phone-1100x700.png",
   "labelmaker-phone-settings-600x500.png",
@@ -404,7 +405,7 @@ await capture(1101, 700, "labelmaker-standard-1101x700.png", async (page) => {
       .querySelector(".editor-toolbar")
       ?.getBoundingClientRect();
     const settings = document
-      .querySelector(".plate-toolbar-settings")
+      .querySelector(".editor-tools")
       ?.getBoundingClientRect();
     return {
       header: Boolean(
@@ -727,7 +728,44 @@ await capture(
   960,
   "labelmaker-plate-settings-1440x960.png",
   async (page) => {
-    await page.getByLabel("Plate height").focus();
+    if (await page.locator(".editor-toolbar input[type=number]").count()) {
+      throw new Error("Plate dimensions are still in the toolbar");
+    }
+    for (const [name, value] of [
+      ["Plate height", "24"],
+      ["Left margin", "3"],
+      ["Right margin", "5"],
+    ]) {
+      const field = page.getByRole("spinbutton", { name });
+      await field.click();
+      await page.keyboard.type(value);
+      await page.keyboard.press("Enter");
+      if ((await field.inputValue()) !== value) {
+        throw new Error(`A click did not select the complete ${name} value`);
+      }
+      if (await field.evaluate((input) => input === document.activeElement)) {
+        throw new Error(`Enter did not remove focus from ${name}`);
+      }
+      if (
+        (await field.evaluate(
+          (input) => getComputedStyle(input).borderBottomStyle,
+        )) !== "dotted"
+      ) {
+        throw new Error(`${name} does not have a dotted underline`);
+      }
+      if (name === "Plate height") {
+        await page.waitForFunction(() => {
+          const label = document.querySelector(".label-canvas");
+          return (
+            label instanceof HTMLElement &&
+            Number(label.dataset.plateWidthMm) < 62
+          );
+        });
+        // Automatic trim can leave a text frame over the height ruler.
+        await field.click();
+        await field.blur();
+      }
+    }
   },
 );
 await capture(1440, 960, "labelmaker-flag-1440x960.png", async (page) => {
@@ -786,11 +824,12 @@ await capture(1440, 960, "labelmaker-trim-1440x960.png", async (page) => {
     const expectedGapDifference = (leftMarginMm - rightMarginMm) * pixelsPerMm;
     // Trim uses an 8 px/mm monochrome raster. The DOM glyph bounds can differ
     // by one raster pixel on each side.
+    const rasterTolerance = (2 * pixelsPerMm) / 8;
     if (
       !Number.isInteger(plateWidth) ||
       leftError < -1.6 ||
       rightError > 1.6 ||
-      Math.abs(leftError + rightError - expectedGapDifference) > 0.2
+      Math.abs(leftError + rightError - expectedGapDifference) > rasterTolerance
     ) {
       throw new Error(
         `Trim rounding is invalid: ${plateWidth}, ${leftError}, ${rightError}`,

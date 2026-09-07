@@ -70,6 +70,49 @@ function createProps(
 }
 
 describe("EditorCanvas", () => {
+  it("edits height and zero margins on the canvas without starting a gesture", () => {
+    const props = createProps();
+    const { container } = render(<EditorCanvas {...props} />);
+    expect(
+      container.querySelector(".editor-toolbar input[type=number]"),
+    ).toBeNull();
+
+    for (const name of ["Plate height", "Left margin", "Right margin"]) {
+      const input = screen.getByRole("spinbutton", {
+        name,
+      }) as HTMLInputElement;
+      expect(input.closest(".dimension-ruler")).not.toBeNull();
+      const select = vi.spyOn(input, "select");
+      fireEvent.pointerDown(input, { pointerId: 1, pointerType: "touch" });
+      input.focus();
+      expect(select).toHaveBeenCalled();
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(input).not.toHaveFocus();
+    }
+    expect(props.onSelectElement).not.toHaveBeenCalled();
+    expect(props.onZoom).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText("Plate height"), {
+      target: { value: "24" },
+    });
+    expect(props.onUpdatePlate).toHaveBeenLastCalledWith({
+      ...plate,
+      size: { ...plate.size, heightMm: 24 },
+      elements: [{ ...textElement, yMm: 4 }],
+    });
+    fireEvent.change(screen.getByLabelText("Left margin"), {
+      target: { value: "2.5" },
+    });
+    expect(props.onUpdatePlate).toHaveBeenLastCalledWith({
+      ...plate,
+      margins: { leftMm: 2.5, rightMm: 0 },
+    });
+    fireEvent.change(screen.getByLabelText("Right margin"), {
+      target: { value: "-2" },
+    });
+    expect(props.onUpdatePlate).toHaveBeenLastCalledWith(plate);
+  });
+
   it("applies horizontal text alignment to the canvas display", () => {
     render(<EditorCanvas {...createProps()} />);
 

@@ -1,11 +1,65 @@
-import type { CSSProperties } from "react";
+import type { LabelPlate } from "@labelmaker/domain";
+import { useEffect, useRef, type CSSProperties } from "react";
 
+import { updatePlateEditorHeight } from "./editor-operations.js";
 import { displayMillimeters, type PrintableMargins } from "./label-layout.js";
+import { NumberInput } from "./NumberInput.js";
 
 type GridStyle = CSSProperties & Record<`--${string}`, string | number>;
 type RulerStyle = CSSProperties & Record<`--${string}`, string | number>;
 
 const DIMENSION_MERGE_TOLERANCE_MM = 0.05;
+
+function EditableDimension({
+  label,
+  value,
+  min,
+  onChange,
+}: {
+  readonly label: string;
+  readonly value: number;
+  readonly min: number;
+  readonly onChange: (value: number) => void;
+}) {
+  const fieldRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const blurOutside = (event: PointerEvent) => {
+      const active = document.activeElement;
+      if (
+        active instanceof HTMLInputElement &&
+        fieldRef.current?.contains(active) &&
+        event.target !== active
+      ) {
+        active.blur();
+      }
+    };
+    document.addEventListener("pointerdown", blurOutside, true);
+    return () => document.removeEventListener("pointerdown", blurOutside, true);
+  }, []);
+
+  return (
+    <span className="dimension-value" ref={fieldRef}>
+      <NumberInput
+        aria-label={label}
+        inputMode="decimal"
+        min={min}
+        normalizeValue={(next) => Math.max(min, next)}
+        onFocus={(event) => event.currentTarget.select()}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter") return;
+          event.preventDefault();
+          event.currentTarget.blur();
+        }}
+        onValueChange={onChange}
+        step={0.1}
+        style={{ width: `${Math.max(1, String(value).length)}ch` }}
+        title={label}
+        value={value}
+      />
+      <b aria-hidden="true">mm</b>
+    </span>
+  );
+}
 
 export function CanvasGrid({
   widthMm,
@@ -64,12 +118,17 @@ export function CanvasRulers({
   canvasScale,
   zoom,
   printableMargins,
+  editing,
 }: {
   readonly widthMm: number;
   readonly heightMm: number;
   readonly canvasScale: number;
   readonly zoom: number;
   readonly printableMargins: PrintableMargins;
+  readonly editing?: {
+    readonly plate: LabelPlate;
+    readonly onChange: (plate: LabelPlate) => void;
+  };
 }) {
   const horizontal = Array.from(
     { length: Math.floor(widthMm / 5) + 1 },
@@ -147,12 +206,47 @@ export function CanvasRulers({
         ))}
       </div>
       <div
-        aria-hidden="true"
+        aria-hidden={editing ? undefined : true}
         className={`dimension-ruler dimension-ruler-height${hasSeparatePrintableHeight ? "" : " dimension-ruler-height-merged"}`}
         style={dimensionStyle}
       >
-        <span>{displayMillimeters(heightMm)} mm</span>
+        {editing ? (
+          <EditableDimension
+            label="Plate height"
+            min={1}
+            onChange={(next) =>
+              editing.onChange(updatePlateEditorHeight(editing.plate, next))
+            }
+            value={Math.round(heightMm * 10) / 10}
+          />
+        ) : (
+          <span>{displayMillimeters(heightMm)} mm</span>
+        )}
       </div>
+      {editing
+        ? (["leftMm", "rightMm"] as const).map((side) => (
+            <div
+              className={`dimension-ruler dimension-ruler-margin dimension-ruler-margin-${side === "leftMm" ? "left" : "right"}`}
+              key={side}
+              style={{
+                ...dimensionStyle,
+                width: `${editing.plate.margins[side] * canvasScale}px`,
+              }}
+            >
+              <EditableDimension
+                label={side === "leftMm" ? "Left margin" : "Right margin"}
+                min={0}
+                onChange={(next) =>
+                  editing.onChange({
+                    ...editing.plate,
+                    margins: { ...editing.plate.margins, [side]: next },
+                  })
+                }
+                value={Math.round(editing.plate.margins[side] * 10) / 10}
+              />
+            </div>
+          ))
+        : null}
       {hasSeparatePrintableHeight ? (
         <div
           aria-hidden="true"
