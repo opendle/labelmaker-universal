@@ -2247,20 +2247,111 @@ textarea.inline-text-editor {
 .printer-readonly-setting[aria-disabled="true"] > span {
   color: #9b968c;
 }
-.printer-geometry-settings {
+.printer-label-diagram {
   margin: 0;
-  padding: 0;
+}
+.printer-label-diagram figcaption {
   display: flex;
-  flex-direction: column;
-  gap: 9px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 16px;
+  color: var(--muted);
+  font-size: 10px;
 }
-.printer-geometry-grid {
+.printer-label-schematic {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 9px;
+  grid-template-columns: 128px minmax(64px, 1fr) 40px 32px;
+  grid-template-rows: 48px 96px 48px 64px;
 }
-.printer-geometry-primary-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.printer-example-label {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  display: grid;
+  grid-template-rows: 48px 96px 48px;
+  overflow: hidden;
+  border: 1px solid #98958e;
+  border-radius: 9px;
+  background: #fff;
+  color: #59564f;
+}
+.printer-example-next {
+  grid-column: 4;
+  border-right: 0;
+  border-radius: 9px 0 0 9px;
+}
+.printer-example-margin {
+  background: repeating-linear-gradient(135deg, #f0eee9 0 3px, #faf9f6 3px 7px);
+}
+.printer-example-printable {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-block: 1px dashed #98958e;
+  text-align: center;
+  font-size: 11px;
+}
+.printer-dimension {
+  position: relative;
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  padding-right: 24px;
+}
+.printer-dimension-top {
+  grid-row: 1;
+}
+.printer-dimension-head {
+  grid-row: 2;
+}
+.printer-dimension-bottom {
+  grid-row: 3;
+}
+.printer-dimension .printer-number-setting {
+  width: 100%;
+}
+.printer-dimension-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 9px;
+  width: 7px;
+  border-block: 1px solid var(--muted);
+}
+.printer-dimension-line::before {
+  position: absolute;
+  content: "";
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  border-left: 1px solid var(--muted);
+}
+.printer-dimension-gap {
+  grid-column: 3;
+  grid-row: 4;
+  justify-content: center;
+  align-items: end;
+  padding: 0;
+}
+.printer-dimension-gap .printer-number-setting {
+  flex: 0 0 104px;
+}
+.printer-dimension-gap .printer-dimension-line {
+  top: 12px;
+  right: 0;
+  bottom: auto;
+  width: 100%;
+  height: 7px;
+  border-block: 0;
+  border-inline: 1px solid var(--muted);
+}
+.printer-dimension-gap .printer-dimension-line::before {
+  top: 3px;
+  left: 0;
+  right: 0;
+  bottom: auto;
+  border-left: 0;
+  border-top: 1px solid var(--muted);
 }
 .printer-number-setting .unit-input {
   width: 100%;
@@ -3550,11 +3641,6 @@ textarea.inline-text-editor {
 .layout-phone .printer-settings-form,
 .layout-phone-short .printer-settings-form {
   overflow-y: auto;
-}
-
-.layout-phone .printer-geometry-grid,
-.layout-phone-short .printer-geometry-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .layout-phone .dialog-footer,

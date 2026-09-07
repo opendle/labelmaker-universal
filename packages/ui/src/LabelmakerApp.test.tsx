@@ -2755,8 +2755,10 @@ describe("LabelmakerApp", () => {
       "printer-settings-modal",
     );
     expect(
-      settings.querySelector(".printer-geometry-primary-grid"),
-    ).toHaveTextContent("RESOLUTION");
+      within(settings).getByRole("figure", {
+        name: "Printer label dimensions",
+      }),
+    ).toHaveTextContent("Resolution:");
     await user.click(
       within(settings).getByRole("button", { name: "Close printer settings" }),
     );

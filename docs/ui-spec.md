@@ -194,12 +194,16 @@ appearances so that they show the physical label and printed result accurately.
   Let the user change print-head size and independent top and bottom margins in
   0.1 mm steps. Let the user set the space between labels, with 1 mm as the
   default. Let the user change other capabilities that the printer reports
-  as adjustable, such as darkness. Put resolution and print-head size on the
-  first row. Put top margin, bottom margin, and margin between labels on the
-  next row. Do not put a frame or group title around these controls or around
-  darkness. Enter in any printer setting saves the settings and closes the
-  dialog. Keep only the Save action in the dialog footer. Store all values for
-  that printer.
+  as adjustable, such as darkness. Replace the geometry field rows with a
+  diagram of one example label and part of the next label. Show the printable
+  area and hatched top and bottom margins. Put editable dimensions beside the
+  three vertical areas and below the gap between labels. Keep the example
+  independent of the current plate and mark it as not to scale. Show resolution
+  as fixed text above the diagram. Keep all dimensions keyboard accessible,
+  including zero margins and zero gap. Do not put a frame or group title around
+  the diagram or darkness. Enter in any printer setting saves the settings and
+  closes the dialog. Keep only the Save action in the dialog footer. Store all
+  values for that printer.
 - Add a flag or cable-wrap plate from the special-label actions.
 - Put a Mirror toggle next to Flag. Mirror the printed output. Keep the editor
   canvas and plate-strip artwork unchanged.
@@ -341,7 +345,7 @@ Phone mode.
   delete buttons in the Phone label strip.
 - Show printer settings and Add printer as top sheets that use the same shape,
   spacing, field style, and footer style as the other Phone property sheets.
-  Put two printer fields in each row when the fields fit.
+  Keep the printer dimension diagram within the sheet width.
 - Make Phone toasts fill the screen width with 20 CSS pixels of space on each
   side.
 - Fit the label and rulers to the Phone work area at 100% when possible.

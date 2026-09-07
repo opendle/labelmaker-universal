@@ -59,26 +59,73 @@ function renderDialog({
 }
 
 describe("PrinterSettingsDialog", () => {
-  it("groups the capability and geometry fields in two rows", () => {
+  it("shows editable dimensions beside example labels and fixed resolution", () => {
     renderDialog();
-
-    const firstRow =
-      screen.getByText("RESOLUTION").parentElement?.parentElement;
-    const marginRow = screen
-      .getByLabelText("Top margin")
-      .closest(".printer-geometry-grid");
-
-    expect(firstRow).toHaveClass("printer-geometry-primary-grid");
-    expect(firstRow).toContainElement(screen.getByLabelText("Print head size"));
-    expect(firstRow).not.toContainElement(screen.getByLabelText("Top margin"));
-    expect(
-      screen.getByText("203 dpi").closest(".printer-readonly-setting"),
-    ).toHaveAttribute("aria-disabled", "true");
-    expect(marginRow).toContainElement(screen.getByLabelText("Bottom margin"));
-    expect(marginRow).toContainElement(
-      screen.getByLabelText("Margin between labels"),
-    );
+    const diagram = screen.getByRole("figure", {
+      name: "Printer label dimensions",
+    });
+    expect(diagram).toHaveTextContent("Example labels · not to scale");
+    expect(diagram).toHaveTextContent("Resolution: 203 dpi");
+    expect(diagram).toHaveTextContent("Printable area");
+    for (const name of [
+      "Print head size",
+      "Top margin",
+      "Bottom margin",
+      "Margin between labels",
+    ]) {
+      expect(diagram).toContainElement(
+        screen.getByRole("spinbutton", { name }),
+      );
+    }
     expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+  });
+
+  it("saves each edited diagram dimension with its correct setting", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(true);
+    renderDialog({ onSave });
+    for (const [name, value] of [
+      ["Print head size", "14.5"],
+      ["Top margin", "0.3"],
+      ["Bottom margin", "2.7"],
+      ["Margin between labels", "3.1"],
+    ] as const) {
+      const input = screen.getByRole("spinbutton", { name });
+      await user.clear(input);
+      await user.type(input, value);
+    }
+    await user.keyboard("{Enter}");
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith("printer", {
+        displayName: "Studio printer",
+        printHeadSizeMm: 14.5,
+        marginTopMm: 0.3,
+        marginBottomMm: 2.7,
+        interLabelSpacingMm: 3.1,
+      }),
+    );
+  });
+
+  it("accepts zero margins and gap, and rejects invalid dimensions", () => {
+    renderDialog();
+    for (const name of [
+      "Top margin",
+      "Bottom margin",
+      "Margin between labels",
+    ]) {
+      fireEvent.change(screen.getByRole("spinbutton", { name }), {
+        target: { value: "0" },
+      });
+    }
+    const save = screen.getByRole("button", { name: "Save settings" });
+    expect(save).toBeEnabled();
+    const head = screen.getByRole("spinbutton", { name: "Print head size" });
+    for (const value of ["", "0", "-1", "100.1", "12.34"]) {
+      fireEvent.change(head, { target: { value } });
+      expect(save).toBeDisabled();
+    }
+    fireEvent.change(head, { target: { value: "0.1" } });
+    expect(save).toBeEnabled();
   });
 
   it("requests a decimal keyboard for each number field", () => {

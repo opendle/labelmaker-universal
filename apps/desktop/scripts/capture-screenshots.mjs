@@ -53,6 +53,10 @@ const savedScreenshotNames = new Set([
   "labelmaker-flag-1440x960.png",
   "labelmaker-add-printer-1440x960.png",
   "labelmaker-compact-1100x760.png",
+  "labelmaker-printer-settings-1440x960.png",
+  "labelmaker-printer-settings-dark-1440x960.png",
+  "labelmaker-printer-settings-1100x760.png",
+  "labelmaker-printer-settings-600x667.png",
 ]);
 await mkdir(screenshotDirectory, { recursive: true });
 if (!customScreenshotDirectory) {
@@ -621,6 +625,37 @@ await capture(
     await page.getByRole("dialog", { name: "Printer settings" }).waitFor();
   },
 );
+for (const [width, height] of [
+  [1100, 760],
+  [600, 667],
+]) {
+  await capture(
+    width,
+    height,
+    `labelmaker-printer-settings-${width}x${height}.png`,
+    async (page) => {
+      await page
+        .getByRole("button", { name: "Selected printer: Studio Labeler" })
+        .click();
+      await page
+        .getByRole("button", { name: "Settings for Studio Labeler" })
+        .click();
+      const diagram = page.getByRole("figure", {
+        name: "Printer label dimensions",
+      });
+      await diagram.waitFor();
+      const fits = await diagram.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        return [...element.querySelectorAll("input")].every((input) => {
+          const field = input.getBoundingClientRect();
+          return field.left >= bounds.left && field.right <= bounds.right;
+        });
+      });
+      if (!fits)
+        throw new Error("Printer dimension controls overflow the diagram");
+    },
+  );
+}
 await capture(
   1440,
   960,

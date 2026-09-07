@@ -94,26 +94,27 @@ export function PrinterSettingsDialog({
   const close = () => {
     if (!form.saving) onClose();
   };
-  const marginFields = [
+  const dimensionFields = [
+    { key: "marginTopMm", label: "Top margin", minimum: 0, position: "top" },
     {
-      key: "marginTopMm" as const,
-      label: "Top margin",
-      minimum: 0,
-      shortLabel: "Top margin",
+      key: "printHeadSizeMm",
+      label: "Print head size",
+      minimum: 0.1,
+      position: "head",
     },
     {
-      key: "marginBottomMm" as const,
+      key: "marginBottomMm",
       label: "Bottom margin",
       minimum: 0,
-      shortLabel: "Bottom margin",
+      position: "bottom",
     },
     {
-      key: "interLabelSpacingMm" as const,
+      key: "interLabelSpacingMm",
       label: "Margin between labels",
       minimum: 0,
-      shortLabel: "Label gap",
+      position: "gap",
     },
-  ];
+  ] as const;
   return (
     <Modal
       className="phone-form-modal printer-settings-modal"
@@ -173,68 +174,76 @@ export function PrinterSettingsDialog({
               </button>
             </div>
           </label>
-          <div className="printer-geometry-settings">
-            <div className="printer-geometry-grid printer-geometry-primary-grid">
-              <div aria-disabled="true" className="printer-readonly-setting">
-                <span>RESOLUTION</span>
-                <output>
-                  {printer.dpi === undefined
-                    ? "Not reported"
-                    : `${printer.dpi} dpi`}
-                </output>
+          <figure
+            className="printer-label-diagram"
+            aria-label="Printer label dimensions"
+          >
+            <figcaption>
+              <span>Example labels · not to scale</span>
+              <span>
+                Resolution:{" "}
+                {printer.dpi === undefined
+                  ? "Not reported"
+                  : `${printer.dpi} dpi`}
+              </span>
+            </figcaption>
+            <p hidden id="printer-dimensions-help">
+              The print head covers the printable area. Top and bottom margins
+              are above and below it. The label gap is the space between labels.
+              Edit each dimension in millimeters.
+            </p>
+            <div className="printer-label-schematic">
+              <div className="printer-example-label" aria-hidden="true">
+                <div className="printer-example-margin" />
+                <div className="printer-example-printable">Printable area</div>
+                <div className="printer-example-margin" />
               </div>
-              <label className="printer-number-setting">
-                <span>PRINT HEAD SIZE</span>
-                <span className="unit-input">
-                  <input
-                    aria-label="Print head size"
-                    disabled={form.saving}
-                    inputMode="decimal"
-                    max={100}
-                    min={0.1}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        printHeadSizeMm: event.target.value,
-                      }))
-                    }
-                    required
-                    step={0.1}
-                    type="number"
-                    value={form.printHeadSizeMm}
-                  />
-                  <b>mm</b>
-                </span>
-              </label>
-            </div>
-            <div className="printer-geometry-grid printer-margin-grid">
-              {marginFields.map((field) => (
-                <label className="printer-number-setting" key={field.key}>
-                  <span>{field.shortLabel.toUpperCase()}</span>
-                  <span className="unit-input">
-                    <input
-                      aria-label={field.label}
-                      disabled={form.saving}
-                      inputMode="decimal"
-                      max={100}
-                      min={field.minimum}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          [field.key]: event.target.value,
-                        }))
-                      }
-                      required
-                      step={0.1}
-                      type="number"
-                      value={form[field.key]}
-                    />
-                    <b>mm</b>
-                  </span>
-                </label>
+              <div
+                className="printer-example-label printer-example-next"
+                aria-hidden="true"
+              >
+                <div className="printer-example-margin" />
+                <div className="printer-example-printable" />
+                <div className="printer-example-margin" />
+              </div>
+              {dimensionFields.map((field) => (
+                <div
+                  className={`printer-dimension printer-dimension-${field.position}`}
+                  key={field.key}
+                >
+                  <span className="printer-dimension-line" aria-hidden="true" />
+                  <label className="printer-number-setting">
+                    <span>
+                      {field.position === "gap"
+                        ? "LABEL GAP"
+                        : field.label.toUpperCase()}
+                    </span>
+                    <span className="unit-input">
+                      <input
+                        aria-label={field.label}
+                        aria-describedby="printer-dimensions-help"
+                        disabled={form.saving}
+                        inputMode="decimal"
+                        max={100}
+                        min={field.minimum}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            [field.key]: event.target.value,
+                          }))
+                        }
+                        required
+                        step={0.1}
+                        type="number"
+                        value={form[field.key]}
+                      />
+                      <b>mm</b>
+                    </span>
+                  </label>
+                </div>
               ))}
             </div>
-          </div>
+          </figure>
           {printer.darkness ? (
             <label className="darkness-setting">
               <span>
