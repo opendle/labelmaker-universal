@@ -180,6 +180,7 @@ async function capture(width, height, name, setup) {
           `Desktop layout overflows its viewport: ${JSON.stringify(layout)}`,
         );
       }
+      await assertModalLayout(page);
       if (savedScreenshotNames.has(name)) {
         await page.screenshot({ path: resolve(screenshotDirectory, name) });
       }
@@ -191,6 +192,54 @@ async function capture(width, height, name, setup) {
     await closeCaptureApplication(true);
     throw error;
   }
+}
+
+async function assertModalLayout(page) {
+  await page.evaluate(() => {
+    for (const dialog of document.querySelectorAll('[role="dialog"]')) {
+      const bounds = dialog.getBoundingClientRect();
+      const backdrop = dialog.closest(".modal-backdrop");
+      const backdropStyle = getComputedStyle(backdrop);
+      const availableHeight =
+        backdrop.clientHeight -
+        Number.parseFloat(backdropStyle.paddingTop) -
+        Number.parseFloat(backdropStyle.paddingBottom);
+      if (bounds.top < -1 || bounds.bottom > window.innerHeight + 1) {
+        throw new Error("A modal extends outside the viewport");
+      }
+      const drawingSurface = dialog.querySelector(".drawing-surface");
+      const drawingCanvas = drawingSurface?.querySelector("canvas");
+      if (
+        drawingCanvas &&
+        drawingCanvas.getBoundingClientRect().top + drawingSurface.scrollTop <
+          drawingSurface.getBoundingClientRect().top - 1
+      ) {
+        throw new Error("The top of the drawing canvas cannot be reached");
+      }
+      for (const element of [dialog, ...dialog.querySelectorAll("*")]) {
+        const overflow = element.scrollHeight - element.clientHeight;
+        const style = getComputedStyle(element);
+        if (
+          /auto|scroll/.test(style.overflowY) &&
+          overflow > 1 &&
+          availableHeight - bounds.height >= overflow + 1
+        ) {
+          throw new Error(
+            `A modal scrolls while its content can fit: ${element.className}`,
+          );
+        }
+      }
+      for (const footer of dialog.querySelectorAll(".dialog-footer")) {
+        const footerBounds = footer.getBoundingClientRect();
+        if (
+          footerBounds.top < bounds.top ||
+          footerBounds.bottom > bounds.bottom + 1
+        ) {
+          throw new Error("A modal footer is outside the visible dialog");
+        }
+      }
+    }
+  });
 }
 
 async function setHiddenNumberControl(page, label, value) {
@@ -692,6 +741,11 @@ for (const [width, height] of [
         name: "Printer label dimensions",
       });
       await diagram.waitFor();
+      const schematicHeight = await diagram
+        .locator(".printer-label-schematic")
+        .evaluate((element) => element.getBoundingClientRect().height);
+      if (schematicHeight > 208)
+        throw new Error("The printer diagram is too tall");
       const fits = await diagram.evaluate((element) => {
         const bounds = element.getBoundingClientRect();
         return [...element.querySelectorAll("input")].every((input) => {
@@ -1029,6 +1083,42 @@ await capture(
   },
 );
 await capture(1100, 760, "labelmaker-compact-1100x760.png");
+for (const [width, height] of [
+  [1440, 960],
+  [1100, 760],
+  [600, 500],
+]) {
+  for (const [action, title, slug] of [
+    ["Draw", "Draw image", "drawing"],
+    ["Icons", "Icon library", "icon-library"],
+  ]) {
+    const name = `labelmaker-${slug}-${width}x${height}.png`;
+    savedScreenshotNames.add(name);
+    await capture(width, height, name, async (page) => {
+      await page.getByRole("button", { name: action, exact: true }).click();
+      await page.getByRole("dialog", { name: title }).waitFor();
+      if (action === "Icons") {
+        await page
+          .getByRole("list", { name: "Icons" })
+          .getByRole("button")
+          .first()
+          .waitFor();
+      }
+    });
+  }
+}
+for (const [width, height] of [
+  [1100, 760],
+  [600, 500],
+]) {
+  const name = `labelmaker-text-properties-${width}x${height}.png`;
+  savedScreenshotNames.add(name);
+  await capture(width, height, name, async (page) => {
+    await page.locator(".canvas-text .canvas-element-control").first().click();
+    await page.getByRole("button", { name: "More element properties" }).click();
+    await page.getByRole("dialog", { name: "Text properties" }).waitFor();
+  });
+}
 await closeCaptureApplication();
 
 console.log(`Screenshots saved to ${screenshotDirectory} in one app session`);

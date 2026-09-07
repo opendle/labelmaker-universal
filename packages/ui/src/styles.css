@@ -1906,16 +1906,42 @@ textarea.inline-text-editor {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 8px;
   background: rgba(35, 32, 27, 0.33);
   backdrop-filter: blur(2px);
 }
 .dialog {
   width: 470px;
+  max-height: calc(var(--visual-viewport-height, 100vh) - 16px);
+  display: flex;
+  flex-direction: column;
   border: 1px solid rgba(99, 91, 76, 0.25);
   border-radius: 12px;
   background: #fbfaf7;
   box-shadow: 0 24px 70px rgba(26, 23, 18, 0.28);
   overflow: hidden;
+}
+.dialog-header,
+.dialog-footer,
+.discovery-banner,
+.icon-library-search,
+.drawing-tools,
+.drawing-message {
+  flex-shrink: 0;
+}
+.drawing-editor-content,
+.printer-settings-form {
+  min-height: 0;
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+}
+.dialog .discovery-list,
+.dialog .drawing-surface,
+.dialog .printer-settings-content {
+  min-height: 0;
+  flex: 0 1 auto;
+  overflow-y: auto;
 }
 .dialog-header {
   min-height: 60px;
@@ -1968,8 +1994,8 @@ textarea.inline-text-editor {
   outline-offset: 1px;
 }
 .icon-library-list {
-  height: min(460px, calc(100vh - 250px));
-  min-height: 180px;
+  min-height: 0;
+  flex: 0 1 auto;
   padding: 10px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
@@ -2059,7 +2085,7 @@ textarea.inline-text-editor {
 }
 .drawing-surface {
   display: flex;
-  align-items: center;
+  align-items: safe center;
   justify-content: center;
   overflow: auto;
   background: var(--paper);
@@ -2171,9 +2197,8 @@ textarea.inline-text-editor {
   flex-direction: column;
   gap: 13px;
 }
-.printer-settings-form {
-  display: flex;
-  flex-direction: column;
+.printer-settings-content > * {
+  flex-shrink: 0;
 }
 .printer-name-setting,
 .printer-readonly-setting,
@@ -2263,20 +2288,23 @@ textarea.inline-text-editor {
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 6px;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
   color: var(--muted);
   font-size: 10px;
 }
 .printer-label-schematic {
+  --printer-dimension-row-height: calc(var(--field-control-height) + 4px);
   display: grid;
   grid-template-columns: 128px minmax(64px, 1fr) 40px 32px;
-  grid-template-rows: 48px 96px 48px 64px;
+  grid-template-rows: repeat(3, var(--printer-dimension-row-height)) calc(
+      var(--field-control-height) + 16px
+    );
 }
 .printer-example-label {
   grid-column: 2;
   grid-row: 1 / 4;
   display: grid;
-  grid-template-rows: 48px 96px 48px;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
   overflow: hidden;
   border: 1px solid #98958e;
   border-radius: 9px;
@@ -2837,9 +2865,6 @@ textarea.inline-text-editor {
 }
 .presentation-mobile-touch .icon-library-item {
   min-height: 72px;
-}
-.presentation-mobile-touch .icon-library-list {
-  height: min(460px, calc(var(--visual-viewport-height, 100vh) - 250px));
 }
 
 .presentation-mobile-touch[data-software-keyboard="open"]
@@ -3473,23 +3498,13 @@ textarea.inline-text-editor {
   .dialog {
   width: 100%;
   max-width: 600px;
-  max-height: min(
-    72vh,
-    calc(
-      var(--visual-viewport-height, 100vh) - var(--phone-sheet-top-gap) -
-        var(--phone-sheet-bottom-gap)
-    )
-  );
-  display: flex;
-  flex-direction: column;
-  border-radius: 14px;
-}
-
-.layout-phone-short :is(.phone-property-modal, .phone-form-modal) .dialog {
   max-height: calc(
     var(--visual-viewport-height, 100vh) - var(--phone-sheet-top-gap) -
       var(--phone-sheet-bottom-gap)
   );
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
 }
 
 .phone-sheet-header {
@@ -3648,7 +3663,7 @@ textarea.inline-text-editor {
 
 .layout-phone .printer-settings-form,
 .layout-phone-short .printer-settings-form {
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .layout-phone .dialog-footer,

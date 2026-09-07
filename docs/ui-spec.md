@@ -62,6 +62,10 @@ appearances so that they show the physical label and printed result accurately.
   or virtual printers in the user interface.
 - Close a modal with its close action, Escape, or a click or tap outside the
   dialog. Keep a modal open while an active operation prevents closing.
+- Size modals to their content, up to the available visual viewport height.
+  Do not make content scroll when the complete content can fit on screen.
+  Keep headers and actions visible when content must scroll. Apply this rule
+  to settings, properties, printer discovery, drawing, and the icon library.
 - While a printer is added, show progress and disable conflicting dialog
   actions. Close the dialog after success and keep it open after failure.
 - Do not show controls that have no action.
@@ -200,7 +204,8 @@ appearances so that they show the physical label and printed result accurately.
   default. Let the user change other capabilities that the printer reports
   as adjustable, such as darkness. Replace the geometry field rows with a
   diagram of one example label and part of the next label. Show the printable
-  area and hatched top and bottom margins. Put editable dimensions beside the
+  area and hatched top and bottom margins. Keep its vertical areas only as tall
+  as needed for the dimension controls. Put editable dimensions beside the
   three vertical areas and below the gap between labels. Keep the example
   independent of the current plate and mark it as not to scale. Show resolution
   as fixed text above the diagram. Keep all dimensions keyboard accessible,
