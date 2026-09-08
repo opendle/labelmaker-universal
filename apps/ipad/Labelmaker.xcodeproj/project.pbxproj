@@ -213,7 +213,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"\ncd \"$SRCROOT/../..\"\nnpm run build --workspace @labelmaker/mobile-web\nrm -rf \"$SRCROOT/Labelmaker/Resources/WebApp\"\ncp -R \"$SRCROOT/../mobile-web/dist\" \"$SRCROOT/Labelmaker/Resources/WebApp\"\n";
+			shellScript = "set -e\nif [ \"${CI_XCODE_CLOUD:-}\" = \"TRUE\" ]; then\n  if [ ! -s \"$SRCROOT/Labelmaker/Resources/WebApp/index.html\" ]; then\n    echo \"error: WebApp is missing. Check ci_scripts/ci_post_clone.sh in the Xcode Cloud logs.\" >&2\n    exit 1\n  fi\n  exit 0\nfi\nexport PATH=\"/opt/homebrew/bin:/usr/local/bin:$PATH\"\ncd \"$SRCROOT/../..\"\nnpm run build --workspace @labelmaker/mobile-web\nrm -rf \"$SRCROOT/Labelmaker/Resources/WebApp\"\ncp -R \"$SRCROOT/../mobile-web/dist\" \"$SRCROOT/Labelmaker/Resources/WebApp\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

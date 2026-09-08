@@ -47,8 +47,8 @@ The defaults are `iPhone 17 Pro` and `iPad Pro 13-inch (M5)`. Set
 `IPHONE_SIMULATOR` or `IPAD_SIMULATOR` to another available simulator name or
 simulator identifier when needed.
 
-The Xcode target runs the Apple mobile web build before each native build. You can also
-check it separately with:
+For local builds, the Xcode target runs the Apple mobile web build before each
+native build. You can also check it separately with:
 
 ```sh
 npm run typecheck --workspace @labelmaker/ipad
@@ -61,6 +61,22 @@ xcodebuild -project apps/ipad/Labelmaker.xcodeproj \
 
 The generated Vite bundle is ignored by Git. Do not commit
 `Labelmaker/Resources/WebApp`.
+
+## Xcode Cloud
+
+Use `apps/ipad/Labelmaker.xcodeproj` and the shared `Labelmaker` scheme. Select
+Xcode 26 or later and an iOS Archive action in the Cloud workflow.
+
+Xcode Cloud runs `ci_scripts/ci_post_clone.sh` next to the project. This script
+installs Node.js 24 with Homebrew, runs `npm ci --include=dev` at the repository
+root, and builds the web resources. It skips the Electron binary download.
+The dependencies and generated web files must be ready before Xcode starts.
+
+During a Cloud build, the `Build shared web app` phase checks the prepared
+`WebApp/index.html`. It does not need the post-clone script's `PATH` to remain
+set. If preparation fails, check the `ci_post_clone.sh` log for the failed
+command. If the build phase reports that `WebApp` is missing, check that the
+workflow used this project's post-clone script.
 
 ## App Store screenshots
 
