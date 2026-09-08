@@ -827,7 +827,6 @@ for (const [width, height, touch] of [
         const top = bounds(".nonprintable-zone.top");
         const bottom = bounds(".nonprintable-zone.bottom");
         const gap = bounds(".printer-ribbon-gap");
-        const label = bounds(".printer-ruler-length");
         const figure = element.getBoundingClientRect();
         const fields = [...element.querySelectorAll(".dimension-value")].map(
           (field) => field.getBoundingClientRect(),
@@ -840,7 +839,6 @@ for (const [width, height, touch] of [
           topWidth: top.width,
           bottomWidth: bottom.width,
           gap: gap.width,
-          label: label.width,
           fits: fields.every(
             (field) =>
               field.left >= figure.left &&
@@ -860,7 +858,7 @@ for (const [width, height, touch] of [
         };
       });
       const [head, top, bottom, gap] = values.map(Number);
-      const scale = geometry.label / 30;
+      const scale = geometry.ribbon.width / (44 + gap);
       for (const [actual, expected] of [
         [geometry.head, head * scale],
         [geometry.top, top * scale],

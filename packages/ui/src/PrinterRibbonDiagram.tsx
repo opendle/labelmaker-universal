@@ -99,12 +99,6 @@ export function PrinterRibbonDiagram({
             }}
           />
         </div>
-        <div
-          className="dimension-ruler dimension-ruler-width printer-ruler-length"
-          aria-hidden="true"
-        >
-          <span>30 mm</span>
-        </div>
         {fields.map((field) => (
           <div
             key={field.key}

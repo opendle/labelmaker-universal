@@ -2367,13 +2367,8 @@ textarea.inline-text-editor {
 .printer-ribbon .nonprintable-zone.bottom {
   box-shadow: inset 0 1px rgba(105, 100, 91, 0.42);
 }
-.printer-ribbon-preview .dimension-value,
-.printer-ribbon-preview .printer-ruler-length > span {
+.printer-ribbon-preview .dimension-value {
   background: var(--dimension-value-background);
-}
-.printer-ruler-length {
-  top: -20px;
-  width: calc(30 * var(--ribbon-mm));
 }
 .printer-ruler-top,
 .printer-ruler-bottom {

@@ -66,7 +66,7 @@ describe("PrinterSettingsDialog", () => {
     });
     expect(diagram).toHaveTextContent("Example ribbon · to scale");
     expect(diagram).toHaveTextContent("Resolution: 203 dpi");
-    expect(diagram).toHaveTextContent("30 mm");
+    expect(diagram).not.toHaveTextContent("30 mm");
     for (const name of [
       "Print head size",
       "Top margin",

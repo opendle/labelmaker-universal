@@ -209,8 +209,9 @@ appearances so that they show the physical label and printed result accurately.
   diagram of one example label and part of the next label. Show the printable
   area and hatched top and bottom margins across the full ribbon width. Use
   straight label separations. Draw the ribbon to scale on both axes, with a
-  30 mm example label independent of the current plate. Fit the ribbon in a
-  compact area. Use the main canvas ruler style and editable text for the
+  30 mm example label independent of the current plate. Do not show a width
+  ruler for the example label. Fit the ribbon in a compact area. Use the main
+  canvas ruler style and editable text for the
   three vertical areas and the gap between labels. On hover, explain what each
   dimension measures and that it is editable. Show resolution
   as fixed text above the diagram. Keep all dimensions keyboard accessible,
