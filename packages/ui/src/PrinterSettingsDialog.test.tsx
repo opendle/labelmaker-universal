@@ -64,9 +64,9 @@ describe("PrinterSettingsDialog", () => {
     const diagram = screen.getByRole("figure", {
       name: "Printer label dimensions",
     });
-    expect(diagram).toHaveTextContent("Example labels · not to scale");
+    expect(diagram).toHaveTextContent("Example ribbon · to scale");
     expect(diagram).toHaveTextContent("Resolution: 203 dpi");
-    expect(diagram).toHaveTextContent("Printable area");
+    expect(diagram).toHaveTextContent("30 mm");
     for (const name of [
       "Print head size",
       "Top margin",
@@ -75,6 +75,17 @@ describe("PrinterSettingsDialog", () => {
     ]) {
       expect(diagram).toContainElement(
         screen.getByRole("spinbutton", { name }),
+      );
+    }
+    for (const [name, meaning] of [
+      ["Print head size", "Print head size: height of the printable area"],
+      ["Top margin", "Top margin: ribbon above the printable area"],
+      ["Bottom margin", "Bottom margin: ribbon below the printable area"],
+      ["Margin between labels", "Label gap: space between two labels"],
+    ] as const) {
+      expect(screen.getByRole("spinbutton", { name })).toHaveAttribute(
+        "title",
+        `${meaning}. Click to edit in millimeters.`,
       );
     }
     expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
@@ -94,7 +105,7 @@ describe("PrinterSettingsDialog", () => {
       await user.clear(input);
       await user.type(input, value);
     }
-    await user.keyboard("{Enter}");
+    await user.click(screen.getByRole("button", { name: "Save settings" }));
     await waitFor(() =>
       expect(onSave).toHaveBeenCalledWith("printer", {
         displayName: "Studio printer",
@@ -136,17 +147,26 @@ describe("PrinterSettingsDialog", () => {
     }
   });
 
-  it("saves and closes with Enter from a setting", async () => {
+  it.each([
+    "Print head size",
+    "Top margin",
+    "Bottom margin",
+    "Margin between labels",
+  ])("accepts %s with Enter without saving the dialog", async (name) => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     const onSave = vi.fn().mockResolvedValue(true);
     renderDialog({ onClose, onSave });
 
-    await user.click(screen.getByLabelText("Bottom margin"));
+    const input = screen.getByLabelText(name);
+    await user.click(input);
+    expect(input).toHaveFocus();
     await user.keyboard("{Enter}");
 
-    await waitFor(() => expect(onSave).toHaveBeenCalledOnce());
-    expect(onClose).toHaveBeenCalledOnce();
+    expect(input).not.toHaveFocus();
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeVisible();
   });
 
   it("does not close from the backdrop or Escape while a save is active", async () => {

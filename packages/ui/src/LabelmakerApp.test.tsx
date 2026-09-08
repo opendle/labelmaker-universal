@@ -884,13 +884,7 @@ describe("LabelmakerApp", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it.each([
-    "Printer name",
-    "Print head size",
-    "Top margin",
-    "Bottom margin",
-    "Margin between labels",
-  ])("saves printer settings with Enter from %s", async (fieldLabel) => {
+  it("saves printer settings with Enter from the printer name", async () => {
     const updatePrinterSettings = vi.fn().mockResolvedValue([]);
     const user = userEvent.setup();
     render(<LabelmakerApp host={createHost({ updatePrinterSettings })} />);
@@ -903,7 +897,7 @@ describe("LabelmakerApp", () => {
       screen.getByRole("button", { name: "Settings for Studio Labeler" }),
     );
 
-    await user.click(screen.getByLabelText(fieldLabel));
+    await user.click(screen.getByLabelText("Printer name"));
     await user.keyboard("{Enter}");
 
     await waitFor(() => expect(updatePrinterSettings).toHaveBeenCalledOnce());

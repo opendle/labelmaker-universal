@@ -1,65 +1,14 @@
 import type { LabelPlate } from "@labelmaker/domain";
-import { useEffect, useRef, type CSSProperties } from "react";
+import type { CSSProperties } from "react";
 
 import { updatePlateEditorHeight } from "./editor-operations.js";
 import { displayMillimeters, type PrintableMargins } from "./label-layout.js";
-import { NumberInput } from "./NumberInput.js";
+import { EditableDimension } from "./EditableDimension.js";
 
 type GridStyle = CSSProperties & Record<`--${string}`, string | number>;
 type RulerStyle = CSSProperties & Record<`--${string}`, string | number>;
 
 const DIMENSION_MERGE_TOLERANCE_MM = 0.05;
-
-function EditableDimension({
-  label,
-  value,
-  min,
-  onChange,
-}: {
-  readonly label: string;
-  readonly value: number;
-  readonly min: number;
-  readonly onChange: (value: number) => void;
-}) {
-  const fieldRef = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    const blurOutside = (event: PointerEvent) => {
-      const active = document.activeElement;
-      if (
-        active instanceof HTMLInputElement &&
-        fieldRef.current?.contains(active) &&
-        event.target !== active
-      ) {
-        active.blur();
-      }
-    };
-    document.addEventListener("pointerdown", blurOutside, true);
-    return () => document.removeEventListener("pointerdown", blurOutside, true);
-  }, []);
-
-  return (
-    <span className="dimension-value" ref={fieldRef}>
-      <NumberInput
-        aria-label={label}
-        inputMode="decimal"
-        min={min}
-        normalizeValue={(next) => Math.max(min, next)}
-        onFocus={(event) => event.currentTarget.select()}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter") return;
-          event.preventDefault();
-          event.currentTarget.blur();
-        }}
-        onValueChange={onChange}
-        step={0.1}
-        style={{ width: `${Math.max(1, String(value).length)}ch` }}
-        title={label}
-        value={value}
-      />
-      <b aria-hidden="true">mm</b>
-    </span>
-  );
-}
 
 export function CanvasGrid({
   widthMm,

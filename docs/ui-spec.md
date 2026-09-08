@@ -207,14 +207,17 @@ appearances so that they show the physical label and printed result accurately.
   default. Let the user change other capabilities that the printer reports
   as adjustable, such as darkness. Replace the geometry field rows with a
   diagram of one example label and part of the next label. Show the printable
-  area and hatched top and bottom margins. Keep its vertical areas only as tall
-  as needed for the dimension controls. Put editable dimensions beside the
-  three vertical areas and below the gap between labels. Keep the example
-  independent of the current plate and mark it as not to scale. Show resolution
+  area and hatched top and bottom margins across the full ribbon width. Use
+  straight label separations. Draw the ribbon to scale on both axes, with a
+  30 mm example label independent of the current plate. Fit the ribbon in a
+  compact area. Use the main canvas ruler style and editable text for the
+  three vertical areas and the gap between labels. On hover, explain what each
+  dimension measures and that it is editable. Show resolution
   as fixed text above the diagram. Keep all dimensions keyboard accessible,
   including zero margins and zero gap. Do not put a frame or group title around
-  the diagram or darkness. Enter in any printer setting saves the settings and
-  closes the dialog. Keep only the Save action in the dialog footer. Store all
+  the diagram or darkness. Enter in a dimension ends editing without closing
+  the dialog. Enter in the printer name saves the settings and closes the
+  dialog. Keep only the Save action in the dialog footer. Store all
   values for that printer.
 - Add a flag or cable-wrap plate from the special-label actions.
 - Put a Mirror toggle next to Flag. Mirror the printed output. Keep the editor

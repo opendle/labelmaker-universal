@@ -2293,106 +2293,133 @@ textarea.inline-text-editor {
   font-size: 10px;
 }
 .printer-label-schematic {
-  --printer-dimension-row-height: calc(var(--field-control-height) + 4px);
-  display: grid;
-  grid-template-columns: 128px minmax(64px, 1fr) 40px 32px;
-  grid-template-rows: repeat(3, var(--printer-dimension-row-height)) calc(
-      var(--field-control-height) + 16px
-    );
-}
-.printer-example-label {
-  grid-column: 2;
-  grid-row: 1 / 4;
-  display: grid;
-  grid-template-rows: repeat(3, minmax(0, 1fr));
-  overflow: hidden;
-  border: 1px solid #98958e;
-  border-radius: 9px;
-  background: #fff;
-  color: #59564f;
-}
-.printer-example-next {
-  grid-column: 4;
-  border-right: 0;
-  border-radius: 9px 0 0 9px;
-}
-.printer-example-margin {
-  background: repeating-linear-gradient(135deg, #f0eee9 0 3px, #faf9f6 3px 7px);
-}
-.printer-example-printable {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-block: 1px dashed #98958e;
-  text-align: center;
-  font-size: 11px;
-}
-.printer-dimension {
+  container-type: inline-size;
   position: relative;
-  grid-column: 1;
-  display: flex;
-  align-items: center;
-  padding-right: 24px;
+  height: 192px;
 }
-.printer-dimension-top {
-  grid-row: 1;
+.printer-ribbon-preview {
+  --ribbon-left-space: 104px;
+  --ribbon-head-offset: 80px;
+  --ribbon-right-space: 40px;
+  --ribbon-height-limit: 116px;
+  --ribbon-mm: min(
+    8px,
+    calc(var(--ribbon-height-limit) / var(--ribbon-height-mm)),
+    calc(
+      (100cqw - var(--ribbon-left-space) - var(--ribbon-right-space)) /
+        var(--ribbon-length-mm)
+    )
+  );
+  --dimension-ruler-font-size: 10px;
+  --dimension-value-background: #fbfaf7;
+  position: absolute;
+  left: var(--ribbon-left-space);
+  top: calc(
+    32px +
+      (
+        var(--ribbon-height-limit) - var(--ribbon-height-mm) * var(--ribbon-mm)
+      ) /
+      2
+  );
+  width: calc(var(--ribbon-length-mm) * var(--ribbon-mm));
+  height: calc(var(--ribbon-height-mm) * var(--ribbon-mm));
 }
-.printer-dimension-head {
-  grid-row: 2;
+.printer-ribbon {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  outline: 1px solid #a8a49a;
+  background: var(--paper);
 }
-.printer-dimension-bottom {
-  grid-row: 3;
+.printer-ribbon svg {
+  position: absolute;
+  inset: 0;
+  fill: #24221e;
 }
-.printer-dimension .printer-number-setting {
-  width: 100%;
-}
-.printer-dimension-line {
+.printer-ribbon-gap {
   position: absolute;
   top: 0;
   bottom: 0;
-  right: 9px;
-  width: 7px;
-  border-block: 1px solid var(--muted);
+  left: calc(30 * var(--ribbon-mm));
+  width: calc(var(--ribbon-gap-mm) * var(--ribbon-mm));
+  background: #e6e5df;
 }
-.printer-dimension-line::before {
-  position: absolute;
+.printer-ribbon-gap::before,
+.printer-ribbon-gap::after {
   content: "";
+  position: absolute;
   top: 0;
   bottom: 0;
-  left: 3px;
-  border-left: 1px solid var(--muted);
+  border-left: 1px solid #a8a49a;
 }
-.printer-dimension-gap {
-  grid-column: 3;
-  grid-row: 4;
-  justify-content: center;
-  align-items: end;
-  padding: 0;
-}
-.printer-dimension-gap .printer-number-setting {
-  flex: 0 0 104px;
-}
-.printer-dimension-gap .printer-dimension-line {
-  top: 12px;
-  right: 0;
-  bottom: auto;
-  width: 100%;
-  height: 7px;
-  border-block: 0;
-  border-inline: 1px solid var(--muted);
-}
-.printer-dimension-gap .printer-dimension-line::before {
-  top: 3px;
+.printer-ribbon-gap::before {
   left: 0;
-  right: 0;
-  bottom: auto;
-  border-left: 0;
-  border-top: 1px solid var(--muted);
 }
-.printer-number-setting .unit-input {
-  width: 100%;
-  padding-top: 7px;
-  padding-bottom: 0;
+.printer-ribbon-gap::after {
+  right: 0;
+}
+.printer-ribbon .nonprintable-zone {
+  border: 0;
+}
+.printer-ribbon .nonprintable-zone.top {
+  box-shadow: inset 0 -1px rgba(105, 100, 91, 0.42);
+}
+.printer-ribbon .nonprintable-zone.bottom {
+  box-shadow: inset 0 1px rgba(105, 100, 91, 0.42);
+}
+.printer-ribbon-preview .dimension-value,
+.printer-ribbon-preview .printer-ruler-length > span {
+  background: var(--dimension-value-background);
+}
+.printer-ruler-length {
+  top: -20px;
+  width: calc(30 * var(--ribbon-mm));
+}
+.printer-ruler-top,
+.printer-ruler-bottom {
+  left: -14px;
+}
+.printer-ruler-head {
+  left: calc(0px - var(--ribbon-head-offset));
+}
+.printer-ruler-top > .dimension-value,
+.printer-ruler-bottom > .dimension-value {
+  left: -5px;
+  transform: translateX(-100%);
+}
+.printer-ruler-top > .dimension-value {
+  top: -30px;
+}
+.printer-ruler-bottom > .dimension-value {
+  top: calc(100% + 6px);
+}
+.printer-ruler-gap {
+  top: calc(100% + 14px);
+  left: calc(30 * var(--ribbon-mm));
+  width: calc(var(--ribbon-gap-mm) * var(--ribbon-mm));
+}
+.printer-ruler-gap > .dimension-value {
+  left: max(0px, calc(50% - 28px));
+}
+.presentation-mobile-touch .printer-ribbon-preview {
+  --ribbon-left-space: 144px;
+  --ribbon-head-offset: 116px;
+  --ribbon-right-space: 80px;
+  --ribbon-height-limit: 80px;
+}
+.presentation-mobile-touch
+  :is(.printer-ruler-top, .printer-ruler-bottom)
+  > .dimension-value {
+  left: 0;
+}
+.presentation-mobile-touch .printer-ruler-bottom > .dimension-value {
+  top: calc(100% + 22px);
+}
+@media (prefers-color-scheme: dark) {
+  .printer-ribbon-preview,
+  .printer-ribbon-preview .dimension-ruler > span {
+    --dimension-value-background: #252629;
+  }
 }
 .darkness-setting {
   display: flex;

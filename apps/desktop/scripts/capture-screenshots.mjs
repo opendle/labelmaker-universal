@@ -746,41 +746,145 @@ await capture(
     await page.getByRole("dialog", { name: "Printer settings" }).waitFor();
   },
 );
-for (const [width, height] of [
-  [1100, 760],
-  [600, 667],
+for (const [width, height, touch] of [
+  [1100, 760, false],
+  [600, 667, false],
+  [375, 667, true],
+  [320, 667, true],
 ]) {
-  await capture(
-    width,
-    height,
-    `labelmaker-printer-settings-${width}x${height}.png`,
-    async (page) => {
-      await page
-        .getByRole("button", { name: "Selected printer: Studio Labeler" })
-        .click();
-      await page
-        .getByRole("button", { name: "Settings for Studio Labeler" })
-        .click();
-      const diagram = page.getByRole("figure", {
-        name: "Printer label dimensions",
+  const name = `labelmaker-printer-settings-${width}x${height}.png`;
+  savedScreenshotNames.add(name);
+  await capture(width, height, name, async (page) => {
+    if (touch) {
+      await application.evaluate(
+        ({ BrowserWindow }, size) => {
+          const window = BrowserWindow.getAllWindows()[0];
+          window.setMinimumSize(300, 300);
+          window.setSize(size.width, size.height);
+        },
+        { width, height },
+      );
+      await page.waitForFunction((width) => window.innerWidth === width, width);
+      await page.evaluate(() =>
+        document
+          .querySelector(".app-shell")
+          .classList.add("presentation-mobile-touch"),
+      );
+    }
+    await page
+      .getByRole("button", { name: "Selected printer: Studio Labeler" })
+      .click();
+    await page
+      .getByRole("button", { name: "Settings for Studio Labeler" })
+      .click();
+    const diagram = page.getByRole("figure", {
+      name: "Printer label dimensions",
+    });
+    await diagram.waitFor();
+    const schematicHeight = await diagram
+      .locator(".printer-label-schematic")
+      .evaluate((element) => element.getBoundingClientRect().height);
+    if (schematicHeight > 208)
+      throw new Error("The printer diagram is too tall");
+    const fits = await diagram.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return [...element.querySelectorAll("input")].every((input) => {
+        const field = input.getBoundingClientRect();
+        return field.left >= bounds.left && field.right <= bounds.right;
       });
-      await diagram.waitFor();
-      const schematicHeight = await diagram
-        .locator(".printer-label-schematic")
-        .evaluate((element) => element.getBoundingClientRect().height);
-      if (schematicHeight > 208)
-        throw new Error("The printer diagram is too tall");
-      const fits = await diagram.evaluate((element) => {
-        const bounds = element.getBoundingClientRect();
-        return [...element.querySelectorAll("input")].every((input) => {
-          const field = input.getBoundingClientRect();
-          return field.left >= bounds.left && field.right <= bounds.right;
-        });
+    });
+    if (!fits)
+      throw new Error("Printer dimension controls overflow the diagram");
+    const original = await Promise.all(
+      [
+        "Print head size",
+        "Top margin",
+        "Bottom margin",
+        "Margin between labels",
+      ].map((name) => page.getByLabel(name, { exact: true }).inputValue()),
+    );
+    for (const values of [
+      ["12", "1", "2", "3"],
+      ["12", "0", "0", "0"],
+      ["0.1", "0", "0", "0"],
+      ["0.1", "100", "100", "100"],
+      original,
+    ]) {
+      for (const [index, name] of [
+        "Print head size",
+        "Top margin",
+        "Bottom margin",
+        "Margin between labels",
+      ].entries()) {
+        await page.getByLabel(name, { exact: true }).fill(values[index]);
+      }
+      await page.getByLabel("Margin between labels").press("Enter");
+      const geometry = await diagram.evaluate((element) => {
+        const bounds = (selector) =>
+          element.querySelector(selector).getBoundingClientRect();
+        const ribbon = bounds(".printer-ribbon");
+        const head = bounds(".printer-ruler-head");
+        const top = bounds(".nonprintable-zone.top");
+        const bottom = bounds(".nonprintable-zone.bottom");
+        const gap = bounds(".printer-ribbon-gap");
+        const label = bounds(".printer-ruler-length");
+        const figure = element.getBoundingClientRect();
+        const fields = [...element.querySelectorAll(".dimension-value")].map(
+          (field) => field.getBoundingClientRect(),
+        );
+        return {
+          ribbon: { width: ribbon.width, height: ribbon.height },
+          head: head.height,
+          top: top.height,
+          bottom: bottom.height,
+          topWidth: top.width,
+          bottomWidth: bottom.width,
+          gap: gap.width,
+          label: label.width,
+          fits: fields.every(
+            (field) =>
+              field.left >= figure.left &&
+              field.right <= figure.right &&
+              field.top >= figure.top &&
+              field.bottom <= figure.bottom,
+          ),
+          overlap: fields.some((a, index) =>
+            fields
+              .slice(index + 1)
+              .some(
+                (b) =>
+                  Math.min(a.right, b.right) > Math.max(a.left, b.left) &&
+                  Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top),
+              ),
+          ),
+        };
       });
-      if (!fits)
-        throw new Error("Printer dimension controls overflow the diagram");
-    },
-  );
+      const [head, top, bottom, gap] = values.map(Number);
+      const scale = geometry.label / 30;
+      for (const [actual, expected] of [
+        [geometry.head, head * scale],
+        [geometry.top, top * scale],
+        [geometry.bottom, bottom * scale],
+        [geometry.gap, gap * scale],
+        [geometry.ribbon.height, (head + top + bottom) * scale],
+        [geometry.topWidth, geometry.ribbon.width],
+        [geometry.bottomWidth, geometry.ribbon.width],
+      ]) {
+        if (Math.abs(actual - expected) > 0.2)
+          throw new Error(
+            "Printer ribbon dimensions do not use the same scale",
+          );
+      }
+      if (!geometry.fits || geometry.overlap)
+        throw new Error(
+          "Printer ribbon dimensions overlap or leave the diagram",
+        );
+    }
+    return () =>
+      application.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows()[0].setMinimumSize(600, 500);
+      });
+  });
 }
 await capture(
   1440,

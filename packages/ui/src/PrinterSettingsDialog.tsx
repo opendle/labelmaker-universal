@@ -6,6 +6,7 @@ import { MAX_PRINTER_DISPLAY_NAME_LENGTH } from "@labelmaker/printing";
 import { IconButton } from "./controls.js";
 import type { PrinterSettings, PrinterSummary } from "./host.js";
 import { Modal } from "./Modal.js";
+import { PrinterRibbonDiagram } from "./PrinterRibbonDiagram.js";
 
 interface PrinterSettingsForm {
   readonly displayName: string;
@@ -94,27 +95,6 @@ export function PrinterSettingsDialog({
   const close = () => {
     if (!form.saving) onClose();
   };
-  const dimensionFields = [
-    { key: "marginTopMm", label: "Top margin", minimum: 0, position: "top" },
-    {
-      key: "printHeadSizeMm",
-      label: "Print head size",
-      minimum: 0.1,
-      position: "head",
-    },
-    {
-      key: "marginBottomMm",
-      label: "Bottom margin",
-      minimum: 0,
-      position: "bottom",
-    },
-    {
-      key: "interLabelSpacingMm",
-      label: "Margin between labels",
-      minimum: 0,
-      position: "gap",
-    },
-  ] as const;
   return (
     <Modal
       className="phone-form-modal printer-settings-modal"
@@ -179,7 +159,7 @@ export function PrinterSettingsDialog({
             aria-label="Printer label dimensions"
           >
             <figcaption>
-              <span>Example labels · not to scale</span>
+              <span>Example ribbon · to scale</span>
               <span>
                 Resolution:{" "}
                 {printer.dpi === undefined
@@ -187,62 +167,13 @@ export function PrinterSettingsDialog({
                   : `${printer.dpi} dpi`}
               </span>
             </figcaption>
-            <p hidden id="printer-dimensions-help">
-              The print head covers the printable area. Top and bottom margins
-              are above and below it. The label gap is the space between labels.
-              Edit each dimension in millimeters.
-            </p>
-            <div className="printer-label-schematic">
-              <div className="printer-example-label" aria-hidden="true">
-                <div className="printer-example-margin" />
-                <div className="printer-example-printable">Printable area</div>
-                <div className="printer-example-margin" />
-              </div>
-              <div
-                className="printer-example-label printer-example-next"
-                aria-hidden="true"
-              >
-                <div className="printer-example-margin" />
-                <div className="printer-example-printable" />
-                <div className="printer-example-margin" />
-              </div>
-              {dimensionFields.map((field) => (
-                <div
-                  className={`printer-dimension printer-dimension-${field.position}`}
-                  key={field.key}
-                >
-                  <span className="printer-dimension-line" aria-hidden="true" />
-                  <label className="printer-number-setting">
-                    <span>
-                      {field.position === "gap"
-                        ? "LABEL GAP"
-                        : field.label.toUpperCase()}
-                    </span>
-                    <span className="unit-input">
-                      <input
-                        aria-label={field.label}
-                        aria-describedby="printer-dimensions-help"
-                        disabled={form.saving}
-                        inputMode="decimal"
-                        max={100}
-                        min={field.minimum}
-                        onChange={(event) =>
-                          setForm((current) => ({
-                            ...current,
-                            [field.key]: event.target.value,
-                          }))
-                        }
-                        required
-                        step={0.1}
-                        type="number"
-                        value={form[field.key]}
-                      />
-                      <b>mm</b>
-                    </span>
-                  </label>
-                </div>
-              ))}
-            </div>
+            <PrinterRibbonDiagram
+              values={form}
+              disabled={form.saving}
+              onChange={(field, value) =>
+                setForm((current) => ({ ...current, [field]: value }))
+              }
+            />
           </figure>
           {printer.darkness ? (
             <label className="darkness-setting">
