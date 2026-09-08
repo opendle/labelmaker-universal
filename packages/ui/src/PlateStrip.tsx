@@ -406,7 +406,8 @@ export function PlateStrip({
               ? 1.75
               : 2.35
             : THUMBNAIL_PIXELS_PER_MM;
-          const croppedScale = plate.size.heightMm / crop.heightMm;
+          const croppedScale =
+            crop.heightMm > 0 ? plate.size.heightMm / crop.heightMm : 1;
           return (
             <div
               aria-grabbed={draggingPlateId === plate.id}

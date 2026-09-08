@@ -35,11 +35,22 @@ The authoritative TypeScript contract is in `packages/printing/src/index.ts`.
 The UI must derive available media, dimensions, printable head width, density
 controls, color modes, and copy limits from `PrinterCapabilities`. It calculates
 non-printable label areas from the label dimension across the print head, the
-physical printable head width, and the adapter's default top and bottom head
-offsets. `rasterAlignment` reports whether narrower media starts at the top,
-stays in the center, or ends at the bottom of the print head. The renderer and
-the printable-area guides use this value. A narrower label that fits under the
-head has no non-printable area. A missing capability stays hidden or disabled.
+physical printable head width, and the configured top and bottom blank margins.
+The adapter supplies the default margins. Each margin reserves at least the
+specified blank space at its label edge. A narrow label keeps these margins.
+The print head can impose a larger non-printable area.
+`rasterAlignment` sets the fixed position of the label relative to the start,
+center, or end of the print head. The margin settings do not move the label or
+the artwork across the head. The printable area is the intersection of the
+physical head width and the label area between the requested margins. Extra
+head width stays blank. If the head is smaller than the label, it imposes
+additional blank edge space according to the same alignment.
+The shared `printerVerticalGeometry` calculation supplies the renderer and UI
+guides. The renderer clips artwork to this area and clears margin pixels after
+dithering, before transposition. It rounds each boundary to the nearest printer
+pixel. Margins do not change the raster width, feed length, or artwork scale.
+If the margins cover the complete label, the raster is blank.
+A missing capability stays hidden or disabled.
 An adapter can expose one set of static offline capabilities when all supported
 printers are identical. A multi-model adapter uses `offlineCapabilitiesFor`
 after it detects and stores a stable model profile. It must not guess a

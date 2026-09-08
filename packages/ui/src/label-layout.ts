@@ -1,4 +1,7 @@
-import type { RasterAlignment } from "@labelmaker/printing";
+import {
+  printerVerticalGeometry,
+  type RasterAlignment,
+} from "@labelmaker/printing";
 
 const POINTS_PER_INCH = 72;
 const MILLIMETERS_PER_INCH = 25.4;
@@ -31,16 +34,13 @@ export function printableVerticalCrop(
   plateHeightMm: number,
   margins: PrintableMargins,
 ) {
-  const topMm = Math.min(plateHeightMm, Math.max(0, margins.topMm));
-  const bottomMm = Math.min(
-    plateHeightMm - topMm,
+  const { topMm, bottomMm, heightMm } = printerVerticalGeometry(
+    plateHeightMm,
+    plateHeightMm,
+    Math.max(0, margins.topMm),
     Math.max(0, margins.bottomMm),
   );
-  return {
-    topMm,
-    bottomMm,
-    heightMm: Math.max(0.01, plateHeightMm - topMm - bottomMm),
-  };
+  return { topMm, bottomMm, heightMm };
 }
 
 export function nonPrintableMarginsMm(
@@ -51,20 +51,14 @@ export function nonPrintableMarginsMm(
   rasterAlignment: RasterAlignment = "center",
 ): PrintableMargins {
   if (printHeadSizeMm === undefined) return { topMm: 0, bottomMm: 0 };
-  if (plateHeightMm <= printHeadSizeMm) return { topMm: 0, bottomMm: 0 };
-  const unusedHeadWidthMm = plateHeightMm - printHeadSizeMm;
-  const alignedBaseMm =
-    rasterAlignment === "start"
-      ? 0
-      : rasterAlignment === "end"
-        ? unusedHeadWidthMm
-        : unusedHeadWidthMm / 2;
-  const marginAdjustmentMm = (configuredTopMm - configuredBottomMm) / 2;
-  const printableTopMm = alignedBaseMm + marginAdjustmentMm;
-  return {
-    topMm: Math.max(0, printableTopMm),
-    bottomMm: Math.max(0, plateHeightMm - printableTopMm - printHeadSizeMm),
-  };
+  const { topMm, bottomMm } = printerVerticalGeometry(
+    plateHeightMm,
+    printHeadSizeMm,
+    configuredTopMm,
+    configuredBottomMm,
+    rasterAlignment,
+  );
+  return { topMm, bottomMm };
 }
 
 export function displayMillimeters(value: number): number {

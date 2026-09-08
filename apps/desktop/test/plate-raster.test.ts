@@ -32,10 +32,13 @@ describe("desktop plate rasterization", () => {
     expect(svg).toContain('height="10" fill="white"');
   });
 
-  it("positions the print head with independent top and bottom margins", () => {
+  it("clips independent margins without moving the physical print head", () => {
     const svg = buildPlateSvg(plate, 320, 96, 12, 1, 3);
 
-    expect(svg).toContain('viewBox="0 1 40 12"');
+    expect(svg).toContain('viewBox="0 2 40 12"');
+    expect(svg).toContain(
+      '<clipPath id="printable-area"><rect x="0" y="2" width="40" height="11"/></clipPath>',
+    );
   });
 
   it("keeps centered artwork centered on 16 mm MakeID E1 media", () => {
@@ -110,7 +113,7 @@ describe("desktop plate rasterization", () => {
 
     expect(svg).toContain('<rect x="0" y="0" width="40"');
     expect(svg).toContain('<g transform="translate(40 0) scale(-1 1)">');
-    expect(svg).toMatch(/<g[^>]+><text[\s\S]*<\/text><\/g><\/svg>$/);
+    expect(svg).toMatch(/<g[^>]+><text[\s\S]*<\/text><\/g><\/g><\/svg>$/);
   });
 
   it("renders line, rectangle, and circle shapes", () => {

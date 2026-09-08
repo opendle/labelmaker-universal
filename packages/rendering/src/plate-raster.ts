@@ -3,7 +3,11 @@ import type {
   LabelElement,
   LabelPlate,
 } from "@labelmaker/domain";
-import type { RasterAlignment, RasterPage } from "@labelmaker/printing";
+import {
+  printerVerticalGeometry,
+  type RasterAlignment,
+  type RasterPage,
+} from "@labelmaker/printing";
 import {
   millimetersToPixels,
   packMonochromeRows,
@@ -80,8 +84,25 @@ export async function renderPlateForPrinter(
     mode: "floyd-steinberg",
     threshold: 160,
   });
+  const geometry = printerVerticalGeometry(
+    plate.size.heightMm,
+    target.printableWidthMm,
+    target.marginTopMm,
+    target.marginBottomMm,
+    target.rasterAlignment,
+  );
+  const pixelsPerMm = target.rasterWidthPixels / target.printableWidthMm;
+  const firstPrintableRow = Math.round(
+    (geometry.topMm - geometry.headTopMm) * pixelsPerMm,
+  );
+  const lastPrintableRow = Math.round(
+    (plate.size.heightMm - geometry.bottomMm - geometry.headTopMm) *
+      pixelsPerMm,
+  );
   const pixels = new Uint8Array(target.rasterWidthPixels * feedLengthPixels);
   for (let sourceY = 0; sourceY < target.rasterWidthPixels; sourceY += 1) {
+    // Keep margin pixels white after dithering and before transposition.
+    if (sourceY < firstPrintableRow || sourceY >= lastPrintableRow) continue;
     for (let sourceX = 0; sourceX < feedLengthPixels; sourceX += 1) {
       const feedLine = feedLengthPixels - sourceX - 1;
       pixels[feedLine * target.rasterWidthPixels + sourceY] =
@@ -295,38 +316,19 @@ export function buildPlateSvg(
   marginBottomMm = 0,
   rasterAlignment: RasterAlignment = "center",
 ): string {
-  if (!Number.isFinite(printableWidthMm) || printableWidthMm <= 0) {
-    throw new RangeError("Printer printable width must be greater than zero");
-  }
-  if (
-    !Number.isFinite(marginTopMm) ||
-    marginTopMm < 0 ||
-    !Number.isFinite(marginBottomMm) ||
-    marginBottomMm < 0
-  ) {
-    throw new RangeError("Printer margins must be zero or greater");
-  }
-  if (
-    rasterAlignment !== "start" &&
-    rasterAlignment !== "center" &&
-    rasterAlignment !== "end"
-  ) {
-    throw new RangeError("Printer raster alignment is invalid");
-  }
-  const unusedHeadWidthMm = plate.size.heightMm - printableWidthMm;
-  const alignedBaseMm =
-    rasterAlignment === "start"
-      ? 0
-      : rasterAlignment === "end"
-        ? unusedHeadWidthMm
-        : unusedHeadWidthMm / 2;
-  const marginAdjustmentMm = (marginTopMm - marginBottomMm) / 2;
-  const viewBoxY = alignedBaseMm + marginAdjustmentMm;
+  const geometry = printerVerticalGeometry(
+    plate.size.heightMm,
+    printableWidthMm,
+    marginTopMm,
+    marginBottomMm,
+    rasterAlignment,
+  );
+  const viewBoxY = geometry.headTopMm;
   const body = plate.elements.map(renderElement).join("");
   const artwork = plate.mirrorPrint
     ? `<g transform="translate(${number(plate.size.widthMm)} 0) scale(-1 1)">${body}</g>`
     : body;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPixels}" height="${heightPixels}" viewBox="0 ${number(viewBoxY)} ${number(plate.size.widthMm)} ${number(printableWidthMm)}"><rect x="0" y="0" width="${number(plate.size.widthMm)}" height="${number(plate.size.heightMm)}" fill="white"/>${artwork}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPixels}" height="${heightPixels}" preserveAspectRatio="none" viewBox="0 ${number(viewBoxY)} ${number(plate.size.widthMm)} ${number(printableWidthMm)}"><rect x="0" y="0" width="${number(plate.size.widthMm)}" height="${number(plate.size.heightMm)}" fill="white"/><defs><clipPath id="printable-area"><rect x="0" y="${number(geometry.topMm)}" width="${number(plate.size.widthMm)}" height="${number(geometry.heightMm)}"/></clipPath></defs><g clip-path="url(#printable-area)">${artwork}</g></svg>`;
 }
 
 function renderElement(element: LabelElement): string {

@@ -95,12 +95,15 @@ appearances so that they show the physical label and printed result accurately.
 - Align every 5 mm background grid line to the center of its ruler tick.
 - Show capability-reported top and bottom non-printable areas on the canvas.
   Calculate each area from the current label height and the printer's physical
-  printable width. A label that fits inside the printable width has no
-  non-printable label area. Do not scale a narrow label to the full print-head
+  printable width and configured top and bottom margins. Each margin reserves
+  blank space at its label edge, including on narrow labels. The print head can
+  impose a larger non-printable area. Use the same geometry as the renderer.
+  Do not scale a narrow label to the full print-head
   width. Crop the top and bottom non-printable regions from plate thumbnails.
   Scale the remaining printable artwork to the existing thumbnail height and
   increase the thumbnail width by the same factor. Do not show non-printable
-  hatch overlays in thumbnails.
+  hatch overlays in thumbnails. If margins cover the complete label, show a
+  blank thumbnail with the full label proportions.
 - Resize text, image, and shape elements from corner handles and rotate them
   from a separate rotation handle. Hold Shift during a resize to preserve the
   frame's current proportions. Rotate freely, but snap to each 45-degree angle

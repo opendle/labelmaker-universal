@@ -24,7 +24,9 @@ export function LabelArtwork({
   readonly mirrorArtwork?: boolean;
 }) {
   const crop = printableVerticalCrop(plate.size.heightMm, printableMargins);
-  const aspectRatio = plate.size.widthMm / crop.heightMm;
+  const displayHeightMm = crop.heightMm || plate.size.heightMm;
+  const aspectRatio = plate.size.widthMm / displayHeightMm;
+  const visibleElements = crop.heightMm > 0 ? plate.elements : [];
   return (
     <span
       className={`label-artwork ${className}`}
@@ -36,7 +38,7 @@ export function LabelArtwork({
         } as ArtworkStyle
       }
     >
-      {plate.elements.map((element) => {
+      {visibleElements.map((element) => {
         const frame: ArtworkStyle = {
           left: `${(element.xMm / plate.size.widthMm) * 100}%`,
           top: `${((element.yMm - crop.topMm) / crop.heightMm) * 100}%`,

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { createBlankLabelDocument } from "@labelmaker/documents";
+import { renderPlateForPrinter } from "@labelmaker/rendering";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createNativeBridge } from "./native-bridge.js";
@@ -307,7 +308,7 @@ describe("iPad printer configuration", () => {
         version: 2,
         printerIds: [PRINTER_ID],
         activePrinterId: PRINTER_ID,
-        settings: {},
+        settings: { [PRINTER_ID]: { marginTopMm: 0, marginBottomMm: 3 } },
         printerRecords: {
           [PRINTER_ID]: {
             id: PRINTER_ID,
@@ -368,8 +369,25 @@ describe("iPad printer configuration", () => {
     };
     const service = createService();
 
+    vi.mocked(renderPlateForPrinter).mockClear();
     await service.print(request);
+    expect(renderPlateForPrinter).toHaveBeenLastCalledWith(
+      document.plates[0],
+      expect.objectContaining({ marginTopMm: 0, marginBottomMm: 3 }),
+      expect.any(Function),
+      expect.any(Function),
+    );
+    await service.updatePrinterSettings(PRINTER_ID, {
+      marginTopMm: 4,
+      marginBottomMm: 0,
+    });
     await service.print(request);
+    expect(renderPlateForPrinter).toHaveBeenLastCalledWith(
+      document.plates[0],
+      expect.objectContaining({ marginTopMm: 4, marginBottomMm: 0 }),
+      expect.any(Function),
+      expect.any(Function),
+    );
 
     expect(
       methods.filter((method) => method === "bluetoothConnect"),

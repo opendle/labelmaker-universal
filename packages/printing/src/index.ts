@@ -42,8 +42,55 @@ export interface NumericSettingCapability {
   readonly defaultValue: number;
 }
 
-/** Cross-feed position of media that is narrower than the print head. */
+/** Cross-feed position of media relative to the print head. */
 export type RasterAlignment = "start" | "center" | "end";
+
+/** Clip label margins against the fixed physical print-head position. */
+export function printerVerticalGeometry(
+  plateHeightMm: number,
+  printHeadSizeMm: number,
+  marginTopMm = 0,
+  marginBottomMm = 0,
+  rasterAlignment: RasterAlignment = "center",
+) {
+  if (!Number.isFinite(plateHeightMm) || plateHeightMm <= 0) {
+    throw new RangeError("Label height must be greater than zero");
+  }
+  if (!Number.isFinite(printHeadSizeMm) || printHeadSizeMm <= 0) {
+    throw new RangeError("Printer printable width must be greater than zero");
+  }
+  if (
+    !Number.isFinite(marginTopMm) ||
+    marginTopMm < 0 ||
+    !Number.isFinite(marginBottomMm) ||
+    marginBottomMm < 0
+  ) {
+    throw new RangeError("Printer margins must be zero or greater");
+  }
+  if (!["start", "center", "end"].includes(rasterAlignment)) {
+    throw new RangeError("Printer raster alignment is invalid");
+  }
+  const spareHeightMm = plateHeightMm - printHeadSizeMm;
+  const headTopMm =
+    rasterAlignment === "start"
+      ? 0
+      : rasterAlignment === "end"
+        ? spareHeightMm
+        : spareHeightMm / 2;
+  const topMm = Math.min(plateHeightMm, Math.max(0, marginTopMm, headTopMm));
+  const bottomMm = Math.min(
+    plateHeightMm - topMm,
+    Math.max(0, marginBottomMm, plateHeightMm - headTopMm - printHeadSizeMm),
+  );
+  const heightMm = Math.max(0, plateHeightMm - topMm - bottomMm);
+  // Decimal margins can leave a floating-point residue instead of zero.
+  return {
+    headTopMm,
+    topMm,
+    bottomMm,
+    heightMm: heightMm <= plateHeightMm * Number.EPSILON * 2 ? 0 : heightMm,
+  };
+}
 
 export interface PrinterCapabilities {
   readonly dpi: number;
@@ -52,9 +99,9 @@ export interface PrinterCapabilities {
   readonly printableWidthMm: number;
   /** Position of the media across the physical print head. */
   readonly rasterAlignment: RasterAlignment;
-  /** Default head offset from the top edge of the nominal media. */
+  /** Default minimum blank margin at the top label edge, in millimeters. */
   readonly printHeadMarginTopMm?: number;
-  /** Default head offset from the bottom edge of the nominal media. */
+  /** Default minimum blank margin at the bottom label edge, in millimeters. */
   readonly printHeadMarginBottomMm?: number;
   readonly darkness?: NumericSettingCapability;
   readonly colorModes: readonly ["monochrome"];
@@ -111,7 +158,9 @@ export interface PrinterSettings {
   readonly displayName?: string;
   readonly darkness?: number;
   readonly printHeadSizeMm?: number;
+  /** Minimum blank space at the top label edge, in millimeters. */
   readonly marginTopMm?: number;
+  /** Minimum blank space at the bottom label edge, in millimeters. */
   readonly marginBottomMm?: number;
   readonly interLabelSpacingMm?: number;
 }

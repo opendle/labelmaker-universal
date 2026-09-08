@@ -112,6 +112,41 @@ describe("PlateStrip", () => {
     expect(text.style.height).toBe(`${(9.6 / 12) * 100}%`);
   });
 
+  it.each([
+    [8, 8],
+    [8.2, 7.8],
+    [10, 10],
+    [100, 0],
+  ])(
+    "shows a blank thumbnail when margins %s / %s cover the label",
+    (top, bottom) => {
+      const { container } = render(
+        <PlateStrip
+          activePlateId="plate-resistors"
+          marginBottomMm={bottom}
+          marginTopMm={top}
+          onAddPlate={vi.fn()}
+          onDeletePlate={vi.fn()}
+          onMovePlate={vi.fn()}
+          onSelectPlate={vi.fn()}
+          printHeadSizeMm={12}
+          workspace={sampleDocument}
+        />,
+      );
+      const thumbnail = container.querySelector<HTMLElement>(".plate-thumb")!;
+      const artwork = thumbnail.querySelector<HTMLElement>(".mini-label")!;
+
+      expect(artwork).toBeEmptyDOMElement();
+      expect(artwork).toHaveStyle({ aspectRatio: String(62 / 16) });
+      expect(thumbnail.style.getPropertyValue("--label-preview-height")).toBe(
+        "52px",
+      );
+      expect(thumbnail.style.getPropertyValue("--label-preview-width")).toBe(
+        "201.5px",
+      );
+    },
+  );
+
   it("remounts thumbnail paint nodes after the native app returns to the foreground", () => {
     vi.stubGlobal(
       "requestAnimationFrame",
