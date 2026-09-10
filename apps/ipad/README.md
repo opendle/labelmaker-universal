@@ -7,6 +7,10 @@ transport. The shared TypeScript adapter owns the printer protocol.
 
 ## Requirements
 
+See [iPhone Duo readiness](../../docs/iphone-duo.md) for the September 2026
+assessment and the remaining native checks. Duo full-display validation needs
+Xcode 27.1 and the iOS 27.1 SDK; the deployment minimum stays iOS 17.
+
 - Xcode 26 or later
 - iOS or iPadOS 17 or later
 - Node.js and npm versions from the repository root `package.json`

@@ -66,6 +66,7 @@ try {
     for (const viewport of target.viewports) {
       await capture(viewport, target.platform);
     }
+    await checkWindowTransitions(target.platform);
     await browser.close();
     browser = undefined;
   }
@@ -75,6 +76,75 @@ try {
 }
 
 console.log(`Responsive screenshots saved to ${screenshotDirectory}.`);
+
+async function checkWindowTransitions(platform) {
+  if (!browser) throw new Error("The screenshot browser is not available.");
+  const context = await browser.newContext({
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 393, height: 852 },
+  });
+  await context.addInitScript(installCaptureHost, { platform });
+  const page = await context.newPage();
+  const failures = watchPageFailures(page);
+  try {
+    await page.goto(server.url, { waitUntil: "networkidle" });
+    await page.locator(".canvas-element-control").first().dblclick();
+    const editor = page.getByRole("textbox", { name: "Edit text on label" });
+    await editor.fill("FOLD TEST");
+    await editor.blur();
+    // Synthetic window sizes exercise transitions; these are not Duo specifications.
+    for (const [width, height, layout] of [
+      [900, 720, "standard"],
+      [450, 720, "phone"],
+      [900, 720, "standard"],
+      [900, 450, "phone-short"],
+      [900, 720, "standard"],
+      [393, 852, "phone"],
+    ]) {
+      await page.setViewportSize({ width, height });
+      await page.locator(`.app-shell.layout-${layout}`).waitFor();
+      await settlePage(page);
+      const state = await page.evaluate(() => {
+        const root = document.documentElement;
+        const shell = document.querySelector(".app-shell");
+        const strip = document.querySelector(".plate-strip");
+        return {
+          overflow:
+            root.scrollWidth > root.clientWidth ||
+            root.scrollHeight > root.clientHeight,
+          keyboard: shell?.getAttribute("data-software-keyboard"),
+          height: root.style.getPropertyValue("--visual-viewport-height"),
+          stripVisible: (strip?.getBoundingClientRect().height ?? 0) > 0,
+        };
+      });
+      if (
+        state.overflow ||
+        state.keyboard === "open" ||
+        !state.stripVisible ||
+        Math.abs(Number.parseFloat(state.height) - height) > 1
+      ) {
+        throw new Error(
+          `Window transition to ${width}x${height} failed: ${JSON.stringify(state)}`,
+        );
+      }
+      await page
+        .getByRole("button", { name: "Text element: FOLD TEST" })
+        .waitFor();
+    }
+    await page.getByRole("button", { name: "Undo", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Text element: RESISTORS" })
+      .waitFor();
+    await page.getByRole("button", { name: "Redo", exact: true }).click();
+    await page
+      .getByRole("button", { name: "Text element: FOLD TEST" })
+      .waitFor();
+    if (failures.length) throw new Error(failures.join("; "));
+  } finally {
+    await context.close();
+  }
+}
 
 async function capture(viewport, platform) {
   if (!browser) throw new Error("The screenshot browser is not available.");
@@ -129,9 +199,9 @@ async function capture(viewport, platform) {
         if (bounds.width < 44 || bounds.height < 44) {
           throw new Error("A dimension touch target is smaller than 44 px.");
         }
-        const style = getComputedStyle(field);
-        if (style.textDecorationStyle !== "dotted") {
-          throw new Error("An editable dimension has no dotted underline.");
+        const underline = getComputedStyle(field.parentElement, "::after");
+        if (underline.borderBottomStyle !== "dashed") {
+          throw new Error("An editable dimension has no dashed underline.");
         }
       }
     });

@@ -52,7 +52,6 @@ export function useResponsiveLayout(presentation: HostPresentation): {
       const visibleHeight = viewport?.height ?? globalThis.innerHeight;
       const widthChanged = Math.abs(width - viewportWidth) > 1;
       const hasEditableFocus = editableHasFocus();
-      const viewportIsReduced = unobscuredHeight - visibleHeight > 80;
 
       if (widthChanged) {
         unobscuredHeight = Math.max(visibleHeight, globalThis.innerHeight);
@@ -60,7 +59,7 @@ export function useResponsiveLayout(presentation: HostPresentation): {
         keyboardWasOpen = false;
       } else if (visibleHeight > unobscuredHeight) {
         unobscuredHeight = visibleHeight;
-      } else if (!hasEditableFocus && !keyboardWasOpen && !viewportIsReduced) {
+      } else if (!mobileTouch || (!hasEditableFocus && !keyboardWasOpen)) {
         unobscuredHeight = visibleHeight;
       }
 

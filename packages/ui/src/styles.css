@@ -2702,14 +2702,15 @@ textarea.inline-text-editor {
 }
 
 .presentation-mobile-touch .inspector {
-  width: 288px;
+  width: calc(288px + var(--mobile-safe-area-right));
 }
 
 .presentation-mobile-touch .editor-toolbar {
   gap: 10px;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 0 10px;
+  padding: 0 max(10px, var(--mobile-safe-area-right)) 0
+    max(10px, var(--mobile-safe-area-left));
   scrollbar-width: none;
 }
 
@@ -2759,13 +2760,16 @@ textarea.inline-text-editor {
 }
 
 .presentation-mobile-touch .property-stack {
-  padding: 14px;
+  padding: 14px max(14px, var(--mobile-safe-area-right)) 14px
+    max(14px, var(--mobile-safe-area-left));
   gap: 12px;
   overscroll-behavior: contain;
 }
 
 .presentation-mobile-touch .inspector-header {
   min-height: 48px;
+  padding-right: max(13px, var(--mobile-safe-area-right));
+  padding-left: max(16px, var(--mobile-safe-area-left));
 }
 
 .presentation-mobile-touch .work-surface {

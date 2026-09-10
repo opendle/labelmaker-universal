@@ -314,6 +314,9 @@ add a separate editor.
   when the field loses focus.
 - Support portrait, landscape, Split View, and Stage Manager sizes. Controls
   that do not fit in the editor toolbar can scroll in the horizontal direction.
+- Update the layout after a height-only window resize when no software keyboard
+  is active. Keep edits and undo history across window-size changes. Treat
+  viewport shape separately from physical device orientation.
 
 ## Visual test sizes
 

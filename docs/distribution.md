@@ -337,6 +337,10 @@ test. Emulator and Play pre-launch results are UI evidence only.
 
 ## Release blockers
 
+- Full iPhone Duo support is not verified. The native fold-region integration,
+  Xcode 27.1 simulator checks, and physical device tests in
+  [iPhone Duo readiness](iphone-duo.md) remain open.
+
 - Bluetooth Low Energy and user-selected workspace files have not been tested
   from the signed Electron `mas` development build.
 - Bluetooth Low Energy on iPhone and iPad needs a physical MakeID E1 hardware test.

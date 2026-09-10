@@ -40,6 +40,61 @@ describe("responsiveLayoutForViewport", () => {
     expect(responsiveLayoutForViewport(width, height)).toBe(expected);
   });
 
+  it.each(["desktop", "mobile-touch"] as const)(
+    "updates %s layout after a height-only window resize",
+    (presentation) => {
+      vi.stubGlobal("innerWidth", 744);
+      vi.stubGlobal("innerHeight", 1024);
+      const viewport = new TestVisualViewport(1024);
+      vi.stubGlobal("visualViewport", viewport);
+      const { result } = renderHook(() => useResponsiveLayout(presentation));
+
+      act(() => {
+        vi.stubGlobal("innerHeight", 450);
+        viewport.height = 450;
+        globalThis.dispatchEvent(new Event("resize"));
+        viewport.dispatchEvent(new Event("resize"));
+      });
+      expect(result.current).toEqual({
+        layout: "phone-short",
+        softwareKeyboardOpen: false,
+      });
+      if (presentation === "mobile-touch") {
+        expect(
+          document.documentElement.style.getPropertyValue(
+            "--visual-viewport-height",
+          ),
+        ).toBe("450px");
+      }
+
+      act(() => {
+        vi.stubGlobal("innerHeight", 1024);
+        viewport.height = 1024;
+        globalThis.dispatchEvent(new Event("resize"));
+      });
+      expect(result.current.layout).toBe(
+        presentation === "mobile-touch" ? "standard" : "phone",
+      );
+    },
+  );
+
+  it("does not treat a focused desktop field as an on-screen keyboard", () => {
+    vi.stubGlobal("innerWidth", 744);
+    vi.stubGlobal("innerHeight", 1024);
+    const input = document.createElement("input");
+    document.body.append(input);
+    const { result } = renderHook(() => useResponsiveLayout("desktop"));
+    act(() => input.focus());
+    act(() => {
+      vi.stubGlobal("innerHeight", 450);
+      globalThis.dispatchEvent(new Event("resize"));
+    });
+    expect(result.current).toEqual({
+      layout: "phone-short",
+      softwareKeyboardOpen: false,
+    });
+  });
+
   it("updates Phone mode across breakpoint and orientation changes", () => {
     vi.stubGlobal("innerWidth", 1_101);
     vi.stubGlobal("innerHeight", 1_024);
