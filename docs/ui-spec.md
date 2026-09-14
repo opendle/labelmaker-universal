@@ -268,6 +268,9 @@ appearances so that they show the physical label and printed result accurately.
   A click or keyboard focus selects the complete number. Enter accepts the
   value and removes focus. Keep total width and a separate printable height
   read-only.
+  Show the number as normal text until the field has focus. Center each trim
+  margin value below its measured span. Use the ruler background in both light
+  and dark themes, with no input box around the value.
 
 On macOS, use the native window controls from Electron. Do not draw a second
 set of traffic-light controls in the application header.

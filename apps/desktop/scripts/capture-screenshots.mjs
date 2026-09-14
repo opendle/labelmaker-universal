@@ -589,6 +589,41 @@ await capture(
 );
 await capture(1440, 960, "labelmaker-dark-1440x960.png", async (page) => {
   await page.emulateMedia({ colorScheme: "dark" });
+  const margin = page.getByRole("spinbutton", { name: "Left margin" });
+  await margin.click();
+  await page.keyboard.type("5");
+  await page.keyboard.press("Enter");
+  if ((await margin.inputValue()) !== "5") {
+    throw new Error("A click did not select the complete margin value");
+  }
+  await margin.evaluate((input) => {
+    const value = input.closest(".dimension-value");
+    const ruler = value?.parentElement;
+    if (!(value instanceof HTMLElement) || !(ruler instanceof HTMLElement)) {
+      throw new Error("Margin ruler is missing");
+    }
+    const fieldRect = value.getBoundingClientRect();
+    const rulerRect = ruler.getBoundingClientRect();
+    if (
+      Math.abs(
+        fieldRect.x + fieldRect.width / 2 - rulerRect.x - rulerRect.width / 2,
+      ) > 0.5
+    ) {
+      throw new Error("Margin text is not centered below its measured span");
+    }
+    const text = input.previousElementSibling;
+    if (
+      getComputedStyle(value).backgroundColor !== "rgb(25, 26, 28)" ||
+      getComputedStyle(input).opacity !== "0" ||
+      !text ||
+      getComputedStyle(text).visibility !== "visible" ||
+      getComputedStyle(value, "::after").borderBottomStyle !== "dashed"
+    ) {
+      throw new Error(
+        "Idle dimensions must show plain underlined text in the dark theme",
+      );
+    }
+  });
   await page.evaluate(() => {
     if (!window.matchMedia("(prefers-color-scheme: dark)").matches) {
       throw new Error("Dark color scheme is not active");

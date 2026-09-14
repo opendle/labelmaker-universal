@@ -462,11 +462,12 @@ export function EditorCanvas({
   }, [editingElementId]);
   useCommitInlineEdit(editingElementId, endInlineEdit);
   const phoneLayout = layout !== "standard";
-  const fallbackPhoneWidth = Math.max(1, globalThis.innerWidth - 100);
+  // Keep the vertical rulers and centered margin touch targets on screen.
+  const fallbackPhoneWidth = Math.max(1, globalThis.innerWidth - 144);
   const fallbackPhoneHeight = Math.max(1, globalThis.innerHeight - 250);
   const availableWidth =
     workSurfaceSize && workSurfaceSize.width > 0
-      ? workSurfaceSize.width - 100
+      ? workSurfaceSize.width - 144
       : fallbackPhoneWidth;
   const availableHeight =
     workSurfaceSize && workSurfaceSize.height > 0

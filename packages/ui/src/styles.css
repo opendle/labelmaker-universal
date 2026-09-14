@@ -957,10 +957,12 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   background: #e6e5df;
 }
 .dimension-ruler-margin-left > :is(span, label) {
-  left: 0;
+  left: 50%;
+  transform: translateX(-50%);
 }
 .dimension-ruler-margin-right > :is(span, label) {
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
 }
 .dimension-ruler .dimension-value,
 .printer-feed-setting .dimension-value {
@@ -993,8 +995,10 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   min-width: 1ch;
 }
 .dimension-number > span {
-  visibility: hidden;
   white-space: pre;
+}
+.dimension-number:has(input:focus) > span {
+  visibility: hidden;
 }
 .dimension-value input {
   position: absolute;
@@ -1004,7 +1008,7 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   font: inherit;
   box-sizing: border-box;
   min-width: 1ch;
-  padding: 0 0 2px;
+  padding: 0;
   border: 0;
   border-radius: 0;
   appearance: textfield;
@@ -1012,6 +1016,10 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   color: inherit;
   text-align: right;
   cursor: text;
+  opacity: 0;
+}
+.dimension-value input:focus {
+  opacity: 1;
 }
 .dimension-value input::-webkit-inner-spin-button,
 .dimension-value input::-webkit-outer-spin-button {
@@ -4110,7 +4118,7 @@ textarea.inline-text-editor {
     background: #8f9196;
   }
 
-  .dimension-ruler span {
+  .dimension-ruler > :is(span, label) {
     --dimension-value-background: #191a1c;
     background: #191a1c;
   }

@@ -210,6 +210,14 @@ async function capture(viewport, platform) {
         }
         const touchTarget = field.closest(".dimension-value");
         const touchBounds = touchTarget.getBoundingClientRect();
+        if (
+          touchBounds.left < available.left ||
+          touchBounds.right > available.right ||
+          touchBounds.top < available.top ||
+          touchBounds.bottom > available.bottom
+        ) {
+          throw new Error("A dimension value or unit leaves the work surface.");
+        }
         if (touchBounds.width < 44 || touchBounds.height < 44) {
           throw new Error("A dimension touch target is smaller than 44 px.");
         }

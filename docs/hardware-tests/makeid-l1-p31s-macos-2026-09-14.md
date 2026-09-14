@@ -51,3 +51,16 @@ A further High-density H test used 118 artwork rows, extended to 189 rows
 (7.959 mm) for a requested 8 mm of final feed. The L1 V1.08HH accepted the job.
 Total feed for this test was about 24 mm. User confirmation of grip and cutter
 clearance is pending. No further P31S test was run.
+
+## P31S idle-connection check
+
+The user reported repeated printer sounds after adding the P31S on desktop.
+The desktop shell retained its session, and the macOS helper could reconnect
+after a disconnect. Background printer lists could also send status queries.
+
+The desktop shell now closes MakeID sessions after setup and printing. Its
+background lists use saved capabilities. A no-print P31S hardware check opened
+and closed a session through the desktop session manager. The transport was
+closed and the cached session was removed. Three printer-list refreshes over
+10 seconds sent no further connections or writes. Each list showed
+"Connects on print". This check sent no print command and used no label tape.

@@ -121,7 +121,6 @@ const printerSessions = new PrinterSessionManager((printer) =>
   registry.get(printer.adapterId).connect(printer, context),
 );
 const activePrinterJobs = new Set<string>();
-const deferredPrinterStatusIds = new Set<string>();
 const discoveredPrinters = new PrinterDiscoveryCache();
 const workspacePaths = new Map<number, string>();
 let workspaceRecoveryStore: WorkspaceRecoveryStore | undefined;
@@ -297,14 +296,7 @@ async function summarize(printer: PrinterDescriptor) {
   const adapter = registry.get(printer.adapterId);
   const offlineCapabilities = offlineCapabilitiesForPrinter(adapter, printer);
   const hasActiveJob = activePrinterJobs.has(printer.id);
-  const statusIsDeferred = deferredPrinterStatusIds.has(printer.id);
-  const shouldProbe =
-    !statusIsDeferred &&
-    shouldProbePrinterStatus(
-      printer.adapterId,
-      printerSessions.has(printer.id),
-      hasActiveJob,
-    );
+  const shouldProbe = shouldProbePrinterStatus(printer.adapterId, hasActiveJob);
   return summarizePrinter(
     printer,
     printerModel(adapter, printer),
@@ -312,11 +304,9 @@ async function summarize(printer: PrinterDescriptor) {
     discardPrinterSession,
     {
       attempts: 1,
-      // A routine list must not open a MakeID connection. A cached BLE session
-      // can provide live status, but a timeout while the printer is off must
-      // not close the helper which is waiting to reconnect.
+      // MakeID connections belong to setup and print operations only.
+      // Background queries can cause printer sounds and reconnection loops.
       probe: shouldProbe,
-      preserveSessionOnFailure: printer.adapterId === "makeid",
       unprobedState: hasActiveJob ? "busy" : "disconnected",
       unprobedStatusMessage: hasActiveJob ? "Printing" : "Connects on print",
       ...(offlineCapabilities === undefined ? {} : { offlineCapabilities }),
@@ -324,9 +314,6 @@ async function summarize(printer: PrinterDescriptor) {
         ? { settings: printerSettings.get(printer.id)! }
         : {}),
       onFailure: (error) => {
-        if (printer.adapterId === "makeid") {
-          deferredPrinterStatusIds.add(printer.id);
-        }
         context.log.warn("Printer status could not be refreshed", {
           printerId: printer.id,
           error: error instanceof Error ? error.message : "Unknown error",
@@ -517,6 +504,9 @@ function registerIpc(): void {
       configuredPrinterIds.add(printerId);
       savedPrinterRecords.set(printerId, resolvedPrinter);
       discoveredPrinters.delete(printerId);
+      if (resolvedPrinter.adapterId === "makeid") {
+        await printerSessions.discard(printerId, connectedSession);
+      }
       const descriptors = configuredPrinterDescriptors(
         [resolvedPrinter, descriptor, ...(await allDescriptors(false))],
         nextPrinterIds,
@@ -556,7 +546,6 @@ function registerIpc(): void {
       activePrinterId = nextActivePrinterId;
       printerSettings.delete(printerId);
       savedPrinterRecords.delete(printerId);
-      deferredPrinterStatusIds.delete(printerId);
       configuredPrinterIds = nextPrinterIds;
       await discardPrinterSession(printerId);
 
@@ -764,7 +753,6 @@ function registerIpc(): void {
     let session: PrinterSession | undefined;
     try {
       session = await readyPrinterSession(descriptor);
-      deferredPrinterStatusIds.delete(descriptor.id);
       return await printToSession(
         validatedRequest,
         descriptor,
@@ -777,6 +765,9 @@ function registerIpc(): void {
       await printerSessions.discard(descriptor.id, session);
       throw error;
     } finally {
+      if (descriptor.adapterId === "makeid") {
+        await printerSessions.discard(descriptor.id, session);
+      }
       activePrinterJobs.delete(descriptor.id);
     }
   });

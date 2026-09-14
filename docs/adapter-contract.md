@@ -109,6 +109,11 @@ Adapters can use operating-system pairing or authorization flows for that
 search. Routine configured-printer lists, removal, status, and print resolution
 must not scan unpaired devices.
 
+The desktop shell opens MakeID sessions for printer setup and print operations.
+It closes each session when the operation finishes. Background printer lists
+use saved capabilities and show "Connects on print". They must not query an
+idle MakeID session or keep its automatic reconnection active.
+
 ## Test requirements
 
 - Unit-test framing, checksums, raster conversion, chunk boundaries, and error

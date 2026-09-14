@@ -81,11 +81,10 @@ export class PrinterDiscoveryCache {
 
 export function shouldProbePrinterStatus(
   adapterId: string,
-  hasSession: boolean,
   hasActiveJob: boolean,
 ): boolean {
   if (hasActiveJob) return false;
-  return adapterId !== "makeid" || hasSession;
+  return adapterId !== "makeid";
 }
 
 function capabilitySummary(

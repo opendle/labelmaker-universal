@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { EditableDimension } from "./EditableDimension.js";
+
+afterEach(cleanup);
 
 function Harness() {
   const [value, setValue] = useState(1.9);
@@ -19,6 +21,18 @@ function Harness() {
 }
 
 describe("EditableDimension", () => {
+  it("selects the full number on the first click for replacement", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    const input = screen.getByRole("spinbutton", { name: "Margin" });
+    await user.click(input);
+    await user.keyboard("5{Enter}");
+    expect(input).toHaveValue(5);
+    expect(input).not.toHaveFocus();
+    await user.click(input);
+    await user.keyboard("12{Enter}");
+    expect(input).toHaveValue(12);
+  });
   it("uses the unit as a focus target and fits the draft until Enter", async () => {
     const user = userEvent.setup();
     render(<Harness />);

@@ -50,6 +50,12 @@ export function EditableDimension(props: DimensionProps) {
     min: props.min,
     max: props.max,
     onFocus: (event) => event.currentTarget.select(),
+    onMouseDown: (event) => {
+      if (document.activeElement === event.currentTarget) return;
+      event.preventDefault();
+      event.currentTarget.focus();
+      event.currentTarget.select();
+    },
     onBlur: () => setDraftWidth(null),
     onKeyDown: (event) => {
       if (event.key !== "Enter") return;

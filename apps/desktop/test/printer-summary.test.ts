@@ -65,10 +65,9 @@ describe("desktop printer summaries", () => {
     expect(cache.get(printer.id)).toBeUndefined();
   });
 
-  it("does not probe a cached session while its print job is active", () => {
-    expect(shouldProbePrinterStatus("makeid", true, true)).toBe(false);
-    expect(shouldProbePrinterStatus("makeid", true, false)).toBe(true);
-    expect(shouldProbePrinterStatus("makeid", false, false)).toBe(false);
+  it("does not probe MakeID sessions from a background printer list", () => {
+    expect(shouldProbePrinterStatus("makeid", true)).toBe(false);
+    expect(shouldProbePrinterStatus("makeid", false)).toBe(false);
   });
 
   it("does not open Bluetooth only to list a saved printer", async () => {
@@ -79,7 +78,7 @@ describe("desktop printer summaries", () => {
       getSession,
       async () => undefined,
       {
-        probe: false,
+        probe: shouldProbePrinterStatus("makeid", false),
         offlineCapabilities: {
           dpi: 203,
           rasterWidthPixels: 96,

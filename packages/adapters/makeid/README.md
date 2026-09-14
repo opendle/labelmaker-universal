@@ -115,6 +115,10 @@ peripheral after a power cycle. See the
 and the
 [`2026-08-26 reliability report`](../../../docs/hardware-tests/makeid-e1-macos-2026-08-26-reliability.md).
 
+The desktop shell closes MakeID sessions after setup and each print operation.
+It uses saved capabilities for background printer lists. This prevents an idle
+session from repeatedly reconnecting and making the printer sound.
+
 ## Evidence and clean-room rule
 
 The ABF0 profile work uses facts from MakeID Label Pro 1.8.2, package
