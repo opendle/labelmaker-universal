@@ -121,7 +121,7 @@ Its normal per-label path uses about 11 mm (132 dots in its 304 dpi branch).
 The user confirmed that a print without final feed left the end of the image
 behind the cutter on L1 firmware V1.08HH.
 
-The user selected a 22 mm minimum label width and 3 mm of final feed as the
+The user selected a 22 mm minimum label length and 3 mm of final feed as the
 L1 defaults. Both L1 resolutions and protocol families use these defaults.
 They are user-selected settings, not reported hardware limits. Saved overrides
 remain in effect. E1 and P31 profiles default to zero for both settings.

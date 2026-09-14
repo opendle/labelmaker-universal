@@ -1314,9 +1314,9 @@ await capture(
     await page
       .getByRole("button", { name: "Settings for Studio Labeler" })
       .click();
-    await page.getByLabel("Minimum label width", { exact: true }).fill("80");
+    await page.getByLabel("Minimum label length", { exact: true }).fill("80");
     await page
-      .getByLabel("Minimum label width", { exact: true })
+      .getByLabel("Minimum label length", { exact: true })
       .press("Enter");
     await page.getByRole("button", { name: "Save settings" }).click();
     await page.waitForFunction(
@@ -1331,7 +1331,7 @@ await capture(
       Math.abs(originalText.height - paddedText.height) > 0.1
     ) {
       throw new Error(
-        `Minimum label width stretched the artwork: ${JSON.stringify({ originalText, paddedText })}`,
+        `Minimum label length stretched the artwork: ${JSON.stringify({ originalText, paddedText })}`,
       );
     }
   },

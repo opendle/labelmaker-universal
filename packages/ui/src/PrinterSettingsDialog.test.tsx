@@ -132,7 +132,7 @@ describe("PrinterSettingsDialog", () => {
       ["Bottom margin", "2.7"],
       ["Margin between labels", "3.1"],
       ["Feed after last label", "11.2"],
-      ["Minimum label width", "16"],
+      ["Minimum label length", "16"],
     ] as const) {
       const input = screen.getByRole("spinbutton", { name });
       await user.clear(input);

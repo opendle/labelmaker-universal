@@ -217,7 +217,7 @@ appearances so that they show the physical label and printed result accurately.
   three vertical areas and the gap between labels. On hover, explain what each
   dimension measures and that it is editable. Show resolution
   as fixed text above the diagram. Below it, show an editable
-  "Minimum label width" field and a "Feed after last label" field on one row.
+  "Minimum label length" field and a "Feed after last label" field on one row.
   Use the normal bordered number fields with `mm` units for these two settings.
   Use the shared sidebar field classes, including uppercase field labels.
   The minimum

@@ -204,7 +204,7 @@ export function PrinterSettingsDialog({
               [
                 [
                   "minimumLabelWidthMm",
-                  "Minimum label width",
+                  "Minimum label length",
                   "Shortest label along the tape; zero adds no minimum",
                 ],
                 [
