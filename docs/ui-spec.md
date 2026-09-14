@@ -219,6 +219,7 @@ appearances so that they show the physical label and printed result accurately.
   as fixed text above the diagram. Below it, show an editable
   "Minimum label width" field and a "Feed after last label" field on one row.
   Use the normal bordered number fields with `mm` units for these two settings.
+  Use the shared sidebar field classes, including uppercase field labels.
   The minimum
   is along the tape and extends each short label with blank space at its end.
   Zero disables the minimum. Final feed applies once after the full job and

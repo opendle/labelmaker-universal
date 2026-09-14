@@ -222,8 +222,8 @@ describe("iPad printer configuration", () => {
     await expect(
       service.updatePrinterSettings(PRINTER_ID, { darkness: 20 }),
     ).rejects.toThrow("outside its supported range");
-    expect((await service.listPrinters())[0]?.feedAfterPrintMm).toBe(11);
-    expect((await service.listPrinters())[0]?.minimumLabelWidthMm).toBe(16);
+    expect((await service.listPrinters())[0]?.feedAfterPrintMm).toBe(3);
+    expect((await service.listPrinters())[0]?.minimumLabelWidthMm).toBe(22);
     await service.updatePrinterSettings(PRINTER_ID, {
       feedAfterPrintMm: 4.5,
       minimumLabelWidthMm: 16,

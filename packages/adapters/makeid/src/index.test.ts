@@ -14,7 +14,7 @@ import {
   MakeIdAdapterError,
   MakeIdE1Adapter,
 } from "./index.js";
-import { defaultProfileForId } from "./models.js";
+import { defaultProfileForId, type MakeIdProfileId } from "./models.js";
 import {
   RecordingMakeIdTransport,
   type MakeIdTransport,
@@ -569,6 +569,28 @@ describe("MakeIdAdapter", () => {
     },
   );
 
+  it.each([
+    ["l1-abf0-203", 22, 3],
+    ["l1-abf0-300", 22, 3],
+    ["l1-ff00-203", 22, 3],
+    ["l1-ff00-300", 22, 3],
+    ["e1-abf0-203", 0, 0],
+    ["p31-abf0-288", 0, 0],
+    ["p31-abf0-300", 0, 0],
+  ] as const)(
+    "uses model feed defaults for %s",
+    (profileId, minimumLabelWidthMm, feedAfterPrintMm) => {
+      const adapter = new MakeIdAdapter(
+        new FakeProvider([], new RecordingMakeIdTransport([])),
+      );
+      expect(
+        adapter.offlineCapabilitiesFor(
+          makePrinter("test", profileId, "MakeID printer"),
+        ),
+      ).toMatchObject({ minimumLabelWidthMm, feedAfterPrintMm });
+    },
+  );
+
   it("tries FF00 only after an unresolved L1 rejects ABF0", async () => {
     const failedAbf0 = new RecordingMakeIdTransport([
       new TextEncoder().encode("not an ABF0 response"),
@@ -592,7 +614,8 @@ describe("MakeIdAdapter", () => {
       dpi: 300,
       maxCopies: 1,
       supportsStatus: false,
-      feedAfterPrintMm: 11,
+      feedAfterPrintMm: 3,
+      minimumLabelWidthMm: 22,
     });
     expect(capabilities.darkness).toMatchObject({
       minimum: 0,
@@ -783,7 +806,7 @@ function recording(
 
 function makePrinter(
   suffix: string,
-  profileId: "unresolved-l1" | "unresolved-p31" | "l1-abf0-300" | "l1-ff00-300",
+  profileId: "unresolved-l1" | "unresolved-p31" | MakeIdProfileId,
   advertisedName: string,
 ): PrinterDescriptor {
   return {

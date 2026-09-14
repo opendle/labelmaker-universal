@@ -72,7 +72,7 @@ adapter reports `supportsStatus: false`. A bounded nonempty reply proves only
 that the connection is responsive. The session-level `OK` proves print-time
 readiness.
 
-FF00 profiles report a 16 mm minimum label width and 11 mm of final feed by
+L1 profiles report a 22 mm minimum label width and 3 mm of final feed by
 default. The application extends each short label with blank rows to reach the
 minimum. It adds final feed once, after all selected labels. Users can change
 both values in printer settings. Other profiles default to zero for both values.

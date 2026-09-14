@@ -121,17 +121,18 @@ Its normal per-label path uses about 11 mm (132 dots in its 304 dpi branch).
 The user confirmed that a print without final feed left the end of the image
 behind the cutter on L1 firmware V1.08HH.
 
-The FF00 profile therefore reports an 11 mm `feedAfterPrintMm` default.
-The shared raster preparation adds white rows after the final page. This keeps
-feed settings independent of transport and applies them once per shell job.
-Other profiles default to zero. The setting remains separate from the gap
+The user selected a 22 mm minimum label width and 3 mm of final feed as the
+L1 defaults. Both L1 resolutions and protocol families use these defaults.
+They are user-selected settings, not reported hardware limits. Saved overrides
+remain in effect. E1 and P31 profiles default to zero for both settings.
+
+The shared raster preparation extends each short page to the minimum width,
+then adds white rows after the final page for final feed. This keeps feed
+settings independent of transport. The settings remain separate from the gap
 between labels and can be changed or set to zero.
 
-The user also requested a 16 mm minimum label width for the L1 so that short
-labels can be gripped outside the machine. This is a user-selected handling
-default, not a reported hardware limit. The FF00 profiles expose it separately
-from final feed. A test used this minimum with 8 mm of final feed; cutter
-clearance at 8 mm still needs user confirmation.
+An earlier test used a 16 mm minimum with 8 mm of final feed. The 22 mm and
+3 mm defaults were set at the user's request without a further hardware print.
 
 ## Discovery and model rules
 
