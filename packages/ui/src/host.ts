@@ -27,6 +27,7 @@ export interface PrinterSummary {
   readonly marginBottomMm?: number;
   readonly interLabelSpacingMm?: number;
   readonly feedAfterPrintMm?: number;
+  readonly minimumLabelWidthMm?: number;
   readonly darkness?: NumericSettingCapability & {
     readonly value: number;
   };

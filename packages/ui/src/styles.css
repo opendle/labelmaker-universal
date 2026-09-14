@@ -4372,3 +4372,12 @@ textarea.inline-text-editor {
   background-position: right 11px center;
   background-size: 14px;
 }
+
+.label-artwork-content {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+  height: 100%;
+  overflow: hidden;
+  container-type: inline-size;
+}

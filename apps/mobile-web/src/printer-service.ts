@@ -325,6 +325,9 @@ export class MobilePrinterService {
             settings.interLabelSpacingMm ?? 1,
             capabilities.dpi,
             settings.feedAfterPrintMm ?? capabilities.feedAfterPrintMm ?? 0,
+            settings.minimumLabelWidthMm ??
+              capabilities.minimumLabelWidthMm ??
+              0,
           ),
           copies: 1,
           ...(settings.darkness === undefined ||
@@ -470,6 +473,8 @@ function capabilityFields(
     interLabelSpacingMm: settings.interLabelSpacingMm ?? 1,
     feedAfterPrintMm:
       settings.feedAfterPrintMm ?? capabilities.feedAfterPrintMm ?? 0,
+    minimumLabelWidthMm:
+      settings.minimumLabelWidthMm ?? capabilities.minimumLabelWidthMm ?? 0,
     ...(capabilities.darkness
       ? {
           darkness: {

@@ -30,12 +30,24 @@ No frame rejection occurred during these checks. Total P31S raster feed was
 about 11.1 mm. The application added no gap. Mechanical feed was not measured.
 
 The first test pattern had a small central box and two side marks. The user
-confirmed a small line and rectangle on the P31S. Visual confirmation of the
-final feed test is pending. The original P31S failure was not
-reproduced. Fake-transport tests cover a full buffer, status polling, resend
+confirmed a small line and rectangle on the P31S. The user confirmed that the
+11 mm final feed lets the full frame pass the cutter. The original P31S failure
+was not reproduced. Fake-transport tests cover a full buffer, status polling, resend
 flags during polling, timeout, and session cleanup after error.
 
 All three L1 density values have fixed protocol tests based on static inspection
 of MakeID-Life 1.9.9. Medium and High were physically tested. Low was not
 physically tested. No iPad, Android, Windows, or Linux hardware print was run
 in this check. The E1 was not found in the nearby scan.
+
+## Minimum-width check
+
+The user confirmed that 11 mm of final feed allows the full frame to be cut,
+but reported excess blank space and insufficient tape to grip for a short
+label. The user requested a 16 mm minimum label width.
+
+A further High-density H test used 118 artwork rows, extended to 189 rows
+(16.002 mm) by the shared minimum-width helper. It then added 94 white rows
+(7.959 mm) for a requested 8 mm of final feed. The L1 V1.08HH accepted the job.
+Total feed for this test was about 24 mm. User confirmation of grip and cutter
+clearance is pending. No further P31S test was run.

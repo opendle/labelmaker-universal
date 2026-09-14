@@ -127,6 +127,12 @@ feed settings independent of transport and applies them once per shell job.
 Other profiles default to zero. The setting remains separate from the gap
 between labels and can be changed or set to zero.
 
+The user also requested a 16 mm minimum label width for the L1 so that short
+labels can be gripped outside the machine. This is a user-selected handling
+default, not a reported hardware limit. The FF00 profiles expose it separately
+from final feed. A test used this minimum with 8 mm of final feed; cutter
+clearance at 8 mm still needs user confirmation.
+
 ## Discovery and model rules
 
 Discovery accepts only E1, L1, and P31/Q31/GP31 name families. A P31S name is

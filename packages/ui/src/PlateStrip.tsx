@@ -348,6 +348,7 @@ export function PlateStrip({
   onDeletePlate,
   onMovePlate,
   printHeadSizeMm,
+  minimumLabelWidthMm = 0,
   marginTopMm,
   marginBottomMm,
   rasterAlignment,
@@ -361,6 +362,7 @@ export function PlateStrip({
   readonly onDeletePlate: (plateId: string) => void;
   readonly onMovePlate: (plateId: string, targetIndex: number) => void;
   readonly printHeadSizeMm: number | undefined;
+  readonly minimumLabelWidthMm?: number | undefined;
   readonly marginTopMm: number | undefined;
   readonly marginBottomMm: number | undefined;
   readonly rasterAlignment?: RasterAlignment | undefined;
@@ -417,7 +419,7 @@ export function PlateStrip({
               style={
                 {
                   "--label-preview-height": `${plate.size.heightMm * pixelsPerMm}px`,
-                  "--label-preview-width": `${plate.size.widthMm * pixelsPerMm * croppedScale}px`,
+                  "--label-preview-width": `${Math.max(plate.size.widthMm, minimumLabelWidthMm) * pixelsPerMm * croppedScale}px`,
                 } as CSSProperties & Record<`--${string}`, string>
               }
             >
@@ -468,6 +470,7 @@ export function PlateStrip({
                 <LabelArtwork
                   className="mini-label"
                   plate={plate}
+                  minimumLabelWidthMm={minimumLabelWidthMm}
                   printableMargins={printableMargins}
                 />
               </button>

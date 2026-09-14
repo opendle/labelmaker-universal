@@ -86,6 +86,7 @@ export function offlineCapabilitiesForProfile(
     printableWidthMm: profile.printableWidthMm,
     rasterAlignment: profile.rasterAlignment,
     feedAfterPrintMm: profile.protocolFamily === "ff00-escpos" ? 11 : 0,
+    minimumLabelWidthMm: profile.protocolFamily === "ff00-escpos" ? 16 : 0,
     printHeadMarginTopMm: halfUnprintableMarginMm,
     printHeadMarginBottomMm: halfUnprintableMarginMm,
     darkness:

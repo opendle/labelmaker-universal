@@ -66,13 +66,21 @@ values against the selected printer range.
 Printer settings are outside the workspace document and belong to one
 configured printer. The desktop and iPad shells use the shared
 `isPrinterSettings` validator before they store darkness, print-head size,
-independent top and bottom margins, inter-label spacing, and `feedAfterPrintMm`.
+independent top and bottom margins, inter-label spacing, `feedAfterPrintMm`,
+and `minimumLabelWidthMm`.
 The optional feed setting uses 0.1 mm steps from 0 to 100 mm. The adapter can
 report its default through `feedAfterPrintMm`; an absent default means zero.
 Old settings without this field use the adapter default. The desktop and mobile
 shells append this many white feed rows to the final raster page only. They
 round millimeters to the nearest printer pixel. The feed does not change the
 saved plate or the spacing between labels. Each shell sends one job copy.
+`minimumLabelWidthMm` is the minimum length of each label along the tape.
+It uses 0.1 mm steps from 0 to 100 mm; zero disables the minimum. An absent
+setting uses the adapter default, or zero when the adapter has no default.
+Before adding gaps or final feed, the shells append white rows to each short
+page until it reaches the minimum. They round the minimum up to a whole pixel.
+Artwork keeps its position and size. Longer pages are not shortened. The minimum
+excludes both inter-label spacing and final feed. The saved plate is unchanged.
 Direct raster clients must apply this geometry before they submit a job.
 Geometry values use 0.1 mm steps. Inter-label spacing defaults to 1 mm.
 The shells convert it to whole pixels at the printer

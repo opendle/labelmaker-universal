@@ -72,9 +72,10 @@ adapter reports `supportsStatus: false`. A bounded nonempty reply proves only
 that the connection is responsive. The session-level `OK` proves print-time
 readiness.
 
-FF00 profiles report 11 mm of final feed by default. The application adds it
-to the final raster page, after all selected labels. Users can change this
-value in printer settings. Other profiles default to zero.
+FF00 profiles report a 16 mm minimum label width and 11 mm of final feed by
+default. The application extends each short label with blank rows to reach the
+minimum. It adds final feed once, after all selected labels. Users can change
+both values in printer settings. Other profiles default to zero for both values.
 
 ## macOS transport
 

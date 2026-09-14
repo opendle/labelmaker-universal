@@ -384,6 +384,7 @@ function NonprintableZones({
 
 export function EditorCanvas({
   plate,
+  minimumLabelWidthMm = 0,
   selectedElementId,
   zoom,
   onAddText,
@@ -412,6 +413,7 @@ export function EditorCanvas({
   onOpenPlateSettings,
 }: {
   readonly plate: LabelPlate;
+  readonly minimumLabelWidthMm?: number | undefined;
   readonly selectedElementId: string | null;
   readonly zoom: number;
   readonly onAddText: () => void;
@@ -441,6 +443,7 @@ export function EditorCanvas({
   readonly onOpenElementProperties: () => void;
   readonly onOpenPlateSettings: () => void;
 }) {
+  const outputWidthMm = Math.max(plate.size.widthMm, minimumLabelWidthMm);
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   const workSurfaceRef = useRef<HTMLDivElement>(null);
   const workSurfaceSize = useElementSize(workSurfaceRef);
@@ -474,11 +477,11 @@ export function EditorCanvas({
         0.01,
         Math.min(
           9,
-          availableWidth / plate.size.widthMm,
+          availableWidth / outputWidthMm,
           availableHeight / plate.size.heightMm,
         ),
       )
-    : Math.min(9, 720 / plate.size.widthMm);
+    : Math.min(9, 720 / outputWidthMm);
   const canvasScale = baseCanvasScale * (zoom / 100);
   const topMarginPercent = printableMarginPercent(
     printableMargins.topMm,
@@ -559,7 +562,7 @@ export function EditorCanvas({
         style={
           {
             "--dot-grid-size": `${canvasScale}px`,
-            "--dot-grid-x": `calc(50% - ${(plate.size.widthMm * canvasScale) / 2}px + ${canvasOffsetX}px)`,
+            "--dot-grid-x": `calc(50% - ${(outputWidthMm * canvasScale) / 2}px + ${canvasOffsetX}px)`,
             "--dot-grid-y": `calc(50% - ${(plate.size.heightMm * canvasScale) / 2}px + ${canvasOffsetY}px)`,
           } as WorkSurfaceStyle
         }
@@ -592,22 +595,22 @@ export function EditorCanvas({
           <CanvasGrid
             canvasScale={canvasScale}
             heightMm={plate.size.heightMm}
-            widthMm={plate.size.widthMm}
+            widthMm={outputWidthMm}
           />
           <CanvasRulers
             canvasScale={canvasScale}
             editing={{ plate, onChange: onUpdatePlate }}
             heightMm={plate.size.heightMm}
             printableMargins={printableMargins}
-            widthMm={plate.size.widthMm}
+            widthMm={outputWidthMm}
             zoom={zoom}
           />
           <section
             aria-label={`${plate.name} label canvas`}
             className="label-canvas"
-            data-plate-width-mm={plate.size.widthMm}
+            data-plate-width-mm={outputWidthMm}
             style={{
-              width: `${plate.size.widthMm * canvasScale}px`,
+              width: `${outputWidthMm * canvasScale}px`,
               height: `${plate.size.heightMm * canvasScale}px`,
             }}
           >
@@ -620,6 +623,7 @@ export function EditorCanvas({
             />
             {plate.elements.map((element) => (
               <CanvasElementView
+                canvasWidthMm={outputWidthMm}
                 canvasScale={canvasScale}
                 editing={element.id === editingElementId}
                 element={element}

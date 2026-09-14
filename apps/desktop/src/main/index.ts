@@ -600,6 +600,7 @@ function registerIpc(): void {
               "marginBottomMm",
               "interLabelSpacingMm",
               "feedAfterPrintMm",
+              "minimumLabelWidthMm",
             ].includes(key),
         )
       ) {
@@ -626,6 +627,9 @@ function registerIpc(): void {
         marginTopMm: settings.marginTopMm,
         marginBottomMm: settings.marginBottomMm,
         interLabelSpacingMm: settings.interLabelSpacingMm,
+        ...(settings.minimumLabelWidthMm === undefined
+          ? {}
+          : { minimumLabelWidthMm: settings.minimumLabelWidthMm }),
         ...(settings.feedAfterPrintMm === undefined
           ? {}
           : { feedAfterPrintMm: settings.feedAfterPrintMm }),
@@ -648,6 +652,9 @@ function registerIpc(): void {
         marginTopMm: geometry.marginTopMm,
         marginBottomMm: geometry.marginBottomMm,
         interLabelSpacingMm: geometry.interLabelSpacingMm,
+        ...(geometry.minimumLabelWidthMm === undefined
+          ? {}
+          : { minimumLabelWidthMm: geometry.minimumLabelWidthMm }),
         ...(geometry.feedAfterPrintMm === undefined
           ? {}
           : { feedAfterPrintMm: geometry.feedAfterPrintMm }),

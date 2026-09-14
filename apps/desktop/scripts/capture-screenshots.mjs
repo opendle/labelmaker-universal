@@ -1263,6 +1263,44 @@ for (const [width, height] of [
     await page.getByRole("dialog", { name: "Text properties" }).waitFor();
   });
 }
+savedScreenshotNames.add("labelmaker-minimum-width-1440x960.png");
+await capture(
+  1440,
+  960,
+  "labelmaker-minimum-width-1440x960.png",
+  async (page) => {
+    const originalText = await page
+      .locator(".canvas-text")
+      .first()
+      .boundingBox();
+    await page
+      .getByRole("button", { name: "Selected printer: Studio Labeler" })
+      .click();
+    await page
+      .getByRole("button", { name: "Settings for Studio Labeler" })
+      .click();
+    await page.getByLabel("Minimum label width", { exact: true }).fill("80");
+    await page
+      .getByLabel("Minimum label width", { exact: true })
+      .press("Enter");
+    await page.getByRole("button", { name: "Save settings" }).click();
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector(".label-canvas")
+          ?.getAttribute("data-plate-width-mm") === "80",
+    );
+    const paddedText = await page.locator(".canvas-text").first().boundingBox();
+    if (
+      Math.abs(originalText.width - paddedText.width) > 0.1 ||
+      Math.abs(originalText.height - paddedText.height) > 0.1
+    ) {
+      throw new Error(
+        `Minimum label width stretched the artwork: ${JSON.stringify({ originalText, paddedText })}`,
+      );
+    }
+  },
+);
 await closeCaptureApplication();
 
 console.log(`Screenshots saved to ${screenshotDirectory} in one app session`);

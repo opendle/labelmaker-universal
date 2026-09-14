@@ -880,6 +880,7 @@ describe("LabelmakerApp", () => {
         marginBottomMm: 2.6,
         interLabelSpacingMm: 1.5,
         feedAfterPrintMm: 0,
+        minimumLabelWidthMm: 0,
       }),
     );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -932,6 +933,7 @@ describe("LabelmakerApp", () => {
         marginBottomMm: 2,
         interLabelSpacingMm: 1,
         feedAfterPrintMm: 0,
+        minimumLabelWidthMm: 0,
       }),
     );
   });
@@ -980,6 +982,7 @@ describe("LabelmakerApp", () => {
         marginBottomMm: 2,
         interLabelSpacingMm: 1,
         feedAfterPrintMm: 0,
+        minimumLabelWidthMm: 0,
       }),
     );
   });

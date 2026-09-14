@@ -70,6 +70,55 @@ function createProps(
 }
 
 describe("EditorCanvas", () => {
+  it.each([0, 90])(
+    "keeps artwork out of minimum-width padding at %s degrees",
+    (rotationDeg) => {
+      const element = { ...textElement, xMm: 55, widthMm: 10, rotationDeg };
+      const props = createProps({
+        minimumLabelWidthMm: 80,
+        selectedElementId: element.id,
+        plate: { ...plate, elements: [element] },
+      });
+      const { container } = render(<EditorCanvas {...props} />);
+      const control = screen.getByRole("button", {
+        name: "Text element: SELECT ALL",
+      });
+      const points = control.style.clipPath
+        .match(/-?[\d.]+(?:e[+-]?\d+)?/g)!
+        .map(Number);
+      // At 9 px/mm, the plate end crosses the center of this 10 mm frame.
+      expect(points[rotationDeg === 0 ? 2 : 3]).toBeCloseTo(45);
+      expect(points[rotationDeg === 0 ? 4 : 5]).toBeCloseTo(45);
+      expect(
+        container.querySelector<HTMLElement>(".canvas-element")!.style.clipPath,
+      ).toBe("");
+      fireEvent.doubleClick(control);
+      expect(
+        screen.getByRole("textbox", { name: "Edit text on label" }).style
+          .clipPath,
+      ).toBe("");
+    },
+  );
+  it("shows the printer minimum width without changing the saved plate", () => {
+    const props = createProps({ minimumLabelWidthMm: 80 });
+    const { container, rerender } = render(<EditorCanvas {...props} />);
+    expect(container.querySelector(".label-canvas")).toHaveAttribute(
+      "data-plate-width-mm",
+      "80",
+    );
+    expect(
+      (
+        container.querySelector(".canvas-element") as HTMLElement
+      ).style.getPropertyValue("--element-width"),
+    ).toBe("62.5%");
+    expect(props.plate.size.widthMm).toBe(60);
+    expect(props.onUpdatePlate).not.toHaveBeenCalled();
+    rerender(<EditorCanvas {...props} minimumLabelWidthMm={0} />);
+    expect(container.querySelector(".label-canvas")).toHaveAttribute(
+      "data-plate-width-mm",
+      "60",
+    );
+  });
   it("edits height and zero margins on the canvas without starting a gesture", () => {
     const props = createProps();
     const { container } = render(<EditorCanvas {...props} />);

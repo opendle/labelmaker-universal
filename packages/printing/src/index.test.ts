@@ -111,3 +111,40 @@ describe("print job feed", () => {
     },
   );
 });
+
+describe("minimum label width", () => {
+  const page = (heightPixels: number) => ({
+    widthPixels: 8,
+    heightPixels,
+    bytesPerRow: 1,
+    data: new Uint8Array(heightPixels).fill(0xff),
+  });
+  it("pads every short label before gaps and final feed", () => {
+    const pages = addInterLabelSpacing(
+      [page(100), page(200), page(50)],
+      1,
+      254,
+      8,
+      16,
+    );
+    expect(pages.map((p) => p.heightPixels)).toEqual([170, 210, 240]);
+    expect(pages[0]?.data.subarray(100)).toEqual(new Uint8Array(70));
+    expect(pages[2]?.data.subarray(50)).toEqual(new Uint8Array(190));
+  });
+  it("rounds the minimum up to a whole pixel without changing longer labels", () => {
+    expect(
+      addInterLabelSpacing([page(1)], 0, 300, 0, 16)[0]?.heightPixels,
+    ).toBe(189);
+    const long = page(250);
+    expect(addInterLabelSpacing([long], 0, 300, 0, 16)[0]).toBe(long);
+  });
+  it.each([-1, 100.1, 1.25, NaN, Infinity])(
+    "rejects invalid minimum %s",
+    (minimumLabelWidthMm) => {
+      expect(isPrinterSettings({ minimumLabelWidthMm })).toBe(false);
+      expect(() =>
+        addInterLabelSpacing([page(1)], 0, 300, 0, minimumLabelWidthMm),
+      ).toThrow();
+    },
+  );
+});

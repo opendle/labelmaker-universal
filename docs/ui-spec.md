@@ -217,8 +217,13 @@ appearances so that they show the physical label and printed result accurately.
   three vertical areas and the gap between labels. On hover, explain what each
   dimension measures and that it is editable. Show resolution
   as fixed text above the diagram. Below it, show an editable
-  "Feed after last label" value. This feed applies once after the full job and
-  brings the final label past the cutter. Keep all dimensions keyboard accessible,
+  "Minimum label width" value and a "Feed after last label" value. The minimum
+  is along the tape and extends each short label with blank space at its end.
+  Zero disables the minimum. Final feed applies once after the full job and
+  brings the final label past the cutter. Show the minimum width on the main
+  canvas, its width ruler, and thumbnails. Keep artwork size and position, and
+  do not change the saved plate when the printer setting changes. Keep all
+  dimensions keyboard accessible,
   including zero margins and zero gap. Do not put a frame or group title around
   the diagram or darkness. Enter in a dimension ends editing without closing
   the dialog. Enter in the printer name saves the settings and closes the

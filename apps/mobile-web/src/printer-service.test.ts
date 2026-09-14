@@ -223,7 +223,11 @@ describe("iPad printer configuration", () => {
       service.updatePrinterSettings(PRINTER_ID, { darkness: 20 }),
     ).rejects.toThrow("outside its supported range");
     expect((await service.listPrinters())[0]?.feedAfterPrintMm).toBe(11);
-    await service.updatePrinterSettings(PRINTER_ID, { feedAfterPrintMm: 4.5 });
+    expect((await service.listPrinters())[0]?.minimumLabelWidthMm).toBe(16);
+    await service.updatePrinterSettings(PRINTER_ID, {
+      feedAfterPrintMm: 4.5,
+      minimumLabelWidthMm: 16,
+    });
     expect((await createService().listPrinters())[0]?.feedAfterPrintMm).toBe(
       4.5,
     );
@@ -405,6 +409,7 @@ describe("iPad printer configuration", () => {
       marginTopMm: 4,
       marginBottomMm: 0,
       feedAfterPrintMm: 2.5,
+      minimumLabelWidthMm: 16,
     });
     await service.print(request);
     expect(renderPlateForPrinter).toHaveBeenLastCalledWith(
@@ -414,7 +419,7 @@ describe("iPad printer configuration", () => {
       expect.any(Function),
     );
 
-    expect(rasterHeights).toEqual([1, 21]);
+    expect(rasterHeights).toEqual([1, 148]);
     expect(
       methods.filter((method) => method === "bluetoothConnect"),
     ).toHaveLength(1);

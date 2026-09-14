@@ -112,6 +112,33 @@ describe("PlateStrip", () => {
     expect(text.style.height).toBe(`${(9.6 / 12) * 100}%`);
   });
 
+  it("shows minimum-width paper without stretching the thumbnail artwork", () => {
+    const { container } = render(
+      <PlateStrip
+        activePlateId="plate-resistors"
+        marginTopMm={0}
+        marginBottomMm={0}
+        printHeadSizeMm={16}
+        minimumLabelWidthMm={80}
+        workspace={sampleDocument}
+        onAddPlate={vi.fn()}
+        onDeletePlate={vi.fn()}
+        onMovePlate={vi.fn()}
+        onSelectPlate={vi.fn()}
+      />,
+    );
+    const thumbnail = container.querySelector<HTMLElement>(".plate-thumb")!;
+    expect(thumbnail.style.getPropertyValue("--label-preview-width")).toBe(
+      "260px",
+    );
+    expect(thumbnail.querySelector(".mini-label")).toHaveStyle({
+      aspectRatio: "5",
+    });
+    expect(thumbnail.querySelector(".label-artwork-content")).toHaveStyle({
+      width: "77.5%",
+    });
+  });
+
   it.each([
     [8, 8],
     [8.2, 7.8],
@@ -136,7 +163,7 @@ describe("PlateStrip", () => {
       const thumbnail = container.querySelector<HTMLElement>(".plate-thumb")!;
       const artwork = thumbnail.querySelector<HTMLElement>(".mini-label")!;
 
-      expect(artwork).toBeEmptyDOMElement();
+      expect(artwork.querySelector(".label-artwork-element")).toBeNull();
       expect(artwork).toHaveStyle({ aspectRatio: String(62 / 16) });
       expect(thumbnail.style.getPropertyValue("--label-preview-height")).toBe(
         "52px",

@@ -110,6 +110,7 @@ export interface PrinterCapabilities {
   readonly darkness?: NumericSettingCapability;
   /** Default blank feed after the last label, in millimeters. */
   readonly feedAfterPrintMm?: number;
+  readonly minimumLabelWidthMm?: number;
   readonly colorModes: readonly ["monochrome"];
   readonly media: readonly MediaSize[];
   readonly maxCopies: number;
@@ -128,6 +129,7 @@ export type OfflinePrinterCapabilities = Pick<
       | "printHeadMarginTopMm"
       | "printHeadMarginBottomMm"
       | "feedAfterPrintMm"
+      | "minimumLabelWidthMm"
     >
   >;
 
@@ -173,6 +175,7 @@ export interface PrinterSettings {
   readonly marginBottomMm?: number;
   readonly interLabelSpacingMm?: number;
   readonly feedAfterPrintMm?: number;
+  readonly minimumLabelWidthMm?: number;
 }
 
 const PRINTER_SETTING_KEYS = new Set([
@@ -183,6 +186,7 @@ const PRINTER_SETTING_KEYS = new Set([
   "marginBottomMm",
   "interLabelSpacingMm",
   "feedAfterPrintMm",
+  "minimumLabelWidthMm",
 ]);
 
 export function isPrinterSettings(value: unknown): value is PrinterSettings {
@@ -207,7 +211,9 @@ export function isPrinterSettings(value: unknown): value is PrinterSettings {
     (!("interLabelSpacingMm" in value) ||
       isTenthMillimeter(value.interLabelSpacingMm, 0)) &&
     (!("feedAfterPrintMm" in value) ||
-      isTenthMillimeter(value.feedAfterPrintMm, 0))
+      isTenthMillimeter(value.feedAfterPrintMm, 0)) &&
+    (!("minimumLabelWidthMm" in value) ||
+      isTenthMillimeter(value.minimumLabelWidthMm, 0))
   );
 }
 
@@ -231,9 +237,11 @@ export function addInterLabelSpacing(
   spacingMm: number,
   dpi: number,
   feedAfterPrintMm = 0,
+  minimumLabelWidthMm = 0,
 ): readonly RasterPage[] {
   if (
     !isTenthMillimeter(feedAfterPrintMm, 0) ||
+    !isTenthMillimeter(minimumLabelWidthMm, 0) ||
     !Number.isFinite(spacingMm) ||
     spacingMm < 0 ||
     !Number.isFinite(dpi) ||
@@ -245,9 +253,17 @@ export function addInterLabelSpacing(
   }
   const spacingRows = Math.round((spacingMm * dpi) / 25.4);
   const finalRows = Math.round((feedAfterPrintMm * dpi) / 25.4);
-  if (finalRows === 0 && (spacingRows === 0 || pages.length < 2)) return pages;
+  const minimumRows = Math.ceil((minimumLabelWidthMm * dpi) / 25.4);
+  if (
+    minimumRows === 0 &&
+    finalRows === 0 &&
+    (spacingRows === 0 || pages.length < 2)
+  )
+    return pages;
   return pages.map((page, index) => {
-    const extraRows = index === pages.length - 1 ? finalRows : spacingRows;
+    const extraRows =
+      Math.max(0, minimumRows - page.heightPixels) +
+      (index === pages.length - 1 ? finalRows : spacingRows);
     if (extraRows === 0) return page;
     const data = new Uint8Array(
       page.data.length + extraRows * page.bytesPerRow,

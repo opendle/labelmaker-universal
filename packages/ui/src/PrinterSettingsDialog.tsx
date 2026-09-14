@@ -17,6 +17,7 @@ interface PrinterSettingsForm {
   readonly marginBottomMm: string;
   readonly interLabelSpacingMm: string;
   readonly feedAfterPrintMm: string;
+  readonly minimumLabelWidthMm: string;
   readonly saving: boolean;
 }
 
@@ -63,6 +64,9 @@ export function PrinterSettingsDialog({
     feedAfterPrintMm: String(
       Number((printer?.feedAfterPrintMm ?? 0).toFixed(1)),
     ),
+    minimumLabelWidthMm: String(
+      Number((printer?.minimumLabelWidthMm ?? 0).toFixed(1)),
+    ),
     saving: false,
   }));
   if (!open || !printer) return null;
@@ -89,6 +93,11 @@ export function PrinterSettingsDialog({
       form.feedAfterPrintMm,
       Number(form.feedAfterPrintMm),
       0,
+    ) &&
+    validMillimeterSetting(
+      form.minimumLabelWidthMm,
+      Number(form.minimumLabelWidthMm),
+      0,
     );
   const save = async () => {
     if (form.saving || !geometryIsValid || !displayNameIsValid) return;
@@ -100,6 +109,7 @@ export function PrinterSettingsDialog({
       marginBottomMm: parsedMarginBottomMm,
       interLabelSpacingMm: parsedInterLabelSpacingMm,
       feedAfterPrintMm: Number(form.feedAfterPrintMm),
+      minimumLabelWidthMm: Number(form.minimumLabelWidthMm),
     };
     setForm((current) => ({ ...current, saving: true }));
     try {
@@ -190,6 +200,24 @@ export function PrinterSettingsDialog({
               }
             />
           </figure>
+          <div className="printer-feed-setting">
+            <span>Minimum label width</span>
+            <EditableDimension
+              mode="draft"
+              label="Minimum label width"
+              description="Shortest label along the tape; zero adds no minimum"
+              min={0}
+              max={100}
+              disabled={form.saving}
+              value={form.minimumLabelWidthMm}
+              onChange={(value) =>
+                setForm((current) => ({
+                  ...current,
+                  minimumLabelWidthMm: value,
+                }))
+              }
+            />
+          </div>
           <div className="printer-feed-setting">
             <span>Feed after last label</span>
             <EditableDimension

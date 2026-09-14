@@ -60,6 +60,7 @@ function AppPlateStrip({
         dispatch({ type: "select-plate", plateId, elementId })
       }
       printHeadSizeMm={activePrinter?.printableWidthMm}
+      minimumLabelWidthMm={activePrinter?.minimumLabelWidthMm}
       phoneMode={layout !== "standard"}
       short={layout === "phone-short"}
       workspace={state.workspace}
@@ -301,6 +302,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             platform={host.platform}
             presentation={host.presentation}
             plate={activePlate}
+            minimumLabelWidthMm={controller.activePrinter?.minimumLabelWidthMm}
             selectedElementId={state.selectedElementId}
             selectedImage={selectedImage}
             selectedShape={selectedShape}

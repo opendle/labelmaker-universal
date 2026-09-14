@@ -276,6 +276,45 @@ describe("desktop physical print dispatch", () => {
     },
   );
 
+  it.each([undefined, 0, 16])(
+    "uses the minimum label width %s separately from final feed",
+    async (minimumLabelWidthMm) => {
+      const document = createBlankLabelDocument(() => "short");
+      const print = vi.fn(async (_job: PrintJob) => undefined);
+      const session = fakeSession(makeIdPrinter, print);
+      const capabilities = await session.capabilities();
+      session.capabilities = async () => ({
+        ...capabilities,
+        minimumLabelWidthMm: 16,
+      });
+      const raster = {
+        widthPixels: 96,
+        heightPixels: 2,
+        bytesPerRow: 12,
+        data: new Uint8Array(24).fill(0xff),
+      };
+      await printToSession(
+        {
+          document,
+          printerId: makeIdPrinter.id,
+          plateIds: [document.plates[0]!.id],
+        },
+        makeIdPrinter,
+        session,
+        async () => raster,
+        () => "min-width",
+        {
+          feedAfterPrintMm: 2.5,
+          ...(minimumLabelWidthMm === undefined ? {} : { minimumLabelWidthMm }),
+        },
+      );
+      const page = print.mock.calls[0]?.[0].pages[0];
+      expect(page?.heightPixels).toBe(minimumLabelWidthMm === 0 ? 22 : 148);
+      expect(page?.data.subarray(0, 24)).toEqual(raster.data);
+      expect(page?.data.subarray(24).every((value) => value === 0)).toBe(true);
+    },
+  );
+
   it("rejects a session for a different printer before it can print", async () => {
     const document = createBlankLabelDocument(() => "test-id");
     const plate = document.plates[0];
