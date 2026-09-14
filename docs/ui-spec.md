@@ -217,7 +217,9 @@ appearances so that they show the physical label and printed result accurately.
   three vertical areas and the gap between labels. On hover, explain what each
   dimension measures and that it is editable. Show resolution
   as fixed text above the diagram. Below it, show an editable
-  "Minimum label width" value and a "Feed after last label" value. The minimum
+  "Minimum label width" field and a "Feed after last label" field on one row.
+  Use the normal bordered number fields with `mm` units for these two settings.
+  The minimum
   is along the tape and extends each short label with blank space at its end.
   Zero disables the minimum. Final feed applies once after the full job and
   brings the final label past the cutter. Show the minimum width on the main

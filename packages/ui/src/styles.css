@@ -964,8 +964,7 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   left: 50%;
   transform: translateX(-50%);
 }
-.dimension-ruler .dimension-value,
-.printer-feed-setting .dimension-value {
+.dimension-ruler .dimension-value {
   z-index: 2;
   display: flex;
   align-items: baseline;
@@ -2484,23 +2483,8 @@ textarea.inline-text-editor {
     --dimension-value-background: #252629;
   }
 }
-.printer-feed-setting {
-  --dimension-value-background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  color: var(--muted);
-  font-size: 12px;
-}
-.printer-feed-setting .dimension-value {
-  font-family: "DM Mono", monospace;
-}
-.presentation-mobile-touch .printer-feed-setting .dimension-value {
-  min-width: 44px;
-  min-height: 44px;
-  align-items: center;
-  justify-content: center;
+.printer-feed-settings {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .darkness-setting {
   display: flex;

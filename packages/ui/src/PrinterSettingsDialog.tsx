@@ -5,7 +5,6 @@ import { MAX_PRINTER_DISPLAY_NAME_LENGTH } from "@labelmaker/printing";
 
 import { IconButton } from "./controls.js";
 import type { PrinterSettings, PrinterSummary } from "./host.js";
-import { EditableDimension } from "./EditableDimension.js";
 import { Modal } from "./Modal.js";
 import { PrinterRibbonDiagram } from "./PrinterRibbonDiagram.js";
 
@@ -200,38 +199,49 @@ export function PrinterSettingsDialog({
               }
             />
           </figure>
-          <div className="printer-feed-setting">
-            <span>Minimum label width</span>
-            <EditableDimension
-              mode="draft"
-              label="Minimum label width"
-              description="Shortest label along the tape; zero adds no minimum"
-              min={0}
-              max={100}
-              disabled={form.saving}
-              value={form.minimumLabelWidthMm}
-              onChange={(value) =>
-                setForm((current) => ({
-                  ...current,
-                  minimumLabelWidthMm: value,
-                }))
-              }
-            />
-          </div>
-          <div className="printer-feed-setting">
-            <span>Feed after last label</span>
-            <EditableDimension
-              mode="draft"
-              label="Feed after last label"
-              description="Extra feed after the full print job"
-              min={0}
-              max={100}
-              disabled={form.saving}
-              value={form.feedAfterPrintMm}
-              onChange={(value) =>
-                setForm((current) => ({ ...current, feedAfterPrintMm: value }))
-              }
-            />
+          <div className="field-row printer-feed-settings">
+            {(
+              [
+                [
+                  "minimumLabelWidthMm",
+                  "Minimum label width",
+                  "Shortest label along the tape; zero adds no minimum",
+                ],
+                [
+                  "feedAfterPrintMm",
+                  "Feed after last label",
+                  "Extra feed after the full print job",
+                ],
+              ] as const
+            ).map(([field, label, description]) => (
+              <label className="field" key={field} title={description}>
+                <span>{label}</span>
+                <div className="unit-input">
+                  <input
+                    aria-label={label}
+                    disabled={form.saving}
+                    inputMode="decimal"
+                    min={0}
+                    max={100}
+                    step={0.1}
+                    required
+                    type="number"
+                    value={form[field]}
+                    onFocus={(event) => event.currentTarget.select()}
+                    onKeyDown={(event) => {
+                      if (event.key !== "Enter") return;
+                      event.preventDefault();
+                      event.currentTarget.blur();
+                    }}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      setForm((current) => ({ ...current, [field]: value }));
+                    }}
+                  />
+                  <b aria-hidden="true">mm</b>
+                </div>
+              </label>
+            ))}
           </div>
           {printer.darkness ? (
             <label className="darkness-setting">
