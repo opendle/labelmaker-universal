@@ -233,6 +233,75 @@ describe("MakeIdAdapter", () => {
     });
   });
 
+  it("waits for buffer space before it sends the next raster frame", async () => {
+    const transport = recording([
+      response(),
+      response({ wait: true }),
+      response({ wait: true }),
+      response({ resend: true }),
+      response(),
+      response(),
+      response(),
+      response({ exited: true }),
+    ]);
+    const session = await connectSession(transport);
+    await session.print({ ...printJob("busy-buffer"), pages: [page(171)] });
+    expect(transport.writes.map((write) => write[3])).toEqual([
+      0x10, 0x1b, 0x10, 0x10, 0x10, 0x1b, 0x10, 0x10,
+    ]);
+  });
+
+  it("stops a busy buffer after the poll limit and closes the session", async () => {
+    const transport = recording([
+      response(),
+      response({ wait: true }),
+      response({ wait: true }),
+      response({ wait: true }),
+    ]);
+    const adapter = new MakeIdE1Adapter(new FakeProvider([], transport), {
+      completionPollIntervalMs: 0,
+      completionPolls: 2,
+    });
+    const session = await adapter.connect(printer, context);
+    await expect(
+      session.print({ ...printJob("busy-timeout"), pages: [page(171)] }),
+    ).rejects.toMatchObject({ code: "makeid.timeout" });
+    expect(transport.writes.filter((write) => write[3] === 0x1b)).toHaveLength(
+      1,
+    );
+    expect(transport.open).toBe(false);
+  });
+
+  it("closes a failed transfer before the session can print again", async () => {
+    const transport = recording([
+      response(),
+      response({ resend: true }),
+      response({ resend: true }),
+    ]);
+    const session = await connectSession(transport);
+    await expect(session.print(printJob("rejected"))).rejects.toMatchObject({
+      code: "makeid.rejected",
+    });
+    expect(transport.open).toBe(false);
+    await expect(session.print(printJob("second"))).rejects.toMatchObject({
+      code: "makeid.closed",
+    });
+  });
+
+  it("does not reset a print that was already active before this job", async () => {
+    const transport = recording([response({ printing: true })]);
+    const session = await connectSession(transport);
+    await expect(session.print(printJob("already-busy"))).rejects.toMatchObject(
+      {
+        code: "makeid.not-ready",
+      },
+    );
+    expect(transport.writes.map((write) => [write[3], write[4]])).toEqual([
+      [0x10, 0x00],
+    ]);
+    expect(transport.open).toBe(false);
+  });
+
   it("consumes the final control reply before two consecutive prints", async () => {
     const transport = recording([
       response(),
@@ -483,6 +552,23 @@ describe("MakeIdAdapter", () => {
     },
   );
 
+  it.each(["l1-ff00-300", "l1-abf0-300"] as const)(
+    "rounds the %s default margins to tenths",
+    (profileId) => {
+      const adapter = new MakeIdAdapter(
+        new FakeProvider([], new RecordingMakeIdTransport()),
+      );
+      expect(
+        adapter.offlineCapabilitiesFor(
+          makePrinter("l1", profileId, "MakeID L1"),
+        ),
+      ).toMatchObject({
+        printHeadMarginTopMm: 1.9,
+        printHeadMarginBottomMm: 1.9,
+      });
+    },
+  );
+
   it("tries FF00 only after an unresolved L1 rejects ABF0", async () => {
     const failedAbf0 = new RecordingMakeIdTransport([
       new TextEncoder().encode("not an ABF0 response"),
@@ -506,8 +592,13 @@ describe("MakeIdAdapter", () => {
       dpi: 300,
       maxCopies: 1,
       supportsStatus: false,
+      feedAfterPrintMm: 11,
     });
-    expect(capabilities).not.toHaveProperty("darkness");
+    expect(capabilities.darkness).toMatchObject({
+      minimum: 0,
+      maximum: 2,
+      defaultValue: 1,
+    });
   });
 
   it("assembles an FF00 model reply from separate notifications", async () => {
@@ -546,9 +637,31 @@ describe("MakeIdAdapter", () => {
     });
   });
 
-  it("prints two FF00 jobs with the captured per-image lead-in", async () => {
+  it.each([-1, 3, 1.5, NaN])(
+    "rejects FF00 density %s before sending a job",
+    async (darkness) => {
+      const transport = recording([new TextEncoder().encode("L1-300")]);
+      const target = makePrinter("l1", "l1-ff00-300", "MakeID L1");
+      const session = await new MakeIdAdapter(
+        new FakeProvider([], transport),
+      ).connect(target, context);
+      const writesBefore = transport.writes.length;
+      await expect(
+        session.print({
+          id: "invalid-density",
+          printerId: target.id,
+          copies: 1,
+          pages: [pageForWidth(144, 1)],
+          darkness,
+        }),
+      ).rejects.toMatchObject({ code: "makeid.invalid-job" });
+      expect(transport.writes).toHaveLength(writesBefore);
+    },
+  );
+
+  it("prints FF00 jobs with each density and the captured per-image lead-in", async () => {
     const responses: Uint8Array[] = [new TextEncoder().encode("L1-300")];
-    for (let jobIndex = 0; jobIndex < 2; jobIndex += 1) {
+    for (let jobIndex = 0; jobIndex < 4; jobIndex += 1) {
       responses.push(
         Uint8Array.of(1),
         Uint8Array.of(2),
@@ -571,18 +684,30 @@ describe("MakeIdAdapter", () => {
     });
 
     await session.print(makeJob("ff00-first"));
-    await session.print(makeJob("ff00-second"));
+    for (const darkness of [0, 1, 2]) {
+      await session.print({ ...makeJob(`ff00-${darkness}`), darkness });
+    }
+    expect(
+      transport.writes
+        .filter((write) => write.length === 5 && write[2] === 0x10)
+        .map((write) => [...write]),
+    ).toEqual([
+      [0x10, 0xff, 0x10, 0, 1],
+      [0x10, 0xff, 0x10, 0, 0],
+      [0x10, 0xff, 0x10, 0, 1],
+      [0x10, 0xff, 0x10, 0, 2],
+    ]);
 
     const sessionOpenWrites = transport.writes.filter(
       (write) =>
         write.length === 4 &&
         write.every((byte, index) => byte === [0x10, 0xff, 0xfe, 0x01][index]),
     );
-    expect(sessionOpenWrites).toHaveLength(2);
+    expect(sessionOpenWrites).toHaveLength(4);
     const rasterWrites = transport.writes.filter(
       (write) => write[4] === 0x1d && write[5] === 0x76,
     );
-    expect(rasterWrites).toHaveLength(2);
+    expect(rasterWrites).toHaveLength(4);
     expect([...rasterWrites[0]!.subarray(0, 12)]).toEqual([
       0x10, 0xff, 0xfe, 0x01, 0x1d, 0x76, 0x30, 0, 18, 0, 1, 0,
     ]);
@@ -697,13 +822,18 @@ function printJob(id: string) {
 }
 
 function response(
-  options: { resend?: boolean; printing?: boolean; exited?: boolean } = {},
+  options: {
+    wait?: boolean;
+    resend?: boolean;
+    printing?: boolean;
+    exited?: boolean;
+  } = {},
 ): Uint8Array {
   const bytes = new Uint8Array(36);
   bytes[0] = 0x66;
   bytes[1] = 36;
   bytes[3] = 0x10;
-  bytes[4] = options.resend ? 0x40 : 0;
+  bytes[4] = options.wait ? 0x80 : options.resend ? 0x40 : 0;
   bytes[35] = options.printing ? 0x80 : options.exited ? 0x60 : 0;
   return bytes;
 }

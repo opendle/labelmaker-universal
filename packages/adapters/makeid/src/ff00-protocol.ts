@@ -8,13 +8,12 @@ export const MAKEID_FF00_SERIAL_QUERY = Uint8Array.of(0x10, 0xff, 0x20, 0xf2);
 export const MAKEID_FF00_STATUS_QUERY = Uint8Array.of(0x10, 0xff, 0x40);
 export const MAKEID_FF00_BATTERY_QUERY = Uint8Array.of(0x10, 0xff, 0x50, 0xf1);
 export const MAKEID_FF00_SESSION_OPEN = Uint8Array.of(0x10, 0xff, 0xfe, 0x01);
-export const MAKEID_FF00_SESSION_MODE = Uint8Array.of(
-  0x10,
-  0xff,
-  0x10,
-  0x00,
-  0x02,
-);
+export function buildMakeIdFf00DensityCommand(density: number): Uint8Array {
+  if (!Number.isInteger(density) || density < 0 || density > 2) {
+    throw new MakeIdFf00ProtocolError("L1 print density must be 0, 1, or 2");
+  }
+  return Uint8Array.of(0x10, 0xff, 0x10, 0x00, density);
+}
 export const MAKEID_FF00_SESSION_CLOSE = Uint8Array.of(0x10, 0xff, 0xfe, 0x45);
 
 export class MakeIdFf00ProtocolError extends Error {

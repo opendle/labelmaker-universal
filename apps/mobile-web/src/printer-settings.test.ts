@@ -14,6 +14,7 @@ describe("iPad printer settings", () => {
       marginTopMm: 0,
       marginBottomMm: 1.2,
       interLabelSpacingMm: 1.5,
+      feedAfterPrintMm: 11,
     };
 
     expect(validatePrinterSettings(settings)).toEqual(settings);
@@ -26,6 +27,8 @@ describe("iPad printer settings", () => {
     { marginTopMm: -0.1 },
     { marginBottomMm: 0.15 },
     { interLabelSpacingMm: 0.15 },
+    { feedAfterPrintMm: 100.1 },
+    { feedAfterPrintMm: 0.15 },
     { extra: true },
   ])("rejects invalid settings: $settings", (settings) => {
     expect(() => validatePrinterSettings(settings)).toThrow(

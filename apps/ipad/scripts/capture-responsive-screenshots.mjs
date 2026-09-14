@@ -180,6 +180,18 @@ async function capture(viewport, platform) {
         throw new Error("The canvas must have three editable dimensions.");
       }
       for (const field of fields) {
+        const measure = field.parentElement;
+        const text = measure.querySelector("span");
+        const inputStyle = getComputedStyle(field);
+        const textStyle = getComputedStyle(text);
+        if (
+          ["fontFamily", "fontSize", "fontWeight", "letterSpacing"].some(
+            (property) => inputStyle[property] !== textStyle[property],
+          ) ||
+          Math.abs(field.offsetWidth - measure.offsetWidth) > 1
+        ) {
+          throw new Error("A dimension input does not fit its measured text.");
+        }
         const bounds = field.getBoundingClientRect();
         const target = document.elementFromPoint(
           bounds.left + bounds.width / 2,
@@ -196,10 +208,12 @@ async function capture(viewport, platform) {
             `${field.getAttribute("aria-label")} is clipped or covered.`,
           );
         }
-        if (bounds.width < 44 || bounds.height < 44) {
+        const touchTarget = field.closest(".dimension-value");
+        const touchBounds = touchTarget.getBoundingClientRect();
+        if (touchBounds.width < 44 || touchBounds.height < 44) {
           throw new Error("A dimension touch target is smaller than 44 px.");
         }
-        const underline = getComputedStyle(field.parentElement, "::after");
+        const underline = getComputedStyle(touchTarget, "::after");
         if (underline.borderBottomStyle !== "dashed") {
           throw new Error("An editable dimension has no dashed underline.");
         }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type InputHTMLAttributes } from "react";
+import { useEffect, useRef, useState, type InputHTMLAttributes } from "react";
 import { NumberInput } from "./NumberInput.js";
 
 type DimensionProps = {
@@ -21,7 +21,13 @@ type DimensionProps = {
 );
 
 export function EditableDimension(props: DimensionProps) {
-  const fieldRef = useRef<HTMLSpanElement>(null);
+  const [draftWidth, setDraftWidth] = useState<{
+    value: number | string;
+    text: string;
+  } | null>(null);
+  const widthText =
+    draftWidth?.value === props.value ? draftWidth.text : String(props.value);
+  const fieldRef = useRef<HTMLLabelElement>(null);
   useEffect(() => {
     const blurOutside = (event: PointerEvent) => {
       const active = document.activeElement;
@@ -44,35 +50,43 @@ export function EditableDimension(props: DimensionProps) {
     min: props.min,
     max: props.max,
     onFocus: (event) => event.currentTarget.select(),
+    onBlur: () => setDraftWidth(null),
     onKeyDown: (event) => {
       if (event.key !== "Enter") return;
       event.preventDefault();
       event.currentTarget.blur();
     },
     step: 0.1,
-    style: { width: `${Math.max(1, String(props.value).length)}ch` },
     title,
   } satisfies InputHTMLAttributes<HTMLInputElement>;
 
   return (
-    <span className="dimension-value" ref={fieldRef} title={title}>
-      {props.mode === "draft" ? (
-        <input
-          {...inputProps}
-          required
-          type="number"
-          value={props.value}
-          onChange={(event) => props.onChange(event.target.value)}
-        />
-      ) : (
-        <NumberInput
-          {...inputProps}
-          value={props.value}
-          normalizeValue={(next) => Math.max(props.min, next)}
-          onValueChange={props.onChange}
-        />
-      )}
+    <label className="dimension-value" ref={fieldRef} title={title}>
+      <span className="dimension-number">
+        <span aria-hidden="true">{widthText || "0"}</span>
+        {props.mode === "draft" ? (
+          <input
+            {...inputProps}
+            required
+            type="number"
+            value={props.value}
+            onChange={(event) => {
+              const text = event.target.value;
+              setDraftWidth({ value: text, text });
+              props.onChange(text);
+            }}
+          />
+        ) : (
+          <NumberInput
+            {...inputProps}
+            value={props.value}
+            normalizeValue={(next) => Math.max(props.min, next)}
+            onValueChange={props.onChange}
+            onDraftValueChange={(text, value) => setDraftWidth({ text, value })}
+          />
+        )}
+      </span>
       <b aria-hidden="true">mm</b>
-    </span>
+    </label>
   );
 }

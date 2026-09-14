@@ -134,6 +134,7 @@ export async function printToSession(
       pages,
       settings.interLabelSpacingMm ?? 1,
       capabilities.dpi,
+      settings.feedAfterPrintMm ?? capabilities.feedAfterPrintMm ?? 0,
     ),
     copies: 1,
     ...(mediaId === undefined ? {} : { mediaId }),

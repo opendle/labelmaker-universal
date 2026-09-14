@@ -57,7 +57,8 @@ FF00 path is accepted only when model query `10 FF 20 F0` returns a parseable
 The public L1-300 capture has this print order:
 
 1. Query model, firmware, serial number, status, and battery.
-2. Send session open `10 FF FE 01` and mode `10 FF 10 00 02`.
+2. Send session open `10 FF FE 01` and density `10 FF 10 00 D`.
+   `D` is 0 for Low, 1 for Medium (default), or 2 for High.
 3. Wait for `OK`.
 4. For each image, send `10 FF FE 01`, the `GS v 0` raster header, and the
    most-significant-bit-first raster.
@@ -70,6 +71,10 @@ count is limited to one. The status reply format is not decoded, so the
 adapter reports `supportsStatus: false`. A bounded nonempty reply proves only
 that the connection is responsive. The session-level `OK` proves print-time
 readiness.
+
+FF00 profiles report 11 mm of final feed by default. The application adds it
+to the final raster page, after all selected labels. Users can change this
+value in printer settings. Other profiles default to zero.
 
 ## macOS transport
 
@@ -97,7 +102,10 @@ tape, darkness from 0 through 31, and no automatic cut. The adapter rejects a
 raster that is not exactly 96 pixels wide. The renderer must pad narrow media;
 the adapter does not crop or resize it.
 
-The ABF0 session serializes status, print, and close operations. It consumes
+The ABF0 session serializes status, print, and close operations. A buffer-wait
+reply stops raster writes until status polling releases the buffer. A status
+query retry flag does not resend an accepted raster frame. Failed transfers
+reset and close the connection. The session consumes
 the final control reply before it reuses the byte stream. If that reply is
 missing after a confirmed print, the print stays successful and the adapter
 closes the dirty session. The macOS helper can restore the saved CoreBluetooth

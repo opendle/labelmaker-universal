@@ -78,16 +78,30 @@ export function offlineCapabilitiesForProfile(
 ): OfflinePrinterCapabilities {
   const halfUnprintableMarginMm =
     profile.profileId === "e1-abf0-203" || profile.profileId.startsWith("l1-")
-      ? Math.max(0, (16 - profile.printableWidthMm) / 2)
+      ? Math.max(0, Math.round((16 - profile.printableWidthMm) * 5) / 10)
       : 0;
   return {
     dpi: profile.dpi,
     rasterWidthPixels: profile.rasterWidthPixels,
     printableWidthMm: profile.printableWidthMm,
     rasterAlignment: profile.rasterAlignment,
+    feedAfterPrintMm: profile.protocolFamily === "ff00-escpos" ? 11 : 0,
     printHeadMarginTopMm: halfUnprintableMarginMm,
     printHeadMarginBottomMm: halfUnprintableMarginMm,
-    ...(profile.protocolFamily === "abf0-66" ? { darkness: DARKNESS } : {}),
+    darkness:
+      profile.protocolFamily === "abf0-66"
+        ? DARKNESS
+        : {
+            minimum: 0,
+            maximum: 2,
+            step: 1,
+            defaultValue: 1,
+            choices: [
+              { value: 0, label: "Low" },
+              { value: 1, label: "Medium" },
+              { value: 2, label: "High" },
+            ],
+          },
   };
 }
 

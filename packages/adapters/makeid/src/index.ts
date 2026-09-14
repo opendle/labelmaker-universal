@@ -28,7 +28,7 @@ import {
   MAKEID_FF00_MODEL_QUERY,
   MAKEID_FF00_SERIAL_QUERY,
   MAKEID_FF00_SESSION_CLOSE,
-  MAKEID_FF00_SESSION_MODE,
+  buildMakeIdFf00DensityCommand,
   MAKEID_FF00_SESSION_OPEN,
   MAKEID_FF00_STATUS_QUERY,
   parseMakeIdFf00Model,
@@ -693,6 +693,7 @@ class MakeId66Session extends MakeIdSession {
       this.assertOpen(signal);
       validateJob(job, this.printer, this.profile);
       const darkness = readDarkness(job);
+      let transferStarted = false;
 
       try {
         const initial = await this.#query(signal);
@@ -728,6 +729,7 @@ class MakeId66Session extends MakeIdSession {
             if (!frame) {
               throw invalidJob(`frame ${frameIndex + 1} is missing`);
             }
+            transferStarted = true;
             await this.#sendRasterFrame(frame, signal);
           }
 
@@ -741,8 +743,11 @@ class MakeId66Session extends MakeIdSession {
 
         await this.#finishCompletedTransfer(signal);
       } catch (error) {
-        if (signal?.aborted) {
+        if (transferStarted) {
           await this.#sendBestEffortReset();
+        } else {
+          // Do not reset a busy printer before this job sends raster data.
+          await this.invalidate();
         }
         throw normalizeAdapterError(error, signal);
       }
@@ -778,6 +783,22 @@ class MakeId66Session extends MakeIdSession {
       response = await this.#readResponse(signal);
     }
 
+    // A wait reply accepts the frame but asks us to stop sending raster data.
+    // A resend flag on a status query is not a request to print the frame again.
+    for (let poll = 0; response.kind === "wait"; poll += 1) {
+      if (poll >= this.options.completionPolls) {
+        throw new MakeIdAdapterError(
+          "makeid.timeout",
+          `The ${this.profile.model} did not release its print buffer`,
+          true,
+        );
+      }
+      await abortableDelay(this.options.completionPollIntervalMs, signal);
+      const status = await this.#query(signal);
+      response =
+        status.kind === "resend" ? { ...status, kind: "wait" } : status;
+    }
+
     if (response.kind === "error") {
       throw new MakeIdAdapterError(
         "makeid.rejected",
@@ -792,7 +813,11 @@ class MakeId66Session extends MakeIdSession {
         true,
       );
     }
-    if (response.kind === "paused" || response.kind === "exited") {
+    if (
+      response.kind === "paused" ||
+      response.kind === "exited" ||
+      response.kind === "empty"
+    ) {
       throw new MakeIdAdapterError(
         "makeid.not-ready",
         `The ${this.profile.model} stopped the print transfer`,
@@ -863,9 +888,9 @@ class MakeId66Session extends MakeIdSession {
         );
       }
     } catch {
-      // The original cancellation error is more useful than a cleanup error.
+      // The original transfer error is more useful than a cleanup error.
     } finally {
-      // A reset can produce a reply after cancellation. Close the transport so
+      // A reset can produce a late reply. Close the transport so
       // that no later operation can consume that reply as its own response.
       await this.invalidate();
     }
@@ -898,6 +923,16 @@ class MakeIdFf00Session extends MakeIdSession {
     return this.runExclusive(async () => {
       this.assertOpen(signal);
       validateJob(job, this.printer, this.profile);
+      const density = job.darkness ?? job.options?.["makeid.darkness"] ?? 1;
+      if (
+        typeof density !== "number" ||
+        !Number.isInteger(density) ||
+        density < 0 ||
+        density > 2
+      ) {
+        throw invalidJob("L1 print density must be 0, 1, or 2");
+      }
+      const densityCommand = buildMakeIdFf00DensityCommand(density);
       try {
         // Captures from L1-300 firmware V1.07HH show that these five queries
         // are required before the session-open acknowledgement. They are kept
@@ -914,7 +949,7 @@ class MakeIdFf00Session extends MakeIdSession {
           await this.#readNonEmptyReply("handshake", signal);
         }
         await this.transport.write(MAKEID_FF00_SESSION_OPEN, signal);
-        await this.transport.write(MAKEID_FF00_SESSION_MODE, signal);
+        await this.transport.write(densityCommand, signal);
         await this.#readUntil(Uint8Array.of(0x4f, 0x4b), signal);
 
         for (let pageIndex = 0; pageIndex < job.pages.length; pageIndex += 1) {

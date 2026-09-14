@@ -40,6 +40,10 @@ export interface NumericSettingCapability {
   readonly maximum: number;
   readonly step: number;
   readonly defaultValue: number;
+  readonly choices?: readonly {
+    readonly value: number;
+    readonly label: string;
+  }[];
 }
 
 /** Cross-feed position of media relative to the print head. */
@@ -104,6 +108,8 @@ export interface PrinterCapabilities {
   /** Default minimum blank margin at the bottom label edge, in millimeters. */
   readonly printHeadMarginBottomMm?: number;
   readonly darkness?: NumericSettingCapability;
+  /** Default blank feed after the last label, in millimeters. */
+  readonly feedAfterPrintMm?: number;
   readonly colorModes: readonly ["monochrome"];
   readonly media: readonly MediaSize[];
   readonly maxCopies: number;
@@ -118,7 +124,10 @@ export type OfflinePrinterCapabilities = Pick<
   Partial<
     Pick<
       PrinterCapabilities,
-      "darkness" | "printHeadMarginTopMm" | "printHeadMarginBottomMm"
+      | "darkness"
+      | "printHeadMarginTopMm"
+      | "printHeadMarginBottomMm"
+      | "feedAfterPrintMm"
     >
   >;
 
@@ -163,6 +172,7 @@ export interface PrinterSettings {
   /** Minimum blank space at the bottom label edge, in millimeters. */
   readonly marginBottomMm?: number;
   readonly interLabelSpacingMm?: number;
+  readonly feedAfterPrintMm?: number;
 }
 
 const PRINTER_SETTING_KEYS = new Set([
@@ -172,6 +182,7 @@ const PRINTER_SETTING_KEYS = new Set([
   "marginTopMm",
   "marginBottomMm",
   "interLabelSpacingMm",
+  "feedAfterPrintMm",
 ]);
 
 export function isPrinterSettings(value: unknown): value is PrinterSettings {
@@ -194,7 +205,9 @@ export function isPrinterSettings(value: unknown): value is PrinterSettings {
     (!("marginBottomMm" in value) ||
       isTenthMillimeter(value.marginBottomMm, 0)) &&
     (!("interLabelSpacingMm" in value) ||
-      isTenthMillimeter(value.interLabelSpacingMm, 0))
+      isTenthMillimeter(value.interLabelSpacingMm, 0)) &&
+    (!("feedAfterPrintMm" in value) ||
+      isTenthMillimeter(value.feedAfterPrintMm, 0))
   );
 }
 
@@ -212,31 +225,37 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Add white feed rows between raster pages without changing their width. */
+/** Add white rows between pages and after the last page, without changing width. */
 export function addInterLabelSpacing(
   pages: readonly RasterPage[],
   spacingMm: number,
   dpi: number,
+  feedAfterPrintMm = 0,
 ): readonly RasterPage[] {
   if (
+    !isTenthMillimeter(feedAfterPrintMm, 0) ||
     !Number.isFinite(spacingMm) ||
     spacingMm < 0 ||
     !Number.isFinite(dpi) ||
     dpi <= 0
   ) {
-    throw new RangeError("Inter-label spacing and printer DPI must be valid");
+    throw new RangeError(
+      "Print spacing, final feed, and printer DPI must be valid",
+    );
   }
   const spacingRows = Math.round((spacingMm * dpi) / 25.4);
-  if (spacingRows === 0 || pages.length < 2) return pages;
+  const finalRows = Math.round((feedAfterPrintMm * dpi) / 25.4);
+  if (finalRows === 0 && (spacingRows === 0 || pages.length < 2)) return pages;
   return pages.map((page, index) => {
-    if (index === pages.length - 1) return page;
+    const extraRows = index === pages.length - 1 ? finalRows : spacingRows;
+    if (extraRows === 0) return page;
     const data = new Uint8Array(
-      page.data.length + spacingRows * page.bytesPerRow,
+      page.data.length + extraRows * page.bytesPerRow,
     );
     data.set(page.data);
     return {
       ...page,
-      heightPixels: page.heightPixels + spacingRows,
+      heightPixels: page.heightPixels + extraRows,
       data,
     };
   });

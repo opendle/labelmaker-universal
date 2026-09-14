@@ -222,6 +222,7 @@ describe("desktop printer configuration", () => {
         marginTopMm: 1.4,
         marginBottomMm: 2.6,
         interLabelSpacingMm: 1.5,
+        feedAfterPrintMm: 11,
       },
       [second]: { darkness: 18 },
       "makeid:not-configured": { darkness: 31 },
@@ -235,6 +236,7 @@ describe("desktop printer configuration", () => {
         marginTopMm: 1.4,
         marginBottomMm: 2.6,
         interLabelSpacingMm: 1.5,
+        feedAfterPrintMm: 11,
       },
       [second]: { darkness: 18 },
     });

@@ -5,6 +5,7 @@ import { MAX_PRINTER_DISPLAY_NAME_LENGTH } from "@labelmaker/printing";
 
 import { IconButton } from "./controls.js";
 import type { PrinterSettings, PrinterSummary } from "./host.js";
+import { EditableDimension } from "./EditableDimension.js";
 import { Modal } from "./Modal.js";
 import { PrinterRibbonDiagram } from "./PrinterRibbonDiagram.js";
 
@@ -15,6 +16,7 @@ interface PrinterSettingsForm {
   readonly marginTopMm: string;
   readonly marginBottomMm: string;
   readonly interLabelSpacingMm: string;
+  readonly feedAfterPrintMm: string;
   readonly saving: boolean;
 }
 
@@ -49,10 +51,18 @@ export function PrinterSettingsDialog({
   const [form, setForm] = useState<PrinterSettingsForm>(() => ({
     displayName: printer?.name ?? "",
     darkness: printer?.darkness?.value ?? 0,
-    printHeadSizeMm: String(printer?.printableWidthMm ?? ""),
-    marginTopMm: String(printer?.marginTopMm ?? 0),
-    marginBottomMm: String(printer?.marginBottomMm ?? 0),
-    interLabelSpacingMm: String(printer?.interLabelSpacingMm ?? 1),
+    printHeadSizeMm:
+      printer?.printableWidthMm === undefined
+        ? ""
+        : String(Number(printer.printableWidthMm.toFixed(1))),
+    marginTopMm: String(Number((printer?.marginTopMm ?? 0).toFixed(1))),
+    marginBottomMm: String(Number((printer?.marginBottomMm ?? 0).toFixed(1))),
+    interLabelSpacingMm: String(
+      Number((printer?.interLabelSpacingMm ?? 1).toFixed(1)),
+    ),
+    feedAfterPrintMm: String(
+      Number((printer?.feedAfterPrintMm ?? 0).toFixed(1)),
+    ),
     saving: false,
   }));
   if (!open || !printer) return null;
@@ -74,6 +84,11 @@ export function PrinterSettingsDialog({
       form.interLabelSpacingMm,
       parsedInterLabelSpacingMm,
       0,
+    ) &&
+    validMillimeterSetting(
+      form.feedAfterPrintMm,
+      Number(form.feedAfterPrintMm),
+      0,
     );
   const save = async () => {
     if (form.saving || !geometryIsValid || !displayNameIsValid) return;
@@ -84,6 +99,7 @@ export function PrinterSettingsDialog({
       marginTopMm: parsedMarginTopMm,
       marginBottomMm: parsedMarginBottomMm,
       interLabelSpacingMm: parsedInterLabelSpacingMm,
+      feedAfterPrintMm: Number(form.feedAfterPrintMm),
     };
     setForm((current) => ({ ...current, saving: true }));
     try {
@@ -159,7 +175,6 @@ export function PrinterSettingsDialog({
             aria-label="Printer label dimensions"
           >
             <figcaption>
-              <span>Example ribbon · to scale</span>
               <span>
                 Resolution:{" "}
                 {printer.dpi === undefined
@@ -175,14 +190,38 @@ export function PrinterSettingsDialog({
               }
             />
           </figure>
+          <div className="printer-feed-setting">
+            <span>Feed after last label</span>
+            <EditableDimension
+              mode="draft"
+              label="Feed after last label"
+              description="Extra feed after the full print job"
+              min={0}
+              max={100}
+              disabled={form.saving}
+              value={form.feedAfterPrintMm}
+              onChange={(value) =>
+                setForm((current) => ({ ...current, feedAfterPrintMm: value }))
+              }
+            />
+          </div>
           {printer.darkness ? (
             <label className="darkness-setting">
               <span>
-                <strong>DARKNESS</strong>
-                <output>{form.darkness}</output>
+                <strong>PRINT DENSITY</strong>
+                <output>
+                  {printer.darkness.choices?.find(
+                    (choice) => choice.value === form.darkness,
+                  )?.label ?? form.darkness}
+                </output>
               </span>
               <input
                 aria-label="Print darkness"
+                aria-valuetext={
+                  printer.darkness.choices?.find(
+                    (choice) => choice.value === form.darkness,
+                  )?.label
+                }
                 disabled={form.saving}
                 max={printer.darkness.maximum}
                 min={printer.darkness.minimum}
@@ -197,8 +236,11 @@ export function PrinterSettingsDialog({
                 value={form.darkness}
               />
               <small>
-                {printer.darkness.minimum} lighter · {printer.darkness.maximum}{" "}
-                darker
+                {printer.darkness.choices
+                  ? printer.darkness.choices
+                      .map((choice) => choice.label)
+                      .join(" · ")
+                  : `${printer.darkness.minimum} lighter · ${printer.darkness.maximum} darker`}
               </small>
             </label>
           ) : null}

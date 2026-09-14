@@ -32,6 +32,7 @@ interface DesktopPrinterSummary {
   readonly marginTopMm?: number;
   readonly marginBottomMm?: number;
   readonly interLabelSpacingMm?: number;
+  readonly feedAfterPrintMm?: number;
   readonly darkness?: DesktopNumericSetting;
   readonly batteryPercent?: number;
 }
@@ -102,6 +103,8 @@ function capabilitySummary(
     marginBottomMm:
       settings?.marginBottomMm ?? capabilities.printHeadMarginBottomMm ?? 0,
     interLabelSpacingMm: settings?.interLabelSpacingMm ?? 1,
+    feedAfterPrintMm:
+      settings?.feedAfterPrintMm ?? capabilities.feedAfterPrintMm ?? 0,
     ...(capabilities.darkness === undefined
       ? {}
       : {

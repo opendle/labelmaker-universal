@@ -64,7 +64,7 @@ describe("PrinterSettingsDialog", () => {
     const diagram = screen.getByRole("figure", {
       name: "Printer label dimensions",
     });
-    expect(diagram).toHaveTextContent("Example ribbon · to scale");
+    expect(diagram).not.toHaveTextContent("Example ribbon");
     expect(diagram).toHaveTextContent("Resolution: 203 dpi");
     expect(diagram).not.toHaveTextContent("30 mm");
     for (const name of [
@@ -91,6 +91,37 @@ describe("PrinterSettingsDialog", () => {
     expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
   });
 
+  it("rounds device geometry to tenths before display and save", async () => {
+    const onSave = vi.fn().mockResolvedValue(true);
+    renderDialog({
+      onSave,
+      printerSummary: {
+        ...printer,
+        dpi: 300,
+        printableWidthMm: 12.2,
+        marginTopMm: 1.9000000000000004,
+        marginBottomMm: 1.9000000000000004,
+      },
+    });
+    expect(screen.getByRole("spinbutton", { name: "Top margin" })).toHaveValue(
+      1.9,
+    );
+    expect(
+      screen.getByRole("spinbutton", { name: "Bottom margin" }),
+    ).toHaveValue(1.9);
+    fireEvent.click(screen.getByRole("button", { name: "Save settings" }));
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith(
+        "printer",
+        expect.objectContaining({
+          printHeadSizeMm: 12.2,
+          marginTopMm: 1.9,
+          marginBottomMm: 1.9,
+        }),
+      ),
+    );
+  });
+
   it("saves each edited diagram dimension with its correct setting", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockResolvedValue(true);
@@ -100,6 +131,7 @@ describe("PrinterSettingsDialog", () => {
       ["Top margin", "0.3"],
       ["Bottom margin", "2.7"],
       ["Margin between labels", "3.1"],
+      ["Feed after last label", "11.2"],
     ] as const) {
       const input = screen.getByRole("spinbutton", { name });
       await user.clear(input);
@@ -113,6 +145,7 @@ describe("PrinterSettingsDialog", () => {
         marginTopMm: 0.3,
         marginBottomMm: 2.7,
         interLabelSpacingMm: 3.1,
+        feedAfterPrintMm: 11.2,
       }),
     );
   });
@@ -223,6 +256,40 @@ describe("PrinterSettingsDialog", () => {
       expect(onSave).toHaveBeenCalledWith(
         "printer",
         expect.objectContaining({ darkness: 24 }),
+      ),
+    );
+  });
+
+  it("shows named density levels on the L1 slider and saves High", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn().mockResolvedValue(true);
+    renderDialog({
+      onSave,
+      printerSummary: {
+        ...printer,
+        darkness: {
+          minimum: 0,
+          maximum: 2,
+          step: 1,
+          defaultValue: 1,
+          value: 1,
+          choices: [
+            { value: 0, label: "Low" },
+            { value: 1, label: "Medium" },
+            { value: 2, label: "High" },
+          ],
+        },
+      },
+    });
+    const slider = screen.getByRole("slider", { name: "Print darkness" });
+    expect(slider).toHaveAttribute("aria-valuetext", "Medium");
+    fireEvent.change(slider, { target: { value: "2" } });
+    expect(slider).toHaveAttribute("aria-valuetext", "High");
+    await user.click(screen.getByRole("button", { name: "Save settings" }));
+    await waitFor(() =>
+      expect(onSave).toHaveBeenCalledWith(
+        "printer",
+        expect.objectContaining({ darkness: 2 }),
       ),
     );
   });

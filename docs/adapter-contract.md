@@ -18,6 +18,8 @@ The authoritative TypeScript contract is in `packages/printing/src/index.ts`.
 - Serialize and send print jobs with cancellation and useful progress events.
 - Serialize all session operations that use one command stream.
 - Read or explicitly discard each command reply before the session is reused.
+- Honor printer buffer wait replies before sending the next raster frame.
+  Close a failed transfer so a later job starts with a clean command stream.
 - Close connections and native resources after use.
 - Convert protocol failures to stable application error codes.
 
@@ -58,12 +60,22 @@ resolution for an ambiguous model. Manufacturer-specific settings can use
 namespaced advanced options after the common controls are insufficient.
 
 Common numeric settings report a minimum, maximum, step, and default value.
+They can also report `choices`, an array of numeric values and display labels.
+The density slider uses these labels when present. Each host validates stored
+values against the selected printer range.
 Printer settings are outside the workspace document and belong to one
 configured printer. The desktop and iPad shells use the shared
 `isPrinterSettings` validator before they store darkness, print-head size,
-independent top and bottom margins, and inter-label spacing. Geometry values
-use 0.1 mm steps. Inter-label
-spacing defaults to 1 mm. The shells convert it to whole pixels at the printer
+independent top and bottom margins, inter-label spacing, and `feedAfterPrintMm`.
+The optional feed setting uses 0.1 mm steps from 0 to 100 mm. The adapter can
+report its default through `feedAfterPrintMm`; an absent default means zero.
+Old settings without this field use the adapter default. The desktop and mobile
+shells append this many white feed rows to the final raster page only. They
+round millimeters to the nearest printer pixel. The feed does not change the
+saved plate or the spacing between labels. Each shell sends one job copy.
+Direct raster clients must apply this geometry before they submit a job.
+Geometry values use 0.1 mm steps. Inter-label spacing defaults to 1 mm.
+The shells convert it to whole pixels at the printer
 resolution and add white raster rows after each page except the last page.
 This keeps spacing transport-neutral and keeps the raster width unchanged.
 

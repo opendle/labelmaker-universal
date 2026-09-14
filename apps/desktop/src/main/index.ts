@@ -599,6 +599,7 @@ function registerIpc(): void {
               "marginTopMm",
               "marginBottomMm",
               "interLabelSpacingMm",
+              "feedAfterPrintMm",
             ].includes(key),
         )
       ) {
@@ -625,6 +626,9 @@ function registerIpc(): void {
         marginTopMm: settings.marginTopMm,
         marginBottomMm: settings.marginBottomMm,
         interLabelSpacingMm: settings.interLabelSpacingMm,
+        ...(settings.feedAfterPrintMm === undefined
+          ? {}
+          : { feedAfterPrintMm: settings.feedAfterPrintMm }),
       };
       if (
         !isPrinterSettings(geometry) ||
@@ -644,6 +648,9 @@ function registerIpc(): void {
         marginTopMm: geometry.marginTopMm,
         marginBottomMm: geometry.marginBottomMm,
         interLabelSpacingMm: geometry.interLabelSpacingMm,
+        ...(geometry.feedAfterPrintMm === undefined
+          ? {}
+          : { feedAfterPrintMm: geometry.feedAfterPrintMm }),
       };
       const nextPrinterSettings = new Map(printerSettings).set(
         printerId,

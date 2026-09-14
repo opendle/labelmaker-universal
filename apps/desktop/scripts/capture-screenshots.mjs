@@ -784,7 +784,7 @@ for (const [width, height, touch] of [
     const schematicHeight = await diagram
       .locator(".printer-label-schematic")
       .evaluate((element) => element.getBoundingClientRect().height);
-    if (schematicHeight > 208)
+    if (schematicHeight > 280)
       throw new Error("The printer diagram is too tall");
     const fits = await diagram.evaluate((element) => {
       const bounds = element.getBoundingClientRect();
@@ -820,6 +820,24 @@ for (const [width, height, touch] of [
       }
       await page.getByLabel("Margin between labels").press("Enter");
       const geometry = await diagram.evaluate((element) => {
+        for (const input of element.querySelectorAll(
+          ".dimension-value input",
+        )) {
+          const measure = input.parentElement;
+          const text = measure.querySelector("span");
+          const inputStyle = getComputedStyle(input);
+          const textStyle = getComputedStyle(text);
+          if (
+            ["fontFamily", "fontSize", "fontWeight", "letterSpacing"].some(
+              (property) => inputStyle[property] !== textStyle[property],
+            ) ||
+            Math.abs(input.offsetWidth - measure.offsetWidth) > 1
+          ) {
+            throw new Error(
+              "A dimension input does not fit its measured text.",
+            );
+          }
+        }
         const bounds = (selector) =>
           element.querySelector(selector).getBoundingClientRect();
         const ribbon = bounds(".printer-ribbon");
@@ -875,7 +893,7 @@ for (const [width, height, touch] of [
       }
       if (!geometry.fits || geometry.overlap)
         throw new Error(
-          "Printer ribbon dimensions overlap or leave the diagram",
+          `Printer ribbon dimensions overlap or leave the diagram: ${width} ${values} ${JSON.stringify(geometry)}`,
         );
     }
     return () =>

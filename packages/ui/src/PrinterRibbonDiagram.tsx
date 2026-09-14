@@ -108,29 +108,35 @@ export function PrinterRibbonDiagram({
               height: `calc(${field.size} * var(--ribbon-mm))`,
             }}
           >
-            <EditableDimension
-              mode="draft"
-              label={field.label}
-              description={field.description}
-              min={field.key === "printHeadSizeMm" ? 0.1 : 0}
-              max={100}
-              disabled={disabled}
-              value={values[field.key]}
-              onChange={(value) => onChange(field.key, value)}
-            />
+            <div className="printer-dimension-caption">
+              <span>{field.label}</span>
+              <EditableDimension
+                mode="draft"
+                label={field.label}
+                description={field.description}
+                min={field.key === "printHeadSizeMm" ? 0.1 : 0}
+                max={100}
+                disabled={disabled}
+                value={values[field.key]}
+                onChange={(value) => onChange(field.key, value)}
+              />
+            </div>
           </div>
         ))}
         <div className="dimension-ruler dimension-ruler-margin printer-ruler-gap">
-          <EditableDimension
-            mode="draft"
-            label="Margin between labels"
-            description="Label gap: space between two labels"
-            min={0}
-            max={100}
-            disabled={disabled}
-            value={values.interLabelSpacingMm}
-            onChange={(value) => onChange("interLabelSpacingMm", value)}
-          />
+          <div className="printer-dimension-caption">
+            <span>Between labels</span>
+            <EditableDimension
+              mode="draft"
+              label="Margin between labels"
+              description="Label gap: space between two labels"
+              min={0}
+              max={100}
+              disabled={disabled}
+              value={values.interLabelSpacingMm}
+              onChange={(value) => onChange("interLabelSpacingMm", value)}
+            />
+          </div>
         </div>
       </div>
     </div>

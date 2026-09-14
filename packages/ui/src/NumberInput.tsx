@@ -4,6 +4,7 @@ export function NumberInput({
   value,
   onValueChange,
   normalizeValue,
+  onDraftValueChange,
   onBlur,
   onFocus,
   ...props
@@ -14,6 +15,7 @@ export function NumberInput({
   readonly value: number;
   readonly onValueChange: (value: number) => void;
   readonly normalizeValue?: (value: number) => number;
+  readonly onDraftValueChange?: (text: string, expectedValue: number) => void;
 }) {
   const [draft, setDraft] = useState<{
     readonly text: string;
@@ -33,12 +35,14 @@ export function NumberInput({
         const rawValue = event.target.value;
         if (rawValue.trim() === "") {
           setDraft({ text: rawValue, expectedValue: value });
+          onDraftValueChange?.(rawValue, value);
           return;
         }
         const nextValue = Number(rawValue);
         if (!Number.isFinite(nextValue)) return;
         const normalizedValue = normalizeValue?.(nextValue) ?? nextValue;
         setDraft({ text: rawValue, expectedValue: normalizedValue });
+        onDraftValueChange?.(rawValue, normalizedValue);
         onValueChange(normalizedValue);
       }}
       onFocus={(event) => {

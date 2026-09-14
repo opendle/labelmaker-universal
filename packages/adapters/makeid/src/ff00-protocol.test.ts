@@ -2,11 +2,24 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildMakeIdFf00RasterStream,
+  buildMakeIdFf00DensityCommand,
   parseMakeIdFf00Model,
   replyStartsWith,
 } from "./ff00-protocol.js";
 
 describe("MakeID FF00 protocol", () => {
+  it.each([0, 1, 2])("builds density %i from the vendor command", (density) => {
+    expect([...buildMakeIdFf00DensityCommand(density)]).toEqual([
+      0x10,
+      0xff,
+      0x10,
+      0,
+      density,
+    ]);
+  });
+  it.each([-1, 3, 1.5, NaN])("rejects invalid density %s", (density) => {
+    expect(() => buildMakeIdFf00DensityCommand(density)).toThrow(/density/);
+  });
   it.each([
     ["L1-300", 300, 144, "l1-ff00-300"],
     ["model:L1 203", 203, 96, "l1-ff00-203"],

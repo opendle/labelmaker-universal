@@ -918,8 +918,8 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
 .dimension-ruler-printable-height::after {
   bottom: 0;
 }
-.dimension-ruler-height > span,
-.dimension-ruler-printable-height > span {
+.dimension-ruler-height > :is(span, label),
+.dimension-ruler-printable-height > :is(span, label) {
   position: absolute;
   left: -1px;
   top: 50%;
@@ -951,18 +951,19 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
 .dimension-ruler-margin::after {
   right: 0;
 }
-.dimension-ruler-margin > span {
+.dimension-ruler-margin > :is(span, label) {
   position: absolute;
   top: 7px;
   background: #e6e5df;
 }
-.dimension-ruler-margin-left > span {
+.dimension-ruler-margin-left > :is(span, label) {
   left: 0;
 }
-.dimension-ruler-margin-right > span {
+.dimension-ruler-margin-right > :is(span, label) {
   right: 0;
 }
-.dimension-ruler .dimension-value {
+.dimension-ruler .dimension-value,
+.printer-feed-setting .dimension-value {
   z-index: 2;
   display: flex;
   align-items: baseline;
@@ -980,8 +981,28 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   content: "";
   pointer-events: none;
 }
+.dimension-value {
+  position: relative;
+}
+.printer-dimension-caption .dimension-value {
+  position: relative;
+}
+.dimension-number {
+  position: relative;
+  display: inline-block;
+  min-width: 1ch;
+}
+.dimension-number > span {
+  visibility: hidden;
+  white-space: pre;
+}
 .dimension-value input {
-  box-sizing: content-box;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  font: inherit;
+  box-sizing: border-box;
   min-width: 1ch;
   padding: 0 0 2px;
   border: 0;
@@ -1003,9 +1024,12 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
 .presentation-mobile-touch .dimension-ruler-margin {
   top: calc(100% + 14px);
 }
+.presentation-mobile-touch .dimension-ruler {
+  font-size: max(16px, var(--dimension-ruler-font-size, 16px));
+}
 .presentation-mobile-touch .dimension-value {
   align-items: center;
-  font-size: 16px;
+  font-size: max(16px, var(--dimension-ruler-font-size, 16px));
   background: linear-gradient(
     transparent calc(50% - 11px),
     var(--dimension-value-background, #e6e5df) calc(50% - 11px),
@@ -1017,9 +1041,15 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   bottom: calc(50% - 11px);
 }
 .presentation-mobile-touch .dimension-value input {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 0;
+  min-height: 0;
   padding: 0;
+}
+.presentation-mobile-touch .dimension-ruler .dimension-value {
+  min-height: 44px;
+  min-width: 44px;
+  justify-content: center;
+  align-items: center;
 }
 .label-canvas {
   position: relative;
@@ -2295,10 +2325,10 @@ textarea.inline-text-editor {
 .printer-label-schematic {
   container-type: inline-size;
   position: relative;
-  height: 192px;
+  height: 266px;
 }
 .printer-ribbon-preview {
-  --ribbon-left-space: 104px;
+  --ribbon-left-space: 128px;
   --ribbon-head-offset: 80px;
   --ribbon-right-space: 40px;
   --ribbon-height-limit: 116px;
@@ -2315,7 +2345,7 @@ textarea.inline-text-editor {
   position: absolute;
   left: var(--ribbon-left-space);
   top: calc(
-    32px +
+    var(--ribbon-top-space, 70px) +
       (
         var(--ribbon-height-limit) - var(--ribbon-height-mm) * var(--ribbon-mm)
       ) /
@@ -2371,50 +2401,98 @@ textarea.inline-text-editor {
   background: var(--dimension-value-background);
 }
 .printer-ruler-top,
+.printer-ruler-head,
 .printer-ruler-bottom {
-  left: -14px;
+  left: -12px;
 }
-.printer-ruler-head {
-  left: calc(0px - var(--ribbon-head-offset));
+.printer-dimension-caption {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  right: 25px;
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  background: var(--dimension-value-background);
+  font-size: 12px;
 }
-.printer-ruler-top > .dimension-value,
-.printer-ruler-bottom > .dimension-value {
-  left: -5px;
-  transform: translateX(-100%);
+.printer-dimension-caption > span {
+  color: var(--muted);
+  font-size: 10px;
 }
-.printer-ruler-top > .dimension-value {
-  top: -30px;
+.printer-ruler-top .printer-dimension-caption {
+  top: -28px;
+  transform: translateY(-100%);
 }
-.printer-ruler-bottom > .dimension-value {
-  top: calc(100% + 6px);
+.printer-ruler-bottom .printer-dimension-caption {
+  top: calc(100% + 28px);
+  transform: none;
 }
-.printer-ruler-gap {
+.printer-dimension-caption::after {
+  content: "";
+  position: absolute;
+  left: calc(100% + 4px);
+  top: 50%;
+  width: 8px;
+  border-top: 1px solid #817e75;
+}
+.printer-ruler-top .printer-dimension-caption::after {
+  top: 100%;
+  height: 28px;
+  border-top: 0;
+  border-left: 1px solid #817e75;
+  border-bottom: 1px solid #817e75;
+}
+.printer-ruler-bottom .printer-dimension-caption::after {
+  top: -28px;
+  height: 28px;
+  border-left: 1px solid #817e75;
+}
+.printer-ruler-gap,
+.presentation-mobile-touch .printer-ruler-gap {
   top: calc(100% + 14px);
   left: calc(30 * var(--ribbon-mm));
   width: calc(var(--ribbon-gap-mm) * var(--ribbon-mm));
 }
-.printer-ruler-gap > .dimension-value {
-  left: max(0px, calc(50% - 28px));
+.printer-ruler-gap .printer-dimension-caption {
+  right: auto;
+  left: 50%;
+  top: 10px;
+  align-items: center;
+  transform: translateX(-50%);
+}
+.printer-ruler-gap .printer-dimension-caption::after {
+  display: none;
 }
 .presentation-mobile-touch .printer-ribbon-preview {
-  --ribbon-left-space: 144px;
-  --ribbon-head-offset: 116px;
-  --ribbon-right-space: 80px;
+  --ribbon-top-space: 84px;
   --ribbon-height-limit: 80px;
-}
-.presentation-mobile-touch
-  :is(.printer-ruler-top, .printer-ruler-bottom)
-  > .dimension-value {
-  left: 0;
-}
-.presentation-mobile-touch .printer-ruler-bottom > .dimension-value {
-  top: calc(100% + 22px);
+  --ribbon-right-space: 42px;
 }
 @media (prefers-color-scheme: dark) {
   .printer-ribbon-preview,
   .printer-ribbon-preview .dimension-ruler > span {
     --dimension-value-background: #252629;
   }
+}
+.printer-feed-setting {
+  --dimension-value-background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.printer-feed-setting .dimension-value {
+  font-family: "DM Mono", monospace;
+}
+.presentation-mobile-touch .printer-feed-setting .dimension-value {
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
 }
 .darkness-setting {
   display: flex;

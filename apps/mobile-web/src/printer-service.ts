@@ -214,9 +214,11 @@ export class MobilePrinterService {
       adapter.offlineCapabilities;
     if (
       validatedSettings.darkness !== undefined &&
-      offlineCapabilities?.darkness === undefined
+      (offlineCapabilities?.darkness === undefined ||
+        validatedSettings.darkness < offlineCapabilities.darkness.minimum ||
+        validatedSettings.darkness > offlineCapabilities.darkness.maximum)
     ) {
-      throw new RangeError("This printer does not support a darkness setting.");
+      throw new RangeError("Printer darkness is outside its supported range.");
     }
     this.#configuration = {
       ...this.#configuration,
@@ -322,6 +324,7 @@ export class MobilePrinterService {
             pages,
             settings.interLabelSpacingMm ?? 1,
             capabilities.dpi,
+            settings.feedAfterPrintMm ?? capabilities.feedAfterPrintMm ?? 0,
           ),
           copies: 1,
           ...(settings.darkness === undefined ||
@@ -465,6 +468,8 @@ function capabilityFields(
     marginBottomMm:
       settings.marginBottomMm ?? capabilities.printHeadMarginBottomMm ?? 0,
     interLabelSpacingMm: settings.interLabelSpacingMm ?? 1,
+    feedAfterPrintMm:
+      settings.feedAfterPrintMm ?? capabilities.feedAfterPrintMm ?? 0,
     ...(capabilities.darkness
       ? {
           darkness: {

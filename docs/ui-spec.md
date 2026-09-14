@@ -205,7 +205,9 @@ appearances so that they show the physical label and printed result accurately.
   Let the user change print-head size and independent top and bottom margins in
   0.1 mm steps. Let the user set the space between labels, with 1 mm as the
   default. Let the user change other capabilities that the printer reports
-  as adjustable, such as darkness. Replace the geometry field rows with a
+  as adjustable, such as darkness. Keep print density as a slider. When the
+  capability has named levels, show the selected name and the level names.
+  Replace the geometry field rows with a
   diagram of one example label and part of the next label. Show the printable
   area and hatched top and bottom margins across the full ribbon width. Use
   straight label separations. Draw the ribbon to scale on both axes, with a
@@ -214,7 +216,9 @@ appearances so that they show the physical label and printed result accurately.
   canvas ruler style and editable text for the
   three vertical areas and the gap between labels. On hover, explain what each
   dimension measures and that it is editable. Show resolution
-  as fixed text above the diagram. Keep all dimensions keyboard accessible,
+  as fixed text above the diagram. Below it, show an editable
+  "Feed after last label" value. This feed applies once after the full job and
+  brings the final label past the cutter. Keep all dimensions keyboard accessible,
   including zero margins and zero gap. Do not put a frame or group title around
   the diagram or darkness. Enter in a dimension ends editing without closing
   the dialog. Enter in the printer name saves the settings and closes the
@@ -253,6 +257,9 @@ appearances so that they show the physical label and printed result accurately.
 - Edit total plate height directly in its dimension ruler. Below the label,
   show editable left and right trim-margin dimensions, including zero margins.
   Put one dashed underline below each editable number, space, and `mm` unit.
+  Match input text to the adjacent unit and read-only dimensions. Size the
+  input from the rendered text, including decimal values. Keep a 44-pixel
+  touch target around compact text without adding space inside the value.
   A click or keyboard focus selects the complete number. Enter accepts the
   value and removes focus. Keep total width and a separate printable height
   read-only.

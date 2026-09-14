@@ -94,6 +94,39 @@ It must not select DPI from the Bluetooth name. The known status reply has no
 decoded state fields. The FF00 profile reports `supportsStatus: false`; a
 nonempty status reply proves only that the connection responds.
 
+### Density evidence from MakeID-Life 1.9.9
+
+The user supplied the Android APK for `com.wewin.house_print_international`.
+Its SHA-256 is
+`f6203c36615b2a202eb37c0df8f24951776343cf4203b58540fa89dc25857d85`.
+Static inspection confirms the FF00 density command. No vendor source or APK
+is included in this repository.
+
+- `DeviceManageActivity.showDarknessDialog` stores Low=0, Medium=1, High=2.
+- `CacheUtils.FLAG_BLACK_NESS_AI_YIN` defaults to 1.
+- `AlisonPrinterSDKUtils.setPrinterDarkness` calls `PrintPP.setThickness`.
+- `PrintPP.setThickness` calls `com.example.sdk.e.e(int)`.
+- That method sends `10 FF 10 00 D`, where `D` is the selected value.
+
+The fixed `02` in the earlier public capture is High density. The adapter now
+uses the selected value and defaults to Medium. Both FF00 L1 resolutions use
+this command family.
+
+### Feed after the last label
+
+MakeID-Life's `AlisonPrinterSDKUtils` calls `printLinedots` after the image.
+Its normal per-label path uses about 11 mm (132 dots in its 304 dpi branch).
+`PrintPP.printLinedots` reaches `com.example.sdk.e.a(int)`, which sends
+`1B 4A n`. This feed moves the image from the print head to the cutter.
+The user confirmed that a print without final feed left the end of the image
+behind the cutter on L1 firmware V1.08HH.
+
+The FF00 profile therefore reports an 11 mm `feedAfterPrintMm` default.
+The shared raster preparation adds white rows after the final page. This keeps
+feed settings independent of transport and applies them once per shell job.
+Other profiles default to zero. The setting remains separate from the gap
+between labels and can be changed or set to zero.
+
 ## Discovery and model rules
 
 Discovery accepts only E1, L1, and P31/Q31/GP31 name families. A P31S name is

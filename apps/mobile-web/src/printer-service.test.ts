@@ -194,7 +194,7 @@ describe("iPad printer configuration", () => {
     expect(service.getActivePrinterId()).toBeNull();
   });
 
-  it("rejects darkness for an FF00 profile", async () => {
+  it("saves FF00 density and rejects values outside its range", async () => {
     localStorage.setItem(
       CONFIGURATION_KEY,
       JSON.stringify({
@@ -221,7 +221,18 @@ describe("iPad printer configuration", () => {
 
     await expect(
       service.updatePrinterSettings(PRINTER_ID, { darkness: 20 }),
-    ).rejects.toThrow("does not support a darkness setting");
+    ).rejects.toThrow("outside its supported range");
+    expect((await service.listPrinters())[0]?.feedAfterPrintMm).toBe(11);
+    await service.updatePrinterSettings(PRINTER_ID, { feedAfterPrintMm: 4.5 });
+    expect((await createService().listPrinters())[0]?.feedAfterPrintMm).toBe(
+      4.5,
+    );
+    for (const darkness of [0, 1, 2]) {
+      const printers = await service.updatePrinterSettings(PRINTER_ID, {
+        darkness,
+      });
+      expect(printers[0]?.darkness?.value).toBe(darkness);
+    }
   });
 
   it("rejects removal of a printer that is not configured", async () => {
@@ -325,6 +336,7 @@ describe("iPad printer configuration", () => {
       }),
     );
     const methods: string[] = [];
+    const rasterHeights: number[] = [];
     const response = new Uint8Array(36);
     response.set([0x66, 36, 0, 0x10]);
     const bytesBase64 = btoa(String.fromCharCode(...response));
@@ -332,9 +344,21 @@ describe("iPad printer configuration", () => {
       messageHandlers: {
         labelmaker: {
           postMessage: async (request: unknown) => {
-            const message = request as { id: string; method: string };
+            const message = request as {
+              id: string;
+              method: string;
+              payload: { bytesBase64: string };
+            };
             const method = message.method;
             methods.push(method);
+            if (method === "bluetoothWrite") {
+              const bytes = Uint8Array.from(
+                atob(message.payload.bytesBase64),
+                (character) => character.charCodeAt(0),
+              );
+              if (bytes[3] === 0x1b)
+                rasterHeights.push(bytes[11]! | (bytes[12]! << 8));
+            }
             if (method === "bluetoothDiscover") {
               return { version: 1, id: message.id, ok: true, result: [] };
             }
@@ -380,6 +404,7 @@ describe("iPad printer configuration", () => {
     await service.updatePrinterSettings(PRINTER_ID, {
       marginTopMm: 4,
       marginBottomMm: 0,
+      feedAfterPrintMm: 2.5,
     });
     await service.print(request);
     expect(renderPlateForPrinter).toHaveBeenLastCalledWith(
@@ -389,6 +414,7 @@ describe("iPad printer configuration", () => {
       expect.any(Function),
     );
 
+    expect(rasterHeights).toEqual([1, 21]);
     expect(
       methods.filter((method) => method === "bluetoothConnect"),
     ).toHaveLength(1);
