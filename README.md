@@ -1,5 +1,8 @@
 # Labelmaker
 
+> **Labelmaker is NOT an official MakeID application.** This is an independent
+> project. MakeID does not develop, sponsor, or endorse this application.
+
 Labelmaker is a source-available label editor for desktop and iPad. One `.lbl`
 workspace can contain many labels. The editor can create text, image, and shape
 elements. It can also set label size and margins, trim a label to its printed

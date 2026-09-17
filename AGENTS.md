@@ -3,6 +3,19 @@
 Use ASD-STE100 Simplified Technical English for user reports, pull requests,
 comments, and other written project communication.
 
+## MakeID intellectual property
+
+- Do not use MakeID's trademarks, logos, or other company intellectual property
+  in the application, repository, documentation, screenshots, or distribution
+  materials.
+- An exception requires an explicit user instruction for the specific use. The
+  user must confirm that they have written approval from MakeID for that use.
+  Apply the exception only within the scope of that approval.
+- Existing files, printer support, and earlier use do not give permission for
+  new use. Do not assume that permission exists.
+- Keep the notice at the top of `README.md` clear: Labelmaker is an independent
+  project and is not an official MakeID application.
+
 ## Start here
 
 Read these files before you change behavior:
