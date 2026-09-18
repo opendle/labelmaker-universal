@@ -1,10 +1,4 @@
-import type {
-  ImageElement,
-  LabelElement,
-  LabelPlate,
-  ShapeElement,
-  TextElement,
-} from "@labelmaker/domain";
+import type { LabelElement, LabelPlate } from "@labelmaker/domain";
 import {
   useEffect,
   useRef,
@@ -19,7 +13,7 @@ import type { PrintableMargins } from "./label-layout.js";
 import { snapRotationDegrees } from "./rotation.js";
 
 export type ResizeCorner = "nw" | "ne" | "sw" | "se";
-type FramedElement = TextElement | ImageElement | ShapeElement;
+type FramedElement = LabelElement;
 
 function trackPointerMovement(
   pointerId: number,

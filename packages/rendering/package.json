@@ -10,6 +10,7 @@
     "typecheck": "tsc --build --pretty false"
   },
   "dependencies": {
+    "@bwip-js/generic": "4.11.4",
     "@labelmaker/domain": "0.0.0",
     "@labelmaker/printing": "0.0.0"
   }

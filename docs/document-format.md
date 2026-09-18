@@ -65,6 +65,12 @@ them. The loader must still reject unknown schema versions and invalid values.
 Plate margins are part of the saved document. They define the horizontal space
 that automatic trim keeps before and after printed elements.
 
+`widthMode` is optional in schema version 1. It can be `auto` or `fixed`.
+An omitted value means `auto`. Automatic width follows the printed content and
+plate margins. Fixed width keeps `size.widthMm` across content edits. A printer
+minimum can add blank paper to the output without changing this saved value.
+For a flag plate, `size.widthMm` includes both halves and the separation.
+
 Plate names remain part of schema version 1 for compatibility with old saved
 files. The editor does not show plate names in the plate strip.
 
@@ -103,3 +109,41 @@ stores the full pre-crop PNG, its pixel dimensions, and the visible pixel
 bounds. Label rendering continues to use the cropped `source`. The drawing
 editor uses `editorSource` so reopening a saved workspace restores the complete
 drawing canvas.
+
+## QR codes and barcodes
+
+Code elements keep their physical frame, `kind`, and `value`. A QR code can
+also store `qr: { data, errorCorrection }`. The `data` object is the editable
+source. Its `type` is one of these values:
+
+- `text`: `text`.
+- `url`: `url`.
+- `wifi`: `ssid`, `password`, `security` (`WPA`, `WEP`, or `nopass`), and the
+  boolean `hidden`.
+- `email`: `address`, `subject`, and `body`.
+- `phone`: `number`.
+- `sms`: `number` and `message`.
+- `contact`: `firstName`, `lastName`, `organization`, `phone`, `email`, `url`,
+  and `address`.
+- `geo`: numeric `latitude` from -90 to 90 and `longitude` from -180 to 180.
+
+All fields for the selected type are required. Text fields can be empty if
+that field is optional in the form. `errorCorrection` is `L`, `M`, `Q`, or `H`.
+The editor also writes the encoded text to `value`. When `qr` is present, the
+renderer uses `qr.data`. Older QR elements without `qr` use `value` as plain
+text and use correction level `M`.
+
+Barcode elements store `format`: `code128`, `code39`, `ean13`, `ean8`, `upca`,
+`itf14`, `interleaved2of5`, `datamatrix`, or `pdf417`. An omitted format means
+`code128`. The optional `barcode` object stores the boolean `showText`. An
+omitted value means `true`. Data Matrix and PDF417 do not show text below the
+code. The encoder checks the content and check digits for the selected format.
+
+Code fields have a limit of 4,096 characters. Encoding also has a limit of
+4,096 UTF-8 bytes, and the selected code format can have a lower limit. Invalid
+content must show an error before insertion. The workspace stores the editable
+fields, not a generated bitmap. The shared renderer generates the code for
+both the editor and print output. The optional boolean `includeMargin` adds an
+opaque white border when it is `true`. An omitted value means `false`. New codes
+have no added margin. Trim keeps the complete code frame, including the border
+when selected.

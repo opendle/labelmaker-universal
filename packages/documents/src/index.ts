@@ -7,6 +7,8 @@ import {
   type LabelElement,
   type LabelPlate,
   type PhysicalSize,
+  type QrData,
+  type QrOptions,
   type ShapeElement,
   type TextElement,
 } from "@labelmaker/domain";
@@ -303,19 +305,154 @@ function shapeElement(
   };
 }
 
+function booleanValue(value: unknown, path: string): boolean {
+  if (typeof value !== "boolean") fail(`${path} must be a boolean`);
+  return value;
+}
+
+function qrOptions(value: unknown, path: string): QrOptions {
+  const item = record(value, path);
+  const errorCorrection = item.errorCorrection;
+  if (
+    errorCorrection !== "L" &&
+    errorCorrection !== "M" &&
+    errorCorrection !== "Q" &&
+    errorCorrection !== "H"
+  ) {
+    fail(`${path}.errorCorrection must be L, M, Q, or H`);
+  }
+  const fields = record(item.data, `${path}.data`);
+  const field = (key: string) =>
+    stringValue(fields[key], `${path}.data.${key}`, 4_096);
+  let data: QrData;
+  switch (fields.type) {
+    case "text":
+      data = { type: "text", text: field("text") };
+      break;
+    case "url":
+      data = { type: "url", url: field("url") };
+      break;
+    case "wifi": {
+      const security = fields.security;
+      if (security !== "WPA" && security !== "WEP" && security !== "nopass")
+        fail(`${path}.data.security is not supported`);
+      data = {
+        type: "wifi",
+        ssid: field("ssid"),
+        password: field("password"),
+        security,
+        hidden: booleanValue(fields.hidden, `${path}.data.hidden`),
+      };
+      break;
+    }
+    case "email":
+      data = {
+        type: "email",
+        address: field("address"),
+        subject: field("subject"),
+        body: field("body"),
+      };
+      break;
+    case "phone":
+      data = { type: "phone", number: field("number") };
+      break;
+    case "sms":
+      data = {
+        type: "sms",
+        number: field("number"),
+        message: field("message"),
+      };
+      break;
+    case "contact":
+      data = {
+        type: "contact",
+        firstName: field("firstName"),
+        lastName: field("lastName"),
+        organization: field("organization"),
+        phone: field("phone"),
+        email: field("email"),
+        url: field("url"),
+        address: field("address"),
+      };
+      break;
+    case "geo":
+      data = {
+        type: "geo",
+        latitude: numberValue(
+          fields.latitude,
+          `${path}.data.latitude`,
+          -90,
+          90,
+        ),
+        longitude: numberValue(
+          fields.longitude,
+          `${path}.data.longitude`,
+          -180,
+          180,
+        ),
+      };
+      break;
+    default:
+      fail(`${path}.data.type is not supported`);
+  }
+  return { data, errorCorrection };
+}
+
 function codeElement(
   value: Record<string, unknown>,
   path: string,
   kind: "qr" | "barcode",
 ): CodeElement {
   const format = value.format;
+  if (
+    kind === "barcode" &&
+    format !== undefined &&
+    ![
+      "code128",
+      "code39",
+      "ean13",
+      "ean8",
+      "upca",
+      "itf14",
+      "interleaved2of5",
+      "datamatrix",
+      "pdf417",
+    ].includes(String(format))
+  ) {
+    fail(`${path}.format is not supported`);
+  }
+  if (kind === "qr" && value.barcode !== undefined)
+    fail(`${path}.barcode is not valid for a QR code`);
+  if (kind === "barcode" && value.qr !== undefined)
+    fail(`${path}.qr is not valid for a barcode`);
   return {
     ...baseElement(value, path),
     kind,
-    value: stringValue(value.value, `${path}.value`, MAX_CONTENT_LENGTH),
+    value: stringValue(value.value, `${path}.value`, 4_096),
+    ...(value.includeMargin === undefined
+      ? {}
+      : {
+          includeMargin: booleanValue(
+            value.includeMargin,
+            `${path}.includeMargin`,
+          ),
+        }),
     ...(format === undefined
       ? {}
       : { format: stringValue(format, `${path}.format`) }),
+    ...(value.qr === undefined
+      ? {}
+      : { qr: qrOptions(value.qr, `${path}.qr`) }),
+    ...(value.barcode === undefined
+      ? {}
+      : {
+          barcode: {
+            showText: booleanValue(
+              record(value.barcode, `${path}.barcode`).showText,
+              `${path}.barcode.showText`,
+            ),
+          },
+        }),
   };
 }
 
@@ -361,6 +498,11 @@ function plateValue(
       : typeof item.mirrorPrint === "boolean"
         ? { mirrorPrint: item.mirrorPrint }
         : fail(`${path}.mirrorPrint must be a boolean`)),
+    ...(item.widthMode === undefined
+      ? {}
+      : item.widthMode === "auto" || item.widthMode === "fixed"
+        ? { widthMode: item.widthMode }
+        : fail(`${path}.widthMode must be auto or fixed`)),
     size: sizeValue(item.size, `${path}.size`),
     margins: {
       leftMm: numberValue(margins.leftMm, `${path}.margins.leftMm`, 0),

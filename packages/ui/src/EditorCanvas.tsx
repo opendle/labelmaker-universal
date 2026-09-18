@@ -1,4 +1,5 @@
 import type {
+  CodeElement,
   ImageElement,
   LabelElement,
   LabelPlate,
@@ -6,6 +7,8 @@ import type {
   TextElement,
 } from "@labelmaker/domain";
 import {
+  Barcode,
+  QrCode,
   ChevronDown,
   Circle,
   Flag,
@@ -102,6 +105,7 @@ function CanvasToolbar({
   onAddImage,
   onDraw,
   onOpenIcons,
+  onAddCode,
   onAddShape,
   onAddSpecial,
   onUpdatePlate,
@@ -112,6 +116,7 @@ function CanvasToolbar({
   readonly onAddImage: (file: File) => void;
   readonly onDraw: () => void;
   readonly onOpenIcons: () => void;
+  readonly onAddCode?: ((kind: "qr" | "barcode") => void) | undefined;
   readonly onAddShape: (shape: "line" | "rectangle" | "circle") => void;
   readonly onAddSpecial: (kind: "flag") => void;
   readonly onUpdatePlate: (plate: LabelPlate) => void;
@@ -232,6 +237,23 @@ function CanvasToolbar({
         >
           <Pencil size={17} /> <span className="tool-button-label">Draw</span>
         </button>
+        {(["qr", "barcode"] as const).map((kind) => (
+          <button
+            key={kind}
+            className="tool-button"
+            aria-label={kind === "qr" ? "QR code" : "Barcode"}
+            onBlur={clearPointerFocusRingSuppression}
+            onKeyDown={clearPointerFocusRingSuppression}
+            onPointerDown={suppressPointerFocusRing}
+            onClick={() => onAddCode?.(kind)}
+            type="button"
+          >
+            {kind === "qr" ? <QrCode size={17} /> : <Barcode size={17} />}
+            <span className="tool-button-label">
+              {kind === "qr" ? "QR code" : "Barcode"}
+            </span>
+          </button>
+        ))}
         <div className="shape-control" ref={shapeControlRef}>
           <button
             aria-expanded={shapeMenuOpen}
@@ -386,6 +408,27 @@ function NonprintableZones({
   );
 }
 
+function useEndInlineEdit(
+  editingElementId: string | null,
+  setEditingElementId: (id: string | null) => void,
+) {
+  const endInlineEdit = useCallback(() => {
+    if (editingElementId) {
+      const editor = globalThis.document.querySelector<HTMLTextAreaElement>(
+        `.inline-text-editor[data-element-id="${CSS.escape(editingElementId)}"]`,
+      );
+      if (editor) {
+        const caret = editor.selectionEnd ?? 0;
+        editor.setSelectionRange(caret, caret);
+      }
+    }
+    globalThis.document.getSelection()?.removeAllRanges();
+    setEditingElementId(null);
+  }, [editingElementId, setEditingElementId]);
+  useCommitInlineEdit(editingElementId, endInlineEdit);
+  return endInlineEdit;
+}
+
 export function EditorCanvas({
   plate,
   minimumLabelWidthMm = 0,
@@ -395,10 +438,13 @@ export function EditorCanvas({
   onAddImage,
   onDraw,
   onOpenIcons,
+  onAddCode,
   onAddShape,
   onAddSpecial,
   onSelectElement,
   onEditImage,
+  onEditCode,
+  selectedCode,
   onChangeElement,
   onChangeElementDuringInteraction,
   onElementInteractionStart,
@@ -424,12 +470,15 @@ export function EditorCanvas({
   readonly onAddImage: (file: File) => void;
   readonly onDraw: () => void;
   readonly onOpenIcons: () => void;
+  readonly onAddCode?: ((kind: "qr" | "barcode") => void) | undefined;
   readonly onAddShape: (shape: "line" | "rectangle" | "circle") => void;
   readonly onAddSpecial: (kind: "flag") => void;
   readonly onSelectElement: (id: string | null) => void;
   readonly onEditImage: (
     image: Extract<LabelElement, { kind: "image" }>,
   ) => void;
+  readonly onEditCode?: (code: CodeElement) => void;
+  readonly selectedCode?: CodeElement | undefined;
   readonly onChangeElement: (element: LabelElement) => void;
   readonly onChangeElementDuringInteraction: (element: LabelElement) => void;
   readonly onElementInteractionStart: () => void;
@@ -451,20 +500,7 @@ export function EditorCanvas({
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   const workSurfaceRef = useRef<HTMLDivElement>(null);
   const workSurfaceSize = useElementSize(workSurfaceRef);
-  const endInlineEdit = useCallback(() => {
-    if (editingElementId) {
-      const editor = globalThis.document.querySelector<HTMLTextAreaElement>(
-        `.inline-text-editor[data-element-id="${CSS.escape(editingElementId)}"]`,
-      );
-      if (editor) {
-        const caret = editor.selectionEnd ?? 0;
-        editor.setSelectionRange(caret, caret);
-      }
-    }
-    globalThis.document.getSelection()?.removeAllRanges();
-    setEditingElementId(null);
-  }, [editingElementId]);
-  useCommitInlineEdit(editingElementId, endInlineEdit);
+  const endInlineEdit = useEndInlineEdit(editingElementId, setEditingElementId);
   const phoneLayout = layout !== "standard";
   // Keep the vertical rulers and centered margin touch targets on screen.
   const fallbackPhoneWidth = Math.max(1, globalThis.innerWidth - 144);
@@ -544,7 +580,10 @@ export function EditorCanvas({
           onDraw={onDraw}
           onOpenElementProperties={onOpenElementProperties}
           onOpenIcons={onOpenIcons}
+          onAddCode={onAddCode}
           onOpenPlateSettings={onOpenPlateSettings}
+          selectedCode={selectedCode}
+          onEditCode={onEditCode}
           selectedImage={selectedImage}
           selectedShape={selectedShape}
           selectedText={selectedText}
@@ -554,6 +593,7 @@ export function EditorCanvas({
           onAddImage={onAddImage}
           onDraw={onDraw}
           onOpenIcons={onOpenIcons}
+          onAddCode={onAddCode}
           onAddShape={onAddShape}
           onAddSpecial={onAddSpecial}
           onAddText={onAddText}
@@ -573,7 +613,12 @@ export function EditorCanvas({
           } as WorkSurfaceStyle
         }
         onPointerDown={(event) => {
-          if ((event.target as HTMLElement).closest(".dimension-value")) return;
+          if (
+            (event.target as HTMLElement).closest(
+              ".dimension-value, .width-dimension",
+            )
+          )
+            return;
           const touchGestureStarted = trackTouchPointer(event);
           const target = event.target as HTMLElement;
           if (
@@ -648,10 +693,20 @@ export function EditorCanvas({
                 onDoubleClick={(target) => {
                   if (target.kind === "text") setEditingElementId(target.id);
                   if (target.kind === "image") onEditImage(target);
+                  if (target.kind === "qr" || target.kind === "barcode")
+                    onEditCode?.(target);
                 }}
                 onEndEdit={endInlineEdit}
                 onFocus={(target) => onSelectElement(target.id)}
-                onMoveKey={moveWithKeyboard}
+                onMoveKey={(event, target) => {
+                  if (
+                    (event.key === "Enter" || event.key === " ") &&
+                    (target.kind === "qr" || target.kind === "barcode")
+                  ) {
+                    event.preventDefault();
+                    onEditCode?.(target);
+                  } else moveWithKeyboard(event, target);
+                }}
                 onMoveStart={startMove}
                 onResizeStart={startResize}
                 onRotateStart={startRotate}

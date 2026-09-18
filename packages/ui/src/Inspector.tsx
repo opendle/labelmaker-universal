@@ -1,4 +1,5 @@
 import type {
+  CodeElement,
   ImageElement,
   ShapeElement,
   TextElement,
@@ -141,7 +142,7 @@ function LineHeightField({
   );
 }
 
-type FramedElement = TextElement | ImageElement | ShapeElement;
+type FramedElement = TextElement | ImageElement | ShapeElement | CodeElement;
 
 function FrameControls<T extends FramedElement>({
   element,
@@ -538,6 +539,9 @@ function ShapeInspector({
 }
 
 export interface InspectorContentProps {
+  readonly selectedCode?: CodeElement | undefined;
+  readonly onUpdateCode?: ((element: CodeElement) => void) | undefined;
+  readonly onEditCode?: ((element: CodeElement) => void) | undefined;
   readonly selectedText: TextElement | undefined;
   readonly selectedImage: ImageElement | undefined;
   readonly selectedShape: ShapeElement | undefined;
@@ -549,6 +553,9 @@ export interface InspectorContentProps {
 }
 
 export function InspectorContent({
+  selectedCode,
+  onUpdateCode,
+  onEditCode,
   selectedText,
   selectedImage,
   selectedShape,
@@ -579,10 +586,31 @@ export function InspectorContent({
       onChange={onUpdateShape}
       onMoveLayer={onMoveLayer}
     />
+  ) : selectedCode ? (
+    <div className="property-stack">
+      <button
+        className="button"
+        type="button"
+        onClick={() => onEditCode?.(selectedCode)}
+      >
+        Edit code
+      </button>
+      <FrameControls
+        element={selectedCode}
+        elementName="Code"
+        minSize={1}
+        hasMultipleElements={hasMultipleElements}
+        onChange={(element) => onUpdateCode?.(element)}
+        onMoveLayer={onMoveLayer}
+      />
+    </div>
   ) : null;
 }
 
 export function Inspector({
+  selectedCode,
+  onUpdateCode,
+  onEditCode,
   selectedText,
   selectedImage,
   selectedShape,
@@ -595,7 +623,8 @@ export function Inspector({
 }: InspectorContentProps & {
   readonly onDeleteSelection: () => void;
 }) {
-  const selectedElement = selectedText ?? selectedImage ?? selectedShape;
+  const selectedElement =
+    selectedText ?? selectedImage ?? selectedShape ?? selectedCode;
   return (
     <aside
       aria-hidden={selectedElement ? undefined : true}
@@ -604,7 +633,15 @@ export function Inspector({
       {selectedElement && (
         <div className="inspector-header">
           <span>
-            {selectedText ? "Text" : selectedImage ? "Image" : "Shape"}
+            {selectedText
+              ? "Text"
+              : selectedImage
+                ? "Image"
+                : selectedShape
+                  ? "Shape"
+                  : selectedCode?.kind === "qr"
+                    ? "QR code"
+                    : "Barcode"}
           </span>
           <div className="inspector-header-actions">
             <IconButton
@@ -617,6 +654,9 @@ export function Inspector({
         </div>
       )}
       <InspectorContent
+        selectedCode={selectedCode}
+        onUpdateCode={onUpdateCode}
+        onEditCode={onEditCode}
         hasMultipleElements={hasMultipleElements}
         onMoveLayer={onMoveLayer}
         onUpdateImage={onUpdateImage}

@@ -49,7 +49,8 @@ adapters.
   height, physical printhead size, and printer alignment.
 - New, open, save, and save-as workspace actions.
 - Multiple plates in one workspace.
-- Label width and height settings.
+- Automatic or fixed label width, and label height settings.
+- QR codes with structured data forms and editable barcode formats.
 - Text elements with position, size, alignment, weight, and rotation.
 - Image import and basic placement.
 - Zoomed WYSIWYG canvas.
@@ -60,7 +61,7 @@ adapters.
 
 ## Later scope
 
-- QR codes, barcodes, reusable templates, variable data, CSV batch printing,
+- Reusable templates, variable data, CSV batch printing,
   cloud synchronization, and third-party adapter distribution.
 - These items must not make the initial UI or contracts needlessly complex.
 

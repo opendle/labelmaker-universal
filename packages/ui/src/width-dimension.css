@@ -1,0 +1,88 @@
+.dimension-ruler-width .width-dimension {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  display: flex;
+  align-items: center;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  background: linear-gradient(
+    transparent calc(50% - 0.8em),
+    var(--dimension-value-background, #e6e5df) calc(50% - 0.8em),
+    var(--dimension-value-background, #e6e5df) calc(50% + 0.8em),
+    transparent calc(50% + 0.8em)
+  );
+}
+.width-dimension button,
+.width-dimension-field {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4ch;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 3px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  white-space: nowrap;
+}
+.width-dimension-display,
+.width-dimension-field {
+  text-decoration: underline dashed;
+  text-underline-offset: 3px;
+}
+.width-dimension svg {
+  flex: none;
+  width: 1.2em;
+  height: 1.2em;
+}
+.width-dimension b {
+  font-weight: inherit;
+}
+.dimension-ruler-width .width-dimension span {
+  position: static;
+  left: auto;
+  top: auto;
+  padding: 0;
+  background: transparent;
+  transform: none;
+}
+.dimension-ruler-width .width-dimension .width-dimension-number {
+  position: relative;
+  min-width: 1ch;
+}
+.width-dimension-number > span {
+  visibility: hidden;
+}
+.width-dimension-number input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: right;
+  appearance: textfield;
+}
+.width-dimension-number input::-webkit-inner-spin-button,
+.width-dimension-number input::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+.width-dimension button:focus-visible,
+.width-dimension-number input:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+@media (prefers-color-scheme: dark) {
+  .dimension-ruler-width .width-dimension {
+    --dimension-value-background: #191a1c;
+  }
+}

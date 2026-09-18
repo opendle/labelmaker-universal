@@ -123,7 +123,13 @@ appearances so that they show the physical label and printed result accurately.
   line without truncation or an ellipsis.
 - Offer twelve useful system typefaces in alphabetical order. Use Avenir
   Next, with a Segoe UI fallback, for new text.
-- Change plate height. Automatic trim owns plate width.
+- Change plate height. Use automatic width by default. Click or tap the width
+  dimension to enter a fixed total width. Show a lock icon next to a fixed width.
+  During width edit, provide an automatic-width action. It discards the width
+  draft, closes the editor, and trims the plate to its content. Enter accepts a
+  valid width; Escape cancels it. Keep both actions available from a keyboard.
+  A printer minimum can extend the displayed output width. Edit the saved plate
+  width and keep printer-added blank paper separate.
 - Resize label height equally from the top and bottom, so existing elements keep
   the same position relative to the label center.
 - Add a text element.
@@ -152,6 +158,27 @@ appearances so that they show the physical label and printed result accurately.
   works with touch input. Use only the close action in the header; do not add a
   Cancel action. Add each icon as a high-resolution image with all image
   controls. Load the icon catalog only when the icon library opens.
+- Add QR code and Barcode actions next to the other element actions. Open a
+  code dialog with a live preview. Keep its header and save action visible and
+  scroll the content when the viewport is short. Keep all controls usable on
+  phones, tablets, and desktop computers.
+- Support QR forms for text, web links, Wi-Fi, email, phone, SMS, contacts, and
+  map coordinates. Keep form drafts when the user changes the QR type. Save
+  the selected fields and error correction setting in the workspace. Use the
+  exact selected correction level; do not let the encoder increase it. Use a
+  form registry so a new type can be added in one place.
+- Support Code 128, Code 39, EAN-13, EAN-8, UPC-A, ITF-14, Interleaved 2 of 5,
+  Data Matrix, and PDF417. Check content before insertion. Show format guidance
+  and a control for text below linear barcodes.
+- Double-click a code to edit its content and type. Also provide an Edit code
+  action for touch input and Enter or Space on a focused code. Keep its frame
+  when editing. Support move, resize, rotate, layer order, delete, undo, and redo.
+- Generate code previews, label artwork, thumbnails, and print output from the
+  same encoder. Keep codes in their original proportions within the frame.
+  Add codes without a margin by default. Put an Add margin checkbox below the
+  preview in both code dialogs, including on phones. Apply this setting to the
+  preview, canvas, thumbnails, and print output, and save it in the workspace.
+  Automatic trim must keep the code frame and any selected white border.
 - Add line, rectangle, and circle shapes from a menu next to Image. Let the
   user select, move, resize, and rotate each shape. A resized circle can become
   an ellipse. Use whole-millimeter geometry when a shape is first inserted.
@@ -177,10 +204,11 @@ appearances so that they show the physical label and printed result accurately.
   snap zone around each 45-degree angle.
 - Set left and right plate margins, with zero as the default.
 - After a UI edit that can change printed pixels, automatically adjust the
-  plate width, larger or smaller, to the first and last black pixels of the
-  final monochrome raster plus the selected margins. Keep the trim operation as
-  a separate callable application function so a later Auto or Manual setting
-  can use the same behavior. Apply elements in document order, so a white image
+  plate width in automatic mode, larger or smaller, to the first and last black
+  pixels of the final monochrome raster plus the selected margins. Keep the trim operation as
+  a separate callable application function. Do not automatically trim fixed
+  plates. Preserve the full QR code and barcode frames, including their white
+  borders, during trim. Apply elements in document order, so a white image
   can hide earlier content. A fully white image and an element frame must not
   add blank trim space. Round the result up to a whole millimeter and divide
   only the rounding remainder equally between the left and right sides. During
@@ -274,8 +302,8 @@ appearances so that they show the physical label and printed result accurately.
   input from the rendered text, including decimal values. Keep a 44-pixel
   touch target around compact text without adding space inside the value.
   A click or keyboard focus selects the complete number. Enter accepts the
-  value and removes focus. Keep total width and a separate printable height
-  read-only.
+  value and removes focus. Keep a separate printable height read-only. Edit total
+  width with its own fixed-width and automatic-width control.
   Show the number as normal text until the field has focus. Center each trim
   margin value below its measured span. Use the ruler background in both light
   and dark themes, with no input box around the value.

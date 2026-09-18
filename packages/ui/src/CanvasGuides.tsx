@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { updatePlateEditorHeight } from "./editor-operations.js";
 import { displayMillimeters, type PrintableMargins } from "./label-layout.js";
 import { EditableDimension } from "./EditableDimension.js";
+import { WidthDimension } from "./WidthDimension.js";
 
 type GridStyle = CSSProperties & Record<`--${string}`, string | number>;
 type RulerStyle = CSSProperties & Record<`--${string}`, string | number>;
@@ -122,11 +123,20 @@ export function CanvasRulers({
   return (
     <>
       <div
-        aria-hidden="true"
+        aria-hidden={editing ? undefined : true}
         className="dimension-ruler dimension-ruler-width"
         style={dimensionStyle}
       >
-        <span>{displayMillimeters(widthMm)} mm</span>
+        {editing ? (
+          <WidthDimension
+            key={editing.plate.id}
+            onChange={editing.onChange}
+            outputWidthMm={widthMm}
+            plate={editing.plate}
+          />
+        ) : (
+          <span>{displayMillimeters(widthMm)} mm</span>
+        )}
       </div>
       <div aria-hidden="true" className="ruler ruler-top" style={intervalStyle}>
         {horizontal.map((mark) => (

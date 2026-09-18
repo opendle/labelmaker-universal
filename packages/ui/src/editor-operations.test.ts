@@ -12,6 +12,7 @@ import {
   editableElementCount,
   moveElementLayer,
   plateEditorWidthMm,
+  setPlateFixedWidth,
   toggleFlagPlate,
   trimPlate,
   updateElementAndFlagPeer,
@@ -390,5 +391,105 @@ describe("toggleFlagPlate", () => {
       movedFromPeer.elements.find((element) => element.id === "text")?.xMm,
     ).toBe(8);
     expect(toggleFlagPlate(movedFromPeer).elements[0]?.xMm).toBe(8);
+  });
+});
+
+describe("fixed width", () => {
+  it("rejects fixed widths that cannot be saved", () => {
+    const plate = document.plates[0]!;
+    for (const width of [Number.NaN, Number.POSITIVE_INFINITY, 0, 10_001]) {
+      expect(setPlateFixedWidth(plate, width)).toBe(plate);
+    }
+    expect(setPlateFixedWidth(plate, 10_000).size.widthMm).toBe(10_000);
+    const flag = toggleFlagPlate(plate);
+    expect(setPlateFixedWidth(flag, 3)).toBe(flag);
+    expect(setPlateFixedWidth(flag, 10_000).size.widthMm).toBe(10_000);
+  });
+  it("sets total flag width and preserves matching source and peer frames", () => {
+    const fixed = setPlateFixedWidth(toggleFlagPlate(document.plates[0]!), 82);
+    expect(fixed.widthMode).toBe("fixed");
+    expect(fixed.size.widthMm).toBe(82);
+    expect(plateEditorWidthMm(fixed)).toBe(40);
+    const source = fixed.elements[0]!;
+    const peer = fixed.elements.find(
+      (element) => element.id === `${source.id}--flag-peer`,
+    );
+    expect(peer?.xMm).toBe(82 - source.xMm - source.widthMm);
+    expect(toggleFlagPlate(fixed).widthMode).toBe("fixed");
+  });
+  it("keeps explicit trim available for a fixed plate", async () => {
+    const fixed = {
+      ...document,
+      plates: [setPlateFixedWidth(document.plates[0]!, 80)],
+    };
+    const trimmed = await trimPlate(fixed, "plate", async () => ({
+      minX: 10,
+      maxX: 20,
+    }));
+    expect(trimmed.plates[0]!.size.widthMm).toBe(15);
+    expect(trimmed.plates[0]!.widthMode).toBe("fixed");
+  });
+});
+
+describe("code borders during trim", () => {
+  it.each(["qr", "barcode"] as const)(
+    "preserves the full %s frame",
+    async (kind) => {
+      const plate = document.plates[0]!;
+      const withCode: LabelDocument = {
+        ...document,
+        plates: [
+          {
+            ...plate,
+            elements: [
+              {
+                id: "code",
+                kind,
+                xMm: 10,
+                yMm: 0,
+                widthMm: 30,
+                heightMm: 16,
+                rotationDeg: 0,
+                value: "12345678",
+              },
+            ],
+          },
+        ],
+      };
+      const trimmed = await trimPlate(withCode, "plate", async () => ({
+        minX: 12,
+        maxX: 38,
+      }));
+      expect(trimmed.plates[0]!.size.widthMm).toBe(35);
+      expect(trimmed.plates[0]!.elements[0]!.xMm).toBe(2);
+    },
+  );
+  it("preserves the border after code rotation", async () => {
+    const plate = document.plates[0]!;
+    const withCode: LabelDocument = {
+      ...document,
+      plates: [
+        {
+          ...plate,
+          elements: [
+            {
+              id: "code",
+              kind: "qr",
+              xMm: 10,
+              yMm: 0,
+              widthMm: 20,
+              heightMm: 10,
+              rotationDeg: 90,
+              value: "hello",
+            },
+          ],
+        },
+      ],
+    };
+    const trimmed = await trimPlate(withCode, "plate", async () => ({
+      minX: 17,
+      maxX: 23,
+    }));
+    expect(trimmed.plates[0]!.size.widthMm).toBe(15);
   });
 });

@@ -74,10 +74,70 @@ export interface ShapeElement extends LabelElementBase {
   readonly cornerRadiusMm: Millimeters;
 }
 
+export type QrErrorCorrection = "L" | "M" | "Q" | "H";
+
+export type QrData =
+  | { readonly type: "text"; readonly text: string }
+  | { readonly type: "url"; readonly url: string }
+  | {
+      readonly type: "wifi";
+      readonly ssid: string;
+      readonly password: string;
+      readonly security: "WPA" | "WEP" | "nopass";
+      readonly hidden: boolean;
+    }
+  | {
+      readonly type: "email";
+      readonly address: string;
+      readonly subject: string;
+      readonly body: string;
+    }
+  | { readonly type: "phone"; readonly number: string }
+  | { readonly type: "sms"; readonly number: string; readonly message: string }
+  | {
+      readonly type: "contact";
+      readonly firstName: string;
+      readonly lastName: string;
+      readonly organization: string;
+      readonly phone: string;
+      readonly email: string;
+      readonly url: string;
+      readonly address: string;
+    }
+  | {
+      readonly type: "geo";
+      readonly latitude: number;
+      readonly longitude: number;
+    };
+
+export interface QrOptions {
+  readonly data: QrData;
+  readonly errorCorrection: QrErrorCorrection;
+}
+
+export type BarcodeFormat =
+  | "code128"
+  | "code39"
+  | "ean13"
+  | "ean8"
+  | "upca"
+  | "itf14"
+  | "interleaved2of5"
+  | "datamatrix"
+  | "pdf417";
+
+export interface BarcodeOptions {
+  readonly showText: boolean;
+}
+
 export interface CodeElement extends LabelElementBase {
   readonly kind: "qr" | "barcode";
   readonly value: string;
   readonly format?: string;
+  /** Add a white border around the code. An omitted value means false. */
+  readonly includeMargin?: boolean;
+  readonly qr?: QrOptions;
+  readonly barcode?: BarcodeOptions;
 }
 
 export type LabelElement =
@@ -91,6 +151,8 @@ export interface LabelPlate {
   readonly name: string;
   /** Mirror the printed output without changing the editor artwork. */
   readonly mirrorPrint?: boolean;
+  /** An omitted value means automatic width. */
+  readonly widthMode?: "auto" | "fixed";
   readonly size: PhysicalSize;
   readonly margins: PlateMargins;
   readonly elements: readonly LabelElement[];

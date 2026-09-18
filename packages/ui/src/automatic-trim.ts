@@ -9,7 +9,14 @@ export async function trimLatestWorkspace(
 ): Promise<void> {
   const trimSnapshot = async () => {
     const source = getWorkspace();
-    return { source, workspace: await trimPlate(source, plateId) };
+    const plate = source.plates.find((item) => item.id === plateId);
+    return {
+      source,
+      workspace:
+        plate?.widthMode === "fixed"
+          ? source
+          : await trimPlate(source, plateId),
+    };
   };
   const first = await trimSnapshot();
   if (getWorkspace() === first.source) {

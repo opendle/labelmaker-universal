@@ -38,7 +38,7 @@ export function SelectionHandles({
   onResizeStart,
   onRotateStart,
 }: {
-  readonly elementLabel: "text" | "image" | "shape";
+  readonly elementLabel: "text" | "image" | "shape" | "qr" | "barcode";
   readonly rotationDeg: number;
   readonly onResizeStart: (
     corner: ResizeCorner,

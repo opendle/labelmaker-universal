@@ -155,7 +155,7 @@ async function capture(width, height, name, setup) {
       await page.waitForSelector(".label-canvas");
       await page.waitForFunction(() => {
         const name = document
-          .querySelector(".printer-trigger-copy strong")
+          .querySelector(".printer-trigger strong")
           ?.textContent?.trim();
         return Boolean(name && name !== "No printer");
       });
@@ -455,7 +455,7 @@ await capture(1100, 700, "labelmaker-phone-1100x700.png", async (page) => {
     .evaluate((header) =>
       Array.from(
         header.querySelectorAll(
-          ".printer-trigger-copy, .printer-add-trigger strong, .print-label",
+          ".printer-trigger strong, .printer-trigger small, .printer-add-trigger strong, .print-label",
         ),
       ).flatMap((label) =>
         label.getBoundingClientRect().width > 0
@@ -1394,6 +1394,159 @@ await capture(
     } finally {
       await page.mouse.up();
     }
+  },
+);
+for (const [width, height] of [
+  [1440, 960],
+  [1100, 760],
+  [393, 852],
+  [375, 667],
+  [667, 375],
+]) {
+  for (const kind of ["qr", "barcode"]) {
+    const name = `labelmaker-${kind}-editor-${width}x${height}.png`;
+    savedScreenshotNames.add(name);
+    await capture(width, height, name, async (page) => {
+      await page.setViewportSize({ width, height });
+      await page
+        .getByRole("button", {
+          name: kind === "qr" ? "QR code" : "Barcode",
+          exact: true,
+        })
+        .click();
+      if (kind === "qr") {
+        await page
+          .getByLabel("QR code type", { exact: true })
+          .selectOption("wifi");
+        await page.getByLabel("Network name", { exact: true }).fill("Workshop");
+        await page
+          .getByLabel("Password", { exact: true })
+          .fill("sample-password");
+      } else {
+        await page
+          .getByLabel("Barcode type", { exact: true })
+          .selectOption("code128");
+        await page.getByLabel("Content", { exact: true }).fill("PART-123456");
+      }
+      await page
+        .getByRole("img", {
+          name: kind === "qr" ? "QR code preview" : "barcode preview",
+        })
+        .waitFor();
+      const margin = page.getByRole("checkbox", { name: "Add margin" });
+      if (await margin.isChecked())
+        throw new Error("New codes must have no margin.");
+      const previewBounds = await page
+        .locator(".code-preview-paper")
+        .boundingBox();
+      const marginBounds = await margin.boundingBox();
+      if (
+        !previewBounds ||
+        !marginBounds ||
+        marginBounds.y < previewBounds.y + previewBounds.height
+      ) {
+        throw new Error("The margin checkbox must be below the preview.");
+      }
+      const overflow = await page
+        .locator(".code-editor-body")
+        .evaluate((body) => body.scrollWidth > body.clientWidth + 1);
+      if (overflow)
+        throw new Error("The code dialog content is wider than the viewport.");
+    });
+  }
+}
+for (const [width, height] of [
+  [393, 852],
+  [667, 375],
+]) {
+  const name = `labelmaker-contact-editor-${width}x${height}.png`;
+  savedScreenshotNames.add(name);
+  await capture(width, height, name, async (page) => {
+    await page.setViewportSize({ width, height });
+    await page.getByRole("button", { name: "QR code", exact: true }).click();
+    await page
+      .getByLabel("QR code type", { exact: true })
+      .selectOption("contact");
+    await page.getByLabel("First name", { exact: true }).fill("Alex");
+    await page.getByLabel("Last name", { exact: true }).fill("Smith");
+    await page
+      .getByLabel("Email address", { exact: true })
+      .fill("alex@example.com");
+    await page.locator(".code-editor-body").evaluate((body) => {
+      body.scrollTop = 0;
+    });
+  });
+}
+for (const [width, height] of [
+  [1440, 960],
+  [393, 852],
+]) {
+  const name = `labelmaker-fixed-width-${width}x${height}.png`;
+  savedScreenshotNames.add(name);
+  await capture(width, height, name, async (page) => {
+    await page.setViewportSize({ width, height });
+    await page.getByRole("button", { name: /^Plate width:/ }).click();
+    await page.getByLabel("Plate width", { exact: true }).fill("95.5");
+    await page.getByLabel("Plate width", { exact: true }).press("Enter");
+    await page
+      .getByRole("button", { name: /Plate width: 95.5 mm, fixed/ })
+      .waitFor();
+    await page.screenshot({ path: resolve(screenshotDirectory, name) });
+    await page.getByRole("button", { name: /^Plate width:/ }).click();
+    const widthField = page.getByLabel("Plate width", { exact: true });
+    const unit = page.locator(".width-dimension-field b");
+    const inputBounds = await widthField.boundingBox();
+    const unitBounds = await unit.boundingBox();
+    if (
+      !inputBounds ||
+      !unitBounds ||
+      inputBounds.x + inputBounds.width > unitBounds.x + 0.5
+    ) {
+      throw new Error("The width input covers its unit.");
+    }
+    const editName = `labelmaker-fixed-width-edit-${width}x${height}.png`;
+    savedScreenshotNames.add(editName);
+    await page.screenshot({ path: resolve(screenshotDirectory, editName) });
+    await page.getByLabel("Plate width", { exact: true }).fill("75");
+    await page.getByRole("button", { name: "Use automatic width" }).click();
+    await page
+      .getByRole("button", { name: /Plate width:.*automatic/ })
+      .waitFor();
+    if (await page.getByLabel("Plate width", { exact: true }).count())
+      throw new Error("Automatic width did not dismiss the input.");
+    await page.getByRole("button", { name: /^Plate width:/ }).click();
+    await page.getByLabel("Plate width", { exact: true }).fill("95.5");
+    await page.getByLabel("Plate width", { exact: true }).press("Enter");
+  });
+}
+savedScreenshotNames.add("labelmaker-code-artwork-1440x960.png");
+await capture(
+  1440,
+  960,
+  "labelmaker-code-artwork-1440x960.png",
+  async (page) => {
+    await page.setViewportSize({ width: 1440, height: 960 });
+    await page.getByRole("button", { name: "QR code", exact: true }).click();
+    await page.getByLabel("Text", { exact: true }).fill("Workshop shelf A");
+    await page
+      .getByRole("button", { name: "Add QR code", exact: true })
+      .click();
+    const code = page.getByRole("button", { name: "QR code element" });
+    await code.waitFor();
+    await code.dblclick();
+    if (
+      (await page.getByLabel("Text", { exact: true }).inputValue()) !==
+      "Workshop shelf A"
+    )
+      throw new Error("The code content was not restored.");
+    await page
+      .getByRole("button", { name: "Save QR code", exact: true })
+      .click();
+    await page.waitForFunction(() =>
+      Array.from(document.querySelectorAll(".canvas-element img")).every(
+        (image) => image.complete && image.naturalWidth > 0,
+      ),
+    );
   },
 );
 await closeCaptureApplication();

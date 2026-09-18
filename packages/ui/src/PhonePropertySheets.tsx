@@ -10,6 +10,7 @@ export function PhoneElementPropertySheet({
   selectedText,
   selectedImage,
   selectedShape,
+  selectedCode,
   onClose,
   onDeleteSelection,
   ...contentProps
@@ -17,7 +18,15 @@ export function PhoneElementPropertySheet({
   readonly onClose: () => void;
   readonly onDeleteSelection: () => void;
 }) {
-  const title = selectedText ? "Text" : selectedImage ? "Image" : "Shape";
+  const title = selectedText
+    ? "Text"
+    : selectedImage
+      ? "Image"
+      : selectedShape
+        ? "Shape"
+        : selectedCode?.kind === "qr"
+          ? "QR code"
+          : "Barcode";
   return (
     <Modal
       className="phone-property-modal"
@@ -43,6 +52,7 @@ export function PhoneElementPropertySheet({
       </div>
       <InspectorContent
         {...contentProps}
+        selectedCode={selectedCode}
         selectedImage={selectedImage}
         selectedShape={selectedShape}
         selectedText={selectedText}

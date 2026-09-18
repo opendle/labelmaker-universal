@@ -1,4 +1,4 @@
-import type { LabelPlate } from "@labelmaker/domain";
+import type { LabelElement, LabelPlate } from "@labelmaker/domain";
 import {
   useCallback,
   useEffect,
@@ -29,6 +29,7 @@ import {
 } from "./PhonePropertySheets.js";
 import { PrinterSettingsDialog } from "./PrinterSettingsDialog.js";
 import { useLabelmakerController } from "./useLabelmakerController.js";
+import { useAppCodeEditor } from "./useAppCodeEditor.js";
 import { useDrawingEditor } from "./useDrawingEditor.js";
 import {
   useResponsiveLayout,
@@ -107,6 +108,37 @@ function createHeaderProps(
   };
 }
 
+function AppPlatePropertySheet({
+  controller,
+  draft,
+  onChange,
+  onClose,
+}: {
+  readonly controller: ReturnType<typeof useLabelmakerController>;
+  readonly draft: LabelPlate;
+  readonly onChange: (plate: LabelPlate) => void;
+  readonly onClose: () => void;
+}) {
+  const { activePlate, state } = controller;
+  if (!activePlate) return null;
+  return (
+    <PhonePlatePropertySheet
+      canDelete={state.workspace.plates.length > 1}
+      draft={draft}
+      onChange={onChange}
+      onClose={onClose}
+      onDelete={() => controller.deletePlate(activePlate.id)}
+      onSave={(plate) => {
+        if (plate === activePlate) return;
+        controller.editPrintedPixels(
+          replacePlate(state.workspace, activePlate.id, () => plate),
+          activePlate.id,
+        );
+      }}
+    />
+  );
+}
+
 export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   const controller = useLabelmakerController(host);
   const {
@@ -117,6 +149,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
     selectedShape,
     dispatch,
   } = controller;
+  const { selectedCode, codeEditor, updateCode } = useAppCodeEditor(controller);
   const shellRef = useRef<HTMLDivElement>(null);
   const [iconLibraryOpen, setIconLibraryOpen] = useState(false);
   const [printerMenuOpen, setPrinterMenuOpen] = useState(false);
@@ -135,7 +168,8 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
       (phoneSheet === "element" &&
         !selectedText &&
         !selectedImage &&
-        !selectedShape));
+        !selectedShape &&
+        !selectedCode));
   if (closePhoneSheetDuringRender) setPhoneSheet(null);
   if (closePhoneSheetDuringRender && phonePlateDraft) {
     setPhonePlateDraft(undefined);
@@ -158,6 +192,8 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
     [dispatch],
   );
   useLabelmakerSystemBack(host.registerSystemBackHandler, {
+    codeEditorOpen: codeEditor.isOpen,
+    closeCodeEditor: codeEditor.close,
     drawingEditorOpen: drawingEditor.isOpen,
     closeDrawingEditor: drawingEditor.close,
     iconLibraryOpen,
@@ -187,24 +223,10 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   const settingsPrinter = state.printers.find(
     (printer) => printer.id === state.printerSettingsId,
   );
-  const updateText = (text: NonNullable<typeof selectedText>) =>
+  const updateElement = (element: LabelElement) =>
     controller.editPrintedPixels(
       replacePlate(state.workspace, activePlate.id, (plate) =>
-        updateElementAndFlagPeer(plate, text),
-      ),
-      activePlate.id,
-    );
-  const updateImage = (image: NonNullable<typeof selectedImage>) =>
-    controller.editPrintedPixels(
-      replacePlate(state.workspace, activePlate.id, (plate) =>
-        updateElementAndFlagPeer(plate, image),
-      ),
-      activePlate.id,
-    );
-  const updateShape = (shape: NonNullable<typeof selectedShape>) =>
-    controller.editPrintedPixels(
-      replacePlate(state.workspace, activePlate.id, (plate) =>
-        updateElementAndFlagPeer(plate, shape),
+        updateElementAndFlagPeer(plate, element),
       ),
       activePlate.id,
     );
@@ -254,6 +276,9 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             onDraw={drawingEditor.openNew}
             onOpenIcons={() => setIconLibraryOpen(true)}
             onEditImage={drawingEditor.openImage}
+            onAddCode={codeEditor.openNew}
+            onEditCode={codeEditor.openCode}
+            selectedCode={selectedCode}
             onAddShape={controller.addShape}
             onAddSpecial={controller.addSpecial}
             onAddText={controller.addText}
@@ -311,12 +336,15 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
               hasMultipleElements={editableElementCount(activePlate) > 1}
               onDeleteSelection={controller.deleteSelected}
               onMoveLayer={moveLayer}
-              onUpdateImage={updateImage}
-              onUpdateShape={updateShape}
-              onUpdateText={updateText}
+              onUpdateImage={updateElement}
+              onUpdateShape={updateElement}
+              onUpdateText={updateElement}
               selectedImage={selectedImage}
               selectedShape={selectedShape}
               selectedText={selectedText}
+              selectedCode={selectedCode}
+              onEditCode={codeEditor.openCode}
+              onUpdateCode={updateCode}
             />
           )}
         </div>
@@ -324,38 +352,36 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
       </div>
       {layout !== "standard" &&
         visiblePhoneSheet === "element" &&
-        (selectedText || selectedImage || selectedShape) && (
+        (selectedText || selectedImage || selectedShape || selectedCode) && (
           <PhoneElementPropertySheet
             hasMultipleElements={editableElementCount(activePlate) > 1}
             onClose={() => setPhoneSheet(null)}
             onDeleteSelection={controller.deleteSelected}
             onMoveLayer={moveLayer}
-            onUpdateImage={updateImage}
-            onUpdateShape={updateShape}
-            onUpdateText={updateText}
+            onUpdateImage={updateElement}
+            onUpdateShape={updateElement}
+            onUpdateText={updateElement}
             selectedImage={selectedImage}
             selectedShape={selectedShape}
             selectedText={selectedText}
+            selectedCode={selectedCode}
+            onEditCode={(code) => {
+              setPhoneSheet(null);
+              codeEditor.openCode(code);
+            }}
+            onUpdateCode={updateCode}
           />
         )}
       {layout !== "standard" &&
         visiblePhoneSheet === "plate" &&
         phonePlateDraft && (
-          <PhonePlatePropertySheet
-            canDelete={state.workspace.plates.length > 1}
+          <AppPlatePropertySheet
+            controller={controller}
             draft={phonePlateDraft}
             onChange={setPhonePlateDraft}
             onClose={() => {
               setPhonePlateDraft(undefined);
               setPhoneSheet(null);
-            }}
-            onDelete={() => controller.deletePlate(activePlate.id)}
-            onSave={(plate) => {
-              if (plate === activePlate) return;
-              controller.editPrintedPixels(
-                replacePlate(state.workspace, activePlate.id, () => plate),
-                activePlate.id,
-              );
             }}
           />
         )}
@@ -376,6 +402,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
         printer={settingsPrinter}
       />
       {drawingEditor.dialog}
+      {codeEditor.dialog}
       {iconLibraryOpen && (
         <IconLibraryControl
           onAdd={controller.addDrawing}

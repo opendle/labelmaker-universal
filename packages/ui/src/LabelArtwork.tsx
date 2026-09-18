@@ -6,6 +6,7 @@ import {
   printableVerticalCrop,
   type PrintableMargins,
 } from "./label-layout.js";
+import { CodeArtwork } from "./CodeArtwork.js";
 import { MonochromeImage } from "./MonochromeImage.js";
 import { ShapeArtwork } from "./ShapeArtwork.js";
 import { textWithTrailingLineMarker } from "./text-layout.js";
@@ -105,7 +106,14 @@ export function LabelArtwork({
               />
             );
           }
-          return null;
+          return (
+            <CodeArtwork
+              element={element}
+              className="label-artwork-element"
+              key={element.id}
+              style={frame}
+            />
+          );
         })}
       </span>
     </span>

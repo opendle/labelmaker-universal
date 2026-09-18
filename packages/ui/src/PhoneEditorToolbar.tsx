@@ -1,10 +1,13 @@
 import type {
+  CodeElement,
   ImageElement,
   LabelElement,
   ShapeElement,
   TextElement,
 } from "@labelmaker/domain";
 import {
+  Barcode,
+  QrCode,
   AlignCenter,
   AlignLeft,
   AlignRight,
@@ -47,6 +50,9 @@ export function PhoneEditorToolbar({
   onAddImage,
   onDraw,
   onOpenIcons,
+  onAddCode,
+  onEditCode,
+  selectedCode,
   onAddShape,
   onChangeElement,
   onDeleteSelection,
@@ -60,13 +66,17 @@ export function PhoneEditorToolbar({
   readonly onAddImage: (file: File) => void;
   readonly onDraw: () => void;
   readonly onOpenIcons: () => void;
+  readonly onAddCode?: ((kind: "qr" | "barcode") => void) | undefined;
+  readonly onEditCode?: ((code: CodeElement) => void) | undefined;
+  readonly selectedCode?: CodeElement | undefined;
   readonly onAddShape: (shape: "line" | "rectangle" | "circle") => void;
   readonly onChangeElement: (element: LabelElement) => void;
   readonly onDeleteSelection: () => void;
   readonly onOpenElementProperties: () => void;
   readonly onOpenPlateSettings: () => void;
 }) {
-  const selectedElement = selectedText ?? selectedImage ?? selectedShape;
+  const selectedElement =
+    selectedText ?? selectedImage ?? selectedShape ?? selectedCode;
   const imageInputRef = useRef<HTMLInputElement>(null);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const [menu, setMenu] = useState<PhoneMenu>(null);
@@ -128,6 +138,16 @@ export function PhoneEditorToolbar({
             label="Icons"
             onClick={onOpenIcons}
           />
+          <PhoneToolButton
+            icon={<QrCode size={19} />}
+            label="QR code"
+            onClick={() => onAddCode?.("qr")}
+          />
+          <PhoneToolButton
+            icon={<Barcode size={19} />}
+            label="Barcode"
+            onClick={() => onAddCode?.("barcode")}
+          />
           <button
             aria-expanded={menu === "shapes"}
             aria-haspopup="menu"
@@ -161,6 +181,15 @@ export function PhoneEditorToolbar({
       {selectedElement && (
         <div className="phone-quick-command-row">
           <div className="phone-quick-scroll">
+            {selectedCode && (
+              <button
+                className="button"
+                type="button"
+                onClick={() => onEditCode?.(selectedCode)}
+              >
+                Edit code
+              </button>
+            )}
             {selectedText && (
               <TextQuickControls
                 element={selectedText}

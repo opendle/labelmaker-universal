@@ -301,3 +301,167 @@ describe("workspace documents", () => {
     );
   });
 });
+
+describe("saved code settings and width mode", () => {
+  const base = {
+    id: "code",
+    xMm: 1,
+    yMm: 1,
+    widthMm: 12,
+    heightMm: 12,
+    rotationDeg: 0,
+  };
+  function withCode(code: Record<string, unknown>) {
+    const next = mutableElementsDocument();
+    next.plates[0]!.elements = [{ ...base, ...code }];
+    return next;
+  }
+  it.each(["auto", "fixed"])("preserves %s width", (widthMode) => {
+    const next = {
+      ...document,
+      plates: document.plates.map((plate) => ({ ...plate, widthMode })),
+    };
+    expect(
+      parseLabelDocument(serializeLabelDocument(next as never)).plates[0],
+    ).toHaveProperty("widthMode", widthMode);
+  });
+  it("rejects invalid width modes", () => {
+    expect(() =>
+      validateLabelDocument({
+        ...document,
+        plates: document.plates.map((plate) => ({
+          ...plate,
+          widthMode: "other",
+        })),
+      }),
+    ).toThrow("widthMode");
+  });
+  it("preserves structured QR fields and error correction through YAML", () => {
+    const next = withCode({
+      kind: "qr",
+      value: "legacy payload",
+      qr: {
+        errorCorrection: "H",
+        data: {
+          type: "wifi",
+          ssid: "Café;guest",
+          password: 'secret:"\\',
+          security: "WPA",
+          hidden: true,
+        },
+      },
+    });
+    expect(parseLabelDocument(serializeLabelDocument(next as never))).toEqual(
+      next,
+    );
+  });
+  it.each([
+    { type: "text", text: "Café" },
+    { type: "url", url: "https://example.com" },
+    {
+      type: "email",
+      address: "a@example.com",
+      subject: "Subject",
+      body: "One\nTwo",
+    },
+    { type: "phone", number: "+33123456" },
+    { type: "sms", number: "+33123456", message: "Hello" },
+    {
+      type: "contact",
+      firstName: "A",
+      lastName: "B",
+      organization: "Lab",
+      phone: "+33123456",
+      email: "a@example.com",
+      url: "https://example.com",
+      address: "Street 1",
+    },
+    { type: "geo", latitude: -12.5, longitude: 34.5 },
+  ])("preserves all fields for $type QR forms", (data) => {
+    const next = withCode({
+      kind: "qr",
+      value: "saved payload",
+      qr: { errorCorrection: "Q", data },
+    });
+    expect(parseLabelDocument(serializeLabelDocument(next as never))).toEqual(
+      next,
+    );
+  });
+  it("preserves barcode format and display settings", () => {
+    const next = withCode({
+      kind: "barcode",
+      value: "012345678905",
+      format: "upca",
+      barcode: { showText: false },
+    });
+    expect(parseLabelDocument(serializeLabelDocument(next as never))).toEqual(
+      next,
+    );
+  });
+  it.each([true, false])(
+    "saves the code margin setting %s",
+    (includeMargin) => {
+      for (const kind of ["qr", "barcode"]) {
+        const next = withCode({ kind, value: "ABC", includeMargin });
+        expect(
+          parseLabelDocument(serializeLabelDocument(next as never)),
+        ).toEqual(validateLabelDocument(next));
+      }
+    },
+  );
+
+  it.each(["qr", "barcode"])(
+    "accepts old %s elements without editor settings",
+    (kind) => {
+      const next = withCode({ kind, value: "ABC" });
+      expect(parseLabelDocument(serializeLabelDocument(next as never))).toEqual(
+        next,
+      );
+    },
+  );
+  it.each([
+    {
+      kind: "qr",
+      value: "x",
+      qr: { errorCorrection: "X", data: { type: "text", text: "x" } },
+    },
+    {
+      kind: "qr",
+      value: "x",
+      qr: { errorCorrection: "M", data: { type: "unknown" } },
+    },
+    {
+      kind: "qr",
+      value: "x",
+      qr: {
+        errorCorrection: "M",
+        data: {
+          type: "wifi",
+          ssid: "a",
+          password: "b",
+          security: "WPA",
+          hidden: "false",
+        },
+      },
+    },
+    {
+      kind: "qr",
+      value: "x",
+      qr: {
+        errorCorrection: "M",
+        data: { type: "geo", latitude: 91, longitude: 0 },
+      },
+    },
+    { kind: "barcode", value: "x", format: "unknown" },
+    { kind: "barcode", value: "x", barcode: { showText: "true" } },
+    { kind: "barcode", value: "x", qr: {} },
+    { kind: "qr", value: "x", barcode: {} },
+    { kind: "qr", value: "x".repeat(4097) },
+    { kind: "qr", value: "x", includeMargin: "true" },
+    { kind: "barcode", value: "x", includeMargin: 1 },
+  ])("rejects invalid saved code settings %j", (code) => {
+    expect(() => validateLabelDocument(withCode(code))).toThrow(
+      LabelDocumentError,
+    );
+  });
+});

@@ -166,6 +166,70 @@ async function openAddPrinterDialog(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe("LabelmakerApp", () => {
+  it("adds a QR code, edits saved fields, and supports undo", async () => {
+    const user = userEvent.setup();
+    const host = createHost();
+    render(<LabelmakerApp host={host} />);
+    await screen.findByRole("button", { name: /^Selected printer:/ });
+    await user.click(screen.getByRole("button", { name: "QR code" }));
+    await user.selectOptions(screen.getByLabelText("QR code type"), "wifi");
+    await user.type(screen.getByLabelText("Network name"), "Workshop");
+    await user.type(screen.getByLabelText("Password"), "secret-123");
+    await user.click(screen.getByRole("button", { name: "Add QR code" }));
+    const code = await screen.findByRole("button", { name: "QR code element" });
+    await user.dblClick(code);
+    expect(screen.getByLabelText("Network name")).toHaveValue("Workshop");
+    await user.clear(screen.getByLabelText("Network name"));
+    await user.type(screen.getByLabelText("Network name"), "Office");
+    await user.click(screen.getByRole("button", { name: "Save QR code" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    const saved = vi.mocked(host.saveWorkspace).mock.calls.at(-1)?.[0];
+    expect(
+      saved?.plates[0]?.elements.find((element) => element.kind === "qr"),
+    ).toMatchObject({
+      kind: "qr",
+      qr: { data: { type: "wifi", ssid: "Office", password: "secret-123" } },
+    });
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    await user.dblClick(
+      screen.getByRole("button", { name: "QR code element" }),
+    );
+    expect(screen.getByLabelText("Network name")).toHaveValue("Workshop");
+  });
+
+  it("adds and edits a barcode with touch controls", async () => {
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 852);
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={createHost({ platform: "ipados" })} />);
+    await screen.findByRole("button", { name: /^Selected printer:/ });
+    await user.click(screen.getByRole("button", { name: "Barcode" }));
+    await user.type(screen.getByLabelText("Content"), "ABC-123");
+    await user.click(screen.getByRole("button", { name: "Add barcode" }));
+    expect(
+      await screen.findByRole("button", { name: "Barcode element" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Edit code" }));
+    expect(screen.getByLabelText("Content")).toHaveValue("ABC-123");
+    await user.selectOptions(screen.getByLabelText("Barcode type"), "code39");
+    await user.click(screen.getByRole("button", { name: "Save barcode" }));
+    await user.click(
+      screen.getByRole("button", { name: "More element properties" }),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Barcode properties" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Edit code" }));
+    expect(screen.getByLabelText("Barcode type")).toHaveValue("code39");
+    await user.keyboard("{Escape}");
+    await user.click(
+      screen.getByRole("button", { name: "Delete selected element" }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Barcode element" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("restores the complete editor session before it stores recovery state", async () => {
     const recoveredDocument = {
       ...sampleDocument,
@@ -1426,6 +1490,41 @@ describe("LabelmakerApp", () => {
       screen.getByRole("button", { name: "Text element: RESISTORS" }),
     );
     expect(screen.getByLabelText("X position")).toHaveValue(-25);
+  });
+
+  it("saves fixed width through content edits and restores width mode with undo", async () => {
+    const host = createHost();
+    render(<LabelmakerApp host={host} />);
+    const canvas = screen.getByRole("region", {
+      name: "Resistors label canvas",
+    });
+    await waitFor(() =>
+      expect(canvas).toHaveAttribute("data-plate-width-mm", "31"),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Plate width:/ }));
+    const width = screen.getByRole("spinbutton", { name: "Plate width" });
+    fireEvent.change(width, { target: { value: "60" } });
+    fireEvent.keyDown(width, { key: "Enter" });
+    fireEvent.change(screen.getByLabelText("Left margin"), {
+      target: { value: "2" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
+    await waitFor(() => expect(host.saveWorkspace).toHaveBeenCalledOnce());
+    expect(
+      vi.mocked(host.saveWorkspace).mock.calls[0]?.[0].plates[0],
+    ).toMatchObject({ widthMode: "fixed", size: { widthMm: 60 } });
+    expect(canvas).toHaveAttribute("data-plate-width-mm", "60");
+
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    expect(screen.getByLabelText("Left margin")).toHaveValue(0);
+    expect(
+      screen.getByRole("button", { name: /60 mm, fixed/ }),
+    ).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    expect(
+      screen.getByRole("button", { name: /31 mm, automatic/ }),
+    ).toBeInTheDocument();
   });
 
   it("finishes automatic trim before it saves", async () => {

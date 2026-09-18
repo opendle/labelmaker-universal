@@ -305,6 +305,29 @@ export function updatePlateEditorWidth(
   };
 }
 
+// Keep fixed widths within the saved document measurement limit.
+export const MAX_FIXED_PLATE_WIDTH_MM = 10_000;
+
+/** Set the total label width, including both sides of a flag. */
+export function setPlateFixedWidth(
+  plate: LabelPlate,
+  widthMm: number,
+): LabelPlate {
+  if (
+    !Number.isFinite(widthMm) ||
+    widthMm < (isFlagPlate(plate) ? 4 : 1) ||
+    widthMm > MAX_FIXED_PLATE_WIDTH_MM
+  )
+    return plate;
+  const editorWidthMm = isFlagPlate(plate)
+    ? (widthMm - FLAG_GAP_MM) / 2
+    : widthMm;
+  return {
+    ...updatePlateEditorWidth(plate, editorWidthMm),
+    widthMode: "fixed",
+  };
+}
+
 /** Resize the label equally from its top and bottom edges. */
 export function updatePlateEditorHeight(
   plate: LabelPlate,
@@ -433,7 +456,22 @@ export async function trimPlate(
   if (!plate) return workspace;
   const flag = isFlagPlate(plate);
   const sourcePlate = flag ? toggleFlagPlate(plate) : plate;
-  const bounds = await findBounds(sourcePlate);
+  let bounds = await findBounds(sourcePlate);
+  // Preserve the white border that a scanner needs around each code.
+  for (const element of sourcePlate.elements) {
+    if (element.kind !== "qr" && element.kind !== "barcode") continue;
+    const radians = (element.rotationDeg * Math.PI) / 180;
+    const halfWidth =
+      (Math.abs(element.widthMm * Math.cos(radians)) +
+        Math.abs(element.heightMm * Math.sin(radians))) /
+      2;
+    const centerX = element.xMm + element.widthMm / 2;
+    const minX = centerX - halfWidth;
+    const maxX = centerX + halfWidth;
+    bounds = bounds
+      ? { minX: Math.min(bounds.minX, minX), maxX: Math.max(bounds.maxX, maxX) }
+      : { minX, maxX };
+  }
   const sourceWorkspace = flag
     ? replacePlate(workspace, plateId, () => sourcePlate)
     : workspace;

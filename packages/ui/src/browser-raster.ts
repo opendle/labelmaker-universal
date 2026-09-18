@@ -1,5 +1,6 @@
 import type { LabelElement, LabelPlate, TextElement } from "@labelmaker/domain";
 import {
+  generateCodeArtwork,
   rgbaToMonochrome,
   shapeLineStrokeWidthMm,
   shapeRenderGeometry,
@@ -148,8 +149,28 @@ export async function renderPlateBlackBounds(
   context.translate(-renderMinX * PIXELS_PER_MILLIMETER, 0);
 
   const imageFrames = new Map<string, HTMLCanvasElement>();
+  const codeFrames = new Map<
+    string,
+    { image: HTMLImageElement; width: number; height: number }
+  >();
   await Promise.all(
     plate.elements.map(async (element) => {
+      if (element.kind === "qr" || element.kind === "barcode") {
+        const artwork = generateCodeArtwork(element);
+        const image = new Image();
+        await new Promise<void>((resolve, reject) => {
+          image.onload = () => resolve();
+          image.onerror = () =>
+            reject(new Error("The code could not be rendered."));
+          image.src = artwork.dataUrl;
+        });
+        codeFrames.set(element.id, {
+          image,
+          width: artwork.width,
+          height: artwork.height,
+        });
+        return;
+      }
       if (element.kind !== "image") return;
       imageFrames.set(
         element.id,
@@ -170,7 +191,25 @@ export async function renderPlateBlackBounds(
     context.translate(centerX, centerY);
     context.rotate((element.rotationDeg * Math.PI) / 180);
     context.translate(-centerX, -centerY);
-    if (element.kind === "image") {
+    if (element.kind === "qr" || element.kind === "barcode") {
+      const frame = codeFrames.get(element.id);
+      if (!frame) throw new Error("The code could not be rendered.");
+      const scale = Math.min(
+        element.widthMm / frame.width,
+        element.heightMm / frame.height,
+      );
+      const codeWidth = frame.width * scale;
+      const codeHeight = frame.height * scale;
+      context.drawImage(
+        frame.image,
+        (element.xMm + (element.widthMm - codeWidth) / 2) *
+          PIXELS_PER_MILLIMETER,
+        (element.yMm + (element.heightMm - codeHeight) / 2) *
+          PIXELS_PER_MILLIMETER,
+        codeWidth * PIXELS_PER_MILLIMETER,
+        codeHeight * PIXELS_PER_MILLIMETER,
+      );
+    } else if (element.kind === "image") {
       const frame = imageFrames.get(element.id);
       if (!frame) throw new Error("The image frame could not be rendered.");
       context.drawImage(

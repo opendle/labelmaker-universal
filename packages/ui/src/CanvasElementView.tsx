@@ -1,4 +1,5 @@
 import type {
+  CodeElement,
   ImageElement,
   LabelElement,
   LabelPlate,
@@ -15,13 +16,14 @@ import {
 
 import { SelectionHandles } from "./controls.js";
 import { pointsToMillimeters } from "./label-layout.js";
+import { CodeArtwork } from "./CodeArtwork.js";
 import { MonochromeImage } from "./MonochromeImage.js";
 import { isFlagGuideElement } from "./editor-operations.js";
 import { ShapeArtwork } from "./ShapeArtwork.js";
 import { textWithTrailingLineMarker } from "./text-layout.js";
 
 type ResizeCorner = "nw" | "ne" | "sw" | "se";
-type FramedElement = TextElement | ImageElement | ShapeElement;
+type FramedElement = TextElement | ImageElement | ShapeElement | CodeElement;
 type ElementStyle = CSSProperties & Record<`--${string}`, string | number>;
 
 export function CanvasElementView({
@@ -125,7 +127,11 @@ export function CanvasElementView({
       ? "Image element"
       : element.kind === "rectangle"
         ? `${element.shapeType ?? "rectangle"} shape element`
-        : `Text element: ${element.kind === "text" ? element.text : "code"}`;
+        : element.kind === "qr"
+          ? "QR code element"
+          : element.kind === "barcode"
+            ? "Barcode element"
+            : `Text element: ${element.kind === "text" ? element.text : ""}`;
   const textStyle: ElementStyle =
     element.kind === "text"
       ? {
@@ -155,7 +161,7 @@ export function CanvasElementView({
     element.kind === "text" ? textWithTrailingLineMarker(element.text) : "";
   return (
     <div
-      className={`canvas-element ${element.kind === "image" ? "canvas-image" : element.kind === "rectangle" ? "canvas-shape-element" : "canvas-text"} ${selected ? "selected" : ""} ${editing ? "editing" : ""}`}
+      className={`canvas-element ${element.kind === "image" || element.kind === "qr" || element.kind === "barcode" ? "canvas-image" : element.kind === "rectangle" ? "canvas-shape-element" : "canvas-text"} ${selected ? "selected" : ""} ${editing ? "editing" : ""}`}
       style={{ ...frameStyle, ...textStyle }}
     >
       {editing && element.kind === "text" ? (
@@ -215,23 +221,21 @@ export function CanvasElementView({
             <span className="inline-text-editor">{displayText}</span>
           ) : element.kind === "rectangle" ? (
             <ShapeArtwork className="shape-artwork" element={element} />
-          ) : null}
+          ) : (
+            <CodeArtwork element={element} />
+          )}
         </button>
       )}
-      {selected &&
-        (element.kind === "text" ||
-          element.kind === "image" ||
-          element.kind === "rectangle") &&
-        !editing && (
-          <SelectionHandles
-            elementLabel={element.kind === "rectangle" ? "shape" : element.kind}
-            rotationDeg={element.rotationDeg}
-            onResizeStart={(corner, event) =>
-              onResizeStart(event, element, corner)
-            }
-            onRotateStart={(event) => onRotateStart(event, element)}
-          />
-        )}
+      {selected && !editing && (
+        <SelectionHandles
+          elementLabel={element.kind === "rectangle" ? "shape" : element.kind}
+          rotationDeg={element.rotationDeg}
+          onResizeStart={(corner, event) =>
+            onResizeStart(event, element, corner)
+          }
+          onRotateStart={(event) => onRotateStart(event, element)}
+        />
+      )}
     </div>
   );
 }

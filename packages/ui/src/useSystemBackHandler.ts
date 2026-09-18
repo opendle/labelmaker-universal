@@ -15,6 +15,8 @@ function useSystemBackHandler(
 }
 
 interface LabelmakerSystemBackOptions {
+  readonly codeEditorOpen?: boolean;
+  readonly closeCodeEditor?: () => void;
   readonly drawingEditorOpen: boolean;
   readonly closeDrawingEditor: () => void;
   readonly iconLibraryOpen: boolean;
@@ -38,6 +40,10 @@ export function useLabelmakerSystemBack(
   options: LabelmakerSystemBackOptions,
 ): void {
   const handler = useCallback(() => {
+    if (options.codeEditorOpen) {
+      options.closeCodeEditor?.();
+      return true;
+    }
     if (options.drawingEditorOpen) {
       options.closeDrawingEditor();
       return true;

@@ -1,3 +1,4 @@
+import { generateCodeArtwork } from "./codes.js";
 import type {
   ImageElement,
   LabelElement,
@@ -379,7 +380,7 @@ function renderElement(element: LabelElement): string {
     }
     case "qr":
     case "barcode":
-      throw new TypeError(`${element.kind} elements are not printable yet`);
+      return `<g${transform}>${generateCodeArtwork(element).svg.replace("<svg ", `<svg x="${number(element.xMm)}" y="${number(element.yMm)}" width="${number(element.widthMm)}" height="${number(element.heightMm)}" preserveAspectRatio="xMidYMid meet" `)}</g>`;
   }
 }
 
