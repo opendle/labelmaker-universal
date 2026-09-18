@@ -848,10 +848,10 @@ for (const [width, height, touch] of [
       await diagram
         .locator(".printer-ribbon")
         .evaluate(
-          (element) => getComputedStyle(element).outlineStyle !== "none",
+          (element) => getComputedStyle(element).outlineStyle === "none",
         )
     ) {
-      throw new Error("The printhead band has a paper-edge outline");
+      throw new Error("The example labels have no paper-edge outline");
     }
     const schematicHeight = await diagram
       .locator(".printer-label-schematic")
@@ -910,6 +910,13 @@ for (const [width, height, touch] of [
           element.querySelector(selector).getBoundingClientRect();
         const ribbon = bounds(".printer-ribbon");
         const head = bounds(".printer-ruler-head");
+        const headArea = bounds(".printer-ribbon-head");
+        if (
+          Math.abs(headArea.top - head.top) > 0.2 ||
+          Math.abs(headArea.height - head.height) > 0.2
+        ) {
+          throw new Error("The head dimension does not match its area");
+        }
         const gap = bounds(".printer-ribbon-gap");
         const figure = element.getBoundingClientRect();
         const fields = [...element.querySelectorAll(".dimension-value")].map(
@@ -942,7 +949,7 @@ for (const [width, height, touch] of [
       for (const [actual, expected] of [
         [geometry.head, head * scale],
         [geometry.gap, gap * scale],
-        [geometry.ribbon.height, head * scale],
+        [geometry.ribbon.height, (head + 4) * scale],
       ]) {
         if (Math.abs(actual - expected) > 0.2)
           throw new Error(

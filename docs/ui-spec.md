@@ -193,7 +193,9 @@ appearances so that they show the physical label and printed result accurately.
 - Align the work-surface dots to the label grid at 1 mm intervals. Fade the
   5 mm grid in all directions over 10 mm outside the label.
 - Open printer settings from each configured printer. Keep the current label
-  out of this dialog. Show resolution as a fixed capability. Do not show the
+  out of this dialog. Show resolution and printhead alignment as fixed
+  capabilities. Show Top, Center, or Bottom from the reported alignment, or
+  "Not reported" when the value is missing. Do not show the
   raster width.
   Let the user set a display-only printer name and restore the device name.
   This setting must not change the printer ID or connection data. Keep this
@@ -205,8 +207,12 @@ appearances so that they show the physical label and printed result accurately.
   capability has named levels, show the selected name and the level names.
   Replace the geometry field rows with a
   diagram with a band labelled "Printhead area" and the space between labels.
-  Remove paper-edge outlines, top and bottom margin controls, and margin
-  hatching. Use straight label separations. Draw the ribbon to scale on both axes, with a
+  Show paper-edge outlines and blank paper areas around the printhead band.
+  Hatch these blank areas but do not show their dimensions or add margin
+  controls. Use an example paper height 4 mm larger than the head, independent
+  of the current plate. This example must not set printer margins or change
+  printed output. Position the head from the printer alignment.
+  Use straight label separations. Draw the ribbon to scale on both axes, with a
   30 mm example label independent of the current plate. Do not show a width
   ruler for the example label. Fit the ribbon in a compact area. Use the main
   canvas ruler style and editable text for the

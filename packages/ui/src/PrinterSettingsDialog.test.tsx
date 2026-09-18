@@ -28,6 +28,7 @@ const printer: PrinterSummary = {
   statusMessage: "Ready",
   dpi: 203,
   printableWidthMm: 12,
+  rasterAlignment: "center",
   interLabelSpacingMm: 1,
 };
 
@@ -64,9 +65,11 @@ describe("PrinterSettingsDialog", () => {
     });
     expect(diagram).not.toHaveTextContent("Example ribbon");
     expect(diagram).toHaveTextContent("Resolution: 203 dpi");
+    expect(diagram).toHaveTextContent("Printhead alignment: Center");
     expect(diagram).not.toHaveTextContent("30 mm");
     expect(diagram).toHaveTextContent("Printhead area");
-    expect(diagram.querySelector(".nonprintable-zone")).toBeNull();
+    expect(diagram.querySelectorAll(".printer-paper-blank")).toHaveLength(2);
+    expect(diagram.querySelector(".printer-ribbon-head")).toBeInTheDocument();
     expect(screen.queryByLabelText("Top margin")).toBeNull();
     expect(screen.queryByLabelText("Bottom margin")).toBeNull();
     for (const name of ["Print head size", "Margin between labels"]) {
@@ -87,6 +90,48 @@ describe("PrinterSettingsDialog", () => {
       );
     }
     expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+  });
+
+  it.each([
+    ["start", 0, 4],
+    ["center", 2, 2],
+    ["end", 4, 0],
+  ] as const)(
+    "shows %s alignment in the example paper",
+    (rasterAlignment, top, bottom) => {
+      const { container } = renderDialog({
+        printerSummary: { ...printer, rasterAlignment },
+      });
+      expect(
+        screen.getByText(
+          `Printhead alignment: ${{ start: "Top", center: "Center", end: "Bottom" }[rasterAlignment]}`,
+        ),
+      ).toHaveAttribute("title", "Reported by the printer");
+      const preview = container.querySelector<HTMLElement>(
+        ".printer-ribbon-preview",
+      )!;
+      expect(preview.style.getPropertyValue("--ribbon-height-mm")).toBe("16");
+      expect(preview.style.getPropertyValue("--ribbon-head-mm")).toBe("12");
+      expect(preview.style.getPropertyValue("--ribbon-top-mm")).toBe(
+        String(top),
+      );
+      expect(preview.style.getPropertyValue("--ribbon-bottom-mm")).toBe(
+        String(bottom),
+      );
+      expect(container.querySelectorAll(".printer-paper-blank")).toHaveLength(
+        top && bottom ? 2 : 1,
+      );
+      expect(screen.queryByLabelText("Top margin")).toBeNull();
+      expect(screen.queryByLabelText("Bottom margin")).toBeNull();
+    },
+  );
+
+  it("shows missing alignment without claiming a printer value", () => {
+    const { rasterAlignment: _alignment, ...unreported } = printer;
+    renderDialog({ printerSummary: unreported });
+    expect(
+      screen.getByText("Printhead alignment: Not reported"),
+    ).toBeInTheDocument();
   });
 
   it("rounds device geometry to tenths before display and save", async () => {

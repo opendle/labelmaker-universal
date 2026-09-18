@@ -180,8 +180,17 @@ export function PrinterSettingsDialog({
                   ? "Not reported"
                   : `${printer.dpi} dpi`}
               </span>
+              <span title="Reported by the printer">
+                Printhead alignment:{" "}
+                {printer.rasterAlignment === undefined
+                  ? "Not reported"
+                  : { start: "Top", center: "Center", end: "Bottom" }[
+                      printer.rasterAlignment
+                    ]}
+              </span>
             </figcaption>
             <PrinterRibbonDiagram
+              rasterAlignment={printer.rasterAlignment}
               values={form}
               disabled={form.saving}
               onChange={(field, value) =>
