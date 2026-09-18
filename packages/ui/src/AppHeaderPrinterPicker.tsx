@@ -84,7 +84,7 @@ export function AppHeaderPrinterPicker({
             <StatusDot state={activePrinter.state} />
           </span>
         )}
-        <span className="printer-trigger-copy">
+        <span className="printer-trigger-copy printer-picker-copy">
           <strong>{activePrinter?.name ?? "No printer"}</strong>
           <small>
             {activePrinter ? (
@@ -116,10 +116,8 @@ export function AppHeaderPrinterPicker({
                 role="menuitemradio"
                 type="button"
               >
-                <span className="printer-icon">
-                  <Printer size={18} />
-                </span>
-                <span className="printer-copy">
+                <Printer size={17} />
+                <span className="printer-picker-copy">
                   <strong>{printer.name}</strong>
                   <small>
                     <StatusDot state={printer.state} />

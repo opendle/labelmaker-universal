@@ -204,6 +204,10 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
 .printer-picker {
   position: relative;
 }
+.printer-trigger,
+.header-printer-option {
+  color: #5d5951;
+}
 .printer-trigger {
   width: 166px;
   height: 40px;
@@ -215,7 +219,6 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
   border: 1px solid #d4d1c8;
   border-radius: 7px;
   background: white;
-  color: #5d5951;
   text-align: left;
   cursor: pointer;
 }
@@ -226,22 +229,22 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
 .printer-add-trigger strong {
   font-size: 10.5px;
 }
-.printer-trigger-copy {
+.printer-picker-copy {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-.printer-trigger-copy strong,
-.printer-trigger-copy small {
+.printer-picker-copy strong,
+.printer-picker-copy small {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.printer-trigger-copy strong {
+.printer-picker-copy strong {
   font-size: 10.5px;
 }
-.printer-trigger-copy small {
+.printer-picker-copy small {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -267,11 +270,11 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
 }
 .header-printer-option {
   width: 100%;
-  min-height: 44px;
-  padding: 3px 66px 3px 3px;
+  min-height: 40px;
+  padding: 3px 66px 3px 5px;
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) 12px;
-  gap: 5px;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 4px;
   align-items: center;
   border: 0;
   border-radius: 6px;
@@ -3926,6 +3929,10 @@ textarea.inline-text-editor {
   .popup-menu,
   .shape-menu {
     box-shadow: 0 14px 38px rgba(0, 0, 0, 0.48);
+  }
+
+  .header-printer-option {
+    color: #efede7;
   }
 
   .header-printer-option:hover,
