@@ -24,40 +24,6 @@ type ResizeCorner = "nw" | "ne" | "sw" | "se";
 type FramedElement = TextElement | ImageElement | ShapeElement;
 type ElementStyle = CSSProperties & Record<`--${string}`, string | number>;
 
-function clipAtPlateEnd(
-  element: LabelElement,
-  plateWidthMm: number,
-  canvasScale: number,
-): string {
-  // Convert the plate's right edge into the rotated element's coordinates.
-  // The other edges stay outside the artwork so selection handles remain free.
-  const reach =
-    Math.abs(element.xMm) +
-    Math.abs(element.yMm) +
-    element.widthMm +
-    element.heightMm +
-    plateWidthMm +
-    100;
-  const centerX = element.xMm + element.widthMm / 2;
-  const centerY = element.yMm + element.heightMm / 2;
-  const angle = (element.rotationDeg * Math.PI) / 180;
-  const points = [
-    [-reach, -reach],
-    [plateWidthMm, -reach],
-    [plateWidthMm, reach],
-    [-reach, reach],
-  ].map(([x = 0, y = 0]) => {
-    const dx = x - centerX;
-    const dy = y - centerY;
-    const localX =
-      element.widthMm / 2 + dx * Math.cos(angle) + dy * Math.sin(angle);
-    const localY =
-      element.heightMm / 2 - dx * Math.sin(angle) + dy * Math.cos(angle);
-    return `${localX * canvasScale}px ${localY * canvasScale}px`;
-  });
-  return `polygon(${points.join(", ")})`;
-}
-
 export function CanvasElementView({
   element,
   plate,
@@ -145,16 +111,12 @@ export function CanvasElementView({
     "--element-height": `${(element.heightMm / plate.size.heightMm) * 100}%`,
     "--element-rotation": `rotate(${element.rotationDeg}deg)`,
   };
-  const clipPath =
-    canvasWidthMm > plate.size.widthMm
-      ? clipAtPlateEnd(element, plate.size.widthMm, canvasScale)
-      : undefined;
   if (isFlagGuideElement(plate, element) && element.kind === "rectangle") {
     return (
       <ShapeArtwork
         className="canvas-shape canvas-flag-guide"
         element={element}
-        style={{ ...frameStyle, clipPath }}
+        style={frameStyle}
       />
     );
   }
@@ -243,7 +205,6 @@ export function CanvasElementView({
           onKeyDown={(event) => onMoveKey(event, element)}
           onPointerDown={(event) => onMoveStart(event, element)}
           style={{
-            clipPath,
             ...(element.kind === "text" ? { textAlign: element.align } : {}),
           }}
           type="button"

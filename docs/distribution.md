@@ -65,6 +65,21 @@ Do not commit application binaries. Publish signed binaries as App Store builds
 or GitHub Release assets. Keep only source, release scripts, and public metadata
 in Git.
 
+## Desktop runtime compatibility
+
+Use Electron 43.7.2 until a stable replacement passes the macOS Metal sandbox
+check. Electron 44 uses a Chromium branch that removed the GPU helper's Metal
+read permission. On macOS, a first shader compilation can then report
+`sandbox_extension_issue_file failed` when the editor renders an icon.
+Chromium [restored that permission](https://github.com/chromium/chromium/commit/006487cd473e8d75743ab5e6e5f7705ec8606a11),
+but the Electron 44 runtime does not include that correction. Keep renderer
+isolation, the GPU sandbox, and hardware acceleration enabled.
+
+Before changing this pin, test icon insertion with an empty development helper
+Metal cache. Preserve and restore the existing cache. Confirm that no sandbox
+extension error occurs and that GPU composition stays enabled. Also run the
+normal repository and screenshot checks.
+
 ## Mac App Store build
 
 The Mac App Store build is different from a normal Electron macOS build:

@@ -506,6 +506,7 @@ export function EditorCanvas({
     startRotate,
     trackTouchPointer,
   } = useCanvasInteractions({
+    canvasWidthMm: outputWidthMm,
     editingElementId,
     onChangeElement,
     onChangeElementDuringInteraction,

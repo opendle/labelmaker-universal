@@ -285,6 +285,7 @@ export function resizeFrameFromDrag<T extends FramedElement>(
 
 export function useCanvasInteractions({
   plate,
+  canvasWidthMm = plate.size.widthMm,
   selectedElementId,
   editingElementId,
   onSelectElement,
@@ -298,6 +299,7 @@ export function useCanvasInteractions({
   onZoom,
 }: {
   readonly plate: LabelPlate;
+  readonly canvasWidthMm?: number;
   readonly selectedElementId: string | null;
   readonly editingElementId: string | null;
   readonly onSelectElement: (id: string | null) => void;
@@ -310,6 +312,7 @@ export function useCanvasInteractions({
   readonly zoom: number;
   readonly onZoom: (zoom: number) => void;
 }) {
+  const canvasSize = { ...plate.size, widthMm: canvasWidthMm };
   const editOnClickRef = useRef<string | null>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const touchPointersRef = useRef(new Map<number, { x: number; y: number }>());
@@ -444,7 +447,7 @@ export function useCanvasInteractions({
     if (!bounds) return;
     onInteractionStart();
     const thresholds = {
-      xMm: (6 / bounds.width) * plate.size.widthMm,
+      xMm: (6 / bounds.width) * canvasWidthMm,
       yMm: (6 / bounds.height) * plate.size.heightMm,
     };
     const onMove = (moveEvent: PointerEvent) => {
@@ -458,14 +461,13 @@ export function useCanvasInteractions({
             ...element,
             xMm:
               element.xMm +
-              ((moveEvent.clientX - startX) / bounds.width) *
-                plate.size.widthMm,
+              ((moveEvent.clientX - startX) / bounds.width) * canvasWidthMm,
             yMm:
               element.yMm +
               ((moveEvent.clientY - startY) / bounds.height) *
                 plate.size.heightMm,
           },
-          plate.size,
+          canvasSize,
           printableMargins,
           thresholds,
         ),
@@ -487,13 +489,12 @@ export function useCanvasInteractions({
     if (!bounds) return;
     onInteractionStart();
     const thresholds = {
-      xMm: (6 / bounds.width) * plate.size.widthMm,
+      xMm: (6 / bounds.width) * canvasWidthMm,
       yMm: (6 / bounds.height) * plate.size.heightMm,
     };
     const onMove = (moveEvent: PointerEvent) => {
       if (touchPointersRef.current.size > 1) return;
-      const dx =
-        ((moveEvent.clientX - startX) / bounds.width) * plate.size.widthMm;
+      const dx = ((moveEvent.clientX - startX) / bounds.width) * canvasWidthMm;
       const dy =
         ((moveEvent.clientY - startY) / bounds.height) * plate.size.heightMm;
       onChangeElementDuringInteraction(
@@ -502,7 +503,7 @@ export function useCanvasInteractions({
           corner,
           dx,
           dy,
-          plate.size,
+          canvasSize,
           printableMargins,
           thresholds,
           moveEvent.shiftKey,

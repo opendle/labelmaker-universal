@@ -185,7 +185,9 @@ appearances so that they show the physical label and printed result accurately.
   add blank trim space. Round the result up to a whole millimeter and divide
   only the rounding remainder equally between the left and right sides. During
   a held move, resize, or rotation, keep the label width stable. Run queued
-  automatic trim only after pointer release or pointer cancellation.
+  automatic trim only after pointer release or pointer cancellation. Keep
+  artwork visible across the full canvas during these operations, including
+  the printable area added by the printer minimum label length.
 - Keep automatic plate width in whole millimeters.
 - Accept the current plate height, left margin, or right margin when the user
   presses Enter, then remove focus from the field. Also remove focus when the

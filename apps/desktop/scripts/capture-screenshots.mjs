@@ -81,6 +81,7 @@ const profileDirectory = await mkdtemp(
 );
 let application;
 let page;
+let runtimeErrors = "";
 
 async function closeCaptureApplication(ignoreCloseError = false) {
   let closeError;
@@ -96,8 +97,14 @@ async function closeCaptureApplication(ignoreCloseError = false) {
 }
 
 async function launchCaptureApplication(width, height) {
+  runtimeErrors = "";
   application = await electron.launch({
-    args: ["--no-sandbox", `--user-data-dir=${profileDirectory}`, appDirectory],
+    executablePath: desktopExecutable,
+    args: [
+      ...(process.platform === "linux" ? ["--no-sandbox"] : []),
+      `--user-data-dir=${profileDirectory}`,
+      appDirectory,
+    ],
     env: {
       ...process.env,
       LABELMAKER_ENABLE_MOCK_PRINTER: "1",
@@ -106,6 +113,9 @@ async function launchCaptureApplication(width, height) {
       LABELMAKER_SCREENSHOT_MODE: "1",
       LABELMAKER_WINDOW_SIZE: `${width}x${height}`,
     },
+  });
+  application.process().stderr.on("data", (data) => {
+    runtimeErrors += String(data);
   });
   page = await application.firstWindow();
   await assertPaperGeometry(page);
@@ -1347,8 +1357,50 @@ await capture(
         `Minimum label length stretched the artwork: ${JSON.stringify({ originalText, paddedText })}`,
       );
     }
+    const control = page
+      .locator(".canvas-text .canvas-element-control")
+      .first();
+    const textBounds = await control.boundingBox();
+    const canvasBounds = await page.locator(".label-canvas").boundingBox();
+    const startX = textBounds.x + textBounds.width / 2;
+    const startY = textBounds.y + textBounds.height / 2;
+    const targetX = canvasBounds.x + canvasBounds.width * (70 / 80);
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    try {
+      await page.mouse.move(targetX, startY, { steps: 10 });
+      const visibleAtTarget = await control.evaluate(
+        (element, point) =>
+          element.contains(document.elementFromPoint(point.x, point.y)),
+        { x: targetX, y: startY },
+      );
+      if (!visibleAtTarget) {
+        throw new Error(
+          "Artwork is hidden during a drag into the minimum-width area",
+        );
+      }
+      if (
+        (await page
+          .locator(".label-canvas")
+          .getAttribute("data-plate-width-mm")) !== "80"
+      ) {
+        throw new Error("The label width changed before pointer release");
+      }
+      const dragScreenshot = "labelmaker-minimum-width-drag-1440x960.png";
+      savedScreenshotNames.add(dragScreenshot);
+      await page.screenshot({
+        path: resolve(screenshotDirectory, dragScreenshot),
+      });
+    } finally {
+      await page.mouse.up();
+    }
   },
 );
 await closeCaptureApplication();
+if (runtimeErrors.includes("sandbox_extension_issue_file failed")) {
+  throw new Error(
+    "The desktop runtime could not grant sandbox resource access",
+  );
+}
 
 console.log(`Screenshots saved to ${screenshotDirectory} in one app session`);

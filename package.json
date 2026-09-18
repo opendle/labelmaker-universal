@@ -64,7 +64,7 @@
     "@types/react": "19.1.10",
     "@types/react-dom": "19.1.7",
     "@vitejs/plugin-react": "6.1.0",
-    "electron": "44.0.0",
+    "electron": "43.7.2",
     "jsdom": "26.1.0",
     "plist": "3.1.1",
     "prettier": "3.8.2",
@@ -75,6 +75,6 @@
     "vitest": "4.1.11"
   },
   "allowScripts": {
-    "electron@44.0.0": true
+    "electron@43.7.2": true
   }
 }

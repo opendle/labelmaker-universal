@@ -71,7 +71,7 @@ function createProps(
 
 describe("EditorCanvas", () => {
   it.each([0, 90])(
-    "keeps artwork out of minimum-width padding at %s degrees",
+    "keeps artwork visible in the minimum-width area at %s degrees",
     (rotationDeg) => {
       const element = { ...textElement, xMm: 55, widthMm: 10, rotationDeg };
       const props = createProps({
@@ -83,12 +83,7 @@ describe("EditorCanvas", () => {
       const control = screen.getByRole("button", {
         name: "Text element: SELECT ALL",
       });
-      const points = control.style.clipPath
-        .match(/-?[\d.]+(?:e[+-]?\d+)?/g)!
-        .map(Number);
-      // At 9 px/mm, the plate end crosses the center of this 10 mm frame.
-      expect(points[rotationDeg === 0 ? 2 : 3]).toBeCloseTo(45);
-      expect(points[rotationDeg === 0 ? 4 : 5]).toBeCloseTo(45);
+      expect(control.style.clipPath).toBe("");
       expect(
         container.querySelector<HTMLElement>(".canvas-element")!.style.clipPath,
       ).toBe("");
@@ -99,6 +94,61 @@ describe("EditorCanvas", () => {
       ).toBe("");
     },
   );
+  it.each([
+    ["move", "Text element: SELECT ALL"],
+    ["resize", "Resize text block se"],
+  ])("uses the visible width for pointer %s and snapping", (kind, name) => {
+    const element = { ...textElement, xMm: 5, widthMm: 10 };
+    const props = createProps({
+      minimumLabelWidthMm: 80,
+      selectedElementId: element.id,
+      selectedText: element,
+      plate: { ...plate, elements: [element] },
+    });
+    render(<EditorCanvas {...props} />);
+    const canvas = screen.getByRole("region", { name: "Plate label canvas" });
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 720,
+      bottom: 180,
+      width: 720,
+      height: 180,
+      toJSON: () => ({}),
+    });
+    const pointer = (type: string, x: number) => {
+      const event = new MouseEvent(type, {
+        bubbles: true,
+        button: 0,
+        clientX: x,
+        clientY: 50,
+      });
+      Object.defineProperty(event, "pointerId", { value: 1 });
+      return event;
+    };
+    fireEvent(
+      screen.getByRole("button", { name }),
+      pointer("pointerdown", 135),
+    );
+    fireEvent(window, pointer("pointermove", 315));
+    expect(props.onChangeElementDuringInteraction).toHaveBeenLastCalledWith({
+      ...element,
+      ...(kind === "move" ? { xMm: 25 } : { widthMm: 30 }),
+    });
+    // The right edge is within 6 pixels of the full 80 mm label end.
+    fireEvent(window, pointer("pointermove", 717));
+    expect(props.onChangeElementDuringInteraction).toHaveBeenLastCalledWith({
+      ...element,
+      ...(kind === "move" ? { xMm: 70 } : { widthMm: 75 }),
+    });
+    expect(canvas).toHaveAttribute("data-plate-width-mm", "80");
+    expect(props.onUpdatePlate).not.toHaveBeenCalled();
+    fireEvent(window, pointer("pointerup", 717));
+    expect(props.onElementInteractionEnd).toHaveBeenCalledOnce();
+  });
+
   it("shows the printer minimum width without changing the saved plate", () => {
     const props = createProps({ minimumLabelWidthMm: 80 });
     const { container, rerender } = render(<EditorCanvas {...props} />);
