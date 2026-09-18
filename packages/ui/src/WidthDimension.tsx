@@ -77,8 +77,8 @@ export function WidthDimension({
     <div className="width-dimension" ref={fieldRef}>
       {editing ? (
         <>
-          <label className="width-dimension-field">
-            <span className="width-dimension-number">
+          <label className="dimension-value width-dimension-field">
+            <span className="dimension-number">
               <span aria-hidden="true">{draft || "0"}</span>
               <input
                 aria-label="Plate width"
