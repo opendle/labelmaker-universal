@@ -11,7 +11,6 @@ import {
   type DrawingImageResult,
   frameForCroppedImage,
   frameForDrawingEditor,
-  rememberDrawingEditorSource,
 } from "./drawing-image.js";
 import { updateElementAndFlagPeer } from "./editor-operations.js";
 
@@ -55,20 +54,8 @@ export function useDrawingEditor({
                   updateElementAndFlagPeer(plate, updatedImage),
                 ),
               );
-              rememberDrawingEditorSource(
-                updatedImage.id,
-                updatedImage.source,
-                result.editorSource,
-              );
             } else {
-              const elementId = addDrawing(result);
-              if (elementId) {
-                rememberDrawingEditorSource(
-                  elementId,
-                  result.source,
-                  result.editorSource,
-                );
-              }
+              addDrawing(result);
             }
             close();
           }}

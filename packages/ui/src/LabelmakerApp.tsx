@@ -1,11 +1,5 @@
 import type { LabelElement, LabelPlate } from "@labelmaker/domain";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type FocusEvent,
-} from "react";
+import { useRef, useState, type FocusEvent } from "react";
 
 import { AddPrinterDialog } from "./AppDialogs.js";
 import { AppHeader, type AppHeaderProps } from "./AppHeader.js";
@@ -183,14 +177,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
       if (activePlate) controller.editPrintedPixels(workspace, activePlate.id);
     },
   });
-  const closeAddPrinter = useCallback(
-    () => dispatch({ type: "close-add-printer" }),
-    [dispatch],
-  );
-  const closePrinterSettings = useCallback(
-    () => dispatch({ type: "close-printer-settings" }),
-    [dispatch],
-  );
+  const { closeAddPrinter, closePrinterSettings } = controller;
   useLabelmakerSystemBack(host.registerSystemBackHandler, {
     codeEditorOpen: codeEditor.isOpen,
     closeCodeEditor: codeEditor.close,
@@ -231,10 +218,11 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
       activePlate.id,
     );
   const moveLayer = (direction: "back" | "front") => {
-    if (!state.selectedElementId) return;
+    const elementId = state.selectedElementId;
+    if (!elementId) return;
     controller.editPrintedPixels(
       replacePlate(state.workspace, activePlate.id, (plate) =>
-        moveElementLayer(plate, state.selectedElementId!, direction),
+        moveElementLayer(plate, elementId, direction),
       ),
       activePlate.id,
     );
@@ -282,14 +270,7 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             onAddShape={controller.addShape}
             onAddSpecial={controller.addSpecial}
             onAddText={controller.addText}
-            onChangeElement={(element) =>
-              controller.editPrintedPixels(
-                replacePlate(state.workspace, activePlate.id, (plate) =>
-                  updateElementAndFlagPeer(plate, element),
-                ),
-                activePlate.id,
-              )
-            }
+            onChangeElement={updateElement}
             onChangeElementDuringInteraction={(element) =>
               controller.editPrintedPixelsDuringInteraction(
                 replacePlate(state.workspace, activePlate.id, (plate) =>

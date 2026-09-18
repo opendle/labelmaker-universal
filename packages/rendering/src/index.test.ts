@@ -80,6 +80,29 @@ describe("raster dimension validation", () => {
       /pixel count must not exceed/,
     );
   });
+
+  it("rejects a large plate before the platform rasterizer runs", async () => {
+    const rasterize = vi.fn();
+    await expect(
+      renderPlateForPrinter(
+        {
+          id: "plate",
+          name: "Plate",
+          size: { widthMm: 10_000, heightMm: 12 },
+          margins: { leftMm: 0, rightMm: 0 },
+          elements: [],
+        },
+        {
+          dpi: 203,
+          rasterWidthPixels: 96,
+          printableWidthMm: 12,
+          rasterAlignment: "center",
+        },
+        rasterize,
+      ),
+    ).rejects.toThrow(/pixel count must not exceed/);
+    expect(rasterize).not.toHaveBeenCalled();
+  });
 });
 
 describe("monochrome packing", () => {
@@ -333,6 +356,37 @@ describe("image backgrounds in print output", () => {
       },
     ],
   });
+
+  it.each([false, true])(
+    "rejects large image frames before rasterization (image rasterizer: %s)",
+    async (useImageRasterizer) => {
+      const rasterize = vi.fn();
+      const rasterizeImage = vi.fn();
+      const source = plate(true);
+      await expect(
+        renderPlateForPrinter(
+          {
+            ...source,
+            elements: source.elements.map((element) => ({
+              ...element,
+              widthMm: 10_000,
+              heightMm: 10_000,
+            })),
+          },
+          {
+            dpi: 25.4,
+            rasterWidthPixels: 1,
+            printableWidthMm: 1,
+            rasterAlignment: "center",
+          },
+          rasterize,
+          useImageRasterizer ? rasterizeImage : undefined,
+        ),
+      ).rejects.toThrow(/pixel count must not exceed/);
+      expect(rasterize).not.toHaveBeenCalled();
+      expect(rasterizeImage).not.toHaveBeenCalled();
+    },
+  );
 
   it("keeps white image pixels transparent in the prepared print image", async () => {
     const rasterize = vi

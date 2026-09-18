@@ -3,13 +3,14 @@ import {
   mkdtemp,
   readFile,
   readdir,
+  rm,
   stat,
   writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   initialConfiguredPrinterIds,
@@ -23,6 +24,22 @@ import {
   type SavedPrinterRecord,
   writeConfiguredPrinterIds,
 } from "../src/main/printer-configuration.js";
+
+const testDirectories: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(
+    testDirectories
+      .splice(0)
+      .map((directory) => rm(directory, { recursive: true, force: true })),
+  );
+});
+
+async function createTestDirectory(): Promise<string> {
+  const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+  testDirectories.push(directory);
+  return directory;
+}
 
 function savedMakeIdPrinter(
   id: string,
@@ -56,7 +73,7 @@ describe("desktop printer configuration", () => {
   });
 
   it("restores an added MakeID printer after a new store instance starts", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "configured-printers.json");
     const printerId = "makeid:macos-bt-opaque-test-id";
 
@@ -76,7 +93,7 @@ describe("desktop printer configuration", () => {
   });
 
   it("migrates printers from the old application-name directory", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "current", "configured-printers.json");
     const legacyFilePath = join(
       directory,
@@ -119,7 +136,7 @@ describe("desktop printer configuration", () => {
   });
 
   it("migrates a current version-1 file without losing its settings", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "current", "configured-printers.json");
     const legacyFilePath = join(
       directory,
@@ -161,7 +178,7 @@ describe("desktop printer configuration", () => {
   });
 
   it("does not restore removed printers when the current file is empty", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "current", "configured-printers.json");
     const legacyFilePath = join(
       directory,
@@ -177,7 +194,7 @@ describe("desktop printer configuration", () => {
   });
 
   it("persists removing one printer without removing the other configured printers", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "configured-printers.json");
     const first = "makeid:macos-bt-first";
     const second = "makeid:macos-bt-second";
@@ -195,7 +212,7 @@ describe("desktop printer configuration", () => {
   });
 
   it("remembers the last selected configured printer", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "configured-printers.json");
     const first = "makeid:macos-bt-first";
     const second = "makeid:macos-bt-second";
@@ -211,7 +228,7 @@ describe("desktop printer configuration", () => {
   it.each([1, 2])(
     "migrates version %s settings and saves them without margins",
     async (version) => {
-      const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+      const directory = await createTestDirectory();
       const filePath = join(directory, "configured-printers.json");
       const id = "makeid:stored-device";
       const settings = {
@@ -252,7 +269,7 @@ describe("desktop printer configuration", () => {
   );
 
   it("stores settings for each configured printer", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "configured-printers.json");
     const first = "makeid:macos-bt-first";
     const second = "makeid:macos-bt-second";
@@ -284,7 +301,7 @@ describe("desktop printer configuration", () => {
   });
 
   it("stores a validated descriptor without changing printer identity", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "configured-printers.json");
     const printerId = "makeid:macos-ble-opaque-device-key";
     const descriptor = savedMakeIdPrinter(printerId);
@@ -311,7 +328,7 @@ describe("desktop printer configuration", () => {
   });
 
   it("preserves an unknown stable profile ID without guessing an L1 profile", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "configured-printers.json");
     const printerId = "makeid:macos-ble-future-device";
     const descriptor = savedMakeIdPrinter(printerId, "future-protocol-406");
@@ -333,7 +350,7 @@ describe("desktop printer configuration", () => {
   });
 
   it("does not require a saved descriptor for a migrated E1-only ID", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "configured-printers.json");
     const printerId = "makeid:macos-bt-old-e1";
     await writeFile(
@@ -362,7 +379,7 @@ describe("desktop printer configuration", () => {
   });
 
   it("completes concurrent writes and stores the last requested state", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "configured-printers.json");
     const writeCount = 100;
 
@@ -384,7 +401,7 @@ describe("desktop printer configuration", () => {
   });
 
   it("does not use or replace the old fixed temporary path", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "configured-printers.json");
     const oldTemporaryPath = `${filePath}.tmp`;
     await writeFile(oldTemporaryPath, "keep this file", "utf8");
@@ -396,7 +413,7 @@ describe("desktop printer configuration", () => {
   });
 
   it("removes its temporary file when the atomic rename fails", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "configured-printers.json");
     await mkdir(filePath);
 
@@ -407,7 +424,7 @@ describe("desktop printer configuration", () => {
   });
 
   it("rejects corrupt stored printer data", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "configured-printers.json");
     await writeConfiguredPrinterIds(filePath, ["makeid:valid"]);
     const invalid = `${filePath}.invalid`;
@@ -513,7 +530,7 @@ describe("desktop printer configuration", () => {
       }),
     ],
   ])("rejects saved printer data with %s", async (_label, configuration) => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "configured-printers.json");
     const printerId = "makeid:valid";
     await writeFile(
@@ -528,7 +545,7 @@ describe("desktop printer configuration", () => {
   });
 
   it("rejects a transient profile before it writes the record", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "configured-printers.json");
     const printerId = "makeid:valid";
 
@@ -546,7 +563,7 @@ describe("desktop printer configuration", () => {
   });
 
   it("rejects malformed stored printer data", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "configured-printers.json");
     await writeFile(filePath, '{"version":1,"printerIds":', "utf8");
 
@@ -569,7 +586,7 @@ describe("desktop printer configuration", () => {
     ["a display name above its limit", { displayName: "x".repeat(81) }],
     ["an unknown setting", { darkness: 20, density: 3 }],
   ])("rejects restored settings with %s", async (_label, settings) => {
-    const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+    const directory = await createTestDirectory();
     const filePath = join(directory, "configured-printers.json");
     await writeFile(
       filePath,

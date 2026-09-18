@@ -5,11 +5,18 @@ import UIKit
 final class RecoveryStore {
     private let fileURL: URL
     private var pendingData: Data?
-    private var writeTask: Task<Void, Never>?
+    // Keep delayed writes and flush on one queue so an old write cannot finish last.
+    private let writeQueue: DispatchQueue
+    private var writeTask: DispatchWorkItem?
     private var backgroundObserver: NSObjectProtocol?
 
-    init(fileManager: FileManager = .default) {
-        let applicationSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    init(
+        fileManager: FileManager = .default,
+        directoryURL: URL? = nil,
+        writeQueue: DispatchQueue = DispatchQueue(label: "labelmaker.recovery", qos: .utility)
+    ) {
+        self.writeQueue = writeQueue
+        let applicationSupport = directoryURL ?? fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         try? fileManager.createDirectory(at: applicationSupport, withIntermediateDirectories: true)
         fileURL = applicationSupport.appendingPathComponent("workspace-recovery.json", isDirectory: false)
         backgroundObserver = NotificationCenter.default.addObserver(
@@ -49,18 +56,21 @@ final class RecoveryStore {
         pendingData = data
         writeTask?.cancel()
         let destination = fileURL
-        writeTask = Task.detached(priority: .utility) { [data] in
-            try? await Task.sleep(for: .milliseconds(250))
-            guard !Task.isCancelled else { return }
+        let task = DispatchWorkItem {
             try? data.write(to: destination, options: [.atomic, .completeFileProtectionUnlessOpen])
         }
+        writeTask = task
+        writeQueue.asyncAfter(deadline: .now() + .milliseconds(250), execute: task)
     }
 
     func flush() {
         writeTask?.cancel()
         writeTask = nil
         guard let pendingData else { return }
-        try? pendingData.write(to: fileURL, options: [.atomic, .completeFileProtectionUnlessOpen])
+        let destination = fileURL
+        writeQueue.sync {
+            try? pendingData.write(to: destination, options: [.atomic, .completeFileProtectionUnlessOpen])
+        }
         self.pendingData = nil
     }
 }

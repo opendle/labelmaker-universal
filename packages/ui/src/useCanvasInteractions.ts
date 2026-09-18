@@ -19,20 +19,26 @@ function trackPointerMovement(
   pointerId: number,
   onMove: (event: PointerEvent) => void,
   onFinish: () => void,
-): void {
+): () => void {
+  let active = true;
   const move = (event: PointerEvent) => {
     if (event.pointerId === pointerId) onMove(event);
   };
-  const finish = (event: PointerEvent) => {
-    if (event.pointerId !== pointerId) return;
+  const cleanup = () => {
+    if (!active) return;
+    active = false;
     globalThis.removeEventListener("pointermove", move);
     globalThis.removeEventListener("pointerup", finish);
     globalThis.removeEventListener("pointercancel", finish);
     onFinish();
   };
+  const finish = (event: PointerEvent) => {
+    if (event.pointerId === pointerId) cleanup();
+  };
   globalThis.addEventListener("pointermove", move);
   globalThis.addEventListener("pointerup", finish);
   globalThis.addEventListener("pointercancel", finish);
+  return cleanup;
 }
 
 function frameWithScale<T extends FramedElement>(
@@ -311,6 +317,7 @@ export function useCanvasInteractions({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const touchPointersRef = useRef(new Map<number, { x: number; y: number }>());
   const cancelPanRef = useRef<(() => void) | null>(null);
+  const cancelElementInteractionRef = useRef<(() => void) | null>(null);
   const gestureRef = useRef<{
     readonly pointerIds: readonly [number, number];
     readonly distance: number;
@@ -326,8 +333,9 @@ export function useCanvasInteractions({
   useEffect(
     () => () => {
       cancelPanRef.current?.();
+      cancelElementInteractionRef.current?.();
     },
-    [],
+    [plate.id],
   );
 
   useEffect(() => {
@@ -439,6 +447,7 @@ export function useCanvasInteractions({
     const startY = event.clientY;
     const bounds = canvasBounds(event.currentTarget);
     if (!bounds) return;
+    cancelElementInteractionRef.current?.();
     onInteractionStart();
     const thresholds = {
       xMm: (6 / bounds.width) * canvasWidthMm,
@@ -467,7 +476,11 @@ export function useCanvasInteractions({
         ),
       );
     };
-    trackPointerMovement(event.pointerId, onMove, onInteractionEnd);
+    cancelElementInteractionRef.current = trackPointerMovement(
+      event.pointerId,
+      onMove,
+      onInteractionEnd,
+    );
   };
 
   const startResize = (
@@ -481,6 +494,7 @@ export function useCanvasInteractions({
     const startY = event.clientY;
     const bounds = canvasBounds(event.currentTarget);
     if (!bounds) return;
+    cancelElementInteractionRef.current?.();
     onInteractionStart();
     const thresholds = {
       xMm: (6 / bounds.width) * canvasWidthMm,
@@ -504,7 +518,11 @@ export function useCanvasInteractions({
         ),
       );
     };
-    trackPointerMovement(event.pointerId, onMove, onInteractionEnd);
+    cancelElementInteractionRef.current = trackPointerMovement(
+      event.pointerId,
+      onMove,
+      onInteractionEnd,
+    );
   };
 
   const startRotate = (
@@ -515,6 +533,7 @@ export function useCanvasInteractions({
     event.stopPropagation();
     const bounds = event.currentTarget.parentElement?.getBoundingClientRect();
     if (!bounds) return;
+    cancelElementInteractionRef.current?.();
     onInteractionStart();
     const centerX = bounds.left + bounds.width / 2;
     const centerY = bounds.top + bounds.height / 2;
@@ -528,7 +547,11 @@ export function useCanvasInteractions({
       );
       onChangeElementDuringInteraction({ ...element, rotationDeg });
     };
-    trackPointerMovement(event.pointerId, onMove, onInteractionEnd);
+    cancelElementInteractionRef.current = trackPointerMovement(
+      event.pointerId,
+      onMove,
+      onInteractionEnd,
+    );
   };
 
   const moveWithKeyboard = (

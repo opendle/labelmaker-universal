@@ -225,4 +225,30 @@ describe("mobile print cancellation", () => {
     finish();
     await firstPrint;
   });
+
+  it("closes a new session when its resolved profile cannot be saved", async () => {
+    const session: PrinterSession = {
+      printer: DESCRIPTOR,
+      capabilities: vi.fn().mockResolvedValue(CAPABILITIES),
+      status: vi.fn().mockResolvedValue(READY_STATUS),
+      print: vi.fn().mockResolvedValue(undefined),
+      close: vi.fn().mockResolvedValue(undefined),
+    };
+    fakes.connect.mockResolvedValue(session);
+    const service = createService();
+    const request = createPrintRequest();
+    const store = vi
+      .spyOn(localStorage, "setItem")
+      .mockImplementationOnce(() => {
+        throw new Error("Storage is full.");
+      });
+
+    await expect(service.print(request)).rejects.toThrow("Storage is full.");
+    expect(session.close).toHaveBeenCalledOnce();
+    expect(session.print).not.toHaveBeenCalled();
+
+    store.mockRestore();
+    await expect(service.print(request)).resolves.toHaveProperty("message");
+    expect(fakes.connect).toHaveBeenCalledTimes(2);
+  });
 });

@@ -24,6 +24,7 @@
 - [x] Undo and redo history.
 - [x] Deterministic millimeter-to-pixel raster primitives.
 - [x] Image elements.
+- [x] Shared QR code and barcode editing and rendering.
 - [x] Connect the editor renderer to print jobs.
 
 ## Milestone 3 — MakeID E1 proof
@@ -64,4 +65,4 @@
 - Authenticated job API and queue.
 - Local print agent for printers that are not attached to the server host.
 - Container image for the UI and API.
-- QR codes, barcodes, templates, and CSV batch jobs as user needs justify them.
+- Templates and CSV batch jobs as user needs justify them.

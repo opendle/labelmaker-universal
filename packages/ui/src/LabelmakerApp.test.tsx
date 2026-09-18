@@ -2652,6 +2652,103 @@ describe("LabelmakerApp", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("cancels a print while automatic trim is still running", async () => {
+    const host = createHost({
+      cancelPrint: vi.fn().mockResolvedValue(undefined),
+    });
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={host} />);
+    await screen.findByText("Studio Labeler");
+    await waitFor(() =>
+      expect(screen.getByLabelText("Plate height")).toHaveValue(16),
+    );
+    let finishTrim!: (bounds: { minX: number; maxX: number }) => void;
+    vi.mocked(renderPlateBlackBounds).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishTrim = resolve;
+        }),
+    );
+    await user.click(screen.getByRole("button", { name: /^Text$/ }));
+    await user.click(screen.getByRole("button", { name: /^Print$/ }));
+    await waitFor(() => expect(finishTrim).toBeDefined());
+    await user.click(screen.getByRole("button", { name: "Cancel print" }));
+    expect(host.cancelPrint).not.toHaveBeenCalled();
+    await act(async () => finishTrim({ minX: 0, maxX: 31 }));
+    expect(await screen.findByText("Print canceled")).toBeInTheDocument();
+    expect(host.print).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /^Print$/ })).toBeEnabled();
+  });
+
+  it("keeps printer settings open during a save from Android Back", async () => {
+    let backHandler: (() => boolean) | undefined;
+    let finishSave!: () => void;
+    const host = createHost({
+      platform: "android",
+      registerSystemBackHandler: (handler) => {
+        backHandler = handler;
+        return () => {
+          backHandler = undefined;
+        };
+      },
+      updatePrinterSettings: vi.fn().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finishSave = () => resolve([]);
+          }),
+      ),
+    });
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={host} />);
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Selected printer: Studio Labeler",
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Settings for Studio Labeler" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Save settings" }));
+    act(() => expect(backHandler?.()).toBe(true));
+    expect(
+      screen.getByRole("dialog", { name: "Printer settings" }),
+    ).toBeInTheDocument();
+    await act(async () => finishSave());
+    expect(
+      screen.queryByRole("dialog", { name: "Printer settings" }),
+    ).toBeNull();
+  });
+
+  it("keeps printer discovery open while Android Back waits for Add", async () => {
+    let backHandler: (() => boolean) | undefined;
+    let finishAdd!: () => void;
+    const host = createHost({
+      platform: "android",
+      registerSystemBackHandler: (handler) => {
+        backHandler = handler;
+        return () => {
+          backHandler = undefined;
+        };
+      },
+      addPrinter: vi.fn().mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            finishAdd = () => resolve([]);
+          }),
+      ),
+    });
+    const user = userEvent.setup();
+    render(<LabelmakerApp host={host} />);
+    await openAddPrinterDialog(user);
+    await user.click(await screen.findByRole("button", { name: /^Add$/ }));
+    act(() => expect(backHandler?.()).toBe(true));
+    expect(
+      screen.getByRole("dialog", { name: "Add a printer" }),
+    ).toBeInTheDocument();
+    await act(async () => finishAdd());
+    expect(screen.queryByRole("dialog", { name: "Add a printer" })).toBeNull();
+  });
+
   it("reports a canceled print without a printer failure", async () => {
     let rejectPrint: ((reason: unknown) => void) | undefined;
     const host = createHost({

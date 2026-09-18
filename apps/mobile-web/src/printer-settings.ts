@@ -4,6 +4,8 @@ import {
   type PrinterSettings,
 } from "@labelmaker/printing";
 
+import { isRecord } from "./native-bridge.js";
+
 export function validatePrinterSettings(value: unknown): PrinterSettings {
   if (!isPrinterSettings(value)) {
     throw new TypeError("Printer settings are invalid.");
@@ -25,8 +27,4 @@ export function readStoredPrinterSettings(
         : [];
     }),
   );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

@@ -178,6 +178,27 @@ describe("MakeIdAdapter", () => {
     });
   });
 
+  it("closes a failed status stream before a later reply can be reused", async () => {
+    const transport = recording();
+    const session = await connectSession(transport);
+
+    await expect(session.status()).rejects.toMatchObject({
+      code: "makeid.timeout",
+    });
+    transport.queueResponse(response());
+
+    expect(transport.open).toBe(false);
+    await expect(session.status()).rejects.toMatchObject({
+      code: "makeid.closed",
+    });
+    await expect(
+      session.print(printJob("after-status-error")),
+    ).rejects.toMatchObject({
+      code: "makeid.closed",
+    });
+    expect(transport.writes).toHaveLength(1);
+  });
+
   it("reports a useful recovery action when Bluetooth cannot connect", async () => {
     const adapter = new MakeIdE1Adapter({
       discover: async () => [],
@@ -284,6 +305,20 @@ describe("MakeIdAdapter", () => {
     await expect(session.print(printJob("second"))).rejects.toMatchObject({
       code: "makeid.closed",
     });
+  });
+
+  it("checks every page frame count before it sends the first page", async () => {
+    const transport = recording([response(), response(), response()]);
+    const session = await connectSession(transport);
+
+    await expect(
+      session.print({
+        ...printJob("too-many-frames"),
+        pages: [page(1), page(170 * 256 + 1)],
+      }),
+    ).rejects.toMatchObject({ code: "makeid.invalid-job" });
+    expect(transport.writes).toHaveLength(0);
+    expect(transport.open).toBe(true);
   });
 
   it("does not reset a print that was already active before this job", async () => {

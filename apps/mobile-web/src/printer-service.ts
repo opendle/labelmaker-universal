@@ -17,7 +17,7 @@ import type {
 } from "@labelmaker/ui";
 
 import { MobileMakeIdTransportProvider } from "./mobile-makeid-transport.js";
-import type { NativeBridge } from "./native-bridge.js";
+import { isRecord, type NativeBridge } from "./native-bridge.js";
 import {
   readStoredPrinterSettings,
   validatePrinterSettings,
@@ -385,11 +385,16 @@ export class MobilePrinterService {
     const pending = this.#registry
       .get(descriptor.adapterId)
       .connect(descriptor, context, signal)
-      .then((session) => {
-        if (this.#configuration.printerIds.includes(descriptor.id)) {
-          this.rememberResolvedPrinter(session.printer);
+      .then(async (session) => {
+        try {
+          if (this.#configuration.printerIds.includes(descriptor.id)) {
+            this.rememberResolvedPrinter(session.printer);
+          }
+          return session;
+        } catch (error) {
+          await session.close().catch(() => undefined);
+          throw error;
         }
-        return session;
       });
     this.#sessions.set(descriptor.id, pending);
     void pending.catch(() => {
@@ -661,8 +666,4 @@ function readStoredMakeIdDescriptor(
         : {}),
     },
   };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

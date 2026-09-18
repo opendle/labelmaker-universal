@@ -90,29 +90,70 @@ describe("native bridge version 1", () => {
     ).rejects.toMatchObject({ code: "INVALID_NATIVE_REPLY" });
   });
 
-  it("rejects a selected workspace with invalid base64", async () => {
-    vi.stubGlobal("webkit", {
-      messageHandlers: {
-        labelmaker: {
-          postMessage: async (request: unknown) => ({
-            version: 1,
-            id: (request as { id: string }).id,
-            ok: true,
-            result: {
-              status: "selected",
-              selectionId: "selection-1",
-              fileName: "Labels.lbl",
-              gzipBase64: "not base64",
-            },
-          }),
+  it.each([
+    "not base64",
+    "A===",
+    "AAAA=",
+    "AA=A",
+    "=AAA",
+    "AAAA\n",
+    "AAA\n",
+    "AAA\r",
+    "",
+  ])(
+    "rejects a selected workspace with invalid base64: %j",
+    async (gzipBase64) => {
+      vi.stubGlobal("webkit", {
+        messageHandlers: {
+          labelmaker: {
+            postMessage: async (request: unknown) => ({
+              version: 1,
+              id: (request as { id: string }).id,
+              ok: true,
+              result: {
+                status: "selected",
+                selectionId: "selection-1",
+                fileName: "Labels.lbl",
+                gzipBase64,
+              },
+            }),
+          },
         },
-      },
-    });
+      });
 
-    await expect(
-      createNativeBridge().call("openWorkspaceFile", {}),
-    ).rejects.toMatchObject({ code: "INVALID_NATIVE_REPLY" });
-  });
+      await expect(
+        createNativeBridge().call("openWorkspaceFile", {}),
+      ).rejects.toMatchObject({ code: "INVALID_NATIVE_REPLY" });
+    },
+  );
+
+  it.each(["AAAA", "AAA=", "AA==", "A".repeat(10 * 1_024 * 1_024)])(
+    "accepts valid workspace base64, including large files (%#)",
+    async (gzipBase64) => {
+      const result = {
+        status: "selected",
+        selectionId: "selection-1",
+        fileName: "Labels.lbl",
+        gzipBase64,
+      };
+      vi.stubGlobal("webkit", {
+        messageHandlers: {
+          labelmaker: {
+            postMessage: async (request: unknown) => ({
+              version: 1,
+              id: (request as { id: string }).id,
+              ok: true,
+              result,
+            }),
+          },
+        },
+      });
+
+      await expect(
+        createNativeBridge().call("openWorkspaceFile", {}),
+      ).resolves.toEqual(result);
+    },
+  );
 
   it("puts version 1 and a bounded ID in an Apple request", async () => {
     const requests: unknown[] = [];

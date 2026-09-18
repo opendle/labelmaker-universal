@@ -13,6 +13,7 @@ import {
   millimetersToPixels,
   packMonochromeRows,
   rgbaToMonochrome,
+  validateRasterDimensions,
   type MonochromeBitmap,
   type RgbaImage,
 } from "./bitmap.js";
@@ -54,6 +55,7 @@ export async function renderPlateForPrinter(
     throw new RangeError("Printer raster width must be a positive integer");
   }
   const feedLengthPixels = millimetersToPixels(plate.size.widthMm, target.dpi);
+  validateRasterDimensions(feedLengthPixels, target.rasterWidthPixels);
   const preparedPlate = await preparePlateImages(
     plate,
     target.dpi,
@@ -126,6 +128,7 @@ async function preparePlateImages(
     validateImageSource(element.source);
     const width = Math.max(1, millimetersToPixels(element.widthMm, dpi));
     const height = Math.max(1, millimetersToPixels(element.heightMm, dpi));
+    validateRasterDimensions(width, height);
     const source = rasterizeImage
       ? await rasterizeImage(element, width, height)
       : await rasterize(

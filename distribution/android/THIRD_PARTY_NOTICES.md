@@ -8,8 +8,10 @@ Label Maker includes the following runtime software:
 - React and React DOM 19.1.1 and Scheduler 0.26.0, copyright Meta Platforms,
   Inc. and affiliates, under the MIT License;
 - Lucide React 0.542.0, copyright Lucide contributors, under the ISC License,
-  with portions copyright Cole Bemis under the MIT License; and
-- YAML 2.8.1, copyright Eemeli Aro, under the ISC License.
+  with portions copyright Cole Bemis under the MIT License;
+- bwip-js (`@bwip-js/generic`) 4.11.4, Copyright (c) 2011-2026 Mark Warren,
+  under the MIT License; and
+- YAML 2.8.3, copyright Eemeli Aro, under the ISC License.
 
 ## Apache License 2.0 software
 

@@ -1,8 +1,40 @@
 import XCTest
+import WebKit
 @testable import Labelmaker
 
 @MainActor
 final class NativeBridgeTests: XCTestCase {
+    func testWebViewAllowsTheAppFrameAndRejectsAnEmbeddedFrame() async throws {
+        let configuration = WKWebViewConfiguration()
+        configuration.setURLSchemeHandler(BridgeTestPage(), forURLScheme: "labelmaker")
+        configuration.userContentController.addScriptMessageHandler(makeBridge(), contentWorld: .page, name: "labelmaker")
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        let loaded = expectation(description: "The app page loaded")
+        let navigation = BridgeTestNavigation(loaded: loaded)
+        webView.navigationDelegate = navigation
+        webView.load(URLRequest(url: URL(string: "labelmaker://app/index.html")!))
+        await fulfillment(of: [loaded], timeout: 10)
+
+        let reply = try await webView.callAsyncJavaScript(
+            "return await window.webkit.messageHandlers.labelmaker.postMessage({version:1,id:'main',method:'getHostInfo',payload:{}})",
+            arguments: [:], in: nil, contentWorld: .page
+        ) as? [String: Any]
+        XCTAssertEqual(reply?["ok"] as? Bool, true)
+
+        let rejected = try await webView.callAsyncJavaScript(
+            """
+            return await new Promise(resolve => {
+                window.addEventListener('message', event => resolve(event.data), {once:true});
+                const frame = document.createElement('iframe');
+                frame.srcdoc = '<script>window.webkit.messageHandlers.labelmaker.postMessage({version:1,id:"child",method:"getHostInfo",payload:{}}).then(() => parent.postMessage(false,"*"), () => parent.postMessage(true,"*"))<\\/script>';
+                document.body.append(frame);
+            });
+            """,
+            arguments: [:], in: nil, contentWorld: .page
+        ) as? Bool
+        XCTAssertEqual(rejected, true)
+    }
+
     func testHostInformationUsesTheVersionedReplyEnvelope() {
         let bridge = makeBridge()
 
@@ -100,6 +132,29 @@ final class NativeBridgeTests: XCTestCase {
 
     private func errorCode(_ reply: [String: Any]) -> String? {
         (reply["error"] as? [String: Any])?["code"] as? String
+    }
+}
+
+@MainActor
+private final class BridgeTestPage: NSObject, WKURLSchemeHandler {
+    func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
+        let data = Data("<!doctype html><html><body>Bridge test</body></html>".utf8)
+        urlSchemeTask.didReceive(URLResponse(url: urlSchemeTask.request.url!, mimeType: "text/html", expectedContentLength: data.count, textEncodingName: "utf-8"))
+        urlSchemeTask.didReceive(data)
+        urlSchemeTask.didFinish()
+    }
+
+    func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {}
+}
+
+@MainActor
+private final class BridgeTestNavigation: NSObject, WKNavigationDelegate {
+    let loaded: XCTestExpectation
+
+    init(loaded: XCTestExpectation) { self.loaded = loaded }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        loaded.fulfill()
     }
 }
 

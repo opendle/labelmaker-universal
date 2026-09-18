@@ -5,6 +5,13 @@ final class BundledWebAppSchemeHandler: NSObject, WKURLSchemeHandler {
     static let scheme = "labelmaker"
     static let host = "app"
 
+    static func isAppFrame(_ url: URL?, isMainFrame: Bool) -> Bool {
+        guard isMainFrame, let url else { return false }
+        return url.scheme == scheme && url.host == host
+            && url.path == "/index.html" && url.user == nil && url.password == nil
+            && url.port == nil && url.query == nil && url.fragment == nil
+    }
+
     func webView(_ webView: WKWebView, start urlSchemeTask: WKURLSchemeTask) {
         guard
             let url = urlSchemeTask.request.url,

@@ -300,6 +300,14 @@ describe("workspace documents", () => {
       "Workspace file is not valid YAML",
     );
   });
+
+  it("rejects deeply nested YAML with a safe message", () => {
+    const text = `${"[".repeat(10_000)}0${"]".repeat(10_000)}`;
+
+    expect(() => parseLabelDocument(text)).toThrow(
+      "Workspace file is not valid YAML",
+    );
+  });
 });
 
 describe("saved code settings and width mode", () => {

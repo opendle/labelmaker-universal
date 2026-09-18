@@ -27,6 +27,12 @@ final class WorkspaceCoordinator: NSObject, UIDocumentPickerDelegate {
     private weak var presentingViewController: UIViewController?
     private var pendingPicker: PendingPicker?
     private var pendingSelections: [String: URL] = [:]
+    private let temporaryDirectory: URL
+
+    init(temporaryDirectory: URL = FileManager.default.temporaryDirectory) {
+        self.temporaryDirectory = temporaryDirectory
+        super.init()
+    }
 
     func setPresentingViewController(_ viewController: UIViewController?) {
         presentingViewController = viewController
@@ -93,17 +99,21 @@ final class WorkspaceCoordinator: NSObject, UIDocumentPickerDelegate {
             }
             return
         }
+        let exportDirectory = temporaryDirectory
+            .appendingPathComponent("Labelmaker-\(UUID().uuidString)", isDirectory: true)
         do {
-            let temporaryDirectory = FileManager.default.temporaryDirectory
-                .appendingPathComponent("Labelmaker-\(UUID().uuidString)", isDirectory: true)
-            try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
-            let temporaryURL = temporaryDirectory.appendingPathComponent(normalizeFileName(suggestedFileName))
+            try FileManager.default.createDirectory(at: exportDirectory, withIntermediateDirectories: true)
+            let temporaryURL = exportDirectory.appendingPathComponent(normalizeFileName(suggestedFileName))
             try data.write(to: temporaryURL, options: [.atomic, .completeFileProtectionUnlessOpen])
-            guard beginPicker(.exporting(temporaryURL: temporaryURL, completion: completion)) else { return }
+            guard beginPicker(.exporting(temporaryURL: temporaryURL, completion: completion)) else {
+                try? FileManager.default.removeItem(at: exportDirectory)
+                return
+            }
             let picker = UIDocumentPickerViewController(forExporting: [temporaryURL], asCopy: true)
             picker.delegate = self
             present(picker)
         } catch {
+            try? FileManager.default.removeItem(at: exportDirectory)
             completion(.failure(error))
         }
     }
@@ -265,9 +275,12 @@ private var workspaceType: UTType {
     UTType(filenameExtension: "lbl") ?? .data
 }
 
-private func normalizeFileName(_ value: String) -> String {
-    let name = value.lowercased().hasSuffix(".lbl") ? value : "\(value).lbl"
-    return name.isEmpty ? "Untitled workspace.lbl" : name
+func normalizeFileName(_ value: String) -> String {
+    let name = (value as NSString).lastPathComponent.trimmingCharacters(in: .whitespacesAndNewlines)
+    if name.isEmpty || name == "." || name == ".." || name == "/" {
+        return "Untitled workspace.lbl"
+    }
+    return name.lowercased().hasSuffix(".lbl") ? name : "\(name).lbl"
 }
 
 private func isGzip(_ data: Data) -> Bool {

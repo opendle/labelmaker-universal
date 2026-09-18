@@ -6,11 +6,30 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { drawingResultFromImageSource } from "./drawing-image.js";
+
 import { DrawingEditorDialog } from "./DrawingEditorDialog.js";
 import { EditorCanvas } from "./EditorCanvas.js";
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+it("rejects an image import if the canvas cannot draw its source", async () => {
+  const drawError = new Error("The image could not be drawn.");
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+    fillRect: vi.fn(),
+    drawImage: () => {
+      throw drawError;
+    },
+  } as unknown as CanvasRenderingContext2D);
+  const source = new Image();
+  vi.spyOn(globalThis, "Image").mockImplementation(function () {
+    return source;
+  });
+  const result = drawingResultFromImageSource("data:image/png;base64,image");
+  source.dispatchEvent(new Event("load"));
+  await expect(result).rejects.toBe(drawError);
 });
 
 describe("DrawingEditorDialog", () => {

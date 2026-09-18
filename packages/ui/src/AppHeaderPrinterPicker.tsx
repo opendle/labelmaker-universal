@@ -101,9 +101,6 @@ export function AppHeaderPrinterPicker({
       </button>
       {menuOpen && (
         <div aria-label="Printers" className="printer-menu" role="menu">
-          {printers.length === 0 && (
-            <p className="printer-menu-empty">No printers added</p>
-          )}
           {printers.map((printer) => (
             <div className="header-printer-row" key={printer.id}>
               <button

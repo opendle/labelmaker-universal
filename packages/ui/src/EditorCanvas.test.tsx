@@ -149,6 +149,57 @@ describe("EditorCanvas", () => {
     expect(props.onElementInteractionEnd).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    "Text element: SELECT ALL",
+    "Resize text block se",
+    "Rotate text block",
+  ])("ends %s when the active plate changes", (name) => {
+    const props = createProps({
+      selectedElementId: textElement.id,
+      selectedText: textElement,
+    });
+    const { rerender, unmount } = render(<EditorCanvas {...props} />);
+    const canvas = screen.getByRole("region", { name: "Plate label canvas" });
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 600,
+      bottom: 200,
+      width: 600,
+      height: 200,
+      toJSON: () => ({}),
+    });
+    fireEvent.pointerDown(screen.getByRole("button", { name }), {
+      button: 0,
+      clientX: 20,
+      clientY: 20,
+      pointerId: 1,
+    });
+    expect(props.onElementInteractionStart).toHaveBeenCalledOnce();
+
+    rerender(
+      <EditorCanvas {...props} plate={{ ...plate, id: "another-plate" }} />,
+    );
+    expect(props.onElementInteractionEnd).toHaveBeenCalledOnce();
+    fireEvent.pointerMove(window, { clientX: 30, clientY: 30, pointerId: 1 });
+    fireEvent.pointerUp(window, { pointerId: 1 });
+    expect(props.onChangeElementDuringInteraction).not.toHaveBeenCalled();
+    expect(props.onElementInteractionEnd).toHaveBeenCalledOnce();
+
+    fireEvent.pointerDown(screen.getByRole("button", { name }), {
+      button: 0,
+      clientX: 20,
+      clientY: 20,
+      pointerId: 2,
+    });
+    unmount();
+    expect(props.onElementInteractionEnd).toHaveBeenCalledTimes(2);
+    fireEvent.pointerMove(window, { clientX: 40, clientY: 40, pointerId: 2 });
+    expect(props.onChangeElementDuringInteraction).not.toHaveBeenCalled();
+  });
+
   it("shows the printer minimum width without changing the saved plate", () => {
     const props = createProps({ minimumLabelWidthMm: 80 });
     const { container, rerender } = render(<EditorCanvas {...props} />);

@@ -529,11 +529,11 @@ export function encodeMakeId66Page(
   options: MakeIdE1PageEncodingOptions = {},
 ): readonly Uint8Array[] {
   validateRasterPage(page, profile);
-  const chunkLines = Math.min(
-    options.chunkLines ?? profile.maxRowsPerPacket,
-    profile.maxRowsPerPacket,
+  const { chunkLines, frameCount } = rasterFramePlan(
+    page,
+    profile,
+    options.chunkLines,
   );
-  assertPositiveInteger(chunkLines, "chunkLines");
   const copies = options.copies ?? 1;
   const maximumCopies = capabilitiesForProfile(profile).maxCopies;
   if (!Number.isInteger(copies) || copies < 1 || copies > maximumCopies) {
@@ -542,11 +542,6 @@ export function encodeMakeId66Page(
   const darkness = options.darkness ?? 20;
   if (!Number.isInteger(darkness) || darkness < 0 || darkness > 31) {
     throw invalidJob("makeid.darkness must be an integer from 0 to 31");
-  }
-
-  const frameCount = Math.ceil(page.heightPixels / chunkLines);
-  if (frameCount > 256) {
-    throw invalidJob("The label needs more than 256 MakeID raster frames");
   }
 
   const frames: Uint8Array[] = [];
@@ -577,6 +572,23 @@ export function encodeMakeId66Page(
     );
   }
   return frames;
+}
+
+function rasterFramePlan(
+  page: RasterPage,
+  profile: MakeIdResolvedProfile,
+  requestedChunkLines?: number,
+): { readonly chunkLines: number; readonly frameCount: number } {
+  const chunkLines = Math.min(
+    requestedChunkLines ?? profile.maxRowsPerPacket,
+    profile.maxRowsPerPacket,
+  );
+  assertPositiveInteger(chunkLines, "chunkLines");
+  const frameCount = Math.ceil(page.heightPixels / chunkLines);
+  if (frameCount > 256) {
+    throw invalidJob("The label needs more than 256 raster frames");
+  }
+  return { chunkLines, frameCount };
 }
 
 abstract class MakeIdSession implements PrinterSession {
@@ -679,6 +691,7 @@ class MakeId66Session extends MakeIdSession {
         const response = await this.#query(signal);
         return mapResponseToStatus(response);
       } catch (error) {
+        await this.invalidate();
         throw normalizeAdapterError(error, signal);
       }
     });
@@ -693,6 +706,9 @@ class MakeId66Session extends MakeIdSession {
       this.assertOpen(signal);
       validateJob(job, this.printer, this.profile);
       const darkness = readDarkness(job);
+      for (const page of job.pages) {
+        rasterFramePlan(page, this.profile, this.options.chunkLines);
+      }
       let transferStarted = false;
 
       try {

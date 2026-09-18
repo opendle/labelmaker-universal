@@ -269,6 +269,7 @@ class MacOsMakeIdTransport implements MakeIdTransport {
   }
 
   async read(options: MakeIdTransportReadOptions): Promise<Uint8Array> {
+    throwIfAborted(options.signal);
     const payload = this.#takePayload();
     if (payload) return payload;
     await this.#waitFor(

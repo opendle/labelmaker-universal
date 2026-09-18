@@ -6,7 +6,6 @@ import {
   fitNewImageFrame,
   frameForCroppedImage,
   frameForDrawingEditor,
-  rememberDrawingEditorSource,
   type DrawingImageResult,
 } from "./drawing-image.js";
 
@@ -113,13 +112,14 @@ describe("drawing image frames", () => {
   });
 
   it("restores the full editor frame for each crop cycle", () => {
-    rememberDrawingEditorSource("image", "cropped", {
+    const editorSource = {
       source: "full",
       widthPixels: 100,
       heightPixels: 50,
       bounds: { left: 25, top: 10, right: 74, bottom: 39 },
-    });
+    };
     const cropped = {
+      editorSource,
       ...image,
       source: "cropped",
       xMm: 20,
@@ -158,12 +158,6 @@ describe("drawing image frames", () => {
       yMm: cropped.yMm,
       widthMm: cropped.widthMm,
       heightMm: cropped.heightMm,
-    });
-    rememberDrawingEditorSource("image", "cropped-again", {
-      source: "full-again",
-      widthPixels: 100,
-      heightPixels: 50,
-      bounds: { left: 25, top: 10, right: 74, bottom: 39 },
     });
     expect(frameForDrawingEditor(croppedAgain)).toMatchObject({
       source: "full-again",
@@ -204,13 +198,14 @@ describe("drawing image frames", () => {
   });
 
   it("restores an offset crop in a rotated full editor frame", () => {
-    rememberDrawingEditorSource("image", "rotated-crop", {
+    const editorSource = {
       source: "rotated-full",
       widthPixels: 100,
       heightPixels: 50,
       bounds: { left: 10, top: 5, right: 39, bottom: 14 },
-    });
+    };
     const cropped = {
+      editorSource,
       ...image,
       source: "rotated-crop",
       xMm: 30,
@@ -255,26 +250,32 @@ describe("drawing image frames", () => {
   });
 
   it("keeps separate full canvases for identical cropped image data", () => {
-    const first = { ...image, id: "first", source: "same-crop" };
-    const second = { ...image, id: "second", source: "same-crop" };
-    rememberDrawingEditorSource(first.id, first.source, {
-      source: "first-full",
-      widthPixels: 100,
-      heightPixels: 50,
-      bounds: { left: 25, top: 10, right: 74, bottom: 39 },
-    });
-    rememberDrawingEditorSource(second.id, second.source, {
-      source: "second-full",
-      widthPixels: 80,
-      heightPixels: 40,
-      bounds: { left: 15, top: 5, right: 64, bottom: 34 },
-    });
+    const first = {
+      ...image,
+      id: "first",
+      source: "same-crop",
+      editorSource: {
+        source: "first-full",
+        widthPixels: 100,
+        heightPixels: 50,
+        bounds: { left: 25, top: 10, right: 74, bottom: 39 },
+      },
+    };
+    const second = {
+      ...image,
+      id: "second",
+      source: "same-crop",
+      editorSource: {
+        source: "second-full",
+        widthPixels: 80,
+        heightPixels: 40,
+        bounds: { left: 15, top: 5, right: 64, bottom: 34 },
+      },
+    };
 
     expect(frameForDrawingEditor(first).source).toBe("first-full");
     expect(frameForDrawingEditor(second).source).toBe("second-full");
-    expect(
-      frameForDrawingEditor({ ...first, source: "changed-crop" }),
-    ).toMatchObject({ source: "changed-crop", widthMm: first.widthMm });
+    expect(frameForDrawingEditor(image)).toBe(image);
   });
 
   it("fits a new drawing without changing its pixel aspect", () => {

@@ -33,27 +33,6 @@ export interface DrawingImageResult {
 
 export type DrawingEditorSource = ImageEditorSource;
 
-const drawingEditorSources = new Map<
-  string,
-  Map<string, DrawingEditorSource>
->();
-
-export function rememberDrawingEditorSource(
-  elementId: string,
-  croppedSource: string,
-  editorSource: DrawingEditorSource,
-): void {
-  const elementSources = drawingEditorSources.get(elementId);
-  if (elementSources) {
-    elementSources.set(croppedSource, editorSource);
-  } else {
-    drawingEditorSources.set(
-      elementId,
-      new Map([[croppedSource, editorSource]]),
-    );
-  }
-}
-
 const pixelIsVisible = (data: Uint8ClampedArray, offset: number): boolean =>
   data[offset + 3]! > 0 &&
   (data[offset]! !== 255 ||
@@ -154,23 +133,20 @@ export function drawingResultFromImageSource(
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => {
-      const scale = Math.min(
-        1,
-        2048 / Math.max(1, image.naturalWidth),
-        2048 / Math.max(1, image.naturalHeight),
-      );
-      const canvas = globalThis.document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
-      canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-      const context = canvas.getContext("2d");
-      if (!context) {
-        reject(new Error("The image canvas is not available."));
-        return;
-      }
-      context.fillStyle = "white";
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
       try {
+        const scale = Math.min(
+          1,
+          2048 / Math.max(1, image.naturalWidth),
+          2048 / Math.max(1, image.naturalHeight),
+        );
+        const canvas = globalThis.document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("The image canvas is not available.");
+        context.fillStyle = "white";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
         resolve(drawingResultFromCanvas(canvas));
       } catch (error) {
         reject(error);
@@ -240,9 +216,7 @@ export function frameForCroppedImage(
 }
 
 export function frameForDrawingEditor(element: ImageElement): ImageElement {
-  const editorSource =
-    element.editorSource ??
-    drawingEditorSources.get(element.id)?.get(element.source);
+  const editorSource = element.editorSource;
   if (!editorSource) return element;
   const croppedWidth = editorSource.bounds.right - editorSource.bounds.left + 1;
   const croppedHeight =

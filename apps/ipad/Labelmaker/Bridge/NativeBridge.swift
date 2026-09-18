@@ -29,6 +29,13 @@ final class NativeBridge: NSObject, WKScriptMessageHandlerWithReply {
         didReceive message: WKScriptMessage,
         replyHandler originalReplyHandler: @escaping (Any?, String?) -> Void
     ) {
+        guard BundledWebAppSchemeHandler.isAppFrame(
+            message.frameInfo.request.url,
+            isMainFrame: message.frameInfo.isMainFrame
+        ) else {
+            originalReplyHandler(nil, "The native bridge is available only to the application page.")
+            return
+        }
         handleRequest(message.body, replyHandler: originalReplyHandler)
     }
 

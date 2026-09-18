@@ -1,10 +1,4 @@
-import type {
-  ImageElement,
-  LabelElement,
-  LabelPlate,
-  ShapeElement,
-  TextElement,
-} from "@labelmaker/domain";
+import type { LabelPlate, ShapeElement } from "@labelmaker/domain";
 import {
   useCallback,
   useEffect,
@@ -17,7 +11,6 @@ import {
 import {
   appReducer,
   initialAppState,
-  replaceElement,
   replacePlate,
   type Toast,
 } from "./app-state.js";
@@ -40,7 +33,6 @@ import {
   type DrawingImageResult,
   drawingResultFromImageSource,
   fitNewImageFrame,
-  rememberDrawingEditorSource,
 } from "./drawing-image.js";
 import type { LabelmakerHost, PrinterSettings } from "./host.js";
 import { nonPrintableMarginsMm } from "./label-layout.js";
@@ -63,6 +55,9 @@ export function useLabelmakerController(host: LabelmakerHost) {
   const [isPrinting, setIsPrinting] = useState(false);
   const printInProgress = useRef(false);
   const printCancellationRequested = useRef(false);
+  const printSentToHost = useRef(false);
+  const addingPrinter = useRef(false);
+  const savingPrinterSettings = useRef(false);
   const printerMutationGeneration = useRef(0);
   const workspaceRef = useRef(state.workspace);
   const automaticTrimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -189,7 +184,9 @@ export function useLabelmakerController(host: LabelmakerHost) {
 
   const updatePrinterSettings = useCallback(
     async (printerId: string, settings: PrinterSettings) => {
-      if (!host.updatePrinterSettings) return false;
+      if (!host.updatePrinterSettings || savingPrinterSettings.current)
+        return false;
+      savingPrinterSettings.current = true;
       printerMutationGeneration.current += 1;
       try {
         const printers = await host.updatePrinterSettings(printerId, settings);
@@ -210,6 +207,8 @@ export function useLabelmakerController(host: LabelmakerHost) {
           ),
         );
         return false;
+      } finally {
+        savingPrinterSettings.current = false;
       }
     },
     [host, state.activePrinterId],
@@ -381,17 +380,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
     heldInteractionWaitersRef.current.forEach((resolve) => resolve());
     heldInteractionWaitersRef.current.clear();
   }, [clearAutomaticTrimTimer]);
-  useEffect(
-    () => () => {
-      automaticTrimGenerationRef.current += 1;
-      clearAutomaticTrimTimer();
-      automaticTrimPlateIdsRef.current.clear();
-      heldPrintedPixelPlateIdsRef.current.clear();
-      heldInteractionWaitersRef.current.forEach((resolve) => resolve());
-      heldInteractionWaitersRef.current.clear();
-    },
-    [clearAutomaticTrimTimer],
-  );
+  useEffect(() => cancelAutomaticTrim, [cancelAutomaticTrim]);
   const editWorkspace = useCallback((workspace: typeof state.workspace) => {
     workspaceRef.current = workspace;
     dispatch({ type: "edit-workspace", workspace });
@@ -443,17 +432,6 @@ export function useLabelmakerController(host: LabelmakerHost) {
     },
     [editPrintedPixels, state.workspace],
   );
-  const updateElement = useCallback(
-    (elementId: string, update: (element: LabelElement) => LabelElement) => {
-      if (!activePlate) return;
-      editPrintedPixels(
-        replaceElement(state.workspace, activePlate.id, elementId, update),
-        activePlate.id,
-      );
-    },
-    [activePlate, editPrintedPixels, state.workspace],
-  );
-
   const save = useCallback(
     async (saveAs = false) => {
       try {
@@ -550,6 +528,8 @@ export function useLabelmakerController(host: LabelmakerHost) {
 
   const addPrinter = useCallback(
     async (printerId: string): Promise<boolean> => {
+      if (addingPrinter.current) return false;
+      addingPrinter.current = true;
       printerMutationGeneration.current += 1;
       try {
         const printers = await host.addPrinter(printerId);
@@ -568,10 +548,20 @@ export function useLabelmakerController(host: LabelmakerHost) {
           ),
         );
         return false;
+      } finally {
+        addingPrinter.current = false;
       }
     },
     [host, selectPrinter],
   );
+
+  const closeAddPrinter = useCallback(() => {
+    if (!addingPrinter.current) dispatch({ type: "close-add-printer" });
+  }, []);
+  const closePrinterSettings = useCallback(() => {
+    if (!savingPrinterSettings.current)
+      dispatch({ type: "close-printer-settings" });
+  }, []);
 
   const removePrinter = useCallback(
     async (printerId: string) => {
@@ -629,6 +619,11 @@ export function useLabelmakerController(host: LabelmakerHost) {
       try {
         const workspace = await flushAutomaticTrim();
         if (!workspace) return;
+        if (printCancellationRequested.current) {
+          dispatch(toastAction("neutral", "Print canceled"));
+          return;
+        }
+        printSentToHost.current = true;
         const result = await host.print({
           document: workspace,
           printerId: activePrinter.id,
@@ -649,6 +644,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
           );
         }
       } finally {
+        printSentToHost.current = false;
         printInProgress.current = false;
         printCancellationRequested.current = false;
         setIsPrinting(false);
@@ -660,6 +656,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
   const cancelPrint = useCallback(async () => {
     if (!printInProgress.current || !host.cancelPrint) return;
     printCancellationRequested.current = true;
+    if (!printSentToHost.current) return;
     try {
       await host.cancelPrint();
     } catch {
@@ -844,7 +841,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
                 );
                 return;
               }
-              const elementId = appendImage(
+              appendImage(
                 plateId,
                 result.source,
                 {
@@ -853,13 +850,6 @@ export function useLabelmakerController(host: LabelmakerHost) {
                 },
                 result.editorSource,
               );
-              if (elementId) {
-                rememberDrawingEditorSource(
-                  elementId,
-                  result.source,
-                  result.editorSource,
-                );
-              }
             })
             .catch(() =>
               dispatch(toastAction("error", "The image could not open.")),
@@ -965,6 +955,8 @@ export function useLabelmakerController(host: LabelmakerHost) {
     openWorkspace,
     startDiscovery,
     addPrinter,
+    closeAddPrinter,
+    closePrinterSettings,
     removePrinter,
     selectPrinter,
     updatePrinterSettings,
@@ -979,7 +971,6 @@ export function useLabelmakerController(host: LabelmakerHost) {
     addSpecial,
     deleteSelected,
     updatePlate,
-    updateElement,
     editWorkspace,
     editPrintedPixels,
     beginPrintedPixelInteraction,

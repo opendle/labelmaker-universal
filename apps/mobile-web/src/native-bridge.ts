@@ -643,9 +643,7 @@ function validBase64(
     (allowEmpty || value.length > 0) &&
     value.length <= maximumLength &&
     value.length % 4 === 0 &&
-    /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
-      value,
-    )
+    /^[A-Za-z0-9+/]*={0,2}$/.exec(value)?.[0] === value
   );
 }
 

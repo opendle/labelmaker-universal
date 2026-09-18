@@ -118,6 +118,12 @@ describe("MacOsMakeIdTransportProvider", () => {
       await expect(transport.read({ timeoutMs: 1_000 })).resolves.toEqual(
         Uint8Array.from(response),
       );
+      const controller = new AbortController();
+      const reason = new Error("Test read cancellation");
+      controller.abort(reason);
+      await expect(
+        transport.read({ timeoutMs: 1_000, signal: controller.signal }),
+      ).rejects.toBe(reason);
       await expect(transport.read({ timeoutMs: 1_000 })).resolves.toEqual(
         Uint8Array.from(response),
       );

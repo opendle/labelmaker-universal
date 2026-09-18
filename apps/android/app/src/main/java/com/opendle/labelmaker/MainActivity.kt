@@ -99,7 +99,7 @@ class MainActivity : ComponentActivity(), NativeUi {
                     throw error
                 } catch (error: Throwable) {
                     Toast.makeText(
-                        this,
+                        this@MainActivity,
                         "The selected image could not be imported.",
                         Toast.LENGTH_SHORT,
                     ).show()

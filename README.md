@@ -3,14 +3,15 @@
 > **Labelmaker is NOT an official MakeID application.** This is an independent
 > project. MakeID does not develop, sponsor, or endorse this application.
 
-Labelmaker is a source-available label editor for desktop and iPad. One `.lbl`
-workspace can contain many labels. The editor can create text, image, and shape
-elements. It can also set label size and margins, trim a label to its printed
-content, make cable flags, and print through a printer adapter.
+Labelmaker is a source-available label editor for desktop, iPhone, iPad, and
+Android. One `.lbl` workspace can contain many labels. The editor can create
+text, images, shapes, QR codes, and barcodes. It can also set label size and
+margins, trim a label to its printed content, make cable flags, and print through
+a printer adapter.
 
-The desktop app uses Electron. The iPad app uses the same React editor in a
-native Swift shell. Printer adapters keep Bluetooth and printer protocols out
-of the editor and document model.
+The desktop app uses Electron. The Apple mobile and Android apps use the same
+React editor in native Swift and Kotlin shells. Printer adapters keep Bluetooth
+and printer protocols out of the editor and document model.
 
 ## Screenshots
 
@@ -34,9 +35,9 @@ mock printers.
 
 - The macOS desktop app can discover and print to a MakeID E1 through Bluetooth
   Low Energy. The physical print path is verified on 16 mm tape.
-- The shared MakeID adapter also detects L1 203-DPI, L1 300-DPI, and P31-family
-  profiles from printer replies. These profiles need physical tests on the
-  ordered L1 300-DPI and P31S printers.
+- Additional printer profiles are detected from printer replies. The
+  [recorded macOS checks](docs/hardware-tests/makeid-l1-p31s-macos-2026-09-14.md)
+  cover short test prints. See that report for results and limits.
 - The iPad app has Files integration, workspace recovery, touch controls, and a
   native CoreBluetooth transport for supported MakeID profiles. The iPad
   printer path still needs a physical hardware test.
@@ -62,7 +63,8 @@ npm run check
 `npm run check` runs formatting, React Doctor, TypeScript, tests, and builds.
 React Doctor must report a score of 100 and no diagnostics.
 
-For iPad setup and Xcode commands, see [the iPad guide](apps/ipad/README.md).
+For mobile setup, see [the Apple mobile guide](apps/ipad/README.md) and
+[the Android guide](apps/android/README.md).
 
 ## Visual artifacts
 
@@ -125,10 +127,12 @@ shipping details only in the direct message.
 
 ```text
 apps/desktop             Electron shell, files, recovery, and macOS transport
-apps/ipad                Swift iPad shell, Files access, and CoreBluetooth
+apps/ipad                Swift iPhone and iPad shell, files, and CoreBluetooth
+apps/android             Kotlin shell, files, and Bluetooth Low Energy
+apps/mobile-web          Shared mobile host, bridge, and web bundle
 apps/server              Future headless API and local print bridge
 packages/domain          Workspace, label, element, and unit types
-packages/documents       Workspace validation and gzip YAML serialization
+packages/documents       Workspace validation and YAML serialization
 packages/printing        Printer adapter contracts, sessions, and jobs
 packages/rendering       Shared SVG and one-bit raster rendering
 packages/adapters/mock   Test-only printer adapter

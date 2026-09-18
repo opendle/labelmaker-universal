@@ -113,16 +113,10 @@ struct LabelmakerWebView: UIViewRepresentable {
             decidePolicyFor navigationAction: WKNavigationAction,
             decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
         ) {
-            guard let url = navigationAction.request.url else {
-                decisionHandler(.cancel)
-                return
-            }
-            if
-                (url.scheme == BundledWebAppSchemeHandler.scheme && url.host == BundledWebAppSchemeHandler.host)
-                || url.scheme == "about"
-                || url.scheme == "blob"
-                || url.scheme == "data"
-            {
+            if BundledWebAppSchemeHandler.isAppFrame(
+                navigationAction.request.url,
+                isMainFrame: navigationAction.targetFrame?.isMainFrame == true
+            ) {
                 decisionHandler(.allow)
             } else {
                 decisionHandler(.cancel)

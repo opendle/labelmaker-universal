@@ -1,8 +1,4 @@
-import type {
-  LabelDocument,
-  LabelElement,
-  LabelPlate,
-} from "@labelmaker/domain";
+import type { LabelDocument, LabelPlate } from "@labelmaker/domain";
 
 import type { PrinterSummary } from "./host.js";
 import { sampleDocument } from "./sample.js";
@@ -63,7 +59,6 @@ export type AppAction =
       readonly preferredId?: string;
     }
   | { readonly type: "set-active-printer"; readonly printerId: string }
-  | { readonly type: "open-add-printer" }
   | { readonly type: "close-add-printer" }
   | { readonly type: "discovery-started" }
   | {
@@ -208,8 +203,6 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     }
     case "set-active-printer":
       return { ...state, activePrinterId: action.printerId };
-    case "open-add-printer":
-      return { ...state, addPrinterOpen: true };
     case "close-add-printer":
       return {
         ...state,
@@ -303,18 +296,4 @@ export function movePlate(
   if (!plate) return workspace;
   plates.splice(boundedTargetIndex, 0, plate);
   return { ...workspace, plates };
-}
-
-export function replaceElement(
-  workspace: LabelDocument,
-  plateId: string,
-  elementId: string,
-  update: (element: LabelElement) => LabelElement,
-): LabelDocument {
-  return replacePlate(workspace, plateId, (plate) => ({
-    ...plate,
-    elements: plate.elements.map((element) =>
-      element.id === elementId ? update(element) : element,
-    ),
-  }));
 }

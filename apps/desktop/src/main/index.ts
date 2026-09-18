@@ -45,6 +45,10 @@ import { openPrinterForAddition } from "./printer-addition.js";
 import { installAppIcon } from "./app-icon.js";
 import { createProcessLogger } from "./process-logger.js";
 import { prepareToQuit } from "./quit-coordinator.js";
+import {
+  assertApplicationSender,
+  isApplicationUrl,
+} from "./renderer-security.js";
 import { validatePrintRequest } from "./print-request.js";
 import { handleSecondInstance } from "./second-instance.js";
 import {
@@ -82,6 +86,8 @@ import {
 } from "./printer-summary.js";
 
 const APPLICATION_NAME = "Labelmaker";
+const APPLICATION_URL = new URL("../renderer/index.html", import.meta.url).href;
+const applicationWindowIds = new Set<number>();
 app.setName(APPLICATION_NAME);
 process.title = APPLICATION_NAME;
 
@@ -384,8 +390,18 @@ function printerModel(
     : `${adapter.manifest.displayName} · Mock adapter`;
 }
 
+function handleApplicationIpc(
+  channel: string,
+  listener: (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown,
+): void {
+  ipcMain.handle(channel, (event, ...args: unknown[]) => {
+    assertApplicationSender(event, applicationWindowIds, APPLICATION_URL);
+    return listener(event, ...args);
+  });
+}
+
 function registerIpc(): void {
-  ipcMain.handle("labelmaker:load-workspace-recovery", async (event) => {
+  handleApplicationIpc("labelmaker:load-workspace-recovery", async (event) => {
     if (isScreenshotCapture) return null;
     const recovery = await readWorkspaceRecoveryFile(workspaceRecoveryPath());
     if (!recovery) return null;
@@ -405,7 +421,7 @@ function registerIpc(): void {
     };
   });
 
-  ipcMain.handle(
+  handleApplicationIpc(
     "labelmaker:store-workspace-recovery",
     (event, value: unknown) => {
       if (isScreenshotCapture) return;
@@ -417,12 +433,12 @@ function registerIpc(): void {
     },
   );
 
-  ipcMain.handle(
+  handleApplicationIpc(
     "labelmaker:get-active-printer",
     () => activePrinterId ?? null,
   );
 
-  ipcMain.handle(
+  handleApplicationIpc(
     "labelmaker:set-active-printer",
     async (_event, printerId: unknown) => {
       if (typeof printerId !== "string" || !configuredPrinterIds.has(printerId))
@@ -440,7 +456,7 @@ function registerIpc(): void {
     },
   );
 
-  ipcMain.handle("labelmaker:list-printers", async () => {
+  handleApplicationIpc("labelmaker:list-printers", async () => {
     const descriptors = configuredPrinterDescriptors(
       await allDescriptors(false),
       configuredPrinterIds,
@@ -449,7 +465,7 @@ function registerIpc(): void {
     return Promise.all(descriptors.map(summarize));
   });
 
-  ipcMain.handle("labelmaker:discover-printers", async () => {
+  handleApplicationIpc("labelmaker:discover-printers", async () => {
     await new Promise((resolve) => setTimeout(resolve, 450));
     const descriptors = await allDescriptors(true);
     discoveredPrinters.replace(descriptors);
@@ -464,7 +480,7 @@ function registerIpc(): void {
     );
   });
 
-  ipcMain.handle(
+  handleApplicationIpc(
     "labelmaker:add-printer",
     async (_event, printerId: unknown) => {
       if (typeof printerId !== "string")
@@ -516,7 +532,7 @@ function registerIpc(): void {
     },
   );
 
-  ipcMain.handle(
+  handleApplicationIpc(
     "labelmaker:remove-printer",
     async (_event, printerId: unknown) => {
       if (typeof printerId !== "string" || !printerId.trim())
@@ -558,7 +574,7 @@ function registerIpc(): void {
     },
   );
 
-  ipcMain.handle(
+  handleApplicationIpc(
     "labelmaker:update-printer-settings",
     async (_event, printerId: unknown, value: unknown) => {
       if (typeof printerId !== "string" || !configuredPrinterIds.has(printerId))
@@ -656,7 +672,7 @@ function registerIpc(): void {
     },
   );
 
-  ipcMain.handle(
+  handleApplicationIpc(
     "labelmaker:new-workspace",
     async (event, hasUnsavedChanges: unknown, document: unknown) => {
       assertBoolean(hasUnsavedChanges, "hasUnsavedChanges");
@@ -674,7 +690,7 @@ function registerIpc(): void {
     },
   );
 
-  ipcMain.handle(
+  handleApplicationIpc(
     "labelmaker:open-workspace",
     async (event, hasUnsavedChanges: unknown, document: unknown) => {
       assertBoolean(hasUnsavedChanges, "hasUnsavedChanges");
@@ -719,15 +735,17 @@ function registerIpc(): void {
     },
   );
 
-  ipcMain.handle("labelmaker:save-workspace", (event, document: unknown) =>
-    saveWorkspace(event, document, false),
+  handleApplicationIpc(
+    "labelmaker:save-workspace",
+    (event, document: unknown) => saveWorkspace(event, document, false),
   );
 
-  ipcMain.handle("labelmaker:save-workspace-as", (event, document: unknown) =>
-    saveWorkspace(event, document, true),
+  handleApplicationIpc(
+    "labelmaker:save-workspace-as",
+    (event, document: unknown) => saveWorkspace(event, document, true),
   );
 
-  ipcMain.handle("labelmaker:print", async (_event, request: unknown) => {
+  handleApplicationIpc("labelmaker:print", async (_event, request: unknown) => {
     const validatedRequest = validatePrintRequest(request);
     const descriptor = findConfiguredPrintTarget(
       configuredPrinterDescriptors(
@@ -920,6 +938,14 @@ function createWindow(): void {
     },
   });
   const webContentsId = window.webContents.id;
+  applicationWindowIds.add(webContentsId);
+  window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+  window.webContents.on("will-navigate", (event, url) => {
+    if (!isApplicationUrl(url, APPLICATION_URL)) event.preventDefault();
+  });
+  window.webContents.on("will-attach-webview", (event) => {
+    event.preventDefault();
+  });
   let recoveryFlushed = false;
   let recoveryCloseStarted = false;
   void installAppIcon(window).catch((error: unknown) => {
@@ -928,6 +954,7 @@ function createWindow(): void {
     });
   });
   window.webContents.once("destroyed", () => {
+    applicationWindowIds.delete(webContentsId);
     workspacePaths.delete(webContentsId);
   });
   window.on("close", (event) => {
@@ -951,9 +978,7 @@ function createWindow(): void {
   window.once("ready-to-show", () => {
     if (!isScreenshotCapture) window.show();
   });
-  void window.loadFile(
-    fileURLToPath(new URL("../renderer/index.html", import.meta.url)),
-  );
+  void window.loadURL(APPLICATION_URL);
 }
 
 if (!hasSingleInstanceLock) {
