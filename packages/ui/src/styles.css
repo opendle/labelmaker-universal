@@ -2397,15 +2397,6 @@ textarea.inline-text-editor {
   height: calc(var(--ribbon-bottom-mm) * var(--ribbon-mm));
   box-shadow: inset 0 1px #a8a49a;
 }
-.printer-ribbon-label {
-  position: absolute;
-  bottom: calc(100% + 12px);
-  left: 50%;
-  transform: translateX(-50%);
-  color: var(--muted);
-  font-size: 11px;
-  white-space: nowrap;
-}
 .printer-ribbon-gap {
   position: absolute;
   top: 0;

@@ -820,29 +820,12 @@ for (const [width, height, touch] of [
     });
     await diagram.waitFor();
     if (
-      !(await diagram.getByText("Printhead area", { exact: true }).count()) ||
+      (await diagram.getByText("Printhead area", { exact: true }).count()) ||
       (await diagram.locator(".nonprintable-zone").count()) ||
       (await diagram.getByLabel("Top margin", { exact: true }).count()) ||
       (await diagram.getByLabel("Bottom margin", { exact: true }).count())
     ) {
       throw new Error("The printhead diagram has incorrect controls");
-    }
-    if (
-      !(await diagram.locator(".printer-ribbon-label").evaluate((element) => {
-        const bounds = element.getBoundingClientRect();
-        const diagram = element
-          .closest(".printer-label-schematic")
-          .getBoundingClientRect();
-        return (
-          Number.parseFloat(getComputedStyle(element).fontSize) >= 11 &&
-          bounds.left >= diagram.left &&
-          bounds.right <= diagram.right
-        );
-      }))
-    ) {
-      throw new Error(
-        "The printhead band label is too small or outside the diagram",
-      );
     }
     if (
       await diagram

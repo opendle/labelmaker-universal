@@ -59,7 +59,6 @@ export function PrinterRibbonDiagram({
           )}
           <div className="printer-ribbon-gap" />
         </div>
-        <span className="printer-ribbon-label">Printhead area</span>
         <div
           className="dimension-ruler dimension-ruler-height printer-ruler-head"
           style={{

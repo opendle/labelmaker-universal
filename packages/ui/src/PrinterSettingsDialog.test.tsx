@@ -67,7 +67,7 @@ describe("PrinterSettingsDialog", () => {
     expect(diagram).toHaveTextContent("Resolution: 203 dpi");
     expect(diagram).toHaveTextContent("Printhead alignment: Center");
     expect(diagram).not.toHaveTextContent("30 mm");
-    expect(diagram).toHaveTextContent("Printhead area");
+    expect(diagram).not.toHaveTextContent("Printhead area");
     expect(diagram.querySelectorAll(".printer-paper-blank")).toHaveLength(2);
     expect(diagram.querySelector(".printer-ribbon-head")).toBeInTheDocument();
     expect(screen.queryByLabelText("Top margin")).toBeNull();

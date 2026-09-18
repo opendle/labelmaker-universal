@@ -206,7 +206,8 @@ appearances so that they show the physical label and printed result accurately.
   as adjustable, such as darkness. Keep print density as a slider. When the
   capability has named levels, show the selected name and the level names.
   Replace the geometry field rows with a
-  diagram with a band labelled "Printhead area" and the space between labels.
+  diagram with a printhead band and the space between labels. Do not show
+  helper text above the band.
   Show paper-edge outlines and blank paper areas around the printhead band.
   Hatch these blank areas but do not show their dimensions or add margin
   controls. Use an example paper height 4 mm larger than the head, independent
