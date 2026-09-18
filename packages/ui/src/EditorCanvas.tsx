@@ -368,16 +368,20 @@ function NonprintableZones({
 }) {
   return (
     <>
-      <span
-        aria-hidden="true"
-        className="nonprintable-zone top"
-        style={{ height: `${topMarginPercent}%` }}
-      />
-      <span
-        aria-hidden="true"
-        className="nonprintable-zone bottom"
-        style={{ height: `${bottomMarginPercent}%` }}
-      />
+      {topMarginPercent > 0 && (
+        <span
+          aria-hidden="true"
+          className="nonprintable-zone top"
+          style={{ height: `${topMarginPercent}%` }}
+        />
+      )}
+      {bottomMarginPercent > 0 && (
+        <span
+          aria-hidden="true"
+          className="nonprintable-zone bottom"
+          style={{ height: `${bottomMarginPercent}%` }}
+        />
+      )}
     </>
   );
 }

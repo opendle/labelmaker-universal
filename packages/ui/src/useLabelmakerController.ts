@@ -100,8 +100,6 @@ export function useLabelmakerController(host: LabelmakerHost) {
       nonPrintableMarginsMm(
         plate.size.heightMm,
         activePrinter?.printableWidthMm,
-        activePrinter?.marginTopMm,
-        activePrinter?.marginBottomMm,
         activePrinter?.rasterAlignment,
       ),
     [activePrinter],
@@ -680,8 +678,6 @@ export function useLabelmakerController(host: LabelmakerHost) {
       nonPrintableMarginsMm(
         heightMm,
         activePrinter?.printableWidthMm,
-        activePrinter?.marginTopMm,
-        activePrinter?.marginBottomMm,
         activePrinter?.rasterAlignment,
       ),
       settingsSource,

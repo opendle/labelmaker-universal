@@ -12,8 +12,6 @@ interface PrinterSettingsForm {
   readonly displayName: string;
   readonly darkness: number;
   readonly printHeadSizeMm: string;
-  readonly marginTopMm: string;
-  readonly marginBottomMm: string;
   readonly interLabelSpacingMm: string;
   readonly feedAfterPrintMm: string;
   readonly minimumLabelWidthMm: string;
@@ -55,8 +53,6 @@ export function PrinterSettingsDialog({
       printer?.printableWidthMm === undefined
         ? ""
         : String(Number(printer.printableWidthMm.toFixed(1))),
-    marginTopMm: String(Number((printer?.marginTopMm ?? 0).toFixed(1))),
-    marginBottomMm: String(Number((printer?.marginBottomMm ?? 0).toFixed(1))),
     interLabelSpacingMm: String(
       Number((printer?.interLabelSpacingMm ?? 1).toFixed(1)),
     ),
@@ -71,8 +67,6 @@ export function PrinterSettingsDialog({
   if (!open || !printer) return null;
 
   const parsedPrintHeadSizeMm = Number(form.printHeadSizeMm);
-  const parsedMarginTopMm = Number(form.marginTopMm);
-  const parsedMarginBottomMm = Number(form.marginBottomMm);
   const parsedInterLabelSpacingMm = Number(form.interLabelSpacingMm);
   const displayName = form.displayName.trim();
   const deviceName = printer.deviceName ?? printer.name;
@@ -81,8 +75,6 @@ export function PrinterSettingsDialog({
     displayName.length <= MAX_PRINTER_DISPLAY_NAME_LENGTH;
   const geometryIsValid =
     validMillimeterSetting(form.printHeadSizeMm, parsedPrintHeadSizeMm, 0.1) &&
-    validMillimeterSetting(form.marginTopMm, parsedMarginTopMm, 0) &&
-    validMillimeterSetting(form.marginBottomMm, parsedMarginBottomMm, 0) &&
     validMillimeterSetting(
       form.interLabelSpacingMm,
       parsedInterLabelSpacingMm,
@@ -104,8 +96,6 @@ export function PrinterSettingsDialog({
       ...(displayName === deviceName ? {} : { displayName }),
       ...(printer.darkness ? { darkness: form.darkness } : {}),
       printHeadSizeMm: parsedPrintHeadSizeMm,
-      marginTopMm: parsedMarginTopMm,
-      marginBottomMm: parsedMarginBottomMm,
       interLabelSpacingMm: parsedInterLabelSpacingMm,
       feedAfterPrintMm: Number(form.feedAfterPrintMm),
       minimumLabelWidthMm: Number(form.minimumLabelWidthMm),

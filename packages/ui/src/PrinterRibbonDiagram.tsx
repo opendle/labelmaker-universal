@@ -3,8 +3,6 @@ import { EditableDimension } from "./EditableDimension.js";
 
 export interface PrinterGeometryDraft {
   readonly printHeadSizeMm: string;
-  readonly marginTopMm: string;
-  readonly marginBottomMm: string;
   readonly interLabelSpacingMm: string;
 }
 
@@ -27,37 +25,9 @@ export function PrinterRibbonDiagram({
   readonly onChange: (field: keyof PrinterGeometryDraft, value: string) => void;
 }) {
   const head = previewMillimeters(values.printHeadSizeMm, 0.1);
-  const top = previewMillimeters(values.marginTopMm);
-  const bottom = previewMillimeters(values.marginBottomMm);
   const gap = previewMillimeters(values.interLabelSpacingMm);
-  const height = top + head + bottom;
+  const height = head;
   const length = 44 + gap;
-  const fields = [
-    {
-      key: "marginTopMm",
-      label: "Top margin",
-      description: "Top margin: ribbon above the printable area",
-      className: "printer-ruler-top",
-      start: 0,
-      size: top,
-    },
-    {
-      key: "printHeadSizeMm",
-      label: "Print head size",
-      description: "Print head size: height of the printable area",
-      className: "printer-ruler-head",
-      start: top,
-      size: head,
-    },
-    {
-      key: "marginBottomMm",
-      label: "Bottom margin",
-      description: "Bottom margin: ribbon below the printable area",
-      className: "printer-ruler-bottom",
-      start: top + head,
-      size: bottom,
-    },
-  ] as const;
   return (
     <div className="printer-label-schematic">
       <div
@@ -66,63 +36,32 @@ export function PrinterRibbonDiagram({
           {
             "--ribbon-height-mm": height,
             "--ribbon-length-mm": length,
-            "--ribbon-top-mm": top,
-            "--ribbon-bottom-mm": bottom,
             "--ribbon-gap-mm": gap,
           } as RibbonStyle
         }
       >
         <div className="printer-ribbon" aria-hidden="true">
           <div className="printer-ribbon-gap" />
-          <svg viewBox={`0 0 ${length} ${height}`} width="100%" height="100%">
-            {[15, 45 + gap].map((x) => (
-              <text
-                key={x}
-                x={x}
-                y={top + head / 2}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={Math.min(3, head / 2)}
-              >
-                Label
-              </text>
-            ))}
-          </svg>
-          <div
-            className="nonprintable-zone top"
-            style={{ height: "calc(var(--ribbon-top-mm) * var(--ribbon-mm))" }}
-          />
-          <div
-            className="nonprintable-zone bottom"
-            style={{
-              height: "calc(var(--ribbon-bottom-mm) * var(--ribbon-mm))",
-            }}
-          />
         </div>
-        {fields.map((field) => (
-          <div
-            key={field.key}
-            className={`dimension-ruler dimension-ruler-height ${field.className}`}
-            style={{
-              top: `calc(${field.start} * var(--ribbon-mm))`,
-              height: `calc(${field.size} * var(--ribbon-mm))`,
-            }}
-          >
-            <div className="printer-dimension-caption">
-              <span>{field.label}</span>
-              <EditableDimension
-                mode="draft"
-                label={field.label}
-                description={field.description}
-                min={field.key === "printHeadSizeMm" ? 0.1 : 0}
-                max={100}
-                disabled={disabled}
-                value={values[field.key]}
-                onChange={(value) => onChange(field.key, value)}
-              />
-            </div>
+        <span className="printer-ribbon-label">Printhead area</span>
+        <div
+          className="dimension-ruler dimension-ruler-height printer-ruler-head"
+          style={{ top: 0, height: "100%" }}
+        >
+          <div className="printer-dimension-caption">
+            <span>Print head size</span>
+            <EditableDimension
+              mode="draft"
+              label="Print head size"
+              description="Print head size: physical head dimension across the paper"
+              min={0.1}
+              max={100}
+              disabled={disabled}
+              value={values.printHeadSizeMm}
+              onChange={(value) => onChange("printHeadSizeMm", value)}
+            />
           </div>
-        ))}
+        </div>
         <div className="dimension-ruler dimension-ruler-margin printer-ruler-gap">
           <div className="printer-dimension-caption">
             <span>Between labels</span>

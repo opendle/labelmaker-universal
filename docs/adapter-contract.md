@@ -36,22 +36,28 @@ The authoritative TypeScript contract is in `packages/printing/src/index.ts`.
 
 The UI must derive available media, dimensions, printable head width, density
 controls, color modes, and copy limits from `PrinterCapabilities`. It calculates
-non-printable label areas from the label dimension across the print head, the
-physical printable head width, and the configured top and bottom blank margins.
-The adapter supplies the default margins. Each margin reserves at least the
-specified blank space at its label edge. A narrow label keeps these margins.
-The print head can impose a larger non-printable area.
-`rasterAlignment` sets the fixed position of the label relative to the start,
-center, or end of the print head. The margin settings do not move the label or
-the artwork across the head. The printable area is the intersection of the
-physical head width and the label area between the requested margins. Extra
-head width stays blank. If the head is smaller than the label, it imposes
-additional blank edge space according to the same alignment.
-The shared `printerVerticalGeometry` calculation supplies the renderer and UI
-guides. The renderer clips artwork to this area and clears margin pixels after
-dithering, before transposition. It rounds each boundary to the nearest printer
-pixel. Margins do not change the raster width, feed length, or artwork scale.
-If the margins cover the complete label, the raster is blank.
+non-printable paper areas from paper height, physical printhead size, and
+`rasterAlignment`. `printableWidthMm` is the physical head dimension across the
+paper. `printHeadSizeMm` is its saved per-printer override. Maximum paper size
+is a separate media limit and must not set blank areas.
+
+The shared `printerVerticalGeometry(paperHeightMm, printHeadSizeMm,
+rasterAlignment)` calculation places the head in paper coordinates: zero for
+start alignment, `(paperHeightMm - printHeadSizeMm) / 2` for center alignment,
+and `paperHeightMm - printHeadSizeMm` for end alignment. The printable area is
+the overlap of the paper and head. Top and bottom blank areas follow from this
+overlap. Keep the reported alignment and the center alignment of existing
+profiles. Do not add an offset setting.
+
+For a centered 12 mm head, 16 mm paper has 2 mm blank at each edge, 14 mm paper
+has 1 mm blank at each edge, and 12 mm and 9 mm paper have no blank edges.
+Their printable heights are 12, 12, 12, and 9 mm respectively.
+The renderer uses this area for SVG clipping and the final raster mask. Keep
+the full raster width and existing head calibration and DPI behavior. Clear
+pixels outside the paper after dithering and before transposition. Round each
+boundary to the nearest printer pixel. Clip artwork outside the head without
+changing its size or position. A centered 9 mm paper on a 96-pixel, 12 mm head
+uses columns 12 through 83; 12 mm paper can use all 96 columns.
 A missing capability stays hidden or disabled.
 An adapter can expose one set of static offline capabilities when all supported
 printers are identical. A multi-model adapter uses `offlineCapabilitiesFor`
@@ -65,9 +71,16 @@ The density slider uses these labels when present. Each host validates stored
 values against the selected printer range.
 Printer settings are outside the workspace document and belong to one
 configured printer. The desktop and iPad shells use the shared
-`isPrinterSettings` validator before they store darkness, print-head size,
-independent top and bottom margins, inter-label spacing, `feedAfterPrintMm`,
+`isPrinterSettings` validator before they store darkness, printhead size,
+inter-label spacing, `feedAfterPrintMm`,
 and `minimumLabelWidthMm`.
+New settings requests reject `marginTopMm` and `marginBottomMm`. Storage
+readers use the shared `readLegacyPrinterSettings` function. It validates old
+records, removes only these two fields, and preserves all other valid settings.
+Desktop and mobile readers accept existing configuration versions. Subsequent
+saves omit removed fields. Adapters must not supply vertical margin defaults.
+Workspace files, artwork positions, and left and right plate margins do not
+change.
 The optional feed setting uses 0.1 mm steps from 0 to 100 mm. The adapter can
 report its default through `feedAfterPrintMm`; an absent default means zero.
 Old settings without this field use the adapter default. The desktop and mobile

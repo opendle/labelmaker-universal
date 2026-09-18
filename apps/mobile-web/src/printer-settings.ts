@@ -1,4 +1,8 @@
-import { isPrinterSettings, type PrinterSettings } from "@labelmaker/printing";
+import {
+  isPrinterSettings,
+  readLegacyPrinterSettings,
+  type PrinterSettings,
+} from "@labelmaker/printing";
 
 export function validatePrinterSettings(value: unknown): PrinterSettings {
   if (!isPrinterSettings(value)) {
@@ -14,10 +18,12 @@ export function readStoredPrinterSettings(
   if (!isRecord(value)) return {};
   const configuredIds = new Set(printerIds);
   return Object.fromEntries(
-    Object.entries(value).filter(
-      (entry): entry is [string, PrinterSettings] =>
-        configuredIds.has(entry[0]) && isPrinterSettings(entry[1]),
-    ),
+    Object.entries(value).flatMap(([id, value]) => {
+      const settings = readLegacyPrinterSettings(value);
+      return configuredIds.has(id) && settings !== undefined
+        ? [[id, settings]]
+        : [];
+    }),
   );
 }
 

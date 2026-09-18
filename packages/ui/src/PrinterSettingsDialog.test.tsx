@@ -28,8 +28,6 @@ const printer: PrinterSummary = {
   statusMessage: "Ready",
   dpi: 203,
   printableWidthMm: 12,
-  marginTopMm: 1,
-  marginBottomMm: 2,
   interLabelSpacingMm: 1,
 };
 
@@ -67,20 +65,20 @@ describe("PrinterSettingsDialog", () => {
     expect(diagram).not.toHaveTextContent("Example ribbon");
     expect(diagram).toHaveTextContent("Resolution: 203 dpi");
     expect(diagram).not.toHaveTextContent("30 mm");
-    for (const name of [
-      "Print head size",
-      "Top margin",
-      "Bottom margin",
-      "Margin between labels",
-    ]) {
+    expect(diagram).toHaveTextContent("Printhead area");
+    expect(diagram.querySelector(".nonprintable-zone")).toBeNull();
+    expect(screen.queryByLabelText("Top margin")).toBeNull();
+    expect(screen.queryByLabelText("Bottom margin")).toBeNull();
+    for (const name of ["Print head size", "Margin between labels"]) {
       expect(diagram).toContainElement(
         screen.getByRole("spinbutton", { name }),
       );
     }
     for (const [name, meaning] of [
-      ["Print head size", "Print head size: height of the printable area"],
-      ["Top margin", "Top margin: ribbon above the printable area"],
-      ["Bottom margin", "Bottom margin: ribbon below the printable area"],
+      [
+        "Print head size",
+        "Print head size: physical head dimension across the paper",
+      ],
       ["Margin between labels", "Label gap: space between two labels"],
     ] as const) {
       expect(screen.getByRole("spinbutton", { name })).toHaveAttribute(
@@ -99,24 +97,17 @@ describe("PrinterSettingsDialog", () => {
         ...printer,
         dpi: 300,
         printableWidthMm: 12.2,
-        marginTopMm: 1.9000000000000004,
-        marginBottomMm: 1.9000000000000004,
       },
     });
-    expect(screen.getByRole("spinbutton", { name: "Top margin" })).toHaveValue(
-      1.9,
-    );
     expect(
-      screen.getByRole("spinbutton", { name: "Bottom margin" }),
-    ).toHaveValue(1.9);
+      screen.getByRole("spinbutton", { name: "Print head size" }),
+    ).toHaveValue(12.2);
     fireEvent.click(screen.getByRole("button", { name: "Save settings" }));
     await waitFor(() =>
       expect(onSave).toHaveBeenCalledWith(
         "printer",
         expect.objectContaining({
           printHeadSizeMm: 12.2,
-          marginTopMm: 1.9,
-          marginBottomMm: 1.9,
         }),
       ),
     );
@@ -128,8 +119,6 @@ describe("PrinterSettingsDialog", () => {
     renderDialog({ onSave });
     for (const [name, value] of [
       ["Print head size", "14.5"],
-      ["Top margin", "0.3"],
-      ["Bottom margin", "2.7"],
       ["Margin between labels", "3.1"],
       ["Feed after last label", "11.2"],
       ["Minimum label length", "16"],
@@ -143,8 +132,6 @@ describe("PrinterSettingsDialog", () => {
       expect(onSave).toHaveBeenCalledWith("printer", {
         displayName: "Studio printer",
         printHeadSizeMm: 14.5,
-        marginTopMm: 0.3,
-        marginBottomMm: 2.7,
         interLabelSpacingMm: 3.1,
         feedAfterPrintMm: 11.2,
         minimumLabelWidthMm: 16,
@@ -152,13 +139,9 @@ describe("PrinterSettingsDialog", () => {
     );
   });
 
-  it("accepts zero margins and gap, and rejects invalid dimensions", () => {
+  it("accepts a zero gap, and rejects invalid dimensions", () => {
     renderDialog();
-    for (const name of [
-      "Top margin",
-      "Bottom margin",
-      "Margin between labels",
-    ]) {
+    for (const name of ["Margin between labels"]) {
       fireEvent.change(screen.getByRole("spinbutton", { name }), {
         target: { value: "0" },
       });
@@ -182,27 +165,25 @@ describe("PrinterSettingsDialog", () => {
     }
   });
 
-  it.each([
-    "Print head size",
-    "Top margin",
-    "Bottom margin",
-    "Margin between labels",
-  ])("accepts %s with Enter without saving the dialog", async (name) => {
-    const user = userEvent.setup();
-    const onClose = vi.fn();
-    const onSave = vi.fn().mockResolvedValue(true);
-    renderDialog({ onClose, onSave });
+  it.each(["Print head size", "Margin between labels"])(
+    "accepts %s with Enter without saving the dialog",
+    async (name) => {
+      const user = userEvent.setup();
+      const onClose = vi.fn();
+      const onSave = vi.fn().mockResolvedValue(true);
+      renderDialog({ onClose, onSave });
 
-    const input = screen.getByLabelText(name);
-    await user.click(input);
-    expect(input).toHaveFocus();
-    await user.keyboard("{Enter}");
+      const input = screen.getByLabelText(name);
+      await user.click(input);
+      expect(input).toHaveFocus();
+      await user.keyboard("{Enter}");
 
-    expect(input).not.toHaveFocus();
-    expect(onSave).not.toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByRole("dialog")).toBeVisible();
-  });
+      expect(input).not.toHaveFocus();
+      expect(onSave).not.toHaveBeenCalled();
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.getByRole("dialog")).toBeVisible();
+    },
+  );
 
   it("does not close from the backdrop or Escape while a save is active", async () => {
     const user = userEvent.setup();

@@ -1,3 +1,4 @@
+import { nonPrintableMarginsMm } from "./label-layout.js";
 import type { ImageElement, TextElement } from "@labelmaker/domain";
 import { describe, expect, it } from "vitest";
 
@@ -35,6 +36,43 @@ const margins = { topMm: 2, bottomMm: 3 };
 const thresholds = { xMm: 0.5, yMm: 0.5 };
 
 describe("canvas snapping", () => {
+  it.each([
+    [16, 2, 12],
+    [14, 1, 12],
+    [12, 0, 12],
+    [9, 0, 9],
+  ])(
+    "snaps to the head overlap on %s mm paper",
+    (heightMm, top, printableHeight) => {
+      const paper = { ...size, heightMm };
+      const bounds = nonPrintableMarginsMm(heightMm, 12);
+      expect(
+        snapMovedElement(
+          { ...text, yMm: top + 0.2 },
+          paper,
+          bounds,
+          thresholds,
+        ),
+      ).toMatchObject({ yMm: top });
+      expect(
+        snapMovedElement(
+          { ...text, yMm: top + printableHeight - text.heightMm - 0.2 },
+          paper,
+          bounds,
+          thresholds,
+        ),
+      ).toMatchObject({ yMm: top + printableHeight - text.heightMm });
+      expect(
+        snapResizedFrame(
+          { ...text, yMm: top + 0.2 },
+          paper,
+          bounds,
+          thresholds,
+          { left: false, top: true },
+        ),
+      ).toMatchObject({ yMm: top });
+    },
+  );
   it.each([text, image])(
     "snaps a moved $kind frame to printable edges",
     (element) => {

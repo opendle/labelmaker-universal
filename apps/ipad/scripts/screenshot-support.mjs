@@ -117,8 +117,6 @@ export function installCaptureHost(options) {
                 displayName: "Workshop printer",
                 darkness: 20,
                 printHeadSizeMm: 12,
-                marginTopMm: 2,
-                marginBottomMm: 2,
               },
             },
             printerRecords: {

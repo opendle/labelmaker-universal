@@ -76,10 +76,6 @@ export function candidateProtocolFamilies(
 export function offlineCapabilitiesForProfile(
   profile: MakeIdResolvedProfile,
 ): OfflinePrinterCapabilities {
-  const halfUnprintableMarginMm =
-    profile.profileId === "e1-abf0-203" || profile.profileId.startsWith("l1-")
-      ? Math.max(0, Math.round((16 - profile.printableWidthMm) * 5) / 10)
-      : 0;
   return {
     dpi: profile.dpi,
     rasterWidthPixels: profile.rasterWidthPixels,
@@ -87,8 +83,6 @@ export function offlineCapabilitiesForProfile(
     rasterAlignment: profile.rasterAlignment,
     feedAfterPrintMm: profile.profileId.startsWith("l1-") ? 3 : 0,
     minimumLabelWidthMm: profile.profileId.startsWith("l1-") ? 22 : 0,
-    printHeadMarginTopMm: halfUnprintableMarginMm,
-    printHeadMarginBottomMm: halfUnprintableMarginMm,
     darkness:
       profile.protocolFamily === "abf0-66"
         ? DARKNESS

@@ -44,8 +44,9 @@ adapters.
 - Restore the last selected printer on the next launch.
 - Restore the complete last editor session on launch, including unsaved work.
   Invalid recovery data must not stop the application from starting.
-- Per-printer output settings for print-head size, independent top and bottom
-  margins, reported capabilities such as darkness, and a display-only name.
+- Per-printer output settings for printhead size, reported capabilities such
+  as darkness, and a display-only name. Calculate blank paper areas from paper
+  height, physical printhead size, and printer alignment.
 - New, open, save, and save-as workspace actions.
 - Multiple plates in one workspace.
 - Label width and height settings.

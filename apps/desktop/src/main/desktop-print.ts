@@ -19,8 +19,6 @@ interface PrintRasterTarget {
   readonly rasterWidthPixels: number;
   readonly printableWidthMm: number;
   readonly rasterAlignment: RasterAlignment;
-  readonly marginTopMm: number;
-  readonly marginBottomMm: number;
 }
 
 type DesktopPlateRenderer = (
@@ -103,10 +101,6 @@ export async function printToSession(
   const capabilities = await session.capabilities();
   const printableWidthMm =
     settings.printHeadSizeMm ?? capabilities.printableWidthMm;
-  const marginTopMm =
-    settings.marginTopMm ?? capabilities.printHeadMarginTopMm ?? 0;
-  const marginBottomMm =
-    settings.marginBottomMm ?? capabilities.printHeadMarginBottomMm ?? 0;
   const pages: RasterPage[] = [];
   for (const plateId of request.plateIds) {
     const plate = request.document.plates.find((item) => item.id === plateId);
@@ -117,8 +111,6 @@ export async function printToSession(
         rasterWidthPixels: capabilities.rasterWidthPixels,
         printableWidthMm,
         rasterAlignment: capabilities.rasterAlignment,
-        marginTopMm,
-        marginBottomMm,
       }),
     );
   }

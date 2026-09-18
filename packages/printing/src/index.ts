@@ -49,64 +49,45 @@ export interface NumericSettingCapability {
 /** Cross-feed position of media relative to the print head. */
 export type RasterAlignment = "start" | "center" | "end";
 
-/** Clip label margins against the fixed physical print-head position. */
+/** Return the overlap of paper and head in coordinates across the paper. */
 export function printerVerticalGeometry(
-  plateHeightMm: number,
+  paperHeightMm: number,
   printHeadSizeMm: number,
-  marginTopMm = 0,
-  marginBottomMm = 0,
   rasterAlignment: RasterAlignment = "center",
 ) {
-  if (!Number.isFinite(plateHeightMm) || plateHeightMm <= 0) {
-    throw new RangeError("Label height must be greater than zero");
+  if (!Number.isFinite(paperHeightMm) || paperHeightMm <= 0) {
+    throw new RangeError("Paper height must be greater than zero");
   }
   if (!Number.isFinite(printHeadSizeMm) || printHeadSizeMm <= 0) {
-    throw new RangeError("Printer printable width must be greater than zero");
-  }
-  if (
-    !Number.isFinite(marginTopMm) ||
-    marginTopMm < 0 ||
-    !Number.isFinite(marginBottomMm) ||
-    marginBottomMm < 0
-  ) {
-    throw new RangeError("Printer margins must be zero or greater");
+    throw new RangeError("Printhead size must be greater than zero");
   }
   if (!["start", "center", "end"].includes(rasterAlignment)) {
     throw new RangeError("Printer raster alignment is invalid");
   }
-  const spareHeightMm = plateHeightMm - printHeadSizeMm;
+  const differenceMm = paperHeightMm - printHeadSizeMm;
   const headTopMm =
     rasterAlignment === "start"
       ? 0
       : rasterAlignment === "end"
-        ? spareHeightMm
-        : spareHeightMm / 2;
-  const topMm = Math.min(plateHeightMm, Math.max(0, marginTopMm, headTopMm));
-  const bottomMm = Math.min(
-    plateHeightMm - topMm,
-    Math.max(0, marginBottomMm, plateHeightMm - headTopMm - printHeadSizeMm),
-  );
-  const heightMm = Math.max(0, plateHeightMm - topMm - bottomMm);
-  // Decimal margins can leave a floating-point residue instead of zero.
+        ? differenceMm
+        : differenceMm / 2;
+  const topMm = Math.max(0, headTopMm);
+  const bottomMm = Math.max(0, differenceMm - headTopMm);
   return {
     headTopMm,
     topMm,
     bottomMm,
-    heightMm: heightMm <= plateHeightMm * Number.EPSILON * 2 ? 0 : heightMm,
+    heightMm: Math.min(paperHeightMm, printHeadSizeMm),
   };
 }
 
 export interface PrinterCapabilities {
   readonly dpi: number;
   readonly rasterWidthPixels: number;
-  /** Physical cross-feed width that the print head can reach. */
+  /** Physical head dimension across the paper, in millimeters. */
   readonly printableWidthMm: number;
   /** Position of the media across the physical print head. */
   readonly rasterAlignment: RasterAlignment;
-  /** Default minimum blank margin at the top label edge, in millimeters. */
-  readonly printHeadMarginTopMm?: number;
-  /** Default minimum blank margin at the bottom label edge, in millimeters. */
-  readonly printHeadMarginBottomMm?: number;
   readonly darkness?: NumericSettingCapability;
   /** Default blank feed after the last label, in millimeters. */
   readonly feedAfterPrintMm?: number;
@@ -125,11 +106,7 @@ export type OfflinePrinterCapabilities = Pick<
   Partial<
     Pick<
       PrinterCapabilities,
-      | "darkness"
-      | "printHeadMarginTopMm"
-      | "printHeadMarginBottomMm"
-      | "feedAfterPrintMm"
-      | "minimumLabelWidthMm"
+      "darkness" | "feedAfterPrintMm" | "minimumLabelWidthMm"
     >
   >;
 
@@ -168,11 +145,8 @@ export interface PrinterSettings {
   /** Omit this value to show the unchanged device name. */
   readonly displayName?: string;
   readonly darkness?: number;
+  /** Saved override of printableWidthMm, across the paper in millimeters. */
   readonly printHeadSizeMm?: number;
-  /** Minimum blank space at the top label edge, in millimeters. */
-  readonly marginTopMm?: number;
-  /** Minimum blank space at the bottom label edge, in millimeters. */
-  readonly marginBottomMm?: number;
   readonly interLabelSpacingMm?: number;
   readonly feedAfterPrintMm?: number;
   readonly minimumLabelWidthMm?: number;
@@ -182,8 +156,6 @@ const PRINTER_SETTING_KEYS = new Set([
   "displayName",
   "darkness",
   "printHeadSizeMm",
-  "marginTopMm",
-  "marginBottomMm",
   "interLabelSpacingMm",
   "feedAfterPrintMm",
   "minimumLabelWidthMm",
@@ -205,9 +177,6 @@ export function isPrinterSettings(value: unknown): value is PrinterSettings {
         value.darkness <= 31)) &&
     (!("printHeadSizeMm" in value) ||
       isTenthMillimeter(value.printHeadSizeMm, 0.1)) &&
-    (!("marginTopMm" in value) || isTenthMillimeter(value.marginTopMm, 0)) &&
-    (!("marginBottomMm" in value) ||
-      isTenthMillimeter(value.marginBottomMm, 0)) &&
     (!("interLabelSpacingMm" in value) ||
       isTenthMillimeter(value.interLabelSpacingMm, 0)) &&
     (!("feedAfterPrintMm" in value) ||
@@ -215,6 +184,21 @@ export function isPrinterSettings(value: unknown): value is PrinterSettings {
     (!("minimumLabelWidthMm" in value) ||
       isTenthMillimeter(value.minimumLabelWidthMm, 0))
   );
+}
+
+/** Validate stored settings, then remove only the old vertical margins. */
+export function readLegacyPrinterSettings(
+  value: unknown,
+): PrinterSettings | undefined {
+  if (!isRecord(value)) return undefined;
+  const { marginTopMm, marginBottomMm, ...settings } = value;
+  if (
+    ("marginTopMm" in value && !isTenthMillimeter(marginTopMm, 0)) ||
+    ("marginBottomMm" in value && !isTenthMillimeter(marginBottomMm, 0)) ||
+    !isPrinterSettings(settings)
+  )
+    return undefined;
+  return settings;
 }
 
 function isTenthMillimeter(value: unknown, minimum: number): value is number {

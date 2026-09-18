@@ -25,8 +25,6 @@ export interface PlateRasterTarget {
   readonly rasterWidthPixels: number;
   readonly printableWidthMm: number;
   readonly rasterAlignment: RasterAlignment;
-  readonly marginTopMm?: number;
-  readonly marginBottomMm?: number;
 }
 
 export type SvgRasterizer = (
@@ -67,8 +65,6 @@ export async function renderPlateForPrinter(
       feedLengthPixels,
       target.rasterWidthPixels,
       target.printableWidthMm,
-      target.marginTopMm,
-      target.marginBottomMm,
       target.rasterAlignment,
     ),
     feedLengthPixels,
@@ -87,8 +83,6 @@ export async function renderPlateForPrinter(
   const geometry = printerVerticalGeometry(
     plate.size.heightMm,
     target.printableWidthMm,
-    target.marginTopMm,
-    target.marginBottomMm,
     target.rasterAlignment,
   );
   const pixelsPerMm = target.rasterWidthPixels / target.printableWidthMm;
@@ -101,7 +95,7 @@ export async function renderPlateForPrinter(
   );
   const pixels = new Uint8Array(target.rasterWidthPixels * feedLengthPixels);
   for (let sourceY = 0; sourceY < target.rasterWidthPixels; sourceY += 1) {
-    // Keep margin pixels white after dithering and before transposition.
+    // Keep pixels outside the paper white after dithering and before transposition.
     if (sourceY < firstPrintableRow || sourceY >= lastPrintableRow) continue;
     for (let sourceX = 0; sourceX < feedLengthPixels; sourceX += 1) {
       const feedLine = feedLengthPixels - sourceX - 1;
@@ -312,15 +306,11 @@ export function buildPlateSvg(
   widthPixels: number,
   heightPixels: number,
   printableWidthMm = plate.size.heightMm,
-  marginTopMm = 0,
-  marginBottomMm = 0,
   rasterAlignment: RasterAlignment = "center",
 ): string {
   const geometry = printerVerticalGeometry(
     plate.size.heightMm,
     printableWidthMm,
-    marginTopMm,
-    marginBottomMm,
     rasterAlignment,
   );
   const viewBoxY = geometry.headTopMm;

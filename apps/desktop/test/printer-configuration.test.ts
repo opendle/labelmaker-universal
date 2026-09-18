@@ -208,6 +208,49 @@ describe("desktop printer configuration", () => {
     });
   });
 
+  it.each([1, 2])(
+    "migrates version %s settings and saves them without margins",
+    async (version) => {
+      const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
+      const filePath = join(directory, "configured-printers.json");
+      const id = "makeid:stored-device";
+      const settings = {
+        displayName: "Workshop",
+        darkness: 24,
+        printHeadSizeMm: 12.2,
+        interLabelSpacingMm: 1.5,
+        feedAfterPrintMm: 3,
+        minimumLabelWidthMm: 22,
+      };
+      await writeFile(
+        filePath,
+        JSON.stringify({
+          version,
+          printerIds: [id],
+          activePrinterId: id,
+          savedPrinterRecords: { [id]: savedMakeIdPrinter(id) },
+          printerSettings: {
+            [id]: { ...settings, marginTopMm: 1.9, marginBottomMm: 0 },
+          },
+        }),
+      );
+      const restored = await readPrinterSettings(filePath);
+      expect(restored).toEqual({ [id]: settings });
+      expect(await readActivePrinterId(filePath)).toBe(id);
+      await writeConfiguredPrinterIds(
+        filePath,
+        [id],
+        id,
+        restored,
+        await readSavedPrinterRecords(filePath),
+      );
+      expect(await readPrinterSettings(filePath)).toEqual({ [id]: settings });
+      const contents = await readFile(filePath, "utf8");
+      expect(contents).not.toContain("marginTopMm");
+      expect(contents).not.toContain("marginBottomMm");
+    },
+  );
+
   it("stores settings for each configured printer", async () => {
     const directory = await mkdtemp(join(tmpdir(), "labelmaker-printers-"));
     const filePath = join(directory, "configured-printers.json");
@@ -219,8 +262,6 @@ describe("desktop printer configuration", () => {
         displayName: "Studio printer",
         darkness: 24,
         printHeadSizeMm: 11.8,
-        marginTopMm: 1.4,
-        marginBottomMm: 2.6,
         interLabelSpacingMm: 1.5,
         feedAfterPrintMm: 11,
         minimumLabelWidthMm: 16,
@@ -234,8 +275,6 @@ describe("desktop printer configuration", () => {
         displayName: "Studio printer",
         darkness: 24,
         printHeadSizeMm: 11.8,
-        marginTopMm: 1.4,
-        marginBottomMm: 2.6,
         interLabelSpacingMm: 1.5,
         feedAfterPrintMm: 11,
         minimumLabelWidthMm: 16,

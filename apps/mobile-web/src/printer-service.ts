@@ -298,21 +298,6 @@ export class MobilePrinterService {
             rasterWidthPixels: capabilities.rasterWidthPixels,
             printableWidthMm,
             rasterAlignment: capabilities.rasterAlignment,
-            ...((settings.marginTopMm ?? capabilities.printHeadMarginTopMm) ===
-            undefined
-              ? {}
-              : {
-                  marginTopMm:
-                    settings.marginTopMm ?? capabilities.printHeadMarginTopMm,
-                }),
-            ...((settings.marginBottomMm ??
-              capabilities.printHeadMarginBottomMm) === undefined
-              ? {}
-              : {
-                  marginBottomMm:
-                    settings.marginBottomMm ??
-                    capabilities.printHeadMarginBottomMm,
-                }),
           }),
         ),
       );
@@ -467,9 +452,6 @@ function capabilityFields(
     rasterWidthPixels: capabilities.rasterWidthPixels,
     printableWidthMm: settings.printHeadSizeMm ?? capabilities.printableWidthMm,
     rasterAlignment: capabilities.rasterAlignment,
-    marginTopMm: settings.marginTopMm ?? capabilities.printHeadMarginTopMm ?? 0,
-    marginBottomMm:
-      settings.marginBottomMm ?? capabilities.printHeadMarginBottomMm ?? 0,
     interLabelSpacingMm: settings.interLabelSpacingMm ?? 1,
     feedAfterPrintMm:
       settings.feedAfterPrintMm ?? capabilities.feedAfterPrintMm ?? 0,
@@ -634,6 +616,7 @@ function legacyE1Descriptor(printerId: string): PrinterDescriptor {
     transport: "bluetooth-low-energy",
     connection: {
       model: "E1",
+      profileId: "e1-abf0-203",
       transportDeviceId: printerId.slice("makeid:".length),
     },
   };

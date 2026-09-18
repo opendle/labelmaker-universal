@@ -171,8 +171,6 @@ describe("desktop physical print dispatch", () => {
         displayName: "Shipping desk",
         darkness: 24,
         printHeadSizeMm: 11.8,
-        marginTopMm: 1.4,
-        marginBottomMm: 2.6,
       },
     ).then((result) => {
       settled = true;
@@ -193,8 +191,6 @@ describe("desktop physical print dispatch", () => {
       rasterWidthPixels: 96,
       printableWidthMm: 11.8,
       rasterAlignment: "end",
-      marginTopMm: 1.4,
-      marginBottomMm: 2.6,
     });
 
     finishPrint?.();

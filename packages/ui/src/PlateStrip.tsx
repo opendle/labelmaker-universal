@@ -349,8 +349,6 @@ export function PlateStrip({
   onMovePlate,
   printHeadSizeMm,
   minimumLabelWidthMm = 0,
-  marginTopMm,
-  marginBottomMm,
   rasterAlignment,
   phoneMode = false,
   short = false,
@@ -363,8 +361,6 @@ export function PlateStrip({
   readonly onMovePlate: (plateId: string, targetIndex: number) => void;
   readonly printHeadSizeMm: number | undefined;
   readonly minimumLabelWidthMm?: number | undefined;
-  readonly marginTopMm: number | undefined;
-  readonly marginBottomMm: number | undefined;
   readonly rasterAlignment?: RasterAlignment | undefined;
   readonly phoneMode?: boolean;
   readonly short?: boolean;
@@ -395,8 +391,6 @@ export function PlateStrip({
           const printableMargins = nonPrintableMarginsMm(
             plate.size.heightMm,
             printHeadSizeMm,
-            marginTopMm,
-            marginBottomMm,
             rasterAlignment,
           );
           const crop = printableVerticalCrop(

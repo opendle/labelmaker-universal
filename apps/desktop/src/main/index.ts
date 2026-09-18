@@ -585,8 +585,6 @@ function registerIpc(): void {
               "darkness",
               "displayName",
               "printHeadSizeMm",
-              "marginTopMm",
-              "marginBottomMm",
               "interLabelSpacingMm",
               "feedAfterPrintMm",
               "minimumLabelWidthMm",
@@ -613,8 +611,6 @@ function registerIpc(): void {
       }
       const geometry = {
         printHeadSizeMm: settings.printHeadSizeMm,
-        marginTopMm: settings.marginTopMm,
-        marginBottomMm: settings.marginBottomMm,
         interLabelSpacingMm: settings.interLabelSpacingMm,
         ...(settings.minimumLabelWidthMm === undefined
           ? {}
@@ -626,8 +622,6 @@ function registerIpc(): void {
       if (
         !isPrinterSettings(geometry) ||
         geometry.printHeadSizeMm === undefined ||
-        geometry.marginTopMm === undefined ||
-        geometry.marginBottomMm === undefined ||
         geometry.interLabelSpacingMm === undefined
       ) {
         throw new RangeError(
@@ -638,8 +632,6 @@ function registerIpc(): void {
         ...(displayName === undefined ? {} : { displayName }),
         ...(darkness === undefined ? {} : { darkness }),
         printHeadSizeMm: geometry.printHeadSizeMm,
-        marginTopMm: geometry.marginTopMm,
-        marginBottomMm: geometry.marginBottomMm,
         interLabelSpacingMm: geometry.interLabelSpacingMm,
         ...(geometry.minimumLabelWidthMm === undefined
           ? {}

@@ -23,8 +23,6 @@ export interface PrinterSummary {
   readonly rasterWidthPixels?: number;
   readonly printableWidthMm?: number;
   readonly rasterAlignment?: RasterAlignment;
-  readonly marginTopMm?: number;
-  readonly marginBottomMm?: number;
   readonly interLabelSpacingMm?: number;
   readonly feedAfterPrintMm?: number;
   readonly minimumLabelWidthMm?: number;

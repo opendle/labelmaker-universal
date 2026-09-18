@@ -1,3 +1,4 @@
+import { nonPrintableMarginsMm } from "./label-layout.js";
 import type { LabelDocument } from "@labelmaker/domain";
 import { describe, expect, it } from "vitest";
 
@@ -62,6 +63,40 @@ const document: LabelDocument = {
     },
   ],
 };
+
+describe("frames from paper and head overlap", () => {
+  it.each([
+    [16, 2, 12],
+    [14, 1, 12],
+    [12, 0, 12],
+    [9, 0, 9],
+  ])(
+    "uses calculated bounds for new elements on %s mm paper",
+    (heightMm, yMm, printableHeight) => {
+      const plate = {
+        ...document.plates[0]!,
+        size: { widthMm: 100, heightMm },
+      };
+      const margins = nonPrintableMarginsMm(heightMm, 12);
+      const workspace = {
+        ...document,
+        defaultPlateSize: plate.size,
+        plates: [plate],
+      };
+      const frame = { yMm, heightMm: printableHeight };
+      expect(createText(plate, margins)).toMatchObject({
+        ...frame,
+        xMm: 30,
+        widthMm: 40,
+      });
+      expect(
+        createImage(plate, "data:image/png;base64,image", margins),
+      ).toMatchObject(frame);
+      expect(createPlate(workspace, margins).elements[0]).toMatchObject(frame);
+      expect(plate.elements).toEqual(document.plates[0]!.elements);
+    },
+  );
+});
 
 describe("createPlate", () => {
   it("names a new label by its position", () => {

@@ -4,6 +4,7 @@ import { dirname, resolve } from "node:path";
 
 import {
   isPrinterSettings,
+  readLegacyPrinterSettings,
   MAX_PRINTER_DISPLAY_NAME_LENGTH,
   type PrinterDescriptor,
   type PrinterSettings,
@@ -250,7 +251,8 @@ function readStoredPrinterConfiguration(
     (!isRecord(value.printerSettings) ||
       !Object.entries(value.printerSettings).every(
         ([printerId, settings]) =>
-          printerIds.includes(printerId) && isPrinterSettings(settings),
+          printerIds.includes(printerId) &&
+          readLegacyPrinterSettings(settings) !== undefined,
       ))
   ) {
     return undefined;
@@ -282,7 +284,14 @@ function readStoredPrinterConfiguration(
     printerSettings:
       value.printerSettings === undefined
         ? {}
-        : (value.printerSettings as Readonly<Record<string, PrinterSettings>>),
+        : Object.fromEntries(
+            Object.entries(
+              value.printerSettings as Record<string, unknown>,
+            ).map(([id, settings]) => [
+              id,
+              readLegacyPrinterSettings(settings)!,
+            ]),
+          ),
     savedPrinterRecords:
       value.version === CONFIGURATION_VERSION
         ? (savedPrinterRecords as Readonly<Record<string, SavedPrinterRecord>>)

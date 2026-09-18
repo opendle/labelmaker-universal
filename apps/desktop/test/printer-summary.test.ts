@@ -84,8 +84,6 @@ describe("desktop printer summaries", () => {
           rasterWidthPixels: 96,
           printableWidthMm: 12,
           rasterAlignment: "end",
-          printHeadMarginTopMm: 2,
-          printHeadMarginBottomMm: 2,
           darkness: {
             minimum: 0,
             maximum: 31,
@@ -97,8 +95,6 @@ describe("desktop printer summaries", () => {
           displayName: "Shipping desk",
           darkness: 24,
           printHeadSizeMm: 11.8,
-          marginTopMm: 1.4,
-          marginBottomMm: 2.6,
           interLabelSpacingMm: 1.5,
         },
       },
@@ -113,12 +109,12 @@ describe("desktop printer summaries", () => {
       dpi: 203,
       printableWidthMm: 11.8,
       rasterAlignment: "end",
-      marginTopMm: 1.4,
-      marginBottomMm: 2.6,
       interLabelSpacingMm: 1.5,
       darkness: { value: 24 },
     });
     expect(printer.displayName).toBe("YichipFPGA-test");
+    expect(summary).not.toHaveProperty("marginTopMm");
+    expect(summary).not.toHaveProperty("marginBottomMm");
     expect(getSession).not.toHaveBeenCalled();
   });
 

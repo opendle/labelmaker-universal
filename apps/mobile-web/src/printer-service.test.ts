@@ -60,6 +60,76 @@ describe("iPad printer configuration", () => {
     expect(service.getActivePrinterId()).toBeNull();
   });
 
+  it.each([undefined, 1, 2])(
+    "preserves settings from configuration version %s after save and restart",
+    async (version) => {
+      const settings = {
+        displayName: "Workshop printer",
+        darkness: 24,
+        printHeadSizeMm: 11.8,
+        interLabelSpacingMm: 1.5,
+        feedAfterPrintMm: 2.5,
+        minimumLabelWidthMm: 22,
+      };
+      localStorage.setItem(
+        CONFIGURATION_KEY,
+        JSON.stringify({
+          version,
+          printerIds: [PRINTER_ID],
+          activePrinterId: PRINTER_ID,
+          settings: {
+            [PRINTER_ID]: {
+              ...settings,
+              marginTopMm: 1.9,
+              marginBottomMm: 0,
+            },
+          },
+          printerRecords: {
+            [PRINTER_ID]: {
+              id: PRINTER_ID,
+              adapterId: "makeid",
+              displayName: "Stored printer",
+              model: "E1",
+              transport: "bluetooth-low-energy",
+              connection: {
+                transportDeviceId: "ipad-ble-test-device",
+                profileId: "e1-abf0-203",
+              },
+            },
+          },
+        }),
+      );
+      const service = createService();
+      const expectedSummary = {
+        id: PRINTER_ID,
+        name: settings.displayName,
+        darkness: { value: settings.darkness },
+        printableWidthMm: settings.printHeadSizeMm,
+        interLabelSpacingMm: settings.interLabelSpacingMm,
+        feedAfterPrintMm: settings.feedAfterPrintMm,
+        minimumLabelWidthMm: settings.minimumLabelWidthMm,
+        rasterAlignment: "center",
+      };
+      expect(service.getActivePrinterId()).toBe(PRINTER_ID);
+      const initialSummary = (await service.listPrinters())[0]!;
+      expect(initialSummary).toMatchObject(expectedSummary);
+      expect(initialSummary).not.toHaveProperty("marginTopMm");
+      expect(initialSummary).not.toHaveProperty("marginBottomMm");
+
+      service.setActivePrinterId(PRINTER_ID);
+      const saved = JSON.parse(localStorage.getItem(CONFIGURATION_KEY)!);
+      expect(saved.version).toBe(2);
+      expect(saved.settings).toEqual({ [PRINTER_ID]: settings });
+
+      const restarted = createService();
+      expect(restarted.getActivePrinterId()).toBe(PRINTER_ID);
+      const summary = (await restarted.listPrinters())[0]!;
+      expect(summary).toMatchObject(expectedSummary);
+      expect(summary).not.toHaveProperty("marginTopMm");
+      expect(summary).not.toHaveProperty("marginBottomMm");
+    },
+  );
+
   it("does not restore old mock printers", async () => {
     localStorage.setItem(
       CONFIGURATION_KEY,
@@ -401,24 +471,50 @@ describe("iPad printer configuration", () => {
     await service.print(request);
     expect(renderPlateForPrinter).toHaveBeenLastCalledWith(
       document.plates[0],
-      expect.objectContaining({ marginTopMm: 0, marginBottomMm: 3 }),
+      {
+        dpi: 203,
+        rasterWidthPixels: 96,
+        printableWidthMm: 12,
+        rasterAlignment: "center",
+      },
       expect.any(Function),
       expect.any(Function),
     );
+    const initialSummary = (await service.listPrinters())[0]!;
+    expect(initialSummary.printableWidthMm).toBe(12);
+    expect(initialSummary).not.toHaveProperty("marginTopMm");
+    expect(initialSummary).not.toHaveProperty("marginBottomMm");
     await service.updatePrinterSettings(PRINTER_ID, {
-      marginTopMm: 4,
-      marginBottomMm: 0,
+      printHeadSizeMm: 11.8,
       feedAfterPrintMm: 2.5,
       minimumLabelWidthMm: 16,
     });
     await service.print(request);
     expect(renderPlateForPrinter).toHaveBeenLastCalledWith(
       document.plates[0],
-      expect.objectContaining({ marginTopMm: 4, marginBottomMm: 0 }),
+      {
+        dpi: 203,
+        rasterWidthPixels: 96,
+        printableWidthMm: 11.8,
+        rasterAlignment: "center",
+      },
       expect.any(Function),
       expect.any(Function),
     );
 
+    const saved = localStorage.getItem(CONFIGURATION_KEY)!;
+    expect(saved).not.toContain("marginTopMm");
+    expect(saved).not.toContain("marginBottomMm");
+    const restarted = createService();
+    expect(restarted.getActivePrinterId()).toBe(PRINTER_ID);
+    const summary = (await restarted.listPrinters())[0]!;
+    expect(summary).toMatchObject({
+      printableWidthMm: 11.8,
+      feedAfterPrintMm: 2.5,
+      minimumLabelWidthMm: 16,
+    });
+    expect(summary).not.toHaveProperty("marginTopMm");
+    expect(summary).not.toHaveProperty("marginBottomMm");
     expect(rasterHeights).toEqual([1, 148]);
     expect(
       methods.filter((method) => method === "bluetoothConnect"),

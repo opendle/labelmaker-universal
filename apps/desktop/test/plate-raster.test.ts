@@ -32,17 +32,17 @@ describe("desktop plate rasterization", () => {
     expect(svg).toContain('height="10" fill="white"');
   });
 
-  it("clips independent margins without moving the physical print head", () => {
-    const svg = buildPlateSvg(plate, 320, 96, 12, 1, 3);
+  it("clips paper at the physical printhead limits", () => {
+    const svg = buildPlateSvg(plate, 320, 96, 12);
 
     expect(svg).toContain('viewBox="0 2 40 12"');
     expect(svg).toContain(
-      '<clipPath id="printable-area"><rect x="0" y="2" width="40" height="11"/></clipPath>',
+      '<clipPath id="printable-area"><rect x="0" y="2" width="40" height="12"/></clipPath>',
     );
   });
 
   it("keeps centered artwork centered on 16 mm MakeID E1 media", () => {
-    const svg = buildPlateSvg(plate, 320, 96, 12, 2, 2, "center");
+    const svg = buildPlateSvg(plate, 320, 96, 12, "center");
 
     expect(svg).toContain('viewBox="0 2 40 12"');
   });
@@ -55,7 +55,7 @@ describe("desktop plate rasterization", () => {
     "positions narrow media at the %s of the print head",
     (rasterAlignment, viewBoxY) => {
       const narrow = { ...plate, size: { ...plate.size, heightMm: 10 } };
-      const svg = buildPlateSvg(narrow, 320, 96, 12, 0, 0, rasterAlignment);
+      const svg = buildPlateSvg(narrow, 320, 96, 12, rasterAlignment);
 
       expect(svg).toContain(`viewBox="0 ${String(viewBoxY)} 40 12"`);
     },

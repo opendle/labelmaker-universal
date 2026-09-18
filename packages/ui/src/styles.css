@@ -2366,13 +2366,16 @@ textarea.inline-text-editor {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  outline: 1px solid #a8a49a;
-  background: var(--paper);
+  background: #ece9df;
 }
-.printer-ribbon svg {
+.printer-ribbon-label {
   position: absolute;
-  inset: 0;
-  fill: #24221e;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
 }
 .printer-ribbon-gap {
   position: absolute;
@@ -2396,21 +2399,10 @@ textarea.inline-text-editor {
 .printer-ribbon-gap::after {
   right: 0;
 }
-.printer-ribbon .nonprintable-zone {
-  border: 0;
-}
-.printer-ribbon .nonprintable-zone.top {
-  box-shadow: inset 0 -1px rgba(105, 100, 91, 0.42);
-}
-.printer-ribbon .nonprintable-zone.bottom {
-  box-shadow: inset 0 1px rgba(105, 100, 91, 0.42);
-}
 .printer-ribbon-preview .dimension-value {
   background: var(--dimension-value-background);
 }
-.printer-ruler-top,
-.printer-ruler-head,
-.printer-ruler-bottom {
+.printer-ruler-head {
   left: -12px;
 }
 .printer-dimension-caption {
@@ -2429,14 +2421,6 @@ textarea.inline-text-editor {
   color: var(--muted);
   font-size: 10px;
 }
-.printer-ruler-top .printer-dimension-caption {
-  top: -28px;
-  transform: translateY(-100%);
-}
-.printer-ruler-bottom .printer-dimension-caption {
-  top: calc(100% + 28px);
-  transform: none;
-}
 .printer-dimension-caption::after {
   content: "";
   position: absolute;
@@ -2444,18 +2428,6 @@ textarea.inline-text-editor {
   top: 50%;
   width: 8px;
   border-top: 1px solid #817e75;
-}
-.printer-ruler-top .printer-dimension-caption::after {
-  top: 100%;
-  height: 28px;
-  border-top: 0;
-  border-left: 1px solid #817e75;
-  border-bottom: 1px solid #817e75;
-}
-.printer-ruler-bottom .printer-dimension-caption::after {
-  top: -28px;
-  height: 28px;
-  border-left: 1px solid #817e75;
 }
 .printer-ruler-gap,
 .presentation-mobile-touch .printer-ruler-gap {

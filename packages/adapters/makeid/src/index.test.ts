@@ -97,8 +97,6 @@ describe("MakeIdAdapter", () => {
       rasterWidthPixels: 96,
       printableWidthMm: 12,
       rasterAlignment: "center",
-      printHeadMarginTopMm: 2,
-      printHeadMarginBottomMm: 2,
       darkness: { minimum: 0, maximum: 31, step: 1, defaultValue: 20 },
       maxCopies: 9,
       supportsCut: false,
@@ -552,20 +550,29 @@ describe("MakeIdAdapter", () => {
     },
   );
 
-  it.each(["l1-ff00-300", "l1-abf0-300"] as const)(
-    "rounds the %s default margins to tenths",
-    (profileId) => {
+  it.each([
+    ["e1-abf0-203", 12, 96, 203],
+    ["l1-abf0-203", 12, 96, 203],
+    ["l1-abf0-300", 12.2, 144, 300],
+    ["l1-ff00-203", 12, 96, 203],
+    ["l1-ff00-300", 12.2, 144, 300],
+  ] as const)(
+    "keeps %s head calibration without vertical margin defaults",
+    (profileId, printableWidthMm, rasterWidthPixels, dpi) => {
       const adapter = new MakeIdAdapter(
         new FakeProvider([], new RecordingMakeIdTransport()),
       );
-      expect(
-        adapter.offlineCapabilitiesFor(
-          makePrinter("l1", profileId, "MakeID L1"),
-        ),
-      ).toMatchObject({
-        printHeadMarginTopMm: 1.9,
-        printHeadMarginBottomMm: 1.9,
+      const capabilities = adapter.offlineCapabilitiesFor(
+        makePrinter("l1", profileId, "MakeID L1"),
+      );
+      expect(capabilities).toMatchObject({
+        printableWidthMm,
+        rasterWidthPixels,
+        dpi,
+        rasterAlignment: "center",
       });
+      expect(capabilities).not.toHaveProperty("printHeadMarginTopMm");
+      expect(capabilities).not.toHaveProperty("printHeadMarginBottomMm");
     },
   );
 

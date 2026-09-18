@@ -34,28 +34,24 @@ export function printableVerticalCrop(
   plateHeightMm: number,
   margins: PrintableMargins,
 ) {
-  const { topMm, bottomMm, heightMm } = printerVerticalGeometry(
-    plateHeightMm,
-    plateHeightMm,
-    Math.max(0, margins.topMm),
+  const topMm = Math.min(plateHeightMm, Math.max(0, margins.topMm));
+  const bottomMm = Math.min(
+    plateHeightMm - topMm,
     Math.max(0, margins.bottomMm),
   );
+  const heightMm = Math.max(0, plateHeightMm - topMm - bottomMm);
   return { topMm, bottomMm, heightMm };
 }
 
 export function nonPrintableMarginsMm(
   plateHeightMm: number,
   printHeadSizeMm: number | undefined,
-  configuredTopMm = 0,
-  configuredBottomMm = 0,
   rasterAlignment: RasterAlignment = "center",
 ): PrintableMargins {
   if (printHeadSizeMm === undefined) return { topMm: 0, bottomMm: 0 };
   const { topMm, bottomMm } = printerVerticalGeometry(
     plateHeightMm,
     printHeadSizeMm,
-    configuredTopMm,
-    configuredBottomMm,
     rasterAlignment,
   );
   return { topMm, bottomMm };

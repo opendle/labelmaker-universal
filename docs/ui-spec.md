@@ -93,17 +93,14 @@ appearances so that they show the physical label and printed result accurately.
 - Allow canvas zoom from 60% through 300%. Use wheel or trackpad scroll and
   touch pinch for zoom. Do not show an on-screen zoom control.
 - Align every 5 mm background grid line to the center of its ruler tick.
-- Show capability-reported top and bottom non-printable areas on the canvas.
-  Calculate each area from the current label height and the printer's physical
-  printable width and configured top and bottom margins. Each margin reserves
-  blank space at its label edge, including on narrow labels. The print head can
-  impose a larger non-printable area. Use the same geometry as the renderer.
-  Do not scale a narrow label to the full print-head
-  width. Crop the top and bottom non-printable regions from plate thumbnails.
-  Scale the remaining printable artwork to the existing thumbnail height and
-  increase the thumbnail width by the same factor. Do not show non-printable
-  hatch overlays in thumbnails. If margins cover the complete label, show a
-  blank thumbnail with the full label proportions.
+- Calculate top and bottom blank paper areas from paper height, printhead size,
+  and printer alignment through the shared `printerVerticalGeometry` function.
+  Show each canvas blank area only when it is greater than zero. Use the same
+  bounds for rulers, snapping, new element frames, SVG clipping, and print.
+  Crop thumbnails to these calculated bounds and scale the remaining artwork
+  to the existing thumbnail height. Increase width by the same factor. Do not
+  show blank-area hatch overlays in thumbnails. When printer capabilities are
+  missing, show the full paper. Keep artwork positions in saved files unchanged.
 - Resize text, image, and shape elements from corner handles and rotate them
   from a separate rotation handle. Hold Shift during a resize to preserve the
   frame's current proportions. Rotate freely, but snap to each 45-degree angle
@@ -202,19 +199,18 @@ appearances so that they show the physical label and printed result accurately.
   This setting must not change the printer ID or connection data. Keep this
   display name while a print job runs. Use it in print success and failure
   messages.
-  Let the user change print-head size and independent top and bottom margins in
-  0.1 mm steps. Let the user set the space between labels, with 1 mm as the
+  Let the user change printhead size in 0.1 mm steps. Let the user set the space between labels, with 1 mm as the
   default. Let the user change other capabilities that the printer reports
   as adjustable, such as darkness. Keep print density as a slider. When the
   capability has named levels, show the selected name and the level names.
   Replace the geometry field rows with a
-  diagram of one example label and part of the next label. Show the printable
-  area and hatched top and bottom margins across the full ribbon width. Use
-  straight label separations. Draw the ribbon to scale on both axes, with a
+  diagram with a band labelled "Printhead area" and the space between labels.
+  Remove paper-edge outlines, top and bottom margin controls, and margin
+  hatching. Use straight label separations. Draw the ribbon to scale on both axes, with a
   30 mm example label independent of the current plate. Do not show a width
   ruler for the example label. Fit the ribbon in a compact area. Use the main
   canvas ruler style and editable text for the
-  three vertical areas and the gap between labels. On hover, explain what each
+  physical head size across the paper and the gap between labels. On hover, explain what each
   dimension measures and that it is editable. Show resolution
   as fixed text above the diagram. Below it, show an editable
   "Minimum label length" field and a "Feed after last label" field on one row.
@@ -227,7 +223,7 @@ appearances so that they show the physical label and printed result accurately.
   canvas, its width ruler, and thumbnails. Keep artwork size and position, and
   do not change the saved plate when the printer setting changes. Keep all
   dimensions keyboard accessible,
-  including zero margins and zero gap. Do not put a frame or group title around
+  including a zero gap. Do not put a frame or group title around
   the diagram or darkness. Enter in a dimension ends editing without closing
   the dialog. Enter in the printer name saves the settings and closes the
   dialog. Keep only the Save action in the dialog footer. Store all

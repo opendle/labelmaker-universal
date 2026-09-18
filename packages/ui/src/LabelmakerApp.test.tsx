@@ -73,8 +73,6 @@ function createHost(overrides: Partial<LabelmakerHost> = {}): LabelmakerHost {
         dpi: 203,
         rasterWidthPixels: 96,
         printableWidthMm: 12,
-        marginTopMm: 2,
-        marginBottomMm: 2,
         darkness: {
           minimum: 0,
           maximum: 31,
@@ -430,23 +428,36 @@ describe("LabelmakerApp", () => {
     expect(Number.parseFloat(miniText.style.height)).toBeCloseTo(80);
   });
 
-  it("merges equal total and printable height rulers", async () => {
-    render(<LabelmakerApp host={createHost()} />);
-    const height = screen.getByLabelText("Plate height");
-    fireEvent.change(height, { target: { value: "10" } });
-
-    expect(
-      document.querySelector(".dimension-ruler-printable-height"),
-    ).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Plate height")).toHaveValue(10);
-    expect(document.querySelector(".dimension-ruler-height")).toHaveClass(
-      "dimension-ruler-height-merged",
-    );
-    const zones = screen
-      .getByRole("region", { name: "Resistors label canvas" })
-      .querySelectorAll<HTMLElement>(".nonprintable-zone");
-    expect(zones[0]).toHaveStyle({ height: "0%" });
-  });
+  it.each([
+    [16, 2, 12],
+    [14, 1, 12],
+    [12, 0, 12],
+    [9, 0, 9],
+  ])(
+    "shows calculated canvas guides for %s mm paper",
+    async (paper, blank, printable) => {
+      render(<LabelmakerApp host={createHost()} />);
+      await screen.findByText("Studio Labeler");
+      fireEvent.change(screen.getByLabelText("Plate height"), {
+        target: { value: String(paper) },
+      });
+      expect(screen.getByLabelText("Plate height")).toHaveValue(paper);
+      const ruler = document.querySelector(".dimension-ruler-printable-height");
+      if (blank) expect(ruler).toHaveTextContent(`${printable} mm`);
+      else {
+        expect(ruler).not.toBeInTheDocument();
+        expect(document.querySelector(".dimension-ruler-height")).toHaveClass(
+          "dimension-ruler-height-merged",
+        );
+      }
+      const zones = screen
+        .getByRole("region", { name: "Resistors label canvas" })
+        .querySelectorAll<HTMLElement>(".nonprintable-zone");
+      expect(zones).toHaveLength(blank ? 2 : 0);
+      for (const zone of zones)
+        expect(zone).toHaveStyle({ height: `${(blank / paper) * 100}%` });
+    },
+  );
 
   it("uses the selected printer printable width", async () => {
     const narrowHead = {
@@ -796,8 +807,6 @@ describe("LabelmakerApp", () => {
         settings: {
           darkness?: number;
           printHeadSizeMm?: number;
-          marginTopMm?: number;
-          marginBottomMm?: number;
           interLabelSpacingMm?: number;
         },
       ) => [
@@ -812,8 +821,6 @@ describe("LabelmakerApp", () => {
           dpi: 203,
           rasterWidthPixels: 96,
           printableWidthMm: settings.printHeadSizeMm ?? 12,
-          marginTopMm: settings.marginTopMm ?? 2,
-          marginBottomMm: settings.marginBottomMm ?? 2,
           interLabelSpacingMm: settings.interLabelSpacingMm ?? 1,
           darkness: {
             minimum: 0,
@@ -853,17 +860,9 @@ describe("LabelmakerApp", () => {
       "Use 0.1 mm steps",
     );
     expect(screen.getByLabelText("Print head size")).toHaveValue(12);
-    expect(screen.getByLabelText("Top margin")).toHaveValue(2);
-    expect(screen.getByLabelText("Bottom margin")).toHaveValue(2);
     expect(screen.getByLabelText("Margin between labels")).toHaveValue(1);
     fireEvent.change(screen.getByLabelText("Print head size"), {
       target: { value: "11.8" },
-    });
-    fireEvent.change(screen.getByLabelText("Top margin"), {
-      target: { value: "1.4" },
-    });
-    fireEvent.change(screen.getByLabelText("Bottom margin"), {
-      target: { value: "2.6" },
     });
     fireEvent.change(screen.getByLabelText("Margin between labels"), {
       target: { value: "1.5" },
@@ -876,8 +875,6 @@ describe("LabelmakerApp", () => {
       expect(updatePrinterSettings).toHaveBeenCalledWith("mock-studio", {
         darkness: 24,
         printHeadSizeMm: 11.8,
-        marginTopMm: 1.4,
-        marginBottomMm: 2.6,
         interLabelSpacingMm: 1.5,
         feedAfterPrintMm: 0,
         minimumLabelWidthMm: 0,
@@ -929,8 +926,6 @@ describe("LabelmakerApp", () => {
         displayName: "Workbench printer",
         darkness: 20,
         printHeadSizeMm: 12,
-        marginTopMm: 2,
-        marginBottomMm: 2,
         interLabelSpacingMm: 1,
         feedAfterPrintMm: 0,
         minimumLabelWidthMm: 0,
@@ -953,8 +948,6 @@ describe("LabelmakerApp", () => {
         dpi: 203,
         rasterWidthPixels: 96,
         printableWidthMm: 12,
-        marginTopMm: 2,
-        marginBottomMm: 2,
         interLabelSpacingMm: 1,
       },
     ]);
@@ -978,8 +971,6 @@ describe("LabelmakerApp", () => {
     await waitFor(() =>
       expect(updatePrinterSettings).toHaveBeenCalledWith("mock-studio", {
         printHeadSizeMm: 12,
-        marginTopMm: 2,
-        marginBottomMm: 2,
         interLabelSpacingMm: 1,
         feedAfterPrintMm: 0,
         minimumLabelWidthMm: 0,
@@ -2383,8 +2374,6 @@ describe("LabelmakerApp", () => {
           dpi: 203,
           rasterWidthPixels: 96,
           printableWidthMm: 12,
-          marginTopMm: 2,
-          marginBottomMm: 2,
           interLabelSpacingMm: 1,
         },
       ]),

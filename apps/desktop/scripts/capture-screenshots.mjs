@@ -4,6 +4,8 @@ import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 
+import { assertPaperGeometry } from "./assert-paper-geometry.mjs";
+
 import { prepareDesktopRuntime } from "./capture-support.mjs";
 
 const appDirectory = resolve(import.meta.dirname, "..");
@@ -106,6 +108,7 @@ async function launchCaptureApplication(width, height) {
     },
   });
   page = await application.firstWindow();
+  await assertPaperGeometry(page);
 }
 
 async function capture(width, height, name, setup) {
@@ -816,6 +819,40 @@ for (const [width, height, touch] of [
       name: "Printer label dimensions",
     });
     await diagram.waitFor();
+    if (
+      !(await diagram.getByText("Printhead area", { exact: true }).count()) ||
+      (await diagram.locator(".nonprintable-zone").count()) ||
+      (await diagram.getByLabel("Top margin", { exact: true }).count()) ||
+      (await diagram.getByLabel("Bottom margin", { exact: true }).count())
+    ) {
+      throw new Error("The printhead diagram has incorrect controls");
+    }
+    if (
+      !(await diagram.locator(".printer-ribbon-label").evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        const diagram = element
+          .closest(".printer-label-schematic")
+          .getBoundingClientRect();
+        return (
+          Number.parseFloat(getComputedStyle(element).fontSize) >= 11 &&
+          bounds.left >= diagram.left &&
+          bounds.right <= diagram.right
+        );
+      }))
+    ) {
+      throw new Error(
+        "The printhead band label is too small or outside the diagram",
+      );
+    }
+    if (
+      await diagram
+        .locator(".printer-ribbon")
+        .evaluate(
+          (element) => getComputedStyle(element).outlineStyle !== "none",
+        )
+    ) {
+      throw new Error("The printhead band has a paper-edge outline");
+    }
     const schematicHeight = await diagram
       .locator(".printer-label-schematic")
       .evaluate((element) => element.getBoundingClientRect().height);
@@ -831,24 +868,20 @@ for (const [width, height, touch] of [
     if (!fits)
       throw new Error("Printer dimension controls overflow the diagram");
     const original = await Promise.all(
-      [
-        "Print head size",
-        "Top margin",
-        "Bottom margin",
-        "Margin between labels",
-      ].map((name) => page.getByLabel(name, { exact: true }).inputValue()),
+      ["Print head size", "Margin between labels"].map((name) =>
+        page.getByLabel(name, { exact: true }).inputValue(),
+      ),
     );
     for (const values of [
-      ["12", "1", "2", "3"],
-      ["12", "0", "0", "0"],
-      ["0.1", "0", "0", "0"],
-      ["0.1", "100", "100", "100"],
+      ["12", "3"],
+      ["12", "0"],
+      ["0.1", "0"],
+      ["0.1", "100"],
+      ["100", "100"],
       original,
     ]) {
       for (const [index, name] of [
         "Print head size",
-        "Top margin",
-        "Bottom margin",
         "Margin between labels",
       ].entries()) {
         await page.getByLabel(name, { exact: true }).fill(values[index]);
@@ -877,8 +910,6 @@ for (const [width, height, touch] of [
           element.querySelector(selector).getBoundingClientRect();
         const ribbon = bounds(".printer-ribbon");
         const head = bounds(".printer-ruler-head");
-        const top = bounds(".nonprintable-zone.top");
-        const bottom = bounds(".nonprintable-zone.bottom");
         const gap = bounds(".printer-ribbon-gap");
         const figure = element.getBoundingClientRect();
         const fields = [...element.querySelectorAll(".dimension-value")].map(
@@ -887,10 +918,6 @@ for (const [width, height, touch] of [
         return {
           ribbon: { width: ribbon.width, height: ribbon.height },
           head: head.height,
-          top: top.height,
-          bottom: bottom.height,
-          topWidth: top.width,
-          bottomWidth: bottom.width,
           gap: gap.width,
           fits: fields.every(
             (field) =>
@@ -910,16 +937,12 @@ for (const [width, height, touch] of [
           ),
         };
       });
-      const [head, top, bottom, gap] = values.map(Number);
+      const [head, gap] = values.map(Number);
       const scale = geometry.ribbon.width / (44 + gap);
       for (const [actual, expected] of [
         [geometry.head, head * scale],
-        [geometry.top, top * scale],
-        [geometry.bottom, bottom * scale],
         [geometry.gap, gap * scale],
-        [geometry.ribbon.height, (head + top + bottom) * scale],
-        [geometry.topWidth, geometry.ribbon.width],
-        [geometry.bottomWidth, geometry.ribbon.width],
+        [geometry.ribbon.height, head * scale],
       ]) {
         if (Math.abs(actual - expected) > 0.2)
           throw new Error(

@@ -11,8 +11,6 @@ describe("iPad printer settings", () => {
       displayName: "Workshop printer",
       darkness: 20,
       printHeadSizeMm: 12.5,
-      marginTopMm: 0,
-      marginBottomMm: 1.2,
       interLabelSpacingMm: 1.5,
       feedAfterPrintMm: 11,
       minimumLabelWidthMm: 16,
@@ -25,7 +23,9 @@ describe("iPad printer settings", () => {
     { displayName: " Printer" },
     { darkness: 32 },
     { printHeadSizeMm: 0 },
+    { marginTopMm: 0 },
     { marginTopMm: -0.1 },
+    { marginBottomMm: 2 },
     { marginBottomMm: 0.15 },
     { interLabelSpacingMm: 0.15 },
     { minimumLabelWidthMm: 100.1 },
@@ -49,6 +49,6 @@ describe("iPad printer settings", () => {
         },
         ["configured", "invalid"],
       ),
-    ).toEqual({ configured: { darkness: 18, marginTopMm: 0.5 } });
+    ).toEqual({ configured: { darkness: 18 } });
   });
 });

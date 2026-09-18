@@ -53,8 +53,6 @@ function renderStrip(
   const result = render(
     <PlateStrip
       activePlateId="plate-resistors"
-      marginBottomMm={undefined}
-      marginTopMm={undefined}
       onAddPlate={vi.fn()}
       onDeletePlate={vi.fn()}
       onMovePlate={onMovePlate}
@@ -81,43 +79,45 @@ describe("PlateStrip", () => {
     expect(container.querySelector(".artwork-nonprintable")).toBeNull();
   });
 
-  it("crops non-printable rows and scales printable artwork to full height", () => {
-    const { container } = render(
-      <PlateStrip
-        activePlateId="plate-resistors"
-        marginBottomMm={0}
-        marginTopMm={0}
-        onAddPlate={vi.fn()}
-        onDeletePlate={vi.fn()}
-        onMovePlate={vi.fn()}
-        onSelectPlate={vi.fn()}
-        printHeadSizeMm={12}
-        workspace={sampleDocument}
-      />,
-    );
-    const thumbnail = container.querySelector<HTMLElement>(".plate-thumb")!;
-    const artwork = thumbnail.querySelector<HTMLElement>(".mini-label")!;
-    const text = artwork.querySelector<HTMLElement>(".label-artwork-text")!;
-
-    expect(thumbnail.style.getPropertyValue("--label-preview-height")).toBe(
-      "52px",
-    );
-    expect(
-      Number.parseFloat(
-        thumbnail.style.getPropertyValue("--label-preview-width"),
-      ),
-    ).toBeCloseTo((62 * 3.25 * 16) / 12);
-    expect(artwork).toHaveStyle({ aspectRatio: String(62 / 12) });
-    expect(text.style.top).toBe(`${((3.2 - 2) / 12) * 100}%`);
-    expect(text.style.height).toBe(`${(9.6 / 12) * 100}%`);
-  });
+  it.each([
+    [16, 2, 12],
+    [14, 1, 12],
+    [12, 0, 12],
+    [9, 0, 9],
+  ])(
+    "crops %s mm paper to the calculated head overlap",
+    (heightMm, top, height) => {
+      const workspace = {
+        ...sampleDocument,
+        plates: sampleDocument.plates.map((plate) => ({
+          ...plate,
+          size: { ...plate.size, heightMm },
+        })),
+      };
+      const { container } = render(
+        <PlateStrip
+          activePlateId="plate-resistors"
+          onAddPlate={vi.fn()}
+          onDeletePlate={vi.fn()}
+          onMovePlate={vi.fn()}
+          onSelectPlate={vi.fn()}
+          printHeadSizeMm={12}
+          workspace={workspace}
+        />,
+      );
+      const artwork = container.querySelector<HTMLElement>(".mini-label")!;
+      const text = artwork.querySelector<HTMLElement>(".label-artwork-text")!;
+      expect(artwork).toHaveStyle({ aspectRatio: String(62 / height) });
+      expect(text.style.top).toBe(`${((3.2 - top) / height) * 100}%`);
+      expect(text.style.height).toBe(`${(9.6 / height) * 100}%`);
+      expect(artwork.querySelector(".nonprintable-zone")).toBeNull();
+    },
+  );
 
   it("shows minimum-width paper without stretching the thumbnail artwork", () => {
     const { container } = render(
       <PlateStrip
         activePlateId="plate-resistors"
-        marginTopMm={0}
-        marginBottomMm={0}
         printHeadSizeMm={16}
         minimumLabelWidthMm={80}
         workspace={sampleDocument}
@@ -138,41 +138,6 @@ describe("PlateStrip", () => {
       width: "77.5%",
     });
   });
-
-  it.each([
-    [8, 8],
-    [8.2, 7.8],
-    [10, 10],
-    [100, 0],
-  ])(
-    "shows a blank thumbnail when margins %s / %s cover the label",
-    (top, bottom) => {
-      const { container } = render(
-        <PlateStrip
-          activePlateId="plate-resistors"
-          marginBottomMm={bottom}
-          marginTopMm={top}
-          onAddPlate={vi.fn()}
-          onDeletePlate={vi.fn()}
-          onMovePlate={vi.fn()}
-          onSelectPlate={vi.fn()}
-          printHeadSizeMm={12}
-          workspace={sampleDocument}
-        />,
-      );
-      const thumbnail = container.querySelector<HTMLElement>(".plate-thumb")!;
-      const artwork = thumbnail.querySelector<HTMLElement>(".mini-label")!;
-
-      expect(artwork.querySelector(".label-artwork-element")).toBeNull();
-      expect(artwork).toHaveStyle({ aspectRatio: String(62 / 16) });
-      expect(thumbnail.style.getPropertyValue("--label-preview-height")).toBe(
-        "52px",
-      );
-      expect(thumbnail.style.getPropertyValue("--label-preview-width")).toBe(
-        "201.5px",
-      );
-    },
-  );
 
   it("remounts thumbnail paint nodes after the native app returns to the foreground", () => {
     vi.stubGlobal(
@@ -388,8 +353,6 @@ describe("PlateStrip", () => {
     render(
       <PlateStrip
         activePlateId="plate-resistors"
-        marginBottomMm={undefined}
-        marginTopMm={undefined}
         onAddPlate={vi.fn()}
         onDeletePlate={vi.fn()}
         onMovePlate={vi.fn()}
@@ -411,8 +374,6 @@ describe("PlateStrip", () => {
     render(
       <PlateStrip
         activePlateId="plate-resistors"
-        marginBottomMm={undefined}
-        marginTopMm={undefined}
         onAddPlate={vi.fn()}
         onDeletePlate={vi.fn()}
         onMovePlate={vi.fn()}
