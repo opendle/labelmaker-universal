@@ -1,5 +1,31 @@
 import type { BarcodeFormat, CodeElement, QrData } from "@labelmaker/domain";
-import { toSVG } from "@bwip-js/generic";
+import {
+  code128,
+  code39,
+  datamatrix,
+  drawingSVG,
+  ean13,
+  ean8,
+  interleaved2of5,
+  itf14,
+  pdf417,
+  qrcode,
+  upca,
+} from "@bwip-js/generic";
+
+// Named encoders let the build remove unsupported barcode formats.
+const codeEncoders = {
+  code128,
+  code39,
+  datamatrix,
+  ean13,
+  ean8,
+  interleaved2of5,
+  itf14,
+  pdf417,
+  qrcode,
+  upca,
+} satisfies Record<BarcodeFormat | "qrcode", typeof code128>;
 
 export const BARCODE_FORMATS: readonly BarcodeFormat[] = [
   "code128",
@@ -164,33 +190,36 @@ export function generateCodeArtwork(code: CodeConfiguration): CodeArtwork {
   const matrix = ["qrcode", "datamatrix", "pdf417"].includes(format);
   let svg: string;
   try {
-    svg = toSVG({
-      bcid: format,
-      text: value,
-      scale: 1,
-      backgroundcolor: "FFFFFF",
-      barcolor: "000000",
-      // QR modules are two SVG units wide at scale 1. Keep four modules clear.
-      padding:
-        code.includeMargin === true
-          ? format === "qrcode"
-            ? 8
-            : matrix
-              ? 4
-              : 24
-          : 0,
-      ...(code.kind === "qr"
-        ? { eclevel: code.qr?.errorCorrection ?? "M", fixedeclevel: true }
-        : {}),
-      ...(!matrix
-        ? {
-            height: 12,
-            includetext: code.barcode?.showText ?? true,
-            textxalign: "center" as const,
-            textsize: 10,
-          }
-        : {}),
-    });
+    svg = codeEncoders[format as keyof typeof codeEncoders](
+      {
+        bcid: format,
+        text: value,
+        scale: 1,
+        backgroundcolor: "FFFFFF",
+        barcolor: "000000",
+        // QR modules are two SVG units wide at scale 1. Keep four modules clear.
+        padding:
+          code.includeMargin === true
+            ? format === "qrcode"
+              ? 8
+              : matrix
+                ? 4
+                : 24
+            : 0,
+        ...(code.kind === "qr"
+          ? { eclevel: code.qr?.errorCorrection ?? "M", fixedeclevel: true }
+          : {}),
+        ...(!matrix
+          ? {
+              height: 12,
+              includetext: code.barcode?.showText ?? true,
+              textxalign: "center" as const,
+              textsize: 10,
+            }
+          : {}),
+      },
+      drawingSVG(),
+    );
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     // Keep encoder diagnostics useful without exposing the encoded content.

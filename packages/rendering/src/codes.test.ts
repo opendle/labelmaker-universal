@@ -1,4 +1,5 @@
 import type { QrData } from "@labelmaker/domain";
+import { toSVG } from "@bwip-js/generic";
 import { describe, expect, it } from "vitest";
 import {
   BARCODE_FORMATS,
@@ -100,6 +101,52 @@ const values = {
 };
 
 describe("code artwork", () => {
+  it.each(["qrcode", ...BARCODE_FORMATS] as const)(
+    "keeps the SVG output of the generic encoder for %s",
+    (format) => {
+      const matrix = ["qrcode", "datamatrix", "pdf417"].includes(format);
+      const value = format === "qrcode" ? "Café 🏠" : values[format];
+      for (const includeMargin of [false, true]) {
+        for (const showText of [false, true]) {
+          const artwork = generateCodeArtwork({
+            kind: format === "qrcode" ? "qr" : "barcode",
+            format,
+            value,
+            includeMargin,
+            barcode: { showText },
+          });
+          expect(artwork.svg).toBe(
+            toSVG({
+              bcid: format,
+              text: value,
+              scale: 1,
+              backgroundcolor: "FFFFFF",
+              barcolor: "000000",
+              padding: includeMargin
+                ? format === "qrcode"
+                  ? 8
+                  : matrix
+                    ? 4
+                    : 24
+                : 0,
+              ...(format === "qrcode"
+                ? { eclevel: "M", fixedeclevel: true }
+                : {}),
+              ...(!matrix
+                ? {
+                    height: 12,
+                    includetext: showText,
+                    textxalign: "center" as const,
+                    textsize: 10,
+                  }
+                : {}),
+            }),
+          );
+        }
+      }
+    },
+  );
+
   it.each(BARCODE_FORMATS)("generates vector artwork for %s", (format) => {
     const artwork = generateCodeArtwork({
       kind: "barcode",

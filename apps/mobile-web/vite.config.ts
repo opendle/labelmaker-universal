@@ -31,8 +31,13 @@ export default defineConfig({
   build: {
     outDir: fileURLToPath(new URL("./dist", import.meta.url)),
     emptyOutDir: true,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
+        codeSplitting: {
+          groups: [
+            { name: "barcode", test: /[\\/]node_modules[\\/]@bwip-js[\\/]/ },
+          ],
+        },
         assetFileNames: "assets/[name][extname]",
         chunkFileNames: "assets/[name].js",
         entryFileNames: "assets/[name].js",

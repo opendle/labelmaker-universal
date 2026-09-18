@@ -17,5 +17,14 @@ export default defineConfig({
   build: {
     outDir: fileURLToPath(new URL("./dist/renderer", import.meta.url)),
     emptyOutDir: true,
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            { name: "barcode", test: /[\\/]node_modules[\\/]@bwip-js[\\/]/ },
+          ],
+        },
+      },
+    },
   },
 });
