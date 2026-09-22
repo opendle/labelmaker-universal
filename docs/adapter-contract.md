@@ -90,8 +90,10 @@ saved plate or the spacing between labels. Each shell sends one job copy.
 `minimumLabelWidthMm` is the minimum length of each label along the tape.
 It uses 0.1 mm steps from 0 to 100 mm; zero disables the minimum. An absent
 setting uses the adapter default, or zero when the adapter has no default.
-Before adding gaps or final feed, the shells append white rows to each short
-page until it reaches the minimum. They round the minimum up to a whole pixel.
+Before adding gaps or final feed, the shells render each plate at the larger
+of its saved width and the minimum width. Include artwork in this full area,
+as shown on the canvas. Round the minimum up to a whole pixel. Direct raster
+clients can append white rows when they do not have artwork in the added area.
 Artwork keeps its position and size. Longer pages are not shortened. The minimum
 excludes both inter-label spacing and final feed. The saved plate is unchanged.
 Direct raster clients must apply this geometry before they submit a job.

@@ -49,6 +49,8 @@ const screenshotDirectory = customScreenshotDirectory
 const savedScreenshotNames = new Set([
   "labelmaker-plate-settings-1440x960.png",
   "labelmaker-primary-1440x960.png",
+  "labelmaker-text-overflow-1440x960.png",
+  "labelmaker-text-printable-crop-1440x960.png",
   "labelmaker-phone-1100x700.png",
   "labelmaker-phone-settings-600x500.png",
   "labelmaker-dark-1440x960.png",
@@ -1203,6 +1205,146 @@ await capture(1440, 960, "labelmaker-trim-grow-1440x960.png", async (page) => {
     .locator(".canvas-clear-selection")
     .evaluate((button) => button.click());
 });
+await capture(
+  1440,
+  960,
+  "labelmaker-text-overflow-1440x960.png",
+  async (page) => {
+    await setHiddenNumberControl(page, "Text frame width", "8");
+    await page.getByRole("spinbutton", { name: "Font size" }).fill("10");
+    await page.getByRole("spinbutton", { name: "Font size" }).blur();
+    for (const align of ["left", "center", "right"]) {
+      await page
+        .getByRole("button", { name: `Align ${align}`, exact: true })
+        .click();
+      for (const content of [
+        "LONG  LABEL TEXT",
+        "LONG  LABEL TEXT\nSECOND\n",
+      ]) {
+        await page
+          .locator(".canvas-text .canvas-element-control")
+          .first()
+          .dblclick();
+        const editor = page.getByRole("textbox", {
+          name: "Edit text on label",
+        });
+        await editor.fill(content);
+        await page.waitForFunction(() => {
+          const label = document.querySelector(".label-canvas");
+          return Number(label?.dataset.plateWidthMm) > 20;
+        });
+        const editing = await editor.evaluate((input, content) => {
+          const style = getComputedStyle(input);
+          const frame = input
+            .closest(".canvas-element")
+            .getBoundingClientRect();
+          const bounds = input.getBoundingClientRect();
+          const lineCount = content.split("\n").length;
+          if (
+            style.whiteSpace !== "pre" ||
+            input.wrap !== "off" ||
+            input.scrollWidth > input.clientWidth ||
+            input.scrollLeft !== 0 ||
+            bounds.height < lineCount * parseFloat(style.lineHeight) - 1.1 ||
+            bounds.height >= (lineCount + 1) * parseFloat(style.lineHeight) ||
+            bounds.width <= frame.width
+          ) {
+            throw new Error(
+              `Text wraps or scrolls in a narrow frame: ${JSON.stringify({
+                width: bounds.width,
+                height: bounds.height,
+                scrollWidth: input.scrollWidth,
+                clientWidth: input.clientWidth,
+                lineHeight: style.lineHeight,
+              })}`,
+            );
+          }
+          return {
+            width: bounds.width,
+            height: bounds.height,
+            top: bounds.top,
+            left: bounds.left,
+          };
+        }, content);
+        await editor.evaluate((input) => input.blur());
+        await page
+          .locator(".canvas-text .canvas-element-control .inline-text-editor")
+          .first()
+          .evaluate((text, editing) => {
+            const bounds = text.getBoundingClientRect();
+            for (const key of ["left", "top", "width"]) {
+              if (Math.abs(bounds[key] - editing[key]) > 1.1) {
+                throw new Error(`Text moved after edit: ${key}`);
+              }
+            }
+          }, editing);
+        await page
+          .locator(".plate-thumbnails .label-artwork-text")
+          .first()
+          .evaluate((frame) => {
+            const text = frame.querySelector(".label-artwork-text-content");
+            const style = getComputedStyle(frame);
+            if (
+              style.whiteSpace !== "pre" ||
+              style.overflow !== "visible" ||
+              text.getBoundingClientRect().width <=
+                frame.getBoundingClientRect().width
+            ) {
+              throw new Error(
+                "The thumbnail hides or wraps text outside its frame",
+              );
+            }
+          });
+      }
+    }
+  },
+);
+await capture(
+  1440,
+  960,
+  "labelmaker-text-printable-crop-1440x960.png",
+  async (page) => {
+    const previousWidth = Number(
+      await page.locator(".label-canvas").getAttribute("data-plate-width-mm"),
+    );
+    await page
+      .locator(".canvas-text .canvas-element-control")
+      .first()
+      .dblclick();
+    const editor = page.getByRole("textbox", { name: "Edit text on label" });
+    await editor.fill("LONG  LABEL TEXT\nSECOND\n\n");
+    await page.waitForFunction((previousWidth) => {
+      const width = Number(
+        document.querySelector(".label-canvas")?.dataset.plateWidthMm,
+      );
+      return width !== previousWidth && width > 10 && width < 35;
+    }, previousWidth);
+    await editor.evaluate((input) => input.blur());
+    await page
+      .locator(".canvas-text .canvas-element-control")
+      .evaluate((control) => {
+        const frame = control.closest(".canvas-element");
+        const canvas = control.closest(".label-canvas");
+        const zone = canvas.querySelector(".nonprintable-zone.top");
+        const points = getComputedStyle(control)
+          .clipPath.match(/-?[\d.e+-]+(?=px)/g)
+          ?.map(Number);
+        const frameBounds = frame.getBoundingClientRect();
+        const canvasBounds = canvas.getBoundingClientRect();
+        const printableTop = zone.getBoundingClientRect().bottom;
+        if (
+          !points ||
+          points.length !== 8 ||
+          Math.abs(points[0] + frameBounds.left - canvasBounds.left) > 0.1 ||
+          Math.abs(points[1] + frameBounds.top - printableTop) > 0.1 ||
+          Math.abs(points[2] + frameBounds.left - canvasBounds.right) > 0.1 ||
+          getComputedStyle(frame).clipPath !== "none"
+        ) {
+          throw new Error("Canvas artwork does not use the printable crop");
+        }
+      });
+  },
+);
 await capture(1440, 960, "labelmaker-image-1440x960.png", async (page) => {
   await page.getByLabel("Choose image").setInputFiles({
     name: "storage-bin.png",
@@ -1379,6 +1521,19 @@ await capture(
           "Artwork is hidden during a drag into the minimum-width area",
         );
       }
+      await page
+        .locator(".plate-thumbnails .label-artwork-content")
+        .first()
+        .evaluate((content) => {
+          if (
+            getComputedStyle(content).overflow !== "visible" ||
+            getComputedStyle(content.parentElement).overflow !== "hidden"
+          ) {
+            throw new Error(
+              "The thumbnail does not crop to the displayed output width",
+            );
+          }
+        });
       if (
         (await page
           .locator(".label-canvas")

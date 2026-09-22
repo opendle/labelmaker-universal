@@ -27,6 +27,7 @@ export interface PlateRasterTarget {
   readonly rasterWidthPixels: number;
   readonly printableWidthMm: number;
   readonly rasterAlignment: RasterAlignment;
+  readonly minimumLabelWidthMm?: number;
 }
 
 export type SvgRasterizer = (
@@ -54,10 +55,24 @@ export async function renderPlateForPrinter(
   ) {
     throw new RangeError("Printer raster width must be a positive integer");
   }
-  const feedLengthPixels = millimetersToPixels(plate.size.widthMm, target.dpi);
+  const minimumWidthMm = target.minimumLabelWidthMm ?? 0;
+  if (!Number.isFinite(minimumWidthMm) || minimumWidthMm < 0) {
+    throw new RangeError("Minimum label width must be a non-negative number");
+  }
+  const outputPlate = {
+    ...plate,
+    size: {
+      ...plate.size,
+      widthMm: Math.max(plate.size.widthMm, minimumWidthMm),
+    },
+  };
+  const feedLengthPixels = Math.max(
+    millimetersToPixels(plate.size.widthMm, target.dpi),
+    Math.ceil((minimumWidthMm * target.dpi) / 25.4),
+  );
   validateRasterDimensions(feedLengthPixels, target.rasterWidthPixels);
   const preparedPlate = await preparePlateImages(
-    plate,
+    outputPlate,
     target.dpi,
     rasterize,
     rasterizeImage,
@@ -359,7 +374,7 @@ function renderElement(element: LabelElement): string {
             `<tspan x="${number(x)}" y="${number(firstLineY + index * lineHeightMm)}" dominant-baseline="central">${line.length === 0 ? "&#160;" : text(line)}</tspan>`,
         )
         .join("");
-      return `<text text-anchor="${anchor}" font-family="${attribute(element.fontFamily)}" font-size="${number(fontSizeMm)}" font-weight="${element.fontWeight}" font-style="${element.fontStyle ?? "normal"}" fill="black"${transform}>${tspans}</text>`;
+      return `<text text-anchor="${anchor}" font-family="${attribute(element.fontFamily)}" font-size="${number(fontSizeMm)}" font-weight="${element.fontWeight}" font-style="${element.fontStyle ?? "normal"}" style="white-space: pre" fill="black"${transform}>${tspans}</text>`;
     }
     case "image": {
       validateImageSource(element.source);

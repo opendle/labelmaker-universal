@@ -14,6 +14,7 @@ import {
   replacePlate,
   type Toast,
 } from "./app-state.js";
+import { renderPlateBlackBounds } from "./browser-raster.js";
 import { trimLatestWorkspace } from "./automatic-trim.js";
 import {
   appendElementAndFlagPeer,
@@ -90,6 +91,8 @@ export function useLabelmakerController(host: LabelmakerHost) {
   const activePrinter = state.printers.find(
     (printer) => printer.id === state.activePrinterId,
   );
+  const activePrinterRef = useRef(activePrinter);
+  activePrinterRef.current = activePrinter;
   const insertionMargins = useCallback(
     (plate: LabelPlate) =>
       nonPrintableMarginsMm(
@@ -246,6 +249,15 @@ export function useLabelmakerController(host: LabelmakerHost) {
               workspaceRef.current = workspace;
               dispatch({ type: "apply-automatic-trim", workspace });
             },
+            (plate) =>
+              renderPlateBlackBounds(
+                plate,
+                nonPrintableMarginsMm(
+                  plate.size.heightMm,
+                  activePrinterRef.current?.printableWidthMm,
+                  activePrinterRef.current?.rasterAlignment,
+                ),
+              ),
           );
         } finally {
           if (automaticTrimActivePlateIdRef.current === nextPlateId.value) {

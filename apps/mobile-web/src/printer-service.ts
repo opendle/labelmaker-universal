@@ -298,6 +298,10 @@ export class MobilePrinterService {
             rasterWidthPixels: capabilities.rasterWidthPixels,
             printableWidthMm,
             rasterAlignment: capabilities.rasterAlignment,
+            minimumLabelWidthMm:
+              settings.minimumLabelWidthMm ??
+              capabilities.minimumLabelWidthMm ??
+              0,
           }),
         ),
       );

@@ -2,28 +2,21 @@ import { randomUUID } from "node:crypto";
 
 import type { LabelPlate } from "@labelmaker/domain";
 import { addInterLabelSpacing } from "@labelmaker/printing";
+import type { PlateRasterTarget } from "@labelmaker/rendering";
 import type {
   PrinterCapabilities,
   PrinterDescriptor,
   PrinterSettings,
   PrinterSession,
-  RasterAlignment,
   RasterPage,
 } from "@labelmaker/printing";
 
 import type { ValidatedPrintRequest } from "./print-request.js";
 import type { SavedPrinterRecord } from "./printer-configuration.js";
 
-interface PrintRasterTarget {
-  readonly dpi: number;
-  readonly rasterWidthPixels: number;
-  readonly printableWidthMm: number;
-  readonly rasterAlignment: RasterAlignment;
-}
-
 type DesktopPlateRenderer = (
   plate: LabelPlate,
-  target: PrintRasterTarget,
+  target: PlateRasterTarget,
 ) => Promise<RasterPage>;
 
 export function findConfiguredPrintTarget(
@@ -111,6 +104,8 @@ export async function printToSession(
         rasterWidthPixels: capabilities.rasterWidthPixels,
         printableWidthMm,
         rasterAlignment: capabilities.rasterAlignment,
+        minimumLabelWidthMm:
+          settings.minimumLabelWidthMm ?? capabilities.minimumLabelWidthMm ?? 0,
       }),
     );
   }

@@ -191,6 +191,7 @@ describe("desktop physical print dispatch", () => {
       rasterWidthPixels: 96,
       printableWidthMm: 11.8,
       rasterAlignment: "end",
+      minimumLabelWidthMm: 0,
     });
 
     finishPrint?.();
@@ -289,6 +290,7 @@ describe("desktop physical print dispatch", () => {
         bytesPerRow: 12,
         data: new Uint8Array(24).fill(0xff),
       };
+      const renderPlate = vi.fn(async () => raster);
       await printToSession(
         {
           document,
@@ -297,12 +299,18 @@ describe("desktop physical print dispatch", () => {
         },
         makeIdPrinter,
         session,
-        async () => raster,
+        renderPlate,
         () => "min-width",
         {
           feedAfterPrintMm: 2.5,
           ...(minimumLabelWidthMm === undefined ? {} : { minimumLabelWidthMm }),
         },
+      );
+      expect(renderPlate).toHaveBeenCalledWith(
+        document.plates[0],
+        expect.objectContaining({
+          minimumLabelWidthMm: minimumLabelWidthMm ?? 16,
+        }),
       );
       const page = print.mock.calls[0]?.[0].pages[0];
       expect(page?.heightPixels).toBe(minimumLabelWidthMm === 0 ? 22 : 148);

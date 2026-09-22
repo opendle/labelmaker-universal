@@ -1,11 +1,15 @@
 import type { LabelDocument } from "@labelmaker/domain";
 
-import { trimPlate } from "./editor-operations.js";
+import {
+  trimPlate,
+  type PlateBlackBoundsProvider,
+} from "./editor-operations.js";
 
 export async function trimLatestWorkspace(
   plateId: string,
   getWorkspace: () => LabelDocument,
   applyWorkspace: (workspace: LabelDocument) => void,
+  findBounds?: PlateBlackBoundsProvider,
 ): Promise<void> {
   const trimSnapshot = async () => {
     const source = getWorkspace();
@@ -15,7 +19,7 @@ export async function trimLatestWorkspace(
       workspace:
         plate?.widthMode === "fixed"
           ? source
-          : await trimPlate(source, plateId),
+          : await trimPlate(source, plateId, findBounds),
     };
   };
   const first = await trimSnapshot();

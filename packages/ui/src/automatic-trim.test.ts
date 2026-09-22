@@ -23,6 +23,20 @@ const workspace: LabelDocument = {
 };
 
 describe("automatic width", () => {
+  it("uses the supplied printer bounds when it measures an automatic plate", async () => {
+    trim.mockClear();
+    const auto: LabelDocument = {
+      ...workspace,
+      plates: workspace.plates.map((plate) => ({
+        ...plate,
+        widthMode: "auto",
+      })),
+    };
+    const findBounds = vi.fn();
+    trim.mockResolvedValueOnce(auto);
+    await trimLatestWorkspace("plate", () => auto, vi.fn(), findBounds);
+    expect(trim).toHaveBeenCalledExactlyOnceWith(auto, "plate", findBounds);
+  });
   it("does not measure or move a fixed plate", async () => {
     trim.mockClear();
     const apply = vi.fn();
@@ -58,6 +72,6 @@ describe("automatic width", () => {
     };
     trim.mockResolvedValueOnce(auto);
     await trimLatestWorkspace("plate", () => auto, vi.fn());
-    expect(trim).toHaveBeenCalledExactlyOnceWith(auto, "plate");
+    expect(trim).toHaveBeenCalledExactlyOnceWith(auto, "plate", undefined);
   });
 });

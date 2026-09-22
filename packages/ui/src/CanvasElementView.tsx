@@ -15,7 +15,11 @@ import {
 } from "react";
 
 import { SelectionHandles } from "./controls.js";
-import { pointsToMillimeters } from "./label-layout.js";
+import {
+  pointsToMillimeters,
+  printableVerticalCrop,
+  type PrintableMargins,
+} from "./label-layout.js";
 import { CodeArtwork } from "./CodeArtwork.js";
 import { MonochromeImage } from "./MonochromeImage.js";
 import { isFlagGuideElement } from "./editor-operations.js";
@@ -31,6 +35,7 @@ export function CanvasElementView({
   plate,
   canvasWidthMm = plate.size.widthMm,
   canvasScale,
+  printableMargins,
   selected,
   editing,
   onActivate,
@@ -47,6 +52,7 @@ export function CanvasElementView({
   readonly plate: LabelPlate;
   readonly canvasWidthMm?: number;
   readonly canvasScale: number;
+  readonly printableMargins: PrintableMargins;
   readonly selected: boolean;
   readonly editing: boolean;
   readonly onActivate: (element: LabelElement) => void;
@@ -83,6 +89,11 @@ export function CanvasElementView({
     const editor = inlineEditorRef.current;
     const measure = inlineMeasureRef.current;
     if (!editing || element.kind !== "text" || !editor || !measure) return;
+    const measuredWidth = Number.parseFloat(
+      globalThis.getComputedStyle(measure).width,
+    );
+    if (measuredWidth > 0) editor.style.width = `${measuredWidth}px`;
+    editor.scrollLeft = 0;
     const measuredHeight = Number.parseFloat(
       globalThis.getComputedStyle(measure).height,
     );
@@ -113,12 +124,32 @@ export function CanvasElementView({
     "--element-height": `${(element.heightMm / plate.size.heightMm) * 100}%`,
     "--element-rotation": `rotate(${element.rotationDeg}deg)`,
   };
+  const crop = printableVerticalCrop(plate.size.heightMm, printableMargins);
+  const centerX = element.xMm + element.widthMm / 2;
+  const centerY = element.yMm + element.heightMm / 2;
+  const angle = (element.rotationDeg * Math.PI) / 180;
+  const cosine = Math.cos(angle);
+  const sine = Math.sin(angle);
+  const clipPath = `polygon(${[
+    [0, crop.topMm],
+    [canvasWidthMm, crop.topMm],
+    [canvasWidthMm, crop.topMm + crop.heightMm],
+    [0, crop.topMm + crop.heightMm],
+  ]
+    .map(([x = 0, y = 0]) => {
+      const dx = x - centerX;
+      const dy = y - centerY;
+      const localX = dx * cosine + dy * sine + element.widthMm / 2;
+      const localY = -dx * sine + dy * cosine + element.heightMm / 2;
+      return `${localX * canvasScale}px ${localY * canvasScale}px`;
+    })
+    .join(", ")})`;
   if (isFlagGuideElement(plate, element) && element.kind === "rectangle") {
     return (
       <ShapeArtwork
         className="canvas-shape canvas-flag-guide"
         element={element}
-        style={frameStyle}
+        style={{ ...frameStyle, clipPath }}
       />
     );
   }
@@ -165,7 +196,10 @@ export function CanvasElementView({
       style={{ ...frameStyle, ...textStyle }}
     >
       {editing && element.kind === "text" ? (
-        <span className="canvas-element-control canvas-text-control">
+        <span
+          className="canvas-element-control canvas-text-control"
+          style={{ clipPath }}
+        >
           <span
             aria-hidden="true"
             className="inline-text-editor inline-text-measure"
@@ -199,6 +233,7 @@ export function CanvasElementView({
               } as ElementStyle
             }
             value={element.text}
+            wrap="off"
           />
         </span>
       ) : (
@@ -211,6 +246,7 @@ export function CanvasElementView({
           onKeyDown={(event) => onMoveKey(event, element)}
           onPointerDown={(event) => onMoveStart(event, element)}
           style={{
+            clipPath,
             ...(element.kind === "text" ? { textAlign: element.align } : {}),
           }}
           type="button"

@@ -993,7 +993,7 @@ button[data-focus-ring-suppressed="true"]:focus-visible {
 }
 .canvas-text {
   line-height: var(--element-line-height, 1em);
-  white-space: pre-wrap;
+  white-space: pre;
 }
 .canvas-text-control {
   position: relative;
@@ -1014,8 +1014,9 @@ textarea.inline-text-editor:focus-visible {
 }
 .inline-text-editor {
   display: block;
-  width: 100%;
-  max-width: 100%;
+  width: max-content;
+  min-width: 100%;
+  flex-shrink: 0;
   min-height: 1em;
   padding: 0;
   border: 0;
@@ -1025,8 +1026,8 @@ textarea.inline-text-editor:focus-visible {
   line-height: inherit;
   resize: none;
   text-align: inherit;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  white-space: pre;
+  overflow-wrap: normal;
   outline: 0;
   -webkit-user-select: none;
   user-select: none;
@@ -1622,15 +1623,18 @@ textarea.inline-text-editor {
 }
 .label-artwork-text {
   display: flex;
+  overflow: visible;
   align-items: center;
   color: #24221e;
   line-height: 1;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  white-space: pre;
+  overflow-wrap: normal;
 }
 .label-artwork-text-content {
   display: block;
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
+  flex-shrink: 0;
 }
 .label-artwork-text.align-left {
   justify-content: flex-start;
@@ -3986,6 +3990,6 @@ textarea.inline-text-editor {
   inset: 0 auto 0 0;
   display: block;
   height: 100%;
-  overflow: hidden;
+  overflow: visible;
   container-type: inline-size;
 }

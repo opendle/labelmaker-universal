@@ -7,7 +7,11 @@ import {
 } from "@labelmaker/rendering";
 
 import { renderMonochromeImageFrame } from "./image-raster.js";
-import { pointsToMillimeters } from "./label-layout.js";
+import {
+  pointsToMillimeters,
+  printableVerticalCrop,
+  type PrintableMargins,
+} from "./label-layout.js";
 
 export interface BlackPixelBounds {
   readonly minX: number;
@@ -125,6 +129,7 @@ function textBlockTop(element: TextElement, lineCount: number): number {
 
 export async function renderPlateBlackBounds(
   plate: LabelPlate,
+  printableMargins: PrintableMargins = { topMm: 0, bottomMm: 0 },
 ): Promise<BlackPixelBounds | null> {
   const canvas = document.createElement("canvas");
   canvas.width = 1;
@@ -146,6 +151,15 @@ export async function renderPlateBlackBounds(
   if (!context) throw new Error("The trim canvas is not available.");
   context.fillStyle = "white";
   context.fillRect(0, 0, width, height);
+  const crop = printableVerticalCrop(plate.size.heightMm, printableMargins);
+  context.beginPath();
+  context.rect(
+    0,
+    crop.topMm * PIXELS_PER_MILLIMETER,
+    width,
+    crop.heightMm * PIXELS_PER_MILLIMETER,
+  );
+  context.clip();
   context.translate(-renderMinX * PIXELS_PER_MILLIMETER, 0);
 
   const imageFrames = new Map<string, HTMLCanvasElement>();

@@ -39,6 +39,48 @@ export async function assertPaperGeometry(page) {
     );
   for (const dpi of [203, 300]) {
     const width = Math.round((12 * dpi) / 25.4);
+    const shortPlate = {
+      id: "short",
+      name: "Short label",
+      size: { widthMm: 2, heightMm: 12 },
+      margins: { leftMm: 0, rightMm: 0 },
+      elements: [{ ...shape, xMm: 3, yMm: 4, widthMm: 1, heightMm: 4 }],
+    };
+    const minimumTarget = {
+      dpi,
+      rasterWidthPixels: width,
+      printableWidthMm: 12,
+      rasterAlignment: "center",
+      minimumLabelWidthMm: 5,
+    };
+    const extended = await renderPlateForPrinter(
+      shortPlate,
+      minimumTarget,
+      rasterize,
+    );
+    assert.equal(shortPlate.size.widthMm, 2);
+    assert.equal(extended.heightPixels, Math.ceil((5 * dpi) / 25.4));
+    const rowAt = (xMm) =>
+      extended.heightPixels - 1 - Math.floor((xMm / 5) * extended.heightPixels);
+    assert.equal(
+      isBlack(extended, rowAt(3.5), Math.floor(width / 2)),
+      true,
+      "Print omits artwork in the printer minimum width",
+    );
+    assert.equal(isBlack(extended, rowAt(0.5), Math.floor(width / 2)), false);
+    const mirroredExtended = await renderPlateForPrinter(
+      { ...shortPlate, mirrorPrint: true },
+      minimumTarget,
+      rasterize,
+    );
+    for (let row = 0; row < extended.heightPixels; row++) {
+      for (let column = 0; column < width; column++) {
+        assert.equal(
+          isBlack(mirroredExtended, extended.heightPixels - row - 1, column),
+          isBlack(extended, row, column),
+        );
+      }
+    }
     for (const heightMm of [16, 14, 12, 9, 9.3]) {
       const plate = {
         id: "paper",

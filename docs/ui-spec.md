@@ -81,7 +81,11 @@ appearances so that they show the physical label and printed result accurately.
 - Edit text directly on the plate. Double-click an unselected text element, or
   single-click a selected text element, to enter text-edit mode.
 - Let text remain visible outside its frame while it is edited, as it is on the
-  canvas and in printed output. Resize the edit control to show wrapped text.
+  canvas and in printed output. Use only entered line breaks. Do not wrap text
+  to its frame width. Expand the edit control to show the full text, and keep
+  its horizontal alignment. Apply this rule to plate thumbnails as well.
+  Automatic label width must follow the printed text beyond the frame.
+  Ignore ink outside the printable height when calculating automatic width.
 - Preserve all text line breaks, including final empty lines, on the canvas and
   in printed output. Give the iOS direct editor enough lower paint space for
   multiline glyph descenders. Clear native text selection when edit mode ends.
@@ -106,6 +110,11 @@ appearances so that they show the physical label and printed result accurately.
   frame's current proportions. Rotate freely, but snap to each 45-degree angle
   when the pointer is within 3 degrees of it. Elements can extend outside the
   plate bounds.
+- Clip canvas artwork to the printable rectangle, including any width added
+  for the selected printer. Apply the same crop during text edit, move, resize,
+  and rotation. Keep selection frames and handles outside the crop so that
+  elements can still be adjusted. Include artwork in the printer-added width
+  in printed output without changing the saved plate size.
 - Show a rotation cursor on the rotation handle.
 - Snap moved text and image frames to the absolute label limits and to the
   left, horizontal center, right, top, vertical middle, and bottom of the

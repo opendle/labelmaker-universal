@@ -8,7 +8,11 @@ browser renderer can draw a plate on a canvas, get its `ImageData`, and pass its
 `width`, `height`, and `data` to `renderPlateRgba`.
 
 Desktop, Apple mobile, and Android shells call `renderPlateForPrinter` with the
-same label and printer target. Each shell supplies an SVG-to-RGBA function. A
+same label and printer target. The target can set `minimumLabelWidthMm`.
+The renderer uses the larger of this width and the saved plate width, and
+includes artwork in that area. It does not change the saved plate or artwork
+positions. Minimum width rounds up to a whole printer pixel.
+Each shell supplies an SVG-to-RGBA function. A
 mobile shell can also supply a direct image-frame rasterizer so WebKit does not
 need to decode a nested image inside an SVG. Image black-level conversion,
 print-head layout, mirroring, raster packing, and feed-line order stay shared.

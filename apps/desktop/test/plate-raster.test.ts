@@ -81,6 +81,23 @@ describe("desktop plate rasterization", () => {
     expect(svg).not.toContain('dominant-baseline="middle"');
   });
 
+  it("keeps spaces and entered line breaks when text exceeds its frame", () => {
+    const changed = {
+      ...plate,
+      elements: plate.elements.map((element) =>
+        element.kind === "text"
+          ? { ...element, widthMm: 2, text: "LONG  TEXT\r\nSECOND\n" }
+          : element,
+      ),
+    };
+    const svg = buildPlateSvg(changed, 320, 96);
+    expect(svg).toContain('style="white-space: pre"');
+    expect(svg.match(/<tspan /g)).toHaveLength(3);
+    expect(svg).toMatch(
+      />LONG  TEXT<\/tspan><tspan[^>]+>SECOND<\/tspan><tspan[^>]+>&#160;<\/tspan>/,
+    );
+  });
+
   it("uses fixed line height and vertical alignment in printed text", () => {
     const changed = {
       ...plate,
@@ -107,6 +124,27 @@ describe("desktop plate rasterization", () => {
       '<tspan x="36" y="9.291666666666668" dominant-baseline="central">SECOND',
     );
   });
+
+  it.each([-1, Number.NaN, Number.POSITIVE_INFINITY])(
+    "rejects an invalid minimum print width %s",
+    async (minimumLabelWidthMm) => {
+      const rasterize = vi.fn();
+      await expect(
+        renderPlateForPrinter(
+          plate,
+          {
+            dpi: 203,
+            rasterWidthPixels: 96,
+            printableWidthMm: 12,
+            rasterAlignment: "center",
+            minimumLabelWidthMm,
+          },
+          rasterize,
+        ),
+      ).rejects.toThrow("Minimum label width");
+      expect(rasterize).not.toHaveBeenCalled();
+    },
+  );
 
   it("mirrors only the printed artwork when print mirroring is on", () => {
     const svg = buildPlateSvg({ ...plate, mirrorPrint: true }, 320, 96);

@@ -1565,6 +1565,29 @@ describe("LabelmakerApp", () => {
     ).toBe(33);
   });
 
+  it("measures automatic width within the selected printer's printable height", async () => {
+    const renderBounds = vi.mocked(renderPlateBlackBounds);
+    render(<LabelmakerApp host={createHost()} />);
+    await screen.findByText("Studio Labeler");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("region", {
+          name: "Resistors label canvas",
+        }),
+      ).toHaveAttribute("data-plate-width-mm", "31"),
+    );
+    renderBounds.mockClear();
+    fireEvent.change(screen.getByLabelText("Left margin"), {
+      target: { value: "2" },
+    });
+    await waitFor(() =>
+      expect(renderBounds).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "plate-resistors" }),
+        { topMm: 2, bottomMm: 2 },
+      ),
+    );
+  });
+
   it("cancels queued automatic trim before undo", async () => {
     const renderBounds = vi.mocked(renderPlateBlackBounds);
     renderBounds.mockClear();
@@ -1701,6 +1724,14 @@ describe("LabelmakerApp", () => {
     const host = createHost();
     const user = userEvent.setup();
     render(<LabelmakerApp host={host} />);
+    await screen.findByText("Studio Labeler");
+    await waitFor(() =>
+      expect(
+        screen.getByRole("region", {
+          name: "Resistors label canvas",
+        }),
+      ).toHaveAttribute("data-plate-width-mm", "31"),
+    );
 
     const mirror = screen.getByRole("button", { name: "Mirror" });
     const artwork = screen.getByRole("button", {

@@ -70,12 +70,33 @@ function createProps(
 }
 
 describe("EditorCanvas", () => {
-  it.each([0, 90])(
-    "keeps artwork visible in the minimum-width area at %s degrees",
-    (rotationDeg) => {
+  it.each([
+    [
+      0,
+      [
+        [-55, 1],
+        [25, 1],
+        [25, 15],
+        [-55, 15],
+      ],
+    ],
+    [
+      90,
+      [
+        [1, 65],
+        [1, -15],
+        [15, -15],
+        [15, 65],
+      ],
+    ],
+  ] as const)(
+    "clips artwork to the printable rectangle at %s degrees",
+    (rotationDeg, corners) => {
       const element = { ...textElement, xMm: 55, widthMm: 10, rotationDeg };
       const props = createProps({
         minimumLabelWidthMm: 80,
+        printableMargins: { topMm: 3, bottomMm: 3 },
+        zoom: 150,
         selectedElementId: element.id,
         plate: { ...plate, elements: [element] },
       });
@@ -83,15 +104,23 @@ describe("EditorCanvas", () => {
       const control = screen.getByRole("button", {
         name: "Text element: SELECT ALL",
       });
-      expect(control.style.clipPath).toBe("");
+      const coordinates = control.style.clipPath.match(/-?[\d.e+-]+(?=px)/g);
+      expect(coordinates).toHaveLength(8);
+      corners.flat().forEach((value, index) => {
+        expect(Number(coordinates![index])).toBeCloseTo(value * 13.5);
+      });
       expect(
         container.querySelector<HTMLElement>(".canvas-element")!.style.clipPath,
       ).toBe("");
+      expect(
+        screen.getByRole("button", { name: "Resize text block se" }),
+      ).not.toHaveStyle({ clipPath: control.style.clipPath });
+      const clipPath = control.style.clipPath;
       fireEvent.doubleClick(control);
       expect(
-        screen.getByRole("textbox", { name: "Edit text on label" }).style
-          .clipPath,
-      ).toBe("");
+        screen.getByRole("textbox", { name: "Edit text on label" })
+          .parentElement!.style.clipPath,
+      ).toBe(clipPath);
     },
   );
   it.each([
@@ -284,6 +313,31 @@ describe("EditorCanvas", () => {
     expect(editor).toHaveFocus();
     expect(editor.selectionStart).toBe(0);
     expect(editor.selectionEnd).toBe(textElement.text.length);
+  });
+
+  it("keeps entered line breaks when a narrow text frame is edited", () => {
+    const narrowText = {
+      ...textElement,
+      widthMm: 4,
+      text: "A long line of text\nSecond line\n",
+    };
+    const props = createProps({ plate: { ...plate, elements: [narrowText] } });
+    render(<EditorCanvas {...props} />);
+    fireEvent.doubleClick(
+      screen.getByRole("button", {
+        name: /Text element: A long line of text/,
+      }),
+    );
+    const editor = screen.getByRole("textbox", { name: "Edit text on label" });
+    expect(editor).toHaveAttribute("wrap", "off");
+    expect(editor).toHaveValue(narrowText.text);
+    fireEvent.change(editor, {
+      target: { value: `${narrowText.text}Third line` },
+    });
+    expect(props.onChangeElement).toHaveBeenCalledWith({
+      ...narrowText,
+      text: `${narrowText.text}Third line`,
+    });
   });
 
   it("keeps a final empty line in the non-edit canvas layout", () => {

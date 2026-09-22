@@ -676,6 +676,7 @@ export function EditorCanvas({
               <CanvasElementView
                 canvasWidthMm={outputWidthMm}
                 canvasScale={canvasScale}
+                printableMargins={printableMargins}
                 editing={element.id === editingElementId}
                 element={element}
                 key={element.id}
