@@ -1549,6 +1549,38 @@ await capture(
     } finally {
       await page.mouse.up();
     }
+    await page.waitForTimeout(500);
+    const releasedBounds = await control.boundingBox();
+    const centeredX = canvasBounds.x + canvasBounds.width * (50 / 80);
+    await page.mouse.move(releasedBounds.x + releasedBounds.width / 2, startY);
+    await page.mouse.down();
+    let heldLeft;
+    try {
+      await page.mouse.move(centeredX, startY, { steps: 10 });
+      heldLeft = await page
+        .locator(".canvas-text")
+        .first()
+        .evaluate((element) =>
+          element.style.getPropertyValue("--element-left"),
+        );
+    } finally {
+      await page.mouse.up();
+    }
+    await page.waitForTimeout(500);
+    const releasedLeft = await page
+      .locator(".canvas-text")
+      .first()
+      .evaluate((element) => element.style.getPropertyValue("--element-left"));
+    if (!heldLeft || releasedLeft !== heldLeft) {
+      throw new Error("Automatic trim moved the content after pointer release");
+    }
+    if (
+      (await page
+        .locator(".label-canvas")
+        .getAttribute("data-plate-width-mm")) !== "80"
+    ) {
+      throw new Error("Automatic trim changed the minimum label width");
+    }
   },
 );
 for (const [width, height] of [

@@ -162,6 +162,109 @@ describe("createImage", () => {
 });
 
 describe("trimPlate", () => {
+  it.each([2, 8, 14])(
+    "keeps content at %s mm within the printer minimum",
+    async (minX) => {
+      const plate = (
+        await trimPlate(
+          document,
+          "plate",
+          async () => ({ minX, maxX: minX + 5 }),
+          22,
+        )
+      ).plates[0]!;
+      expect(plate.size.widthMm).toBe(22);
+      expect(plate.elements).toEqual(document.plates[0]!.elements);
+    },
+  );
+
+  it.each([
+    [-4, 6],
+    [20, -6],
+  ])(
+    "moves content at %s mm only as far as the minimum width requires",
+    async (minX, offset) => {
+      const plate = (
+        await trimPlate(
+          document,
+          "plate",
+          async () => ({ minX, maxX: minX + 5 }),
+          22,
+        )
+      ).plates[0]!;
+      expect(plate.size.widthMm).toBe(22);
+      expect(plate.elements[0]!.xMm).toBe(
+        document.plates[0]!.elements[0]!.xMm + offset,
+      );
+    },
+  );
+
+  it("grows beyond the printer minimum and resumes pixel trim", async () => {
+    const plate = (
+      await trimPlate(
+        document,
+        "plate",
+        async () => ({ minX: 10, maxX: 40 }),
+        22,
+      )
+    ).plates[0]!;
+    expect(plate.size.widthMm).toBe(35);
+    expect(plate.elements[0]!.xMm).toBe(2);
+  });
+
+  it("rounds a fractional printer minimum up without moving content", async () => {
+    const plate = (
+      await trimPlate(
+        document,
+        "plate",
+        async () => ({ minX: 8, maxX: 13 }),
+        22.1,
+      )
+    ).plates[0]!;
+    expect(plate.size.widthMm).toBe(23);
+    expect(plate.elements).toEqual(document.plates[0]!.elements);
+  });
+
+  it("keeps content that fits within the rounded printer minimum", async () => {
+    const plate = (
+      await trimPlate(
+        document,
+        "plate",
+        async () => ({ minX: 2, maxX: 19.5 }),
+        22.1,
+      )
+    ).plates[0]!;
+    expect(plate.size.widthMm).toBe(23);
+    expect(plate.elements).toEqual(document.plates[0]!.elements);
+  });
+
+  it("applies the printer minimum to a blank plate", async () => {
+    const small = {
+      ...document,
+      plates: [{ ...document.plates[0]!, size: { widthMm: 5, heightMm: 16 } }],
+    };
+    const plate = (await trimPlate(small, "plate", async () => null, 22))
+      .plates[0]!;
+    expect(plate.size.widthMm).toBe(22);
+    expect(plate.elements).toEqual(small.plates[0]!.elements);
+  });
+
+  it("shares the minimum width between both flag halves", async () => {
+    const flagged = {
+      ...document,
+      plates: [toggleFlagPlate(document.plates[0]!)],
+    };
+    const plate = (
+      await trimPlate(flagged, "plate", async () => ({ minX: 3, maxX: 7 }), 22)
+    ).plates[0]!;
+    expect(plate.size.widthMm).toBe(22);
+    expect(plateEditorWidthMm(plate)).toBe(10);
+    expect(plate.elements[0]!.xMm).toBe(document.plates[0]!.elements[0]!.xMm);
+    expect(toggleFlagPlate(plate).elements).toEqual(
+      document.plates[0]!.elements,
+    );
+  });
+
   it("uses the first and last black raster pixels instead of element frames", async () => {
     const trimmed = await trimPlate(document, "plate", async () => ({
       minX: 43,

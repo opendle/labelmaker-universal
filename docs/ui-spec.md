@@ -221,6 +221,13 @@ appearances so that they show the physical label and printed result accurately.
   can hide earlier content. A fully white image and an element frame must not
   add blank trim space. Round the result up to a whole millimeter and divide
   only the rounding remainder equally between the left and right sides. During
+  automatic trim, use the selected printer minimum as a lower limit for the
+  plate width. If the content and margins fit within this limit, keep the
+  current horizontal positions. Move content only as far as needed to fit
+  between the margins. This lets the user position short content within the
+  minimum width. Round the minimum up to a whole millimeter. For a flag,
+  divide the minimum between its two halves after the separation is removed.
+  Save the resulting plate width and positions after an edit. During
   a held move, resize, or rotation, keep the label width stable. Run queued
   automatic trim only after pointer release or pointer cancellation. Keep
   artwork visible across the full canvas during these operations, including
@@ -263,7 +270,7 @@ appearances so that they show the physical label and printed result accurately.
   Use the normal bordered number fields with `mm` units for these two settings.
   Use the shared sidebar field classes, including uppercase field labels.
   The minimum
-  is along the tape and extends each short label with blank space at its end.
+  is along the tape and sets the lower limit for automatic label width.
   Zero disables the minimum. Final feed applies once after the full job and
   brings the final label past the cutter. Show the minimum width on the main
   canvas, its width ruler, and thumbnails. Keep artwork size and position, and

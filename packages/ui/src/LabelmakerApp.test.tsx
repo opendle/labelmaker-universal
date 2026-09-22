@@ -1527,6 +1527,59 @@ describe("LabelmakerApp", () => {
     ).toBeInTheDocument();
   });
 
+  it("keeps the selected content position within the printer minimum through save and print", async () => {
+    const host = createHost({
+      listPrinters: vi.fn().mockResolvedValue([
+        {
+          id: "minimum-printer",
+          adapterId: "mock",
+          name: "Minimum printer",
+          model: "Test printer",
+          transport: "mock",
+          state: "ready",
+          statusMessage: "Ready",
+          minimumLabelWidthMm: 80,
+        },
+      ]),
+      loadWorkspaceRecovery: vi.fn().mockResolvedValue({
+        document: sampleDocument,
+        activePlateId: sampleDocument.plates[0]!.id,
+        selectedElementId: null,
+        dirty: false,
+        savedAt: null,
+        zoom: 100,
+      }),
+    });
+    render(<LabelmakerApp host={host} />);
+    await screen.findByRole("button", {
+      name: /Selected printer: Minimum printer/,
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Text element: RESISTORS" }),
+    );
+    vi.mocked(renderPlateBlackBounds).mockResolvedValueOnce({
+      minX: 26.5,
+      maxX: 57.5,
+    });
+    fireEvent.change(screen.getByLabelText("X position"), {
+      target: { value: "15" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
+    await waitFor(() => expect(host.saveWorkspace).toHaveBeenCalledOnce());
+    const saved = vi.mocked(host.saveWorkspace).mock.calls[0]![0];
+    expect(saved.plates[0]!.size.widthMm).toBe(80);
+    expect(saved.plates[0]!.elements[0]!.xMm).toBe(15);
+    expect(saved.plates[0]!.widthMode).not.toBe("fixed");
+    expect(screen.getByLabelText("X position")).toHaveValue(15);
+    fireEvent.click(screen.getByRole("button", { name: "Print" }));
+    await waitFor(() => expect(host.print).toHaveBeenCalledOnce());
+    expect(vi.mocked(host.print).mock.calls[0]![0].document).toEqual(saved);
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    expect(screen.getByLabelText("X position")).toHaveValue(
+      sampleDocument.plates[0]!.elements[0]!.xMm,
+    );
+  });
+
   it("finishes automatic trim before it saves", async () => {
     const host = createHost();
     render(<LabelmakerApp host={host} />);

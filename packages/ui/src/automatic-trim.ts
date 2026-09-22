@@ -10,6 +10,7 @@ export async function trimLatestWorkspace(
   getWorkspace: () => LabelDocument,
   applyWorkspace: (workspace: LabelDocument) => void,
   findBounds?: PlateBlackBoundsProvider,
+  minimumLabelWidthMm = 0,
 ): Promise<void> {
   const trimSnapshot = async () => {
     const source = getWorkspace();
@@ -19,7 +20,7 @@ export async function trimLatestWorkspace(
       workspace:
         plate?.widthMode === "fixed"
           ? source
-          : await trimPlate(source, plateId, findBounds),
+          : await trimPlate(source, plateId, findBounds, minimumLabelWidthMm),
     };
   };
   const first = await trimSnapshot();

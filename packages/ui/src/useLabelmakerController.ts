@@ -258,6 +258,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
                   activePrinterRef.current?.rasterAlignment,
                 ),
               ),
+            activePrinterRef.current?.minimumLabelWidthMm,
           );
         } finally {
           if (automaticTrimActivePlateIdRef.current === nextPlateId.value) {

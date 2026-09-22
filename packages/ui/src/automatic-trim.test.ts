@@ -34,13 +34,13 @@ describe("automatic width", () => {
     };
     const findBounds = vi.fn();
     trim.mockResolvedValueOnce(auto);
-    await trimLatestWorkspace("plate", () => auto, vi.fn(), findBounds);
-    expect(trim).toHaveBeenCalledExactlyOnceWith(auto, "plate", findBounds);
+    await trimLatestWorkspace("plate", () => auto, vi.fn(), findBounds, 22);
+    expect(trim).toHaveBeenCalledExactlyOnceWith(auto, "plate", findBounds, 22);
   });
   it("does not measure or move a fixed plate", async () => {
     trim.mockClear();
     const apply = vi.fn();
-    await trimLatestWorkspace("plate", () => workspace, apply);
+    await trimLatestWorkspace("plate", () => workspace, apply, vi.fn(), 80);
     expect(trim).not.toHaveBeenCalled();
     expect(apply).toHaveBeenCalledWith(workspace);
   });
@@ -72,6 +72,6 @@ describe("automatic width", () => {
     };
     trim.mockResolvedValueOnce(auto);
     await trimLatestWorkspace("plate", () => auto, vi.fn());
-    expect(trim).toHaveBeenCalledExactlyOnceWith(auto, "plate", undefined);
+    expect(trim).toHaveBeenCalledExactlyOnceWith(auto, "plate", undefined, 0);
   });
 });

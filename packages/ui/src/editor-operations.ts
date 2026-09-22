@@ -424,15 +424,26 @@ function trimPlateToBlackBounds(
   workspace: LabelDocument,
   plateId: string,
   bounds: BlackPixelBounds | null,
+  minimumWidthMm: number,
 ): LabelDocument {
   return replacePlate(workspace, plateId, (plate) => {
-    if (!bounds) return plate;
+    if (!bounds) {
+      return minimumWidthMm > plate.size.widthMm
+        ? {
+            ...plate,
+            size: { ...plate.size, widthMm: Math.ceil(minimumWidthMm) },
+          }
+        : plate;
+    }
     const leftMm = plate.margins.leftMm;
     const rightMm = plate.margins.rightMm;
     const measuredWidthMm = bounds.maxX - bounds.minX + leftMm + rightMm;
-    const widthMm = Math.ceil(Math.max(1, measuredWidthMm));
+    const widthMm = Math.ceil(Math.max(1, measuredWidthMm, minimumWidthMm));
     const roundingPaddingMm = (widthMm - measuredWidthMm) / 2;
-    const offsetX = leftMm + roundingPaddingMm - bounds.minX;
+    const offsetX =
+      measuredWidthMm <= Math.ceil(minimumWidthMm)
+        ? clamp(0, leftMm - bounds.minX, widthMm - rightMm - bounds.maxX)
+        : leftMm + roundingPaddingMm - bounds.minX;
     return {
       ...plate,
       size: {
@@ -451,6 +462,7 @@ export async function trimPlate(
   workspace: LabelDocument,
   plateId: string,
   findBounds: PlateBlackBoundsProvider = renderPlateBlackBounds,
+  minimumLabelWidthMm = 0,
 ): Promise<LabelDocument> {
   const plate = workspace.plates.find((item) => item.id === plateId);
   if (!plate) return workspace;
@@ -475,7 +487,15 @@ export async function trimPlate(
   const sourceWorkspace = flag
     ? replacePlate(workspace, plateId, () => sourcePlate)
     : workspace;
-  const trimmed = trimPlateToBlackBounds(sourceWorkspace, plateId, bounds);
+  const minimumWidthMm = flag
+    ? Math.max(0, (minimumLabelWidthMm - FLAG_GAP_MM) / 2)
+    : minimumLabelWidthMm;
+  const trimmed = trimPlateToBlackBounds(
+    sourceWorkspace,
+    plateId,
+    bounds,
+    minimumWidthMm,
+  );
   return flag
     ? replacePlate(trimmed, plateId, (item) => toggleFlagPlate(item))
     : trimmed;
