@@ -41,9 +41,12 @@ import {
 import { NumberInput } from "./NumberInput.js";
 
 type PhoneMenu = "shapes" | null;
+const NO_SELECTED_ELEMENTS: readonly LabelElement[] = [];
 
 export function PhoneEditorToolbar({
   selectedText,
+  selectedElements = NO_SELECTED_ELEMENTS,
+  onUpdateSelection,
   selectedImage,
   selectedShape,
   onAddText,
@@ -59,6 +62,10 @@ export function PhoneEditorToolbar({
   onOpenElementProperties,
   onOpenPlateSettings,
 }: {
+  readonly selectedElements?: readonly LabelElement[];
+  readonly onUpdateSelection?:
+    | ((element: LabelElement, fields: readonly string[]) => void)
+    | undefined;
   readonly selectedText: TextElement | undefined;
   readonly selectedImage: ImageElement | undefined;
   readonly selectedShape: ShapeElement | undefined;
@@ -75,6 +82,16 @@ export function PhoneEditorToolbar({
   readonly onOpenElementProperties: () => void;
   readonly onOpenPlateSettings: () => void;
 }) {
+  const changeProperty = (element: LabelElement, field: string) =>
+    selectedElements.length > 1 && onUpdateSelection
+      ? onUpdateSelection(element, [field])
+      : onChangeElement(element);
+  const mixed = (field: string) =>
+    selectedElements.some(
+      (element) =>
+        (element as unknown as Record<string, unknown>)[field] !==
+        (selectedElements[0] as unknown as Record<string, unknown>)[field],
+    );
   const selectedElement =
     selectedText ?? selectedImage ?? selectedShape ?? selectedCode;
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -193,19 +210,22 @@ export function PhoneEditorToolbar({
             {selectedText && (
               <TextQuickControls
                 element={selectedText}
-                onChange={onChangeElement}
+                onChange={changeProperty}
+                mixed={mixed}
               />
             )}
             {selectedImage && (
               <ImageQuickControls
                 element={selectedImage}
-                onChange={onChangeElement}
+                onChange={changeProperty}
+                mixed={mixed}
               />
             )}
             {selectedShape && (
               <ShapeQuickControls
                 element={selectedShape}
-                onChange={onChangeElement}
+                onChange={changeProperty}
+                mixed={mixed}
               />
             )}
           </div>
@@ -372,9 +392,11 @@ function PhoneToolButton({
 function TextQuickControls({
   element,
   onChange,
+  mixed,
 }: {
   readonly element: TextElement;
-  readonly onChange: (element: LabelElement) => void;
+  readonly onChange: (element: LabelElement, field: string) => void;
+  readonly mixed: (field: string) => boolean;
 }) {
   const inputId = useId();
   return (
@@ -383,15 +405,20 @@ function TextQuickControls({
         <span>SIZE</span>
         <div className="unit-input">
           <NumberInput
+            mixed={mixed("fontSizePt")}
+            placeholder={mixed("fontSizePt") ? "Mixed" : undefined}
             aria-label="Font size"
             id={inputId}
             inputMode="numeric"
             min={1}
             onValueChange={(value) =>
-              onChange({
-                ...element,
-                fontSizePt: Math.max(1, Math.round(value)),
-              })
+              onChange(
+                {
+                  ...element,
+                  fontSizePt: Math.max(1, Math.round(value)),
+                },
+                "fontSizePt",
+              )
             }
             step={1}
             value={Math.round(element.fontSizePt)}
@@ -406,10 +433,12 @@ function TextQuickControls({
         {(["left", "center", "right"] as const).map((alignment) => (
           <button
             aria-label={`Align ${alignment}`}
-            aria-pressed={element.align === alignment}
-            className={element.align === alignment ? "active" : ""}
+            aria-pressed={!mixed("align") && element.align === alignment}
+            className={
+              !mixed("align") && element.align === alignment ? "active" : ""
+            }
             key={alignment}
-            onClick={() => onChange({ ...element, align: alignment })}
+            onClick={() => onChange({ ...element, align: alignment }, "align")}
             type="button"
           >
             {alignment === "left" ? (
@@ -429,21 +458,27 @@ function TextQuickControls({
 function ImageQuickControls({
   element,
   onChange,
+  mixed,
 }: {
   readonly element: ImageElement;
-  readonly onChange: (element: LabelElement) => void;
+  readonly onChange: (element: LabelElement, field: string) => void;
+  readonly mixed: (field: string) => boolean;
 }) {
   return (
     <label className="phone-quick-range">
       <span>
         <SlidersHorizontal size={15} /> Contrast
+        {mixed("contrast") ? " (Mixed)" : ""}
       </span>
       <input
         aria-label="Image contrast"
         max={255}
         min={0}
         onChange={(event) =>
-          onChange({ ...element, contrast: Number(event.target.value) })
+          onChange(
+            { ...element, contrast: Number(event.target.value) },
+            "contrast",
+          )
         }
         type="range"
         value={element.contrast}
@@ -455,9 +490,11 @@ function ImageQuickControls({
 function ShapeQuickControls({
   element,
   onChange,
+  mixed,
 }: {
   readonly element: ShapeElement;
-  readonly onChange: (element: LabelElement) => void;
+  readonly onChange: (element: LabelElement, field: string) => void;
+  readonly mixed: (field: string) => boolean;
 }) {
   const inputId = useId();
   return (
@@ -468,15 +505,20 @@ function ShapeQuickControls({
       <span>STROKE</span>
       <div className="unit-input">
         <NumberInput
+          mixed={mixed("strokeWidthMm")}
+          placeholder={mixed("strokeWidthMm") ? "Mixed" : undefined}
           aria-label="Shape stroke width"
           id={inputId}
           inputMode="decimal"
           min={0.1}
           onValueChange={(value) =>
-            onChange({
-              ...element,
-              strokeWidthMm: Math.max(0.1, value),
-            })
+            onChange(
+              {
+                ...element,
+                strokeWidthMm: Math.max(0.1, value),
+              },
+              "strokeWidthMm",
+            )
           }
           step={0.1}
           value={Math.round(element.strokeWidthMm * 10) / 10}

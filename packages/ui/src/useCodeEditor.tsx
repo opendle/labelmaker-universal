@@ -25,7 +25,9 @@ export function useCodeEditor({
   printableMargins,
   editWorkspace,
   selectElement,
+  selectedElementIds = [],
 }: {
+  readonly selectedElementIds?: readonly string[];
   readonly activePlate: LabelPlate | undefined;
   readonly workspace: LabelDocument;
   readonly printableMargins: PrintableMargins;
@@ -35,6 +37,7 @@ export function useCodeEditor({
   const [target, setTarget] = useState<{
     kind: "qr" | "barcode";
     code?: CodeElement;
+    ids?: readonly string[];
   } | null>(null);
   const close = () => setTarget(null);
   const save = (configuration: CodeConfiguration) => {
@@ -62,19 +65,38 @@ export function useCodeEditor({
     editWorkspace(
       replacePlate(workspace, activePlate.id, (plate) =>
         target.code
-          ? updateElementAndFlagPeer(plate, element)
+          ? (target.ids ?? [element.id]).reduce((next, id) => {
+              const original = plate.elements.find((item) => item.id === id);
+              return original
+                ? updateElementAndFlagPeer(next, {
+                    ...original,
+                    ...configuration,
+                  } as CodeElement)
+                : next;
+            }, plate)
           : appendElementAndFlagPeer(plate, element),
       ),
       activePlate.id,
     );
-    selectElement(element.id);
+    if (!target.ids || target.ids.length < 2) selectElement(element.id);
     close();
   };
   return {
     isOpen: target !== null,
     close,
     openNew: (kind: "qr" | "barcode") => setTarget({ kind }),
-    openCode: (code: CodeElement) => setTarget({ kind: code.kind, code }),
+    openCode: (code: CodeElement) =>
+      setTarget({
+        kind: code.kind,
+        code,
+        ids:
+          selectedElementIds.includes(code.id) &&
+          activePlate?.elements
+            .filter((item) => selectedElementIds.includes(item.id))
+            .every((item) => item.kind === code.kind)
+            ? selectedElementIds
+            : [code.id],
+      }),
     dialog: target && (
       <CodeEditorDialog
         kind={target.kind}

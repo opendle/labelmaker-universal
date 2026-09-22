@@ -78,6 +78,21 @@ appearances so that they show the physical label and printed result accurately.
 - Add a plate with the large `+` control. Use the current plate height and left
   and right trim margins for the new plate. Keep the default new-plate width.
 - Select, move, and edit a text element.
+- Hold Ctrl or Command and click elements to add them to or remove them from
+  the selection. Hold Shift and drag on the work surface to draw a selection
+  box. Select frames fully inside the box, including rotated frames. Ctrl or
+  Command with Shift adds the enclosed frames to the current selection.
+- Move all selected elements together by dragging a selected element or using
+  the arrow keys. Preserve their relative positions. Show a frame around each
+  selected element. Show resize and rotation handles only for one selection.
+- Show the right inspector when all selected elements have the same type.
+  Apply each property edit to the complete selection, including text content
+  and font size. Keep other values and frames unchanged. Show `Mixed` for
+  text and number fields with different values. Hide the inspector for mixed
+  element types. Delete and layer-order actions apply to the full selection.
+- Make each group drag, property edit, and delete action one undo step. Keep
+  linked flag copies in sync and count each linked pair only once. Recovery
+  restores the first selected element; the workspace format is unchanged.
 - Edit text directly on the plate. Double-click an unselected text element, or
   single-click a selected text element, to enter text-edit mode.
 - Let text remain visible outside its frame while it is edited, as it is on the

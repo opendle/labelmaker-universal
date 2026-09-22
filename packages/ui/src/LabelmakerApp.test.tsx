@@ -3468,3 +3468,312 @@ describe("LabelmakerApp", () => {
     ).toBeInTheDocument();
   });
 });
+
+async function renderMultipleSelection() {
+  const first = sampleDocument.plates[0]!.elements.find(
+    (element) => element.kind === "text",
+  )!;
+  const plate = {
+    ...sampleDocument.plates[0]!,
+    widthMode: "fixed" as const,
+    size: { widthMm: 80, heightMm: 30 },
+    elements: [
+      {
+        ...first,
+        id: "first",
+        text: "First",
+        xMm: 5,
+        yMm: 5,
+        widthMm: 10,
+        heightMm: 5,
+        fontSizePt: 12,
+      },
+      {
+        ...first,
+        id: "second",
+        text: "Second",
+        xMm: 25,
+        yMm: 10,
+        widthMm: 10,
+        heightMm: 5,
+        fontSizePt: 18,
+      },
+      {
+        id: "shape",
+        kind: "rectangle" as const,
+        xMm: 50,
+        yMm: 5,
+        widthMm: 8,
+        heightMm: 8,
+        rotationDeg: 0,
+        filled: true,
+        strokeWidthMm: 1,
+        cornerRadiusMm: 0,
+      },
+    ],
+  };
+  const host = createHost({
+    loadWorkspaceRecovery: vi.fn().mockResolvedValue({
+      document: { ...sampleDocument, plates: [plate] },
+      dirty: false,
+      activePlateId: plate.id,
+      selectedElementId: null,
+      zoom: 100,
+      savedAt: null,
+      fileName: null,
+    }),
+  });
+  const result = render(<LabelmakerApp host={host} />);
+  await screen.findByRole("button", { name: "Text element: First" });
+  const canvas = result.container.querySelector<HTMLElement>(".label-canvas")!;
+  vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+    x: 100,
+    y: 100,
+    left: 100,
+    top: 100,
+    width: 800,
+    height: 300,
+    right: 900,
+    bottom: 400,
+    toJSON: () => ({}),
+  });
+  return { ...result, host, plate, canvas, user: userEvent.setup() };
+}
+
+function selectionPointer(
+  target: Element | Window,
+  type: string,
+  x: number,
+  y: number,
+  modifiers = {},
+) {
+  const event = new MouseEvent(type, {
+    bubbles: true,
+    clientX: x,
+    clientY: y,
+    button: 0,
+    ...modifiers,
+  });
+  Object.defineProperty(event, "pointerId", { value: 1 });
+  fireEvent(target, event);
+}
+
+describe("multiple element selection", () => {
+  it("applies compact font and alignment controls to all selected text", async () => {
+    vi.stubGlobal("innerWidth", 393);
+    vi.stubGlobal("innerHeight", 852);
+    const { user, host } = await renderMultipleSelection();
+    await user.click(
+      screen.getByRole("button", { name: "Text element: First" }),
+    );
+    await user.keyboard("{Control>}");
+    await user.click(
+      screen.getByRole("button", { name: "Text element: Second" }),
+    );
+    await user.keyboard("{/Control}");
+    expect(screen.getByLabelText("Font size")).toHaveValue(null);
+    fireEvent.change(screen.getByLabelText("Font size"), {
+      target: { value: "12" },
+    });
+    await user.click(screen.getByRole("button", { name: "Align right" }));
+    fireEvent.keyDown(window, { key: "s", ctrlKey: true });
+    await waitFor(() => expect(host.saveWorkspace).toHaveBeenCalled());
+    expect(
+      vi.mocked(host.saveWorkspace).mock.calls.at(-1)![0].plates[0]!.elements,
+    ).toMatchObject([
+      { id: "first", fontSizePt: 12, align: "right", text: "First", xMm: 5 },
+      { id: "second", fontSizePt: 12, align: "right", text: "Second", xMm: 25 },
+      { id: "shape" },
+    ]);
+  });
+
+  it("keeps modifier double-clicks out of inline edit mode", async () => {
+    const { user, container } = await renderMultipleSelection();
+    const first = screen.getByRole("button", { name: "Text element: First" });
+    const second = screen.getByRole("button", { name: "Text element: Second" });
+    await user.click(first);
+    await user.keyboard("{Control>}");
+    await user.click(second);
+    await user.keyboard("{/Control}");
+    fireEvent.doubleClick(second, { ctrlKey: true });
+    expect(container.querySelectorAll(".canvas-element.selected")).toHaveLength(
+      2,
+    );
+    expect(
+      screen.queryByLabelText("Edit text on label"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("excludes partially enclosed frames and clears the box after pointer cancellation", async () => {
+    const { container } = await renderMultipleSelection();
+    const surface = container.querySelector(".work-surface")!;
+    selectionPointer(surface, "pointerdown", 100, 100, { shiftKey: true });
+    selectionPointer(window, "pointermove", 400, 300, { shiftKey: true });
+    expect(container.querySelectorAll(".canvas-element.selected")).toHaveLength(
+      1,
+    );
+    selectionPointer(window, "pointercancel", 400, 300);
+    expect(
+      container.querySelector(".canvas-selection-box"),
+    ).not.toBeInTheDocument();
+    selectionPointer(window, "pointermove", 900, 400);
+    expect(container.querySelectorAll(".canvas-element.selected")).toHaveLength(
+      1,
+    );
+  });
+
+  it("preserves selected layer order when moving the group to front or back", async () => {
+    const { user, host } = await renderMultipleSelection();
+    await user.click(
+      screen.getByRole("button", { name: "Text element: First" }),
+    );
+    await user.keyboard("{Control>}");
+    await user.click(
+      screen.getByRole("button", { name: "Text element: Second" }),
+    );
+    await user.keyboard("{/Control}");
+    await user.click(screen.getByRole("button", { name: "Bring to front" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(
+      vi
+        .mocked(host.saveWorkspace)
+        .mock.calls.at(-1)![0]
+        .plates[0]!.elements.map((element) => element.id),
+    ).toEqual(["shape", "first", "second"]);
+    await user.click(screen.getByRole("button", { name: "Send to back" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(
+      vi
+        .mocked(host.saveWorkspace)
+        .mock.calls.at(-1)![0]
+        .plates[0]!.elements.map((element) => element.id),
+    ).toEqual(["first", "second", "shape"]);
+  });
+
+  it.each(["Control", "Meta"])(
+    "toggles selection with %s and applies only the edited property",
+    async (modifier) => {
+      const { user, host } = await renderMultipleSelection();
+      await user.click(
+        screen.getByRole("button", { name: "Text element: First" }),
+      );
+      await user.keyboard(`{${modifier}>}`);
+      await user.click(
+        screen.getByRole("button", { name: "Text element: Second" }),
+      );
+      await user.keyboard(`{/${modifier}}`);
+      expect(
+        document.querySelectorAll(".canvas-element.selected"),
+      ).toHaveLength(2);
+      expect(
+        screen.queryByLabelText("Edit text on label"),
+      ).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Font size")).toHaveValue(null);
+      fireEvent.change(screen.getByLabelText("Font size"), {
+        target: { value: "12" },
+      });
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      expect(
+        vi.mocked(host.saveWorkspace).mock.calls.at(-1)![0].plates[0]!.elements,
+      ).toMatchObject([
+        { id: "first", fontSizePt: 12, text: "First", xMm: 5 },
+        { id: "second", fontSizePt: 12, text: "Second", xMm: 25 },
+        { id: "shape" },
+      ]);
+      await user.click(screen.getByRole("button", { name: "Undo" }));
+      expect(screen.getByLabelText("Font size")).toHaveValue(null);
+      fireEvent.change(screen.getByLabelText("Text value"), {
+        target: { value: "Shared" },
+      });
+      expect(
+        screen.getAllByRole("button", { name: "Text element: Shared" }),
+      ).toHaveLength(2);
+      await user.keyboard(`{${modifier}>}`);
+      await user.click(
+        screen.getAllByRole("button", { name: "Text element: Shared" })[1]!,
+      );
+      await user.keyboard(`{/${modifier}}`);
+      expect(
+        document.querySelectorAll(".canvas-element.selected"),
+      ).toHaveLength(1);
+    },
+  );
+
+  it("selects enclosed frames in either drag direction and moves the group in one undo step", async () => {
+    const { container, canvas, user, host } = await renderMultipleSelection();
+    const surface = container.querySelector(".work-surface")!;
+    selectionPointer(surface, "pointerdown", 500, 300, { shiftKey: true });
+    selectionPointer(window, "pointermove", 110, 110, { shiftKey: true });
+    expect(
+      container.querySelector(".canvas-selection-box"),
+    ).toBeInTheDocument();
+    expect(container.querySelectorAll(".canvas-element.selected")).toHaveLength(
+      2,
+    );
+    selectionPointer(window, "pointerup", 110, 110);
+    fireEvent.click(surface);
+    expect(container.querySelectorAll(".canvas-element.selected")).toHaveLength(
+      2,
+    );
+    expect(
+      container.querySelector(".canvas-selection-box"),
+    ).not.toBeInTheDocument();
+    const first = screen.getByRole("button", { name: "Text element: First" });
+    selectionPointer(first, "pointerdown", 170, 170);
+    selectionPointer(window, "pointermove", 190, 190);
+    selectionPointer(window, "pointermove", 200, 200);
+    selectionPointer(window, "pointerup", 200, 200);
+    fireEvent.click(first);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(
+      vi.mocked(host.saveWorkspace).mock.calls.at(-1)![0].plates[0]!.elements,
+    ).toMatchObject([
+      { id: "first", xMm: 8, yMm: 8 },
+      { id: "second", xMm: 28, yMm: 13 },
+      { id: "shape", xMm: 50 },
+    ]);
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(
+      canvas
+        .querySelector<HTMLElement>(".canvas-element")!
+        .style.getPropertyValue("--element-left"),
+    ).toBe("6.25%");
+    expect(screen.getByRole("button", { name: "Undo" })).toBeDisabled();
+    first.focus();
+    fireEvent.keyDown(first, { key: "ArrowRight", shiftKey: true });
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    expect(
+      vi.mocked(host.saveWorkspace).mock.calls.at(-1)![0].plates[0]!.elements,
+    ).toMatchObject([{ xMm: 6 }, { xMm: 26 }, { xMm: 50 }]);
+  });
+
+  it("hides mixed-type properties and deletes the whole selection with undo", async () => {
+    const { user, container } = await renderMultipleSelection();
+    await user.click(
+      screen.getByRole("button", { name: "Text element: First" }),
+    );
+    await user.keyboard("{Control>}");
+    await user.click(
+      screen.getByRole("button", { name: "rectangle shape element" }),
+    );
+    await user.keyboard("{/Control}");
+    expect(container.querySelectorAll(".canvas-element.selected")).toHaveLength(
+      2,
+    );
+    expect(screen.queryByLabelText("Font size")).not.toBeInTheDocument();
+    fireEvent.keyDown(window, { key: "Delete" });
+    expect(
+      screen.queryByRole("button", { name: "Text element: First" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "rectangle shape element" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(
+      screen.getByRole("button", { name: "Text element: First" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "rectangle shape element" }),
+    ).toBeInTheDocument();
+  });
+});

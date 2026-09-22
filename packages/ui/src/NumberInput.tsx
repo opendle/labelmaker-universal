@@ -2,6 +2,7 @@ import { useState, type InputHTMLAttributes } from "react";
 
 export function NumberInput({
   value,
+  mixed = false,
   onValueChange,
   normalizeValue,
   onDraftValueChange,
@@ -13,6 +14,7 @@ export function NumberInput({
   "onChange" | "type" | "value"
 > & {
   readonly value: number;
+  readonly mixed?: boolean;
   readonly onValueChange: (value: number) => void;
   readonly normalizeValue?: (value: number) => number;
   readonly onDraftValueChange?: (text: string, expectedValue: number) => void;
@@ -20,9 +22,16 @@ export function NumberInput({
   const [draft, setDraft] = useState<{
     readonly text: string;
     readonly expectedValue: number;
+    readonly expectedMixed: boolean;
   } | null>(null);
   const displayValue =
-    draft !== null && draft.expectedValue === value ? draft.text : value;
+    draft !== null &&
+    draft.expectedValue === value &&
+    draft.expectedMixed === mixed
+      ? draft.text
+      : mixed
+        ? ""
+        : value;
 
   return (
     <input
@@ -34,19 +43,31 @@ export function NumberInput({
       onChange={(event) => {
         const rawValue = event.target.value;
         if (rawValue.trim() === "") {
-          setDraft({ text: rawValue, expectedValue: value });
+          setDraft({
+            text: rawValue,
+            expectedValue: value,
+            expectedMixed: mixed,
+          });
           onDraftValueChange?.(rawValue, value);
           return;
         }
         const nextValue = Number(rawValue);
         if (!Number.isFinite(nextValue)) return;
         const normalizedValue = normalizeValue?.(nextValue) ?? nextValue;
-        setDraft({ text: rawValue, expectedValue: normalizedValue });
+        setDraft({
+          text: rawValue,
+          expectedValue: normalizedValue,
+          expectedMixed: false,
+        });
         onDraftValueChange?.(rawValue, normalizedValue);
         onValueChange(normalizedValue);
       }}
       onFocus={(event) => {
-        setDraft({ text: String(value), expectedValue: value });
+        setDraft({
+          text: mixed ? "" : String(value),
+          expectedValue: value,
+          expectedMixed: mixed,
+        });
         onFocus?.(event);
       }}
       type="number"

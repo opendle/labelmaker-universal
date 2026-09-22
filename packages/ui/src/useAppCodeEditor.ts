@@ -9,15 +9,22 @@ export function useAppCodeEditor(
   controller: ReturnType<typeof useLabelmakerController>,
 ) {
   const { activePlate, state, dispatch } = controller;
-  const selectedElement = activePlate?.elements.find(
-    (element) => element.id === state.selectedElementId,
-  );
+  const elements =
+    activePlate?.elements.filter((element) =>
+      state.selectedElementIds.includes(element.id),
+    ) ?? [];
+  const selectedElement = elements.every(
+    (element) => element.kind === elements[0]?.kind,
+  )
+    ? elements[0]
+    : undefined;
   const selectedCode =
     selectedElement?.kind === "qr" || selectedElement?.kind === "barcode"
       ? selectedElement
       : undefined;
   const codeEditor = useCodeEditor({
     activePlate,
+    selectedElementIds: state.selectedElementIds,
     workspace: state.workspace,
     printableMargins: nonPrintableMarginsMm(
       activePlate?.size.heightMm ?? 16,

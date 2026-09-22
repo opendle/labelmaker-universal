@@ -3993,3 +3993,21 @@ textarea.inline-text-editor {
   overflow: visible;
   container-type: inline-size;
 }
+
+.canvas-selection-box {
+  position: absolute;
+  z-index: 20;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  pointer-events: none;
+}
+
+.property-stack .field:has(> span) > textarea {
+  padding-top: 17px;
+}
+
+.inspector textarea {
+  width: 100%;
+  min-height: 54px;
+  resize: vertical;
+}

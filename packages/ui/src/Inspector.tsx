@@ -1,5 +1,6 @@
 import type {
   CodeElement,
+  LabelElement,
   ImageElement,
   ShapeElement,
   TextElement,
@@ -18,7 +19,7 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
-import { useId, useState } from "react";
+import { createContext, use, useId, useState } from "react";
 
 import { IconButton } from "./controls.js";
 import { TYPEFACES } from "./typefaces.js";
@@ -28,6 +29,12 @@ import {
   ROTATION_INPUT_STEP_DEGREES,
   snapRotationDegrees,
 } from "./rotation.js";
+
+const MixedFieldsContext = createContext<ReadonlySet<string>>(new Set());
+function useMixed(field: string) {
+  return use(MixedFieldsContext).has(field);
+}
+type PropertyChange<T> = (element: T, field: string) => void;
 
 function NumberField({
   label,
@@ -40,6 +47,7 @@ function NumberField({
   normalizeValue,
   step,
   integer = false,
+  field = "",
 }: {
   readonly label: string;
   readonly shortLabel: string;
@@ -51,8 +59,10 @@ function NumberField({
   readonly normalizeValue?: (value: number) => number;
   readonly step?: number;
   readonly integer?: boolean;
+  readonly field?: string;
 }) {
   const inputId = useId();
+  const mixed = useMixed(field);
   return (
     <label className="field" htmlFor={inputId}>
       <span>{shortLabel}</span>
@@ -68,6 +78,8 @@ function NumberField({
             onChange(integer ? Math.round(next) : next);
           }}
           step={step}
+          mixed={mixed}
+          placeholder={mixed ? "Mixed" : undefined}
           value={integer ? Math.round(value) : Math.round(value * 10) / 10}
         />
         <b>{unit}</b>
@@ -81,17 +93,21 @@ function LineHeightField({
   onChange,
 }: {
   readonly element: TextElement;
-  readonly onChange: (element: TextElement) => void;
+  readonly onChange: PropertyChange<TextElement>;
 }) {
-  const enabled = element.lineHeightPt !== undefined;
+  const mixed = useMixed("lineHeightPt");
+  const enabled = element.lineHeightPt !== undefined || mixed;
   const [emptyDraft, setEmptyDraft] = useState(false);
   const toggleAutomatic = () => {
     setEmptyDraft(false);
     if (enabled) {
       const { lineHeightPt: _lineHeightPt, ...automatic } = element;
-      onChange(automatic);
+      onChange(automatic, "lineHeightPt");
     } else {
-      onChange({ ...element, lineHeightPt: element.fontSizePt });
+      onChange(
+        { ...element, lineHeightPt: element.fontSizePt },
+        "lineHeightPt",
+      );
     }
   };
   return (
@@ -100,7 +116,7 @@ function LineHeightField({
       <div className="unit-input">
         <button
           aria-label="Use automatic line height"
-          aria-pressed={!enabled}
+          aria-pressed={mixed ? "mixed" : !enabled}
           className={`auto-line-height-toggle${enabled ? "" : " active"}`}
           onClick={toggleAutomatic}
           title="Automatic line height"
@@ -110,6 +126,7 @@ function LineHeightField({
         </button>
         <input
           aria-label="Line height"
+          placeholder={mixed ? "Mixed" : undefined}
           disabled={!enabled}
           inputMode="decimal"
           min={0.1}
@@ -122,15 +139,18 @@ function LineHeightField({
             const lineHeightPt = Number(event.target.value);
             if (!Number.isFinite(lineHeightPt)) return;
             setEmptyDraft(false);
-            onChange({
-              ...element,
-              lineHeightPt: Math.max(0.1, lineHeightPt),
-            });
+            onChange(
+              {
+                ...element,
+                lineHeightPt: Math.max(0.1, lineHeightPt),
+              },
+              "lineHeightPt",
+            );
           }}
           step={0.1}
           type="number"
           value={
-            emptyDraft
+            emptyDraft || mixed
               ? ""
               : Math.round((element.lineHeightPt ?? element.fontSizePt) * 10) /
                 10
@@ -160,7 +180,7 @@ function FrameControls<T extends FramedElement>({
   readonly minSize: number;
   readonly hasMultipleElements: boolean;
   readonly hideGeometry?: boolean;
-  readonly onChange: (element: T) => void;
+  readonly onChange: PropertyChange<T>;
   readonly onMoveLayer: (direction: "back" | "front") => void;
 }) {
   return (
@@ -168,51 +188,64 @@ function FrameControls<T extends FramedElement>({
       <div className="frame-geometry-controls" hidden={hideGeometry}>
         <div className="field-row">
           <NumberField
+            field="widthMm"
             label={`${elementName} width`}
             min={minSize}
             shortLabel="WIDTH"
             step={0.1}
             value={element.widthMm}
             onChange={(widthMm) =>
-              onChange({ ...element, widthMm: Math.max(minSize, widthMm) })
+              onChange(
+                { ...element, widthMm: Math.max(minSize, widthMm) },
+                "widthMm",
+              )
             }
           />
           <NumberField
+            field="heightMm"
             label={`${elementName} height`}
             min={minSize}
             shortLabel="HEIGHT"
             step={0.1}
             value={element.heightMm}
             onChange={(heightMm) =>
-              onChange({ ...element, heightMm: Math.max(minSize, heightMm) })
+              onChange(
+                { ...element, heightMm: Math.max(minSize, heightMm) },
+                "heightMm",
+              )
             }
           />
         </div>
         <div className="field-row position-row">
           <NumberField
             label={`${positionName ? `${positionName} ` : ""}X position`}
+            field="xMm"
             shortLabel="X"
             step={0.1}
             value={element.xMm}
-            onChange={(xMm) => onChange({ ...element, xMm })}
+            onChange={(xMm) => onChange({ ...element, xMm }, "xMm")}
           />
           <NumberField
             label={`${positionName ? `${positionName} ` : ""}Y position`}
+            field="yMm"
             shortLabel="Y"
             step={0.1}
             value={element.yMm}
-            onChange={(yMm) => onChange({ ...element, yMm })}
+            onChange={(yMm) => onChange({ ...element, yMm }, "yMm")}
           />
         </div>
         <NumberField
           icon
+          field="rotationDeg"
           label={`${elementName} rotation`}
           normalizeValue={snapRotationDegrees}
           shortLabel="ROTATION"
           step={ROTATION_INPUT_STEP_DEGREES}
           unit="°"
           value={element.rotationDeg}
-          onChange={(rotationDeg) => onChange({ ...element, rotationDeg })}
+          onChange={(rotationDeg) =>
+            onChange({ ...element, rotationDeg }, "rotationDeg")
+          }
         />
       </div>
       {hasMultipleElements && (
@@ -237,22 +270,38 @@ function TextInspector({
 }: {
   readonly element: TextElement;
   readonly hasMultipleElements: boolean;
-  readonly onChange: (element: TextElement) => void;
+  readonly onChange: PropertyChange<TextElement>;
   readonly onMoveLayer: (direction: "back" | "front") => void;
 }) {
+  const mixed = use(MixedFieldsContext);
   return (
     <div className="property-stack">
+      <label className="field full">
+        <span>TEXT</span>
+        <textarea
+          aria-label="Text value"
+          placeholder={mixed.has("text") ? "Mixed" : undefined}
+          value={mixed.has("text") ? "" : element.text}
+          onChange={(event) =>
+            onChange({ ...element, text: event.target.value }, "text")
+          }
+        />
+      </label>
       <label className="field full">
         <span>TYPEFACE</span>
         <select
           aria-label="Typeface"
           className="typeface-select"
           onChange={(event) =>
-            onChange({ ...element, fontFamily: event.target.value })
+            onChange(
+              { ...element, fontFamily: event.target.value },
+              "fontFamily",
+            )
           }
           style={{ fontFamily: element.fontFamily }}
-          value={element.fontFamily}
+          value={mixed.has("fontFamily") ? "" : element.fontFamily}
         >
+          {mixed.has("fontFamily") && <option value="">Mixed</option>}
           {TYPEFACES.map((typeface) => (
             <option key={typeface.label} value={typeface.value}>
               {typeface.label}
@@ -263,6 +312,7 @@ function TextInspector({
       <div className="type-metrics-row">
         <NumberField
           integer
+          field="fontSizePt"
           label="Font size"
           min={1}
           shortLabel="SIZE"
@@ -270,7 +320,10 @@ function TextInspector({
           unit="pt"
           value={element.fontSizePt}
           onChange={(fontSizePt) =>
-            onChange({ ...element, fontSizePt: Math.max(1, fontSizePt) })
+            onChange(
+              { ...element, fontSizePt: Math.max(1, fontSizePt) },
+              "fontSizePt",
+            )
           }
         />
         <LineHeightField element={element} onChange={onChange} />
@@ -288,10 +341,12 @@ function TextInspector({
                       ? "Semi bold"
                       : "Bold"
               }
-              aria-pressed={element.fontWeight === fontWeight}
-              className={`weight-button weight-${fontWeight} ${element.fontWeight === fontWeight ? "active" : ""}`}
+              aria-pressed={
+                !mixed.has("fontWeight") && element.fontWeight === fontWeight
+              }
+              className={`weight-button weight-${fontWeight} ${!mixed.has("fontWeight") && element.fontWeight === fontWeight ? "active" : ""}`}
               key={fontWeight}
-              onClick={() => onChange({ ...element, fontWeight })}
+              onClick={() => onChange({ ...element, fontWeight }, "fontWeight")}
               style={{ fontWeight }}
               type="button"
             >
@@ -301,13 +356,18 @@ function TextInspector({
         </span>
         <button
           aria-label="Italic"
-          aria-pressed={element.fontStyle === "italic"}
-          className={`italic-button ${element.fontStyle === "italic" ? "active" : ""}`}
+          aria-pressed={
+            mixed.has("fontStyle") ? "mixed" : element.fontStyle === "italic"
+          }
+          className={`italic-button ${!mixed.has("fontStyle") && element.fontStyle === "italic" ? "active" : ""}`}
           onClick={() =>
-            onChange({
-              ...element,
-              fontStyle: element.fontStyle === "italic" ? "normal" : "italic",
-            })
+            onChange(
+              {
+                ...element,
+                fontStyle: element.fontStyle === "italic" ? "normal" : "italic",
+              },
+              "fontStyle",
+            )
           }
           type="button"
         >
@@ -320,10 +380,12 @@ function TextInspector({
             {(["left", "center", "right"] as const).map((align) => (
               <button
                 aria-label={`Align ${align}`}
-                aria-pressed={element.align === align}
-                className={element.align === align ? "active" : ""}
+                aria-pressed={!mixed.has("align") && element.align === align}
+                className={
+                  !mixed.has("align") && element.align === align ? "active" : ""
+                }
                 key={align}
-                onClick={() => onChange({ ...element, align })}
+                onClick={() => onChange({ ...element, align }, "align")}
                 type="button"
               >
                 {align === "left" ? (
@@ -343,15 +405,19 @@ function TextInspector({
               <button
                 aria-label={`Align ${verticalAlign}`}
                 aria-pressed={
+                  !mixed.has("verticalAlign") &&
                   (element.verticalAlign ?? "middle") === verticalAlign
                 }
                 className={
+                  !mixed.has("verticalAlign") &&
                   (element.verticalAlign ?? "middle") === verticalAlign
                     ? "active"
                     : ""
                 }
                 key={verticalAlign}
-                onClick={() => onChange({ ...element, verticalAlign })}
+                onClick={() =>
+                  onChange({ ...element, verticalAlign }, "verticalAlign")
+                }
                 type="button"
               >
                 {verticalAlign === "top" ? (
@@ -388,9 +454,10 @@ function ImageInspector({
 }: {
   readonly element: ImageElement;
   readonly hasMultipleElements: boolean;
-  readonly onChange: (element: ImageElement) => void;
+  readonly onChange: PropertyChange<ImageElement>;
   readonly onMoveLayer: (direction: "back" | "front") => void;
 }) {
+  const mixed = use(MixedFieldsContext);
   return (
     <div className="property-stack">
       <div className="image-inspector-preview">
@@ -401,13 +468,17 @@ function ImageInspector({
           <select
             aria-label="Image fit"
             onChange={(event) =>
-              onChange({
-                ...element,
-                fit: event.target.value as ImageElement["fit"],
-              })
+              onChange(
+                {
+                  ...element,
+                  fit: event.target.value as ImageElement["fit"],
+                },
+                "fit",
+              )
             }
-            value={element.fit}
+            value={mixed.has("fit") ? "" : element.fit}
           >
+            {mixed.has("fit") && <option value="">Mixed</option>}
             <option value="contain">Contain</option>
             <option value="cover">Cover</option>
             <option value="stretch">Stretch</option>
@@ -415,13 +486,20 @@ function ImageInspector({
         </label>
         <button
           aria-label="Transparent image background"
-          aria-pressed={element.transparentBackground !== false}
+          aria-pressed={
+            mixed.has("transparentBackground")
+              ? "mixed"
+              : element.transparentBackground !== false
+          }
           className={`image-background-toggle${element.transparentBackground !== false ? " active" : ""}`}
           onClick={() =>
-            onChange({
-              ...element,
-              transparentBackground: element.transparentBackground === false,
-            })
+            onChange(
+              {
+                ...element,
+                transparentBackground: element.transparentBackground === false,
+              },
+              "transparentBackground",
+            )
           }
           type="button"
         >
@@ -430,14 +508,18 @@ function ImageInspector({
       </div>
       <label className="field image-tone-field">
         <span>
-          BRIGHTNESS <b>{element.brightness}</b>
+          BRIGHTNESS{" "}
+          <b>{mixed.has("brightness") ? "Mixed" : element.brightness}</b>
         </span>
         <input
           aria-label="Image brightness"
           max={255}
           min={0}
           onChange={(event) =>
-            onChange({ ...element, brightness: Number(event.target.value) })
+            onChange(
+              { ...element, brightness: Number(event.target.value) },
+              "brightness",
+            )
           }
           type="range"
           value={element.brightness}
@@ -445,14 +527,17 @@ function ImageInspector({
       </label>
       <label className="field image-tone-field">
         <span>
-          CONTRAST <b>{element.contrast}</b>
+          CONTRAST <b>{mixed.has("contrast") ? "Mixed" : element.contrast}</b>
         </span>
         <input
           aria-label="Image contrast"
           max={255}
           min={0}
           onChange={(event) =>
-            onChange({ ...element, contrast: Number(event.target.value) })
+            onChange(
+              { ...element, contrast: Number(event.target.value) },
+              "contrast",
+            )
           }
           type="range"
           value={element.contrast}
@@ -479,9 +564,10 @@ function ShapeInspector({
 }: {
   readonly element: ShapeElement;
   readonly hasMultipleElements: boolean;
-  readonly onChange: (element: ShapeElement) => void;
+  readonly onChange: PropertyChange<ShapeElement>;
   readonly onMoveLayer: (direction: "back" | "front") => void;
 }) {
+  const mixed = use(MixedFieldsContext);
   return (
     <div className="property-stack">
       <label className="field full">
@@ -489,37 +575,48 @@ function ShapeInspector({
         <select
           aria-label="Shape type"
           onChange={(event) =>
-            onChange({
-              ...element,
-              shapeType: event.target.value as NonNullable<
-                ShapeElement["shapeType"]
-              >,
-            })
+            onChange(
+              {
+                ...element,
+                shapeType: event.target.value as NonNullable<
+                  ShapeElement["shapeType"]
+                >,
+              },
+              "shapeType",
+            )
           }
-          value={element.shapeType ?? "rectangle"}
+          value={
+            mixed.has("shapeType") ? "" : (element.shapeType ?? "rectangle")
+          }
         >
+          {mixed.has("shapeType") && <option value="">Mixed</option>}
           <option value="line">Line</option>
           <option value="rectangle">Rectangle</option>
           <option value="circle">Circle</option>
         </select>
       </label>
       <NumberField
+        field="strokeWidthMm"
         label="Shape stroke width"
         min={0.1}
         shortLabel="STROKE"
         step={0.1}
         value={element.strokeWidthMm}
         onChange={(strokeWidthMm) =>
-          onChange({ ...element, strokeWidthMm: Math.max(0.1, strokeWidthMm) })
+          onChange(
+            { ...element, strokeWidthMm: Math.max(0.1, strokeWidthMm) },
+            "strokeWidthMm",
+          )
         }
       />
       {(element.shapeType ?? "rectangle") !== "line" && (
         <label className="shape-fill-toggle">
           <input
             aria-label="Fill shape"
-            checked={element.filled}
+            aria-checked={mixed.has("filled") ? "mixed" : element.filled}
+            checked={!mixed.has("filled") && element.filled}
             onChange={(event) =>
-              onChange({ ...element, filled: event.target.checked })
+              onChange({ ...element, filled: event.target.checked }, "filled")
             }
             type="checkbox"
           />
@@ -539,6 +636,11 @@ function ShapeInspector({
 }
 
 export interface InspectorContentProps {
+  readonly selectedElements?: readonly LabelElement[];
+  readonly onUpdateSelection?: (
+    element: LabelElement,
+    fields: readonly string[],
+  ) => void;
   readonly selectedCode?: CodeElement | undefined;
   readonly onUpdateCode?: ((element: CodeElement) => void) | undefined;
   readonly onEditCode?: ((element: CodeElement) => void) | undefined;
@@ -552,7 +654,9 @@ export interface InspectorContentProps {
   readonly onMoveLayer: (direction: "back" | "front") => void;
 }
 
-export function InspectorContent({
+function ElementInspectorContent({
+  selectedElements,
+  onUpdateSelection,
   selectedCode,
   onUpdateCode,
   onEditCode,
@@ -569,21 +673,33 @@ export function InspectorContent({
     <TextInspector
       element={selectedText}
       hasMultipleElements={hasMultipleElements}
-      onChange={onUpdateText}
+      onChange={(element, field) =>
+        selectedElements && selectedElements.length > 1
+          ? onUpdateSelection?.(element, [field])
+          : onUpdateText(element)
+      }
       onMoveLayer={onMoveLayer}
     />
   ) : selectedImage ? (
     <ImageInspector
       element={selectedImage}
       hasMultipleElements={hasMultipleElements}
-      onChange={onUpdateImage}
+      onChange={(element, field) =>
+        selectedElements && selectedElements.length > 1
+          ? onUpdateSelection?.(element, [field])
+          : onUpdateImage(element)
+      }
       onMoveLayer={onMoveLayer}
     />
   ) : selectedShape ? (
     <ShapeInspector
       element={selectedShape}
       hasMultipleElements={hasMultipleElements}
-      onChange={onUpdateShape}
+      onChange={(element, field) =>
+        selectedElements && selectedElements.length > 1
+          ? onUpdateSelection?.(element, [field])
+          : onUpdateShape(element)
+      }
       onMoveLayer={onMoveLayer}
     />
   ) : selectedCode ? (
@@ -600,14 +716,43 @@ export function InspectorContent({
         elementName="Code"
         minSize={1}
         hasMultipleElements={hasMultipleElements}
-        onChange={(element) => onUpdateCode?.(element)}
+        onChange={(element, field) =>
+          selectedElements && selectedElements.length > 1
+            ? onUpdateSelection?.(element, [field])
+            : onUpdateCode?.(element)
+        }
         onMoveLayer={onMoveLayer}
       />
     </div>
   ) : null;
 }
 
+export function InspectorContent(props: InspectorContentProps) {
+  const elements = props.selectedElements ?? [];
+  const keys = new Set(elements.flatMap((element) => Object.keys(element)));
+  const mixed = new Set(
+    [...keys].filter((key) =>
+      elements.some(
+        (element) =>
+          JSON.stringify(
+            (element as unknown as Record<string, unknown>)[key],
+          ) !==
+          JSON.stringify(
+            (elements[0] as unknown as Record<string, unknown>)[key],
+          ),
+      ),
+    ),
+  );
+  return (
+    <MixedFieldsContext value={mixed}>
+      <ElementInspectorContent {...props} />
+    </MixedFieldsContext>
+  );
+}
+
 export function Inspector({
+  selectedElements,
+  onUpdateSelection,
   selectedCode,
   onUpdateCode,
   onEditCode,
@@ -654,6 +799,8 @@ export function Inspector({
         </div>
       )}
       <InspectorContent
+        {...(selectedElements ? { selectedElements } : {})}
+        {...(onUpdateSelection ? { onUpdateSelection } : {})}
         selectedCode={selectedCode}
         onUpdateCode={onUpdateCode}
         onEditCode={onEditCode}

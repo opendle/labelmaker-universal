@@ -67,3 +67,26 @@ describe("plate order", () => {
     expect(movePlate(moved, "missing", 0)).toBe(moved);
   });
 });
+
+describe("selection history", () => {
+  it("retains a valid primary item when undo removes the first selected item", () => {
+    const plate = sampleDocument.plates[0]!;
+    const original = plate.elements[0]!;
+    const added = { ...original, id: "added" };
+    const workspace = {
+      ...sampleDocument,
+      plates: [{ ...plate, elements: [...plate.elements, added] }],
+    };
+    const edited = appReducer(initialAppState, {
+      type: "edit-workspace",
+      workspace,
+    });
+    const selected = appReducer(edited, {
+      type: "select-elements",
+      elementIds: [added.id, original.id],
+    });
+    const undone = appReducer(selected, { type: "undo" });
+    expect(undone.selectedElementIds).toEqual([original.id]);
+    expect(undone.selectedElementId).toBe(original.id);
+  });
+});

@@ -15,6 +15,7 @@ export interface AppState {
   readonly future: readonly LabelDocument[];
   readonly activePlateId: string;
   readonly selectedElementId: string | null;
+  readonly selectedElementIds: readonly string[];
   readonly printers: readonly PrinterSummary[];
   readonly activePrinterId: string;
   readonly dirty: boolean;
@@ -33,6 +34,7 @@ export interface AppState {
 
 export type AppAction =
   | { readonly type: "edit-workspace"; readonly workspace: LabelDocument }
+  | { readonly type: "continue-interaction"; readonly workspace: LabelDocument }
   | { readonly type: "apply-automatic-trim"; readonly workspace: LabelDocument }
   | {
       readonly type: "load-workspace";
@@ -53,6 +55,7 @@ export type AppAction =
       readonly elementId: string | null;
     }
   | { readonly type: "select-element"; readonly elementId: string | null }
+  | { readonly type: "select-elements"; readonly elementIds: readonly string[] }
   | {
       readonly type: "set-printers";
       readonly printers: readonly PrinterSummary[];
@@ -89,6 +92,9 @@ export const initialAppState: AppState = {
   future: [],
   activePlateId: sampleDocument.plates[0]?.id ?? "",
   selectedElementId: sampleDocument.plates[0]?.elements[0]?.id ?? null,
+  selectedElementIds: sampleDocument.plates[0]?.elements[0]
+    ? [sampleDocument.plates[0].elements[0].id]
+    : [],
   printers: [],
   activePrinterId: "",
   dirty: false,
@@ -111,12 +117,13 @@ function selectionForWorkspace(state: AppState, workspace: LabelDocument) {
   const activePlate =
     workspace.plates.find((plate) => plate.id === state.activePlateId) ??
     workspace.plates[0];
-  const selectedElement = activePlate?.elements.find(
-    (element) => element.id === state.selectedElementId,
+  const selectedElementIds = state.selectedElementIds.filter((id) =>
+    activePlate?.elements.some((element) => element.id === id),
   );
   return {
     activePlateId: activePlate?.id ?? "",
-    selectedElementId: selectedElement?.id ?? null,
+    selectedElementId: selectedElementIds[0] ?? null,
+    selectedElementIds,
   };
 }
 
@@ -130,6 +137,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         future: [],
         dirty: true,
       };
+    case "continue-interaction":
+      return { ...state, workspace: action.workspace, dirty: true, future: [] };
     case "apply-automatic-trim":
       return {
         ...state,
@@ -144,6 +153,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         future: [],
         activePlateId: action.workspace.plates[0]?.id ?? "",
         selectedElementId: action.workspace.plates[0]?.elements[0]?.id ?? null,
+        selectedElementIds: action.workspace.plates[0]?.elements[0]
+          ? [action.workspace.plates[0].elements[0].id]
+          : [],
         dirty: false,
         savedAt: null,
         workspaceFileName: action.fileName,
@@ -184,9 +196,20 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         activePlateId: action.plateId,
         selectedElementId: action.elementId,
+        selectedElementIds: action.elementId ? [action.elementId] : [],
       };
     case "select-element":
-      return { ...state, selectedElementId: action.elementId };
+      return {
+        ...state,
+        selectedElementId: action.elementId,
+        selectedElementIds: action.elementId ? [action.elementId] : [],
+      };
+    case "select-elements":
+      return {
+        ...state,
+        selectedElementId: action.elementIds[0] ?? null,
+        selectedElementIds: [...new Set(action.elementIds)],
+      };
     case "set-printers": {
       const preferred = action.preferredId
         ? action.printers.find((printer) => printer.id === action.preferredId)
@@ -254,6 +277,9 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         future: [],
         activePlateId: action.activePlateId,
         selectedElementId: action.selectedElementId,
+        selectedElementIds: action.selectedElementId
+          ? [action.selectedElementId]
+          : [],
         dirty: action.dirty,
         savedAt: action.savedAt,
         workspaceFileName: action.fileName,

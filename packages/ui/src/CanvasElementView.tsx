@@ -37,6 +37,7 @@ export function CanvasElementView({
   canvasScale,
   printableMargins,
   selected,
+  multipleSelected = false,
   editing,
   onActivate,
   onDoubleClick,
@@ -54,6 +55,7 @@ export function CanvasElementView({
   readonly canvasScale: number;
   readonly printableMargins: PrintableMargins;
   readonly selected: boolean;
+  readonly multipleSelected?: boolean;
   readonly editing: boolean;
   readonly onActivate: (element: LabelElement) => void;
   readonly onDoubleClick: (element: LabelElement) => void;
@@ -239,9 +241,13 @@ export function CanvasElementView({
       ) : (
         <button
           aria-label={label}
+          aria-pressed={selected}
           className="canvas-element-control"
           onClick={() => onActivate(element)}
-          onDoubleClick={() => onDoubleClick(element)}
+          onDoubleClick={(event) => {
+            if (!event.ctrlKey && !event.metaKey && !event.shiftKey)
+              onDoubleClick(element);
+          }}
           onFocus={() => onFocus(element)}
           onKeyDown={(event) => onMoveKey(event, element)}
           onPointerDown={(event) => onMoveStart(event, element)}
@@ -262,7 +268,7 @@ export function CanvasElementView({
           )}
         </button>
       )}
-      {selected && !editing && (
+      {selected && !editing && !multipleSelected && (
         <SelectionHandles
           elementLabel={element.kind === "rectangle" ? "shape" : element.kind}
           rotationDeg={element.rotationDeg}

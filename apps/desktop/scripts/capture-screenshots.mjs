@@ -1736,6 +1736,71 @@ await capture(
     );
   },
 );
+for (const [width, height] of [
+  [1440, 960],
+  [1100, 760],
+]) {
+  const name = `labelmaker-multiple-selection-${width}x${height}.png`;
+  savedScreenshotNames.add(name);
+  await capture(width, height, name, async (page) => {
+    await page.setViewportSize({ width: 1440, height: 960 });
+    await page.getByRole("button", { name: "New", exact: true }).click();
+    await page.getByRole("button", { name: /^Plate width:/ }).click();
+    await page.getByLabel("Plate width", { exact: true }).fill("70");
+    await page.getByLabel("Plate width", { exact: true }).press("Enter");
+    await page.getByLabel("Text value").fill("First");
+    await setHiddenNumberControl(page, "Text frame width", "15");
+    await setHiddenNumberControl(page, "X position", "5");
+    await page.getByRole("button", { name: "Text", exact: true }).click();
+    await page.getByLabel("Text value").fill("Second");
+    await setHiddenNumberControl(page, "Text frame width", "15");
+    await setHiddenNumberControl(page, "X position", "25");
+    await page
+      .getByRole("button", { name: "Text element: First", exact: true })
+      .click({ modifiers: ["ControlOrMeta"] });
+    if ((await page.locator(".canvas-element.selected").count()) !== 2)
+      throw new Error("Modifier click did not select both elements.");
+    await page.getByLabel("Font size", { exact: true }).fill("14");
+    await page.getByLabel("Font size", { exact: true }).blur();
+    await page.setViewportSize({ width, height });
+    await page
+      .getByRole("button", { name: "Clear element selection" })
+      .click({ position: { x: 2, y: 2 } });
+    const frames = await page.locator(".canvas-element").evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const rect = node.getBoundingClientRect();
+        return {
+          left: rect.left,
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+        };
+      }),
+    );
+    const left = Math.min(...frames.map((frame) => frame.left)) - 8;
+    const top = Math.min(...frames.map((frame) => frame.top)) - 8;
+    const right = Math.max(...frames.map((frame) => frame.right)) + 8;
+    const bottom = Math.max(...frames.map((frame) => frame.bottom)) + 8;
+    await page.keyboard.down("Shift");
+    await page.mouse.move(left, top);
+    await page.mouse.down();
+    await page.mouse.move(right, bottom, { steps: 8 });
+    if ((await page.locator(".canvas-element.selected").count()) !== 2)
+      throw new Error("The selection box did not select both frames.");
+    const boxName = `labelmaker-selection-box-${width}x${height}.png`;
+    savedScreenshotNames.add(boxName);
+    await page.screenshot({ path: resolve(screenshotDirectory, boxName) });
+    await page.mouse.up();
+    await page.keyboard.up("Shift");
+    if ((await page.locator(".canvas-element.selected").count()) !== 2)
+      throw new Error("Pointer release cleared the selection.");
+    if (
+      (await page.getByLabel("Font size", { exact: true }).inputValue()) !==
+      "14"
+    )
+      throw new Error("The font size was not applied to both elements.");
+  });
+}
 await closeCaptureApplication();
 if (runtimeErrors.includes("sandbox_extension_issue_file failed")) {
   throw new Error(

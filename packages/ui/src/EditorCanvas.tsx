@@ -429,42 +429,86 @@ function useEndInlineEdit(
   return endInlineEdit;
 }
 
-export function EditorCanvas({
-  plate,
-  minimumLabelWidthMm = 0,
-  selectedElementId,
-  zoom,
-  onAddText,
-  onAddImage,
-  onDraw,
-  onOpenIcons,
-  onAddCode,
-  onAddShape,
-  onAddSpecial,
-  onSelectElement,
-  onEditImage,
-  onEditCode,
-  selectedCode,
-  onChangeElement,
-  onChangeElementDuringInteraction,
-  onElementInteractionStart,
-  onElementInteractionEnd,
-  onUpdatePlate,
-  onZoom,
-  printableMargins,
-  platform,
-  presentation,
-  layout,
-  selectedText,
-  selectedImage,
-  selectedShape,
-  onDeleteSelection,
-  onOpenElementProperties,
-  onOpenPlateSettings,
+function useFocusInlineEdit(editingElementId: string | null) {
+  useEffect(() => {
+    if (!editingElementId) return;
+    const editor = Array.from(
+      globalThis.document.querySelectorAll<HTMLElement>(".inline-text-editor"),
+    ).find((item) => item.dataset.elementId === editingElementId);
+    editor?.focus();
+  }, [editingElementId]);
+}
+
+function fitCanvasScale(
+  phoneLayout: boolean,
+  workSurfaceSize:
+    | { readonly width: number; readonly height: number }
+    | undefined,
+  outputWidthMm: number,
+  heightMm: number,
+) {
+  // Keep the vertical rulers and centered margin touch targets on screen.
+  const fallbackPhoneWidth = Math.max(1, globalThis.innerWidth - 144);
+  const fallbackPhoneHeight = Math.max(1, globalThis.innerHeight - 250);
+  const availableWidth =
+    workSurfaceSize && workSurfaceSize.width > 0
+      ? workSurfaceSize.width - 144
+      : fallbackPhoneWidth;
+  const availableHeight =
+    workSurfaceSize && workSurfaceSize.height > 0
+      ? workSurfaceSize.height - 120
+      : fallbackPhoneHeight;
+  const baseCanvasScale = phoneLayout
+    ? Math.max(
+        0.01,
+        Math.min(9, availableWidth / outputWidthMm, availableHeight / heightMm),
+      )
+    : Math.min(9, 720 / outputWidthMm);
+  return baseCanvasScale;
+}
+
+function CanvasSelectionBox({
+  box,
+  scale,
 }: {
+  readonly box: {
+    xMm: number;
+    yMm: number;
+    widthMm: number;
+    heightMm: number;
+  } | null;
+  readonly scale: number;
+}) {
+  return (
+    box && (
+      <div
+        aria-hidden="true"
+        className="canvas-selection-box"
+        style={{
+          left: `${box.xMm * scale}px`,
+          top: `${box.yMm * scale}px`,
+          width: `${box.widthMm * scale}px`,
+          height: `${box.heightMm * scale}px`,
+        }}
+      />
+    )
+  );
+}
+
+interface EditorCanvasProps {
   readonly plate: LabelPlate;
   readonly minimumLabelWidthMm?: number | undefined;
   readonly selectedElementId: string | null;
+  readonly selectedElementIds?: readonly string[];
+  readonly onSelectElements?: (ids: readonly string[]) => void;
+  readonly onChangeElements?: (elements: readonly LabelElement[]) => void;
+  readonly onUpdateSelection?: (
+    element: LabelElement,
+    fields: readonly string[],
+  ) => void;
+  readonly onChangeElementsDuringInteraction?: (
+    elements: readonly LabelElement[],
+  ) => void;
   readonly zoom: number;
   readonly onAddText: () => void;
   readonly onAddImage: (file: File) => void;
@@ -495,34 +539,58 @@ export function EditorCanvas({
   readonly onDeleteSelection: () => void;
   readonly onOpenElementProperties: () => void;
   readonly onOpenPlateSettings: () => void;
-}) {
+}
+
+export function EditorCanvas({
+  plate,
+  minimumLabelWidthMm = 0,
+  selectedElementId,
+  selectedElementIds = selectedElementId ? [selectedElementId] : [],
+  onSelectElements,
+  onChangeElements,
+  onUpdateSelection,
+  onChangeElementsDuringInteraction,
+  zoom,
+  onAddText,
+  onAddImage,
+  onDraw,
+  onOpenIcons,
+  onAddCode,
+  onAddShape,
+  onAddSpecial,
+  onSelectElement,
+  onEditImage,
+  onEditCode,
+  selectedCode,
+  onChangeElement,
+  onChangeElementDuringInteraction,
+  onElementInteractionStart,
+  onElementInteractionEnd,
+  onUpdatePlate,
+  onZoom,
+  printableMargins,
+  platform,
+  presentation,
+  layout,
+  selectedText,
+  selectedImage,
+  selectedShape,
+  onDeleteSelection,
+  onOpenElementProperties,
+  onOpenPlateSettings,
+}: EditorCanvasProps) {
   const outputWidthMm = Math.max(plate.size.widthMm, minimumLabelWidthMm);
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   const workSurfaceRef = useRef<HTMLDivElement>(null);
   const workSurfaceSize = useElementSize(workSurfaceRef);
   const endInlineEdit = useEndInlineEdit(editingElementId, setEditingElementId);
   const phoneLayout = layout !== "standard";
-  // Keep the vertical rulers and centered margin touch targets on screen.
-  const fallbackPhoneWidth = Math.max(1, globalThis.innerWidth - 144);
-  const fallbackPhoneHeight = Math.max(1, globalThis.innerHeight - 250);
-  const availableWidth =
-    workSurfaceSize && workSurfaceSize.width > 0
-      ? workSurfaceSize.width - 144
-      : fallbackPhoneWidth;
-  const availableHeight =
-    workSurfaceSize && workSurfaceSize.height > 0
-      ? workSurfaceSize.height - 120
-      : fallbackPhoneHeight;
-  const baseCanvasScale = phoneLayout
-    ? Math.max(
-        0.01,
-        Math.min(
-          9,
-          availableWidth / outputWidthMm,
-          availableHeight / plate.size.heightMm,
-        ),
-      )
-    : Math.min(9, 720 / outputWidthMm);
+  const baseCanvasScale = fitCanvasScale(
+    phoneLayout,
+    workSurfaceSize,
+    outputWidthMm,
+    plate.size.heightMm,
+  );
   const canvasScale = baseCanvasScale * (zoom / 100);
   const topMarginPercent = printableMarginPercent(
     printableMargins.topMm,
@@ -534,6 +602,9 @@ export function EditorCanvas({
   );
   const {
     editOnClickRef,
+    suppressClickRef,
+    selectionBox,
+    startSelectionBox,
     moveWithKeyboard,
     pan,
     startMove,
@@ -552,6 +623,12 @@ export function EditorCanvas({
     plate,
     printableMargins,
     selectedElementId,
+    selectedElementIds,
+    ...(onSelectElements ? { onSelectElements } : {}),
+    ...(onChangeElements ? { onChangeElements } : {}),
+    ...(onChangeElementsDuringInteraction
+      ? { onChangeElementsDuringInteraction }
+      : {}),
     touchNavigation: presentation === "mobile-touch",
     zoom,
     onZoom,
@@ -560,13 +637,7 @@ export function EditorCanvas({
   const canvasOffsetX = pan.x + (phoneLayout ? 38 : 0);
   const canvasOffsetY = pan.y - (phoneLayout ? 20 : 0);
 
-  useEffect(() => {
-    if (!editingElementId) return;
-    const editor = Array.from(
-      globalThis.document.querySelectorAll<HTMLElement>(".inline-text-editor"),
-    ).find((item) => item.dataset.elementId === editingElementId);
-    editor?.focus();
-  }, [editingElementId]);
+  useFocusInlineEdit(editingElementId);
 
   return (
     <main className="editor-area">
@@ -576,6 +647,10 @@ export function EditorCanvas({
           onAddShape={onAddShape}
           onAddText={onAddText}
           onChangeElement={onChangeElement}
+          selectedElements={plate.elements.filter((element) =>
+            selectedElementIds.includes(element.id),
+          )}
+          onUpdateSelection={onUpdateSelection}
           onDeleteSelection={onDeleteSelection}
           onDraw={onDraw}
           onOpenElementProperties={onOpenElementProperties}
@@ -612,6 +687,28 @@ export function EditorCanvas({
             "--dot-grid-y": `calc(50% - ${(plate.size.heightMm * canvasScale) / 2}px + ${canvasOffsetY}px)`,
           } as WorkSurfaceStyle
         }
+        onPointerDownCapture={(event) => {
+          suppressClickRef.current = false;
+          if (
+            !event.shiftKey ||
+            event.button !== 0 ||
+            (event.target as HTMLElement).closest(
+              ".handle, .dimension-value, .width-dimension, textarea",
+            )
+          )
+            return;
+          endInlineEdit();
+          startSelectionBox(event);
+          event.stopPropagation();
+        }}
+        onClickCapture={(event) => {
+          if (!suppressClickRef.current) return;
+          suppressClickRef.current = false;
+          if (editOnClickRef.current && selectedElementIds.length === 1)
+            setEditingElementId(editOnClickRef.current);
+          editOnClickRef.current = null;
+          event.stopPropagation();
+        }}
         onPointerDown={(event) => {
           if (
             (event.target as HTMLElement).closest(
@@ -625,6 +722,7 @@ export function EditorCanvas({
             !target.closest(".canvas-element, button") ||
             target.closest(".canvas-clear-selection")
           ) {
+            suppressClickRef.current = false;
             endInlineEdit();
             onSelectElement(null);
             if (!touchGestureStarted) startPan(event);
@@ -692,13 +790,20 @@ export function EditorCanvas({
                   editOnClickRef.current = null;
                 }}
                 onDoubleClick={(target) => {
+                  onSelectElement(target.id);
                   if (target.kind === "text") setEditingElementId(target.id);
                   if (target.kind === "image") onEditImage(target);
                   if (target.kind === "qr" || target.kind === "barcode")
                     onEditCode?.(target);
                 }}
                 onEndEdit={endInlineEdit}
-                onFocus={(target) => onSelectElement(target.id)}
+                onFocus={(target) => {
+                  if (
+                    !suppressClickRef.current &&
+                    !selectedElementIds.includes(target.id)
+                  )
+                    onSelectElement(target.id);
+                }}
                 onMoveKey={(event, target) => {
                   if (
                     (event.key === "Enter" || event.key === " ") &&
@@ -715,9 +820,11 @@ export function EditorCanvas({
                   onChangeElement({ ...target, text })
                 }
                 plate={plate}
-                selected={element.id === selectedElementId}
+                selected={selectedElementIds.includes(element.id)}
+                multipleSelected={selectedElementIds.length > 1}
               />
             ))}
+            <CanvasSelectionBox box={selectionBox} scale={canvasScale} />
             <NonprintableZones
               bottomMarginPercent={bottomMarginPercent}
               topMarginPercent={topMarginPercent}

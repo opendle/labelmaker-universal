@@ -7,6 +7,11 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
+import {
+  elementBounds,
+  selectionKey,
+  uniqueSelection,
+} from "./element-selection.js";
 import { snapMovedElement, snapResizedFrame } from "./canvas-snapping.js";
 import type { SnapThresholds } from "./canvas-snapping.js";
 import type { PrintableMargins } from "./label-layout.js";
@@ -287,6 +292,10 @@ export function useCanvasInteractions({
   plate,
   canvasWidthMm = plate.size.widthMm,
   selectedElementId,
+  selectedElementIds = selectedElementId ? [selectedElementId] : [],
+  onSelectElements,
+  onChangeElements,
+  onChangeElementsDuringInteraction,
   editingElementId,
   onSelectElement,
   onChangeElement,
@@ -301,6 +310,12 @@ export function useCanvasInteractions({
   readonly plate: LabelPlate;
   readonly canvasWidthMm?: number;
   readonly selectedElementId: string | null;
+  readonly selectedElementIds?: readonly string[];
+  readonly onSelectElements?: (ids: readonly string[]) => void;
+  readonly onChangeElements?: (elements: readonly LabelElement[]) => void;
+  readonly onChangeElementsDuringInteraction?: (
+    elements: readonly LabelElement[],
+  ) => void;
   readonly editingElementId: string | null;
   readonly onSelectElement: (id: string | null) => void;
   readonly onChangeElement: (element: LabelElement) => void;
@@ -314,6 +329,27 @@ export function useCanvasInteractions({
 }) {
   const canvasSize = { ...plate.size, widthMm: canvasWidthMm };
   const editOnClickRef = useRef<string | null>(null);
+  const suppressClickRef = useRef(false);
+  const [selectionBox, setSelectionBox] = useState<{
+    xMm: number;
+    yMm: number;
+    widthMm: number;
+    heightMm: number;
+  } | null>(null);
+  const selectMany = (ids: readonly string[]) =>
+    onSelectElements
+      ? onSelectElements(uniqueSelection(plate, ids))
+      : onSelectElement(ids[0] ?? null);
+  const changeMany = (elements: readonly LabelElement[], during = false) => {
+    const callback = during
+      ? onChangeElementsDuringInteraction
+      : onChangeElements;
+    if (callback) callback(elements);
+    else
+      elements.forEach((element) =>
+        (during ? onChangeElementDuringInteraction : onChangeElement)(element),
+      );
+  };
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const touchPointersRef = useRef(new Map<number, { x: number; y: number }>());
   const cancelPanRef = useRef<(() => void) | null>(null);
@@ -438,11 +474,31 @@ export function useCanvasInteractions({
     )
       return;
     event.preventDefault();
+    suppressClickRef.current = true;
     event.currentTarget.focus();
     event.currentTarget.setPointerCapture?.(event.pointerId);
+    const selected = selectedElementIds.includes(element.id);
     editOnClickRef.current =
-      element.id === selectedElementId ? element.id : null;
-    onSelectElement(element.id);
+      selected && selectedElementIds.length === 1 ? element.id : null;
+    if (event.ctrlKey || event.metaKey) {
+      editOnClickRef.current = null;
+      selectMany(
+        selected
+          ? selectedElementIds.filter((id) => id !== element.id)
+          : [
+              element.id,
+              ...selectedElementIds.filter(
+                (id) =>
+                  selectionKey(plate, id) !== selectionKey(plate, element.id),
+              ),
+            ],
+      );
+      return;
+    }
+    const moving = selected
+      ? plate.elements.filter((item) => selectedElementIds.includes(item.id))
+      : [element];
+    if (!selected) onSelectElement(element.id);
     const startX = event.clientX;
     const startY = event.clientY;
     const bounds = canvasBounds(event.currentTarget);
@@ -458,22 +514,40 @@ export function useCanvasInteractions({
       if (moveEvent.clientX !== startX || moveEvent.clientY !== startY) {
         editOnClickRef.current = null;
       }
-      onChangeElementDuringInteraction(
-        snapMovedElement(
-          {
-            ...element,
-            xMm:
-              element.xMm +
-              ((moveEvent.clientX - startX) / bounds.width) * canvasWidthMm,
-            yMm:
-              element.yMm +
-              ((moveEvent.clientY - startY) / bounds.height) *
-                plate.size.heightMm,
-          },
-          canvasSize,
-          printableMargins,
-          thresholds,
-        ),
+      const dx = ((moveEvent.clientX - startX) / bounds.width) * canvasWidthMm;
+      const dy =
+        ((moveEvent.clientY - startY) / bounds.height) * plate.size.heightMm;
+      const frames = moving.map(elementBounds);
+      const left = Math.min(...frames.map((frame) => frame.xMm));
+      const top = Math.min(...frames.map((frame) => frame.yMm));
+      const frame =
+        moving.length === 1
+          ? element
+          : {
+              ...element,
+              xMm: left,
+              yMm: top,
+              widthMm:
+                Math.max(...frames.map((item) => item.xMm + item.widthMm)) -
+                left,
+              heightMm:
+                Math.max(...frames.map((item) => item.yMm + item.heightMm)) -
+                top,
+              rotationDeg: 0,
+            };
+      const snapped = snapMovedElement(
+        { ...frame, xMm: frame.xMm + dx, yMm: frame.yMm + dy },
+        canvasSize,
+        printableMargins,
+        thresholds,
+      );
+      changeMany(
+        moving.map((item) => ({
+          ...item,
+          xMm: item.xMm + snapped.xMm - frame.xMm,
+          yMm: item.yMm + snapped.yMm - frame.yMm,
+        })),
+        true,
       );
     };
     cancelElementInteractionRef.current = trackPointerMovement(
@@ -569,11 +643,65 @@ export function useCanvasInteractions({
     const offset = offsets[event.key];
     if (!offset) return;
     event.preventDefault();
-    onChangeElement({
-      ...element,
-      xMm: element.xMm + offset[0],
-      yMm: element.yMm + offset[1],
-    });
+    const moving = selectedElementIds.includes(element.id)
+      ? plate.elements.filter((item) => selectedElementIds.includes(item.id))
+      : [element];
+    changeMany(
+      moving.map((item) => ({
+        ...item,
+        xMm: item.xMm + offset[0],
+        yMm: item.yMm + offset[1],
+      })),
+    );
+  };
+
+  const startSelectionBox = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.button !== 0) return;
+    const bounds = event.currentTarget
+      .querySelector<HTMLElement>(".label-canvas")
+      ?.getBoundingClientRect();
+    if (!bounds || !bounds.width || !bounds.height) return;
+    event.preventDefault();
+    suppressClickRef.current = true;
+    editOnClickRef.current = null;
+    cancelElementInteractionRef.current?.();
+    const start = {
+      xMm: ((event.clientX - bounds.left) / bounds.width) * canvasWidthMm,
+      yMm: ((event.clientY - bounds.top) / bounds.height) * plate.size.heightMm,
+    };
+    const initial = event.ctrlKey || event.metaKey ? selectedElementIds : [];
+    selectMany(initial);
+    setSelectionBox({ ...start, widthMm: 0, heightMm: 0 });
+    cancelElementInteractionRef.current = trackPointerMovement(
+      event.pointerId,
+      (moveEvent) => {
+        const x =
+          ((moveEvent.clientX - bounds.left) / bounds.width) * canvasWidthMm;
+        const y =
+          ((moveEvent.clientY - bounds.top) / bounds.height) *
+          plate.size.heightMm;
+        const box = {
+          xMm: Math.min(start.xMm, x),
+          yMm: Math.min(start.yMm, y),
+          widthMm: Math.abs(x - start.xMm),
+          heightMm: Math.abs(y - start.yMm),
+        };
+        setSelectionBox(box);
+        selectMany([
+          ...initial,
+          ...plate.elements.flatMap((item) => {
+            const frame = elementBounds(item);
+            const inside =
+              frame.xMm >= box.xMm &&
+              frame.yMm >= box.yMm &&
+              frame.xMm + frame.widthMm <= box.xMm + box.widthMm &&
+              frame.yMm + frame.heightMm <= box.yMm + box.heightMm;
+            return inside ? [item.id] : [];
+          }),
+        ]);
+      },
+      () => setSelectionBox(null),
+    );
   };
 
   const startPan = (event: ReactPointerEvent<HTMLElement>) => {
@@ -611,6 +739,9 @@ export function useCanvasInteractions({
 
   return {
     editOnClickRef,
+    suppressClickRef,
+    selectionBox,
+    startSelectionBox,
     moveWithKeyboard,
     pan,
     startMove,

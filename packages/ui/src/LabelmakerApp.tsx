@@ -13,6 +13,7 @@ import {
 } from "./editor-operations.js";
 import type { LabelmakerHost } from "./host.js";
 import { IconLibraryControl } from "./IconLibraryControl.js";
+import { patchSelectedElements, uniqueSelection } from "./element-selection.js";
 import { Inspector } from "./Inspector.js";
 import { nonPrintableMarginsMm } from "./label-layout.js";
 import { PlateStrip } from "./PlateStrip.js";
@@ -133,6 +134,66 @@ function AppPlatePropertySheet({
   );
 }
 
+function elementActions(
+  controller: ReturnType<typeof useLabelmakerController>,
+  activePlate: LabelPlate,
+) {
+  const { state } = controller;
+  const updateElement = (element: LabelElement) =>
+    controller.editPrintedPixels(
+      replacePlate(state.workspace, activePlate.id, (plate) =>
+        updateElementAndFlagPeer(plate, element),
+      ),
+      activePlate.id,
+    );
+  const selectedElements = activePlate.elements.filter((element) =>
+    state.selectedElementIds.includes(element.id),
+  );
+  const updateElements = (
+    elements: readonly LabelElement[],
+    during = false,
+  ) => {
+    const workspace = replacePlate(state.workspace, activePlate.id, (plate) =>
+      elements.reduce(updateElementAndFlagPeer, plate),
+    );
+    if (during)
+      controller.editPrintedPixelsDuringInteraction(workspace, activePlate.id);
+    else controller.editPrintedPixels(workspace, activePlate.id);
+  };
+  const updateSelection = (element: LabelElement, fields: readonly string[]) =>
+    updateElements(
+      patchSelectedElements(
+        activePlate,
+        state.selectedElementIds,
+        element,
+        fields,
+      ),
+    );
+  const moveLayer = (direction: "back" | "front") => {
+    const elementId = state.selectedElementId;
+    if (!elementId) return;
+    controller.editPrintedPixels(
+      replacePlate(state.workspace, activePlate.id, (plate) =>
+        (direction === "back"
+          ? [...selectedElements].reverse()
+          : selectedElements
+        ).reduce(
+          (next, element) => moveElementLayer(next, element.id, direction),
+          plate,
+        ),
+      ),
+      activePlate.id,
+    );
+  };
+  return {
+    updateElement,
+    selectedElements,
+    updateElements,
+    updateSelection,
+    moveLayer,
+  };
+}
+
 export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   const controller = useLabelmakerController(host);
   const {
@@ -210,23 +271,13 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
   const settingsPrinter = state.printers.find(
     (printer) => printer.id === state.printerSettingsId,
   );
-  const updateElement = (element: LabelElement) =>
-    controller.editPrintedPixels(
-      replacePlate(state.workspace, activePlate.id, (plate) =>
-        updateElementAndFlagPeer(plate, element),
-      ),
-      activePlate.id,
-    );
-  const moveLayer = (direction: "back" | "front") => {
-    const elementId = state.selectedElementId;
-    if (!elementId) return;
-    controller.editPrintedPixels(
-      replacePlate(state.workspace, activePlate.id, (plate) =>
-        moveElementLayer(plate, elementId, direction),
-      ),
-      activePlate.id,
-    );
-  };
+  const {
+    updateElement,
+    selectedElements,
+    updateElements,
+    updateSelection,
+    moveLayer,
+  } = elementActions(controller, activePlate);
   const headerProps = createHeaderProps(
     controller,
     host.platform,
@@ -306,6 +357,18 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
             plate={activePlate}
             minimumLabelWidthMm={controller.activePrinter?.minimumLabelWidthMm}
             selectedElementId={state.selectedElementId}
+            selectedElementIds={state.selectedElementIds}
+            onSelectElements={(elementIds) =>
+              dispatch({
+                type: "select-elements",
+                elementIds: uniqueSelection(activePlate, elementIds),
+              })
+            }
+            onUpdateSelection={updateSelection}
+            onChangeElements={(elements) => updateElements(elements)}
+            onChangeElementsDuringInteraction={(elements) =>
+              updateElements(elements, true)
+            }
             selectedImage={selectedImage}
             selectedShape={selectedShape}
             selectedText={selectedText}
@@ -314,6 +377,8 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
           />
           {layout === "standard" && (
             <Inspector
+              selectedElements={selectedElements}
+              onUpdateSelection={updateSelection}
               hasMultipleElements={editableElementCount(activePlate) > 1}
               onDeleteSelection={controller.deleteSelected}
               onMoveLayer={moveLayer}
@@ -335,6 +400,8 @@ export function LabelmakerApp({ host }: { readonly host: LabelmakerHost }) {
         visiblePhoneSheet === "element" &&
         (selectedText || selectedImage || selectedShape || selectedCode) && (
           <PhoneElementPropertySheet
+            selectedElements={selectedElements}
+            onUpdateSelection={updateSelection}
             hasMultipleElements={editableElementCount(activePlate) > 1}
             onClose={() => setPhoneSheet(null)}
             onDeleteSelection={controller.deleteSelected}

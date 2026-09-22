@@ -65,6 +65,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
     null,
   );
   const automaticTrimPlateIdsRef = useRef(new Set<string>());
+  const interactionHasChangesRef = useRef(false);
   const heldPrintedPixelPlateIdsRef = useRef(new Set<string>());
   const heldInteractionWaitersRef = useRef(new Set<() => void>());
   const automaticTrimGenerationRef = useRef(0);
@@ -79,9 +80,15 @@ export function useLabelmakerController(host: LabelmakerHost) {
       state.workspace.plates.find((plate) => plate.id === state.activePlateId),
     [state.activePlateId, state.workspace.plates],
   );
-  const selectedElement = activePlate?.elements.find(
-    (element) => element.id === state.selectedElementId,
-  );
+  const selectedElements =
+    activePlate?.elements.filter((element) =>
+      state.selectedElementIds.includes(element.id),
+    ) ?? [];
+  const selectedElement = selectedElements.every(
+    (element) => element.kind === selectedElements[0]?.kind,
+  )
+    ? selectedElements[0]
+    : undefined;
   const selectedText =
     selectedElement?.kind === "text" ? selectedElement : undefined;
   const selectedImage =
@@ -408,6 +415,7 @@ export function useLabelmakerController(host: LabelmakerHost) {
   const beginPrintedPixelInteraction = useCallback(
     (plateId: string) => {
       if (heldPrintedPixelPlateIdsRef.current.size === 0) {
+        interactionHasChangesRef.current = false;
         automaticTrimGenerationRef.current += 1;
         clearAutomaticTrimTimer();
         const activeTrimPlateId = automaticTrimActivePlateIdRef.current;
@@ -422,7 +430,13 @@ export function useLabelmakerController(host: LabelmakerHost) {
   const editPrintedPixelsDuringInteraction = useCallback(
     (workspace: typeof state.workspace, plateId: string) => {
       automaticTrimPlateIdsRef.current.add(plateId);
-      editWorkspace(workspace);
+      if (interactionHasChangesRef.current) {
+        workspaceRef.current = workspace;
+        dispatch({ type: "continue-interaction", workspace });
+      } else {
+        editWorkspace(workspace);
+        interactionHasChangesRef.current = true;
+      }
     },
     [editWorkspace],
   );
@@ -881,12 +895,15 @@ export function useLabelmakerController(host: LabelmakerHost) {
   );
 
   const deleteSelected = useCallback(() => {
-    if (!activePlate || !selectedElement) return;
+    if (!activePlate || state.selectedElementIds.length === 0) return;
     updatePlate(activePlate.id, (plate) =>
-      deleteElementAndFlagPeer(plate, selectedElement.id),
+      state.selectedElementIds.reduce(
+        (next, id) => deleteElementAndFlagPeer(next, id),
+        plate,
+      ),
     );
     dispatch({ type: "select-element", elementId: null });
-  }, [activePlate, selectedElement, updatePlate]);
+  }, [activePlate, state.selectedElementIds, updatePlate]);
 
   const undo = useCallback(() => {
     cancelAutomaticTrim();
