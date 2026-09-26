@@ -84,7 +84,7 @@ try {
       .getByRole("button", { name: "Selected printer: Workshop printer" })
       .click();
     await page.getByRole("menuitem", { name: "Add a printer" }).click();
-    await page.getByText("MakeID E1-Office").waitFor();
+    await page.getByText("L1 workshop printer", { exact: true }).waitFor();
   });
   await capture("04-printer-settings.png", async (page) => {
     await page

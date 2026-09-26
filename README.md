@@ -74,7 +74,7 @@ Run the screenshot task only after a material UI change:
 npm run ui:screenshot
 ```
 
-The task checks all desktop scenes and keeps seven representative screenshots.
+The task checks and saves all desktop scenes.
 The four screenshots used in this README stay in the repository. Other generated
 screenshots stay ignored by Git.
 
@@ -85,9 +85,9 @@ npm run ui:video
 ```
 
 The task installs the Playwright FFmpeg tool when it is not present. It then
-records this flow: add a test printer, add a label, edit its text, change the
-typeface, size, and weight, trim it to content, and print it. The mouse pointer
-is visible. The task writes `artifacts/videos/labelmaker-demo.webm`. Git ignores
+records this flow: add a test printer, add a label, edit its text, change its
+size and weight, let the label width adjust to the text, and print it. The mouse
+pointer is visible. The task writes `artifacts/videos/labelmaker-demo.webm`. Git ignores
 this file, and the normal check does not run the video task.
 
 ## Add support for a printer

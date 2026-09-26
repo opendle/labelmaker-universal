@@ -196,9 +196,7 @@ async function capture(width, height, name, setup) {
         );
       }
       await assertModalLayout(page);
-      if (savedScreenshotNames.has(name)) {
-        await page.screenshot({ path: resolve(screenshotDirectory, name) });
-      }
+      await page.screenshot({ path: resolve(screenshotDirectory, name) });
     } finally {
       if (typeof teardown === "function")
         await teardown().catch(() => undefined);

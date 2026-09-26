@@ -131,13 +131,13 @@ async function demonstrateEditor(page, addPrinter) {
   if (addPrinter) {
     await page.getByRole("button", { name: "Add printer" }).tap();
     const printerRow = page.locator(".discovery-item", {
-      hasText: "MakeID E1-Office",
+      hasText: "L1 workshop printer",
     });
     await printerRow.getByRole("button", { name: "Add" }).waitFor();
     await pause();
     await printerRow.getByRole("button", { name: "Add" }).tap();
     await page
-      .getByRole("button", { name: "Selected printer: MakeID E1-Office" })
+      .getByRole("button", { name: "Selected printer: L1 workshop printer" })
       .waitFor();
     await pause();
   }
@@ -163,15 +163,10 @@ async function demonstrateEditor(page, addPrinter) {
   await fontSize.fill("22");
   await fontSize.press("Enter");
   await pause();
-  await page
-    .getByRole("button", { name: /Trim (label|plate) to content/ })
-    .tap();
-  await pause();
-
   await page.getByRole("button", { name: "Print", exact: true }).tap();
   await page
     .getByText(
-      `1 label sent to ${addPrinter ? "MakeID E1-Office" : "Workshop printer"}`,
+      `1 label sent to ${addPrinter ? "L1 workshop printer" : "Workshop printer"}`,
     )
     .waitFor();
   await pause(1_800);

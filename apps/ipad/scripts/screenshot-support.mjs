@@ -123,13 +123,13 @@ export function installCaptureHost(options) {
               [printerId]: {
                 id: printerId,
                 adapterId: "makeid",
-                displayName: "MakeID E1",
-                model: "MakeID E1",
+                displayName: "Workshop printer",
+                model: "12 mm label printer",
                 transport: "bluetooth-low-energy",
                 connection: {
                   transportDeviceId,
                   profileId: "e1-abf0-203",
-                  advertisedName: "MakeID E1",
+                  advertisedName: "E124H00894",
                 },
               },
             },
@@ -182,7 +182,7 @@ export function installCaptureHost(options) {
             result: [
               {
                 id: `${platform === "android" ? "android" : "ipad"}-ble-office`,
-                name: "MakeID E1-Office",
+                name: "L1 workshop printer",
                 transport: "bluetooth-low-energy",
               },
             ],
