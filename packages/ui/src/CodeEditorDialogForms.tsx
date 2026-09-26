@@ -1,6 +1,8 @@
 import type { QrData } from "@labelmaker/domain";
 import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
+import { CodeTextarea, CodeToggle } from "./CodeFormControls.js";
+import { missingQrFields } from "./qr-code-forms.js";
 
 import {
   QR_FORMS,
@@ -17,6 +19,7 @@ export function QrFields({
   readonly values: QrFormValues;
   readonly onChange: (key: string, value: string | boolean) => void;
 }) {
+  const missing = missingQrFields(type, values);
   return (
     <>
       {QR_FORMS[type].fields.map((field) => {
@@ -33,18 +36,15 @@ export function QrFields({
           );
         if (field.type === "checkbox")
           return (
-            <label className="code-checkbox" key={field.key}>
-              <input
-                aria-label={field.label}
-                checked={values[field.key] === true}
-                onChange={(event) => onChange(field.key, event.target.checked)}
-                type="checkbox"
-              />
-              {field.label}
-            </label>
+            <CodeToggle
+              key={field.key}
+              label={field.label}
+              checked={values[field.key] === true}
+              onChange={(checked) => onChange(field.key, checked)}
+            />
           );
         return (
-          <label className="code-field" htmlFor={id} key={field.key}>
+          <label className="field code-field" htmlFor={id} key={field.key}>
             <span>{field.label}</span>
             {field.options ? (
               <select
@@ -60,9 +60,10 @@ export function QrFields({
                 ))}
               </select>
             ) : field.type === "textarea" ? (
-              <textarea
+              <CodeTextarea
                 aria-label={field.label}
                 aria-describedby="code-editor-status"
+                aria-invalid={missing.includes(field.key)}
                 id={id}
                 maxLength={4096}
                 onChange={(event) => onChange(field.key, event.target.value)}
@@ -75,6 +76,7 @@ export function QrFields({
               <input
                 aria-label={field.label}
                 aria-describedby="code-editor-status"
+                aria-invalid={missing.includes(field.key)}
                 autoCapitalize="off"
                 autoComplete="off"
                 id={id}
@@ -106,11 +108,11 @@ function PasswordField({
 }) {
   const [visible, setVisible] = useState(false);
   return (
-    <div className="code-field">
-      <label htmlFor="code-field-password">Password</label>
+    <div className="field code-field">
+      <span id="code-password-label">Password</span>
       <div className="code-password-field">
         <input
-          aria-label="Password"
+          aria-labelledby="code-password-label"
           aria-describedby="code-editor-status"
           autoCapitalize="off"
           autoComplete="off"

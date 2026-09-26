@@ -110,7 +110,9 @@ appearances so that they show the physical label and printed result accurately.
   and font rules in the canvas, plate strip, and printed raster.
 - Scale the canvas and its elements in one update when the user changes zoom.
 - Allow canvas zoom from 60% through 300%. Use wheel or trackpad scroll and
-  touch pinch for zoom. Do not show an on-screen zoom control.
+  touch pinch and trackpad pinch for zoom. Use smaller steps for continuous
+  trackpad scroll on mobile. Keep desktop mouse wheel steps unchanged. Do not show an on-screen
+  zoom control.
 - Align every 5 mm background grid line to the center of its ruler tick.
 - Calculate top and bottom blank paper areas from paper height, printhead size,
   and printer alignment through the shared `printerVerticalGeometry` function.
@@ -131,6 +133,8 @@ appearances so that they show the physical label and printed result accurately.
   elements can still be adjusted. Include artwork in the printer-added width
   in printed output without changing the saved plate size.
 - Show a rotation cursor on the rotation handle.
+- Put the rotation handle below the selected element on mobile so it does not
+  cover the plate width control.
 - Snap moved text and image frames to the absolute label limits and to the
   left, horizontal center, right, top, vertical middle, and bottom of the
   printable area. Snap resized text and image frames to the absolute and
@@ -183,7 +187,10 @@ appearances so that they show the physical label and printed result accurately.
   Cancel action. Add each icon as a high-resolution image with all image
   controls. Load the icon catalog only when the icon library opens.
 - Add QR code and Barcode actions next to the other element actions. Open a
-  code dialog with a live preview. Keep its header and save action visible and
+  code dialog with a live preview on desktop. Hide the preview on mobile
+  and in Phone layout. Use the shared field style and toggle buttons. Grow text
+  areas to fit their content. Mark empty required fields in red, without a
+  separate missing-field message. Keep its header and save action visible and
   scroll the content when the viewport is short. Keep all controls usable on
   phones, tablets, and desktop computers.
 - Support QR forms for text, web links, Wi-Fi, email, phone, SMS, contacts, and
@@ -199,8 +206,9 @@ appearances so that they show the physical label and printed result accurately.
   when editing. Support move, resize, rotate, layer order, delete, undo, and redo.
 - Generate code previews, label artwork, thumbnails, and print output from the
   same encoder. Keep codes in their original proportions within the frame.
-  Add codes without a margin by default. Put an Add margin checkbox below the
-  preview in both code dialogs, including on phones. Apply this setting to the
+  Add codes without a margin by default. Put an Add margin toggle below the
+  preview in both code dialogs. Keep the toggle visible when the preview is
+  hidden. Do not add padding around the preview image. Apply this setting to the
   preview, canvas, thumbnails, and print output, and save it in the workspace.
   Automatic trim must keep the code frame and any selected white border.
 - Add line, rectangle, and circle shapes from a menu next to Image. Let the
@@ -330,7 +338,8 @@ appearances so that they show the physical label and printed result accurately.
   show editable left and right trim-margin dimensions, including zero margins.
   Put one dashed underline below each editable number, space, and `mm` unit.
   Match input text to the adjacent unit and read-only dimensions. Size the
-  input from the rendered text, including decimal values. Keep a 44-pixel
+  input from the rendered text, including decimal values. Add space between
+  mobile height dimensions and the grid ruler for the larger mobile text. Keep a 44-pixel
   touch target around compact text without adding space inside the value.
   A click or keyboard focus selects the complete number. Enter accepts the
   value and removes focus. Keep a separate printable height read-only. Edit total
@@ -380,7 +389,9 @@ add a separate editor.
   edit. Keep double-click and keyboard edit behavior for desktop input.
 - Show a Delete action when an element is selected. Do not require a hardware
   keyboard to delete an element.
-- Keep all keyboard shortcuts when the iPad has a hardware keyboard.
+- Keep all keyboard shortcuts when the iPad has a hardware keyboard. Give
+  editor commands priority over native web view commands. Show resize and
+  rotation pointers when a mouse or trackpad is over a handle.
 - Use the visual viewport height to detect the on-screen keyboard. Hide the
   plate strip only while that keyboard reduces the available viewport. Focus
   from a physical keyboard must not hide the strip. Keep the Phone header and

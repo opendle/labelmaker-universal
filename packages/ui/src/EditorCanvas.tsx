@@ -34,9 +34,10 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { useCanvasZoom } from "./useCanvasZoom.js";
 import { CanvasElementView } from "./CanvasElementView.js";
 import { CanvasGrid, CanvasRulers } from "./CanvasGuides.js";
-import { clamp, isFlagPlate, MAX_ZOOM, MIN_ZOOM } from "./editor-operations.js";
+import { isFlagPlate } from "./editor-operations.js";
 import {
   clearImageFileInputMarker,
   openImageFileInput,
@@ -446,13 +447,15 @@ function fitCanvasScale(
     | undefined,
   outputWidthMm: number,
   heightMm: number,
+  touch: boolean,
 ) {
   // Keep the vertical rulers and centered margin touch targets on screen.
-  const fallbackPhoneWidth = Math.max(1, globalThis.innerWidth - 144);
+  const widthReserve = touch ? 176 : 144;
+  const fallbackPhoneWidth = Math.max(1, globalThis.innerWidth - widthReserve);
   const fallbackPhoneHeight = Math.max(1, globalThis.innerHeight - 250);
   const availableWidth =
     workSurfaceSize && workSurfaceSize.width > 0
-      ? workSurfaceSize.width - 144
+      ? workSurfaceSize.width - widthReserve
       : fallbackPhoneWidth;
   const availableHeight =
     workSurfaceSize && workSurfaceSize.height > 0
@@ -583,6 +586,7 @@ export function EditorCanvas({
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   const workSurfaceRef = useRef<HTMLDivElement>(null);
   const workSurfaceSize = useElementSize(workSurfaceRef);
+  useCanvasZoom(workSurfaceRef, zoom, onZoom, presentation === "mobile-touch");
   const endInlineEdit = useEndInlineEdit(editingElementId, setEditingElementId);
   const phoneLayout = layout !== "standard";
   const baseCanvasScale = fitCanvasScale(
@@ -590,6 +594,7 @@ export function EditorCanvas({
     workSurfaceSize,
     outputWidthMm,
     plate.size.heightMm,
+    presentation === "mobile-touch",
   );
   const canvasScale = baseCanvasScale * (zoom / 100);
   const topMarginPercent = printableMarginPercent(
@@ -633,8 +638,9 @@ export function EditorCanvas({
     zoom,
     onZoom,
   });
-  // Reserve 88 px for the left rulers and 80 px for the bottom touch fields.
-  const canvasOffsetX = pan.x + (phoneLayout ? 38 : 0);
+  // Keep the height rulers inside the phone work surface.
+  const canvasOffsetX =
+    pan.x + (phoneLayout ? (presentation === "mobile-touch" ? 48 : 38) : 0);
   const canvasOffsetY = pan.y - (phoneLayout ? 20 : 0);
 
   useFocusInlineEdit(editingElementId);
@@ -728,12 +734,6 @@ export function EditorCanvas({
             if (!touchGestureStarted) startPan(event);
           }
         }}
-        onWheel={(event) => {
-          event.preventDefault();
-          onZoom(
-            clamp(zoom + (event.deltaY < 0 ? 10 : -10), MIN_ZOOM, MAX_ZOOM),
-          );
-        }}
       >
         <div
           className="canvas-stage"
@@ -747,6 +747,7 @@ export function EditorCanvas({
             widthMm={outputWidthMm}
           />
           <CanvasRulers
+            touch={presentation === "mobile-touch"}
             canvasScale={canvasScale}
             editing={{ plate, onChange: onUpdatePlate }}
             heightMm={plate.size.heightMm}

@@ -69,12 +69,14 @@ export function CanvasRulers({
   zoom,
   printableMargins,
   editing,
+  touch = false,
 }: {
   readonly widthMm: number;
   readonly heightMm: number;
   readonly canvasScale: number;
   readonly zoom: number;
   readonly printableMargins: PrintableMargins;
+  readonly touch?: boolean;
   readonly editing?: {
     readonly plate: LabelPlate;
     readonly onChange: (plate: LabelPlate) => void;
@@ -99,9 +101,9 @@ export function CanvasRulers({
   const intervalFontSize = 7.5 * rulerZoomScale;
   const intervalTopOffset = 20;
   const intervalLeftOffset = 40;
-  const topDimensionTierGap = 10;
-  const leftDimensionTierGap = 0;
-  const verticalDimensionGap = 18;
+  const topDimensionTierGap = touch ? 16 : 10;
+  const leftDimensionTierGap = touch ? 12 : 0;
+  const verticalDimensionGap = touch ? 28 : 18;
   const dimensionInnerOffset = intervalLeftOffset + leftDimensionTierGap;
   const layoutStyle = {
     "--dimension-ruler-outer-offset": `${(dimensionInnerOffset + verticalDimensionGap) * rulerZoomScale}px`,

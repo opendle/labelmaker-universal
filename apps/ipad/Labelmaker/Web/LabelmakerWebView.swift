@@ -22,7 +22,13 @@ struct LabelmakerWebView: UIViewRepresentable {
             name: "labelmaker"
         )
 
-        let webView = WKWebView(frame: .zero, configuration: configuration)
+        configuration.userContentController.add(
+            context.coordinator.pointer, contentWorld: .page, name: "labelmakerPointer"
+        )
+        configuration.userContentController.addUserScript(WKUserScript(
+            source: EditorPointer.script, injectionTime: .atDocumentEnd, forMainFrameOnly: true
+        ))
+        let webView = EditorWebView(frame: .zero, configuration: configuration)
         webView.hideInputAssistant()
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
@@ -62,6 +68,8 @@ struct LabelmakerWebView: UIViewRepresentable {
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "labelmaker", contentWorld: .page)
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "labelmakerPointer", contentWorld: .page)
+        coordinator.pointer.detach()
         coordinator.webView = nil
     }
 
@@ -71,6 +79,7 @@ struct LabelmakerWebView: UIViewRepresentable {
 
     @MainActor
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+        let pointer = EditorPointer()
         let workspace = WorkspaceCoordinator()
         let recovery = RecoveryStore()
         let webAppSchemeHandler = BundledWebAppSchemeHandler()
@@ -134,6 +143,7 @@ struct LabelmakerWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             webView.hideInputAssistant()
+            pointer.attach(to: webView)
         }
     }
 }

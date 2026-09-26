@@ -165,6 +165,7 @@ async function capture(viewport, platform) {
   try {
     await page.goto(server.url, { waitUntil: "networkidle" });
     await page.locator(".label-canvas").waitFor();
+    await checkCodeDialogs(page, viewport, platform);
     await page
       .getByRole("button", { name: "Selected printer: Workshop printer" })
       .waitFor();
@@ -216,7 +217,9 @@ async function capture(viewport, platform) {
           touchBounds.top < available.top ||
           touchBounds.bottom > available.bottom
         ) {
-          throw new Error("A dimension value or unit leaves the work surface.");
+          throw new Error(
+            `A dimension value or unit leaves the work surface: ${innerWidth}x${innerHeight}, ${field.getAttribute("aria-label")}, ${JSON.stringify(field.parentElement.parentElement.getBoundingClientRect())}, ${JSON.stringify(available)}, scroll=${surface.scrollLeft}, stage=${document.querySelector(".canvas-stage").style.transform}, canvas=${JSON.stringify(document.querySelector(".label-canvas").getBoundingClientRect())}.`,
+          );
         }
         if (touchBounds.width < 44 || touchBounds.height < 44) {
           throw new Error("A dimension touch target is smaller than 44 px.");
@@ -785,4 +788,101 @@ async function inspectStandardIPad(page) {
   });
   await printerTrigger.click();
   return { ...inspection, printerActionGap };
+}
+
+async function checkCodeDialogs(page, viewport, platform) {
+  await page.getByRole("button", { name: /Plate width:/ }).tap();
+  await page
+    .getByRole("spinbutton", { name: "Plate width", exact: true })
+    .fill("75");
+  await page.getByRole("button", { name: "Use automatic width" }).tap();
+  await page.getByRole("button", { name: /Plate width:.*automatic/ }).waitFor();
+  for (const kind of ["QR code", "Barcode"]) {
+    await page.getByRole("button", { name: kind, exact: true }).tap();
+    if (kind === "QR code") {
+      await page
+        .getByLabel("QR code type", { exact: true })
+        .selectOption("contact");
+      await page.getByLabel("First name", { exact: true }).fill("Alex");
+      await page
+        .getByLabel("Address", { exact: true })
+        .fill("Line one\nLine two\nLine three\nLine four");
+    } else {
+      await page.getByLabel("Content", { exact: true }).fill("PART-123456");
+    }
+    if (await page.locator(".code-preview-paper").isVisible())
+      throw new Error("Mobile code previews must be hidden.");
+    const checkLayout = async () => {
+      const result = await page
+        .locator(".code-editor-modal")
+        .evaluate((modal) => {
+          const footer = modal
+            .querySelector(".dialog-footer")
+            .getBoundingClientRect();
+          const header = modal
+            .querySelector(".dialog-header")
+            .getBoundingClientRect();
+          const body = modal.querySelector(".code-editor-body");
+          const viewportHeight =
+            Number.parseFloat(
+              document.documentElement.style.getPropertyValue(
+                "--visual-viewport-height",
+              ),
+            ) || innerHeight;
+          return {
+            visible: header.top >= 0 && footer.bottom <= viewportHeight,
+            header: header.top,
+            footer: footer.bottom,
+            viewportHeight,
+            overflow: body.scrollWidth > body.clientWidth + 1,
+          };
+        });
+      if (!result.visible || result.overflow)
+        throw new Error(`Code dialog does not fit: ${JSON.stringify(result)}`);
+    };
+    await checkLayout();
+    if (viewport.save && platform === "ipados") {
+      await page.locator(".code-editor-body").evaluate((body) => {
+        body.scrollTop = 0;
+      });
+      await page.screenshot({
+        path: resolve(
+          screenshotDirectory,
+          `code-${kind === "QR code" ? "qr" : "barcode"}-${viewport.width}x${viewport.height}.png`,
+        ),
+      });
+    }
+    await page.evaluate(() =>
+      document.documentElement.style.setProperty(
+        "--visual-viewport-height",
+        "300px",
+      ),
+    );
+    await page.waitForTimeout(300);
+    await checkLayout();
+    await page.evaluate(() =>
+      document.documentElement.style.removeProperty("--visual-viewport-height"),
+    );
+    await page
+      .getByRole("button", {
+        name: kind === "QR code" ? "Add QR code" : "Add barcode",
+        exact: true,
+      })
+      .tap();
+    await page.locator(".code-editor-modal").waitFor({ state: "hidden" });
+    const handles = await page.locator(".handle.rotate").evaluate((handle) => {
+      const frame = handle.parentElement.getBoundingClientRect();
+      const bounds = handle.getBoundingClientRect();
+      return { frameBottom: frame.bottom, handleTop: bounds.top };
+    });
+    if (handles.handleTop < handles.frameBottom)
+      throw new Error("The mobile rotation handle must be below its code.");
+    await page.getByRole("button", { name: /Plate width:/ }).tap();
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Control+z");
+  }
+  await page
+    .locator(".canvas-element-control")
+    .first()
+    .evaluate((element) => element.focus({ preventScroll: true }));
 }

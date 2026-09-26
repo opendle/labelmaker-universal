@@ -31,8 +31,8 @@ describe("CodeEditorDialog", () => {
         <CodeEditorDialog kind={kind} onClose={vi.fn()} onSave={onSave} />,
       );
       change(kind === "qr" ? "Text" : "Content", "ABC-123");
-      const checkbox = screen.getByRole("checkbox", { name: "Add margin" });
-      expect(checkbox).not.toBeChecked();
+      const checkbox = screen.getByRole("button", { name: "Add margin" });
+      expect(checkbox).toHaveAttribute("aria-pressed", "false");
       const preview = screen.getByRole("img", { name: /preview$/ });
       const source = preview.getAttribute("src");
       fireEvent.click(
@@ -64,8 +64,8 @@ describe("CodeEditorDialog", () => {
         />,
       );
       expect(
-        screen.getByRole("checkbox", { name: "Add margin" }),
-      ).toBeChecked();
+        screen.getByRole("button", { name: "Add margin" }),
+      ).toHaveAttribute("aria-pressed", "true");
     },
   );
 
@@ -111,7 +111,7 @@ describe("CodeEditorDialog", () => {
     change("QR code type", "wifi");
     change("Network name", "Workshop;West");
     change("Password", "safe:password");
-    fireEvent.click(screen.getByRole("checkbox", { name: "Hidden network" }));
+    fireEvent.click(screen.getByRole("button", { name: "Hidden network" }));
     fireEvent.click(screen.getByRole("button", { name: "Show password" }));
     expect(screen.getByLabelText("Password")).toHaveAttribute("type", "text");
     change("QR code type", "text");
@@ -236,7 +236,7 @@ describe("CodeEditorDialog", () => {
     expect(screen.getByRole("status")).not.toBeEmptyDOMElement();
     change("Content", "590123412345");
     fireEvent.click(
-      screen.getByRole("checkbox", { name: "Show text below the bars" }),
+      screen.getByRole("button", { name: "Show text below the bars" }),
     );
     fireEvent.click(screen.getByRole("button", { name: "Add barcode" }));
     expect(onSave).toHaveBeenCalledWith({
@@ -260,11 +260,11 @@ describe("CodeEditorDialog", () => {
     expect(screen.getByLabelText("Barcode type")).toHaveValue("ean13");
     expect(screen.getByLabelText("Content")).toHaveValue("590123412345");
     expect(
-      screen.getByRole("checkbox", { name: "Show text below the bars" }),
-    ).not.toBeChecked();
+      screen.getByRole("button", { name: "Show text below the bars" }),
+    ).toHaveAttribute("aria-pressed", "false");
     change("Barcode type", "datamatrix");
     expect(
-      screen.queryByRole("checkbox", { name: "Show text below the bars" }),
+      screen.queryByRole("button", { name: "Show text below the bars" }),
     ).toBeNull();
   });
 
@@ -287,4 +287,46 @@ describe("CodeEditorDialog", () => {
     expect(onClose).toHaveBeenCalledTimes(2);
     expect(onSave).not.toHaveBeenCalled();
   });
+});
+
+it("marks empty required fields without a helper message", () => {
+  render(<CodeEditorDialog kind="qr" onClose={vi.fn()} onSave={vi.fn()} />);
+  expect(screen.getByLabelText("Text")).toHaveAttribute("aria-invalid", "true");
+  expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  change("QR code type", "wifi");
+  expect(screen.getByLabelText("Network name")).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
+  change("Network name", "Workshop");
+  expect(screen.getByLabelText("Network name")).toHaveAttribute(
+    "aria-invalid",
+    "false",
+  );
+  change("QR code type", "contact");
+  expect(screen.getByLabelText("First name")).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
+  change("Last name", "Smith");
+  expect(screen.getByLabelText("First name")).toHaveAttribute(
+    "aria-invalid",
+    "false",
+  );
+});
+
+it("grows and shrinks code text areas with their content", () => {
+  const height = vi
+    .spyOn(HTMLTextAreaElement.prototype, "scrollHeight", "get")
+    .mockReturnValue(120);
+  const view = render(
+    <CodeEditorDialog kind="barcode" onClose={vi.fn()} onSave={vi.fn()} />,
+  );
+  const field = screen.getByLabelText("Content");
+  expect(field).toHaveStyle({ height: "122px" });
+  height.mockReturnValue(45);
+  change("Content", "short");
+  expect(field).toHaveStyle({ height: "47px" });
+  view.unmount();
+  height.mockRestore();
 });

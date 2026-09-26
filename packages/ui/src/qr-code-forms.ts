@@ -247,3 +247,21 @@ export function qrDataFromForm(
   }
   return QR_FORMS[type].toData(values);
 }
+
+export function missingQrFields(
+  type: QrData["type"],
+  values: QrFormValues,
+): string[] {
+  const missing: string[] = [];
+  for (const field of QR_FORMS[type].fields) {
+    if (field.required && !qrFieldText(values, field.key).trim())
+      missing.push(field.key);
+  }
+  if (
+    type === "contact" &&
+    !["firstName", "lastName"].some((key) => qrFieldText(values, key).trim())
+  ) {
+    missing.push("firstName", "lastName");
+  }
+  return missing;
+}

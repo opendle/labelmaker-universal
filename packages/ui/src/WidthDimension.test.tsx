@@ -140,3 +140,37 @@ describe("WidthDimension", () => {
     ).toBeInTheDocument();
   });
 });
+
+it("restores automatic width on touch release before a synthetic click", async () => {
+  const user = userEvent.setup();
+  const onChange = vi.fn();
+  render(<Harness fixed onChange={onChange} />);
+  await user.click(screen.getByRole("button", { name: /Plate width/ }));
+  fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "88" } });
+  const action = screen.getByRole("button", { name: "Use automatic width" });
+  await user.pointer([
+    { keys: "[TouchA>]", target: action },
+    { keys: "[/TouchA]", target: action },
+  ]);
+  expect(onChange).toHaveBeenCalledTimes(1);
+  expect(onChange).toHaveBeenCalledWith(
+    expect.objectContaining({ widthMode: "auto", size: plate.size }),
+  );
+});
+
+it("does not restore automatic width when a touch moves outside the action", async () => {
+  const user = userEvent.setup();
+  const onChange = vi.fn();
+  render(<Harness fixed onChange={onChange} />);
+  await user.click(screen.getByRole("button", { name: /Plate width/ }));
+  const action = screen.getByRole("button", { name: "Use automatic width" });
+  vi.spyOn(action, "getBoundingClientRect").mockReturnValue(
+    new DOMRect(0, 0, 44, 44),
+  );
+  await user.pointer([
+    { keys: "[TouchA>]", target: action, coords: { x: 20, y: 20 } },
+    { keys: "[/TouchA]", target: action, coords: { x: 80, y: 20 } },
+  ]);
+  expect(onChange).not.toHaveBeenCalled();
+  expect(screen.getByRole("spinbutton")).toBeInTheDocument();
+});

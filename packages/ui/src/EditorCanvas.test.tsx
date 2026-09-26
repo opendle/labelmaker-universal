@@ -436,8 +436,119 @@ describe("EditorCanvas", () => {
     expect(screen.queryByRole("button", { name: "Zoom in" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Zoom out" })).toBeNull();
     fireEvent.wheel(container.querySelector(".work-surface")!, {
+      deltaMode: 1,
       deltaY: -1,
     });
     expect(onZoom).toHaveBeenCalledWith(110);
   });
 });
+
+it("uses smaller scroll steps on a mobile trackpad and ignores horizontal scroll", () => {
+  const onZoom = vi.fn();
+  const { container } = render(
+    <EditorCanvas {...createProps({ onZoom, presentation: "mobile-touch" })} />,
+  );
+  const surface = container.querySelector(".work-surface")!;
+  fireEvent.wheel(surface, { deltaY: -2, deltaMode: 0 });
+  expect(onZoom).toHaveBeenLastCalledWith(100.3);
+  fireEvent.wheel(surface, { deltaX: 10, deltaY: 0 });
+  expect(onZoom).toHaveBeenCalledTimes(1);
+});
+
+it("keeps desktop mouse wheel steps for small pixel deltas", () => {
+  const onZoom = vi.fn();
+  const { container } = render(<EditorCanvas {...createProps({ onZoom })} />);
+  fireEvent.wheel(container.querySelector(".work-surface")!, {
+    deltaY: -2,
+    deltaMode: 0,
+  });
+  expect(onZoom).toHaveBeenCalledWith(110);
+});
+
+it("does not scroll the work surface when an element receives pointer focus", () => {
+  render(<EditorCanvas {...createProps({ presentation: "mobile-touch" })} />);
+  const element = screen.getByRole("button", {
+    name: "Text element: SELECT ALL",
+  });
+  const focus = vi.spyOn(element, "focus");
+  fireEvent.pointerDown(element, { pointerId: 1, pointerType: "touch" });
+  expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+});
+
+it("supports trackpad pinch through wheel and WebKit scale events", () => {
+  const onZoom = vi.fn();
+  const { container } = render(<EditorCanvas {...createProps({ onZoom })} />);
+  const surface = container.querySelector(".work-surface")!;
+  fireEvent.wheel(surface, { deltaY: -10, ctrlKey: true });
+  expect(onZoom.mock.lastCall?.[0]).toBeCloseTo(100 * Math.exp(0.1));
+  const gesture = (name: string, scale: number) => {
+    const event = new Event(name, { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "scale", { value: scale });
+    fireEvent(surface, event);
+    return event;
+  };
+  expect(gesture("gesturestart", 1).defaultPrevented).toBe(true);
+  gesture("gesturechange", 1.5);
+  expect(onZoom.mock.lastCall?.[0]).toBeCloseTo(150 * Math.exp(0.1));
+  fireEvent.wheel(surface, { deltaY: -10, ctrlKey: true });
+  expect(onZoom).toHaveBeenCalledTimes(2);
+  gesture("gesturechange", 8);
+  expect(onZoom).toHaveBeenLastCalledWith(300);
+  gesture("gestureend", 8);
+  fireEvent.wheel(surface, { deltaY: 1, deltaMode: 1 });
+  expect(onZoom).toHaveBeenLastCalledWith(290);
+});
+
+it("does not apply WebKit pinch a second time for touch pointers", () => {
+  const onZoom = vi.fn();
+  const { container } = render(
+    <EditorCanvas {...createProps({ onZoom, presentation: "mobile-touch" })} />,
+  );
+  const surface = container.querySelector(".work-surface")!;
+  const pointer = new Event("pointerdown", { bubbles: true });
+  Object.assign(pointer, { pointerType: "touch", pointerId: 5 });
+  fireEvent(surface, pointer);
+  fireEvent(surface, new Event("gesturestart", { bubbles: true }));
+  const change = new Event("gesturechange", { bubbles: true });
+  Object.assign(change, { scale: 1.5 });
+  fireEvent(surface, change);
+  expect(onZoom).not.toHaveBeenCalled();
+});
+
+it.each(["desktop", "mobile-touch"] as const)(
+  "rotates from the %s handle position without a half turn",
+  (presentation) => {
+    const props = createProps({
+      presentation,
+      selectedElementId: textElement.id,
+      selectedText: textElement,
+    });
+    render(<EditorCanvas {...props} />);
+    const handle = screen.getByRole("button", { name: "Rotate text block" });
+    vi.spyOn(handle.parentElement!, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(0, 0, 100, 40),
+    );
+    const pointer = (name: string, x: number, y: number) => {
+      const event = new MouseEvent(name, {
+        bubbles: true,
+        clientX: x,
+        clientY: y,
+      });
+      Object.assign(event, { pointerId: 1, pointerType: "mouse" });
+      return event;
+    };
+    const y = presentation === "mobile-touch" ? 70 : -30;
+    fireEvent(handle, pointer("pointerdown", 50, y));
+    fireEvent(window, pointer("pointermove", 50, y));
+    expect(props.onChangeElementDuringInteraction).toHaveBeenLastCalledWith(
+      expect.objectContaining({ rotationDeg: 0 }),
+    );
+    fireEvent(window, pointer("pointermove", 100, 20));
+    expect(props.onChangeElementDuringInteraction).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        rotationDeg: presentation === "mobile-touch" ? 270 : 90,
+      }),
+    );
+    fireEvent(window, pointer("pointerup", 100, 20));
+  },
+);

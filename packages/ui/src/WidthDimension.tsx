@@ -25,6 +25,8 @@ export function WidthDimension({
   const inputRef = useRef<HTMLInputElement>(null);
   const canceledRef = useRef(false);
   const changedRef = useRef(false);
+  const automaticPointerRef = useRef<number | null>(null);
+  const canceledPointerClickRef = useRef(false);
   const minimum = isFlagPlate(plate) ? 4 : 1;
 
   useEffect(() => {
@@ -62,6 +64,13 @@ export function WidthDimension({
     ) {
       onChange(setPlateFixedWidth(plate, value));
     }
+    setEditing(false);
+  }
+
+  function restoreAutomaticWidth() {
+    if (canceledRef.current) return;
+    canceledRef.current = true;
+    onChange({ ...plate, widthMode: "auto" });
     setEditing(false);
   }
 
@@ -126,13 +135,36 @@ export function WidthDimension({
                 return;
               finishEditing();
             }}
-            onClick={() => {
-              canceledRef.current = true;
-              onChange({ ...plate, widthMode: "auto" });
-              setEditing(false);
+            onClick={(event) => {
+              if (event.detail === 0 || !canceledPointerClickRef.current)
+                restoreAutomaticWidth();
             }}
             onKeyDown={cancelOnEscape}
-            onPointerDown={(event) => event.preventDefault()}
+            onPointerDown={(event) => {
+              event.preventDefault();
+              automaticPointerRef.current = event.pointerId;
+              canceledPointerClickRef.current = false;
+              event.currentTarget.focus();
+            }}
+            onPointerCancel={() => {
+              automaticPointerRef.current = null;
+              canceledPointerClickRef.current = true;
+            }}
+            onPointerUp={(event) => {
+              const startedHere =
+                automaticPointerRef.current === event.pointerId;
+              automaticPointerRef.current = null;
+              const bounds = event.currentTarget.getBoundingClientRect();
+              const releasedInside =
+                startedHere &&
+                event.clientX >= bounds.left &&
+                event.clientX <= bounds.right &&
+                event.clientY >= bounds.top &&
+                event.clientY <= bounds.bottom;
+              canceledPointerClickRef.current = !releasedInside;
+              if (releasedInside && event.pointerType !== "mouse")
+                restoreAutomaticWidth();
+            }}
             title="Use automatic width"
             type="button"
           >

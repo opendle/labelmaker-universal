@@ -10,10 +10,12 @@ import { useMemo, useState } from "react";
 
 import {
   QR_FORMS,
+  missingQrFields,
   qrDataFromForm,
   qrFormValues,
   type QrFormValues,
 } from "./qr-code-forms.js";
+import { CodeTextarea, CodeToggle } from "./CodeFormControls.js";
 import { QrFields } from "./CodeEditorDialogForms.js";
 import { IconButton } from "./controls.js";
 import { Modal } from "./Modal.js";
@@ -173,7 +175,7 @@ export function CodeEditorDialog({
 
   return (
     <Modal
-      className="code-editor-modal"
+      className="code-editor-modal phone-form-modal"
       labelId="code-editor-title"
       onClose={onClose}
     >
@@ -197,7 +199,7 @@ export function CodeEditorDialog({
           <div className="code-editor-fields">
             {kind === "qr" ? (
               <>
-                <label className="code-field">
+                <label className="field code-field">
                   <span>QR code type</span>
                   <select
                     aria-label="QR code type"
@@ -222,7 +224,7 @@ export function CodeEditorDialog({
                   type={state.qrType}
                   values={values}
                 />
-                <label className="code-field">
+                <label className="field code-field">
                   <span>Error correction</span>
                   <select
                     aria-label="Error correction"
@@ -244,7 +246,7 @@ export function CodeEditorDialog({
               </>
             ) : (
               <>
-                <label className="code-field">
+                <label className="field code-field">
                   <span>Barcode type</span>
                   <select
                     aria-label="Barcode type"
@@ -266,11 +268,14 @@ export function CodeEditorDialog({
                     )}
                   </select>
                 </label>
-                <label className="code-field">
+                <label className="field code-field" htmlFor="barcode-content">
                   <span>Content</span>
-                  <textarea
+                  <CodeTextarea
+                    id="barcode-content"
                     aria-label="Content"
                     aria-describedby="barcode-format-help code-editor-status"
+                    required
+                    aria-invalid={!result.code}
                     autoCapitalize="off"
                     autoComplete="off"
                     maxLength={4096}
@@ -290,20 +295,16 @@ export function CodeEditorDialog({
                   {BARCODE_FORMATS[state.format].hint}
                 </p>
                 {state.format !== "datamatrix" && state.format !== "pdf417" && (
-                  <label className="code-checkbox">
-                    <input
-                      aria-label="Show text below the bars"
-                      checked={state.showText}
-                      onChange={(event) =>
-                        setState((previous) => ({
-                          ...previous,
-                          showText: event.target.checked,
-                        }))
-                      }
-                      type="checkbox"
-                    />
-                    Show text below the bars
-                  </label>
+                  <CodeToggle
+                    label="Show text below the bars"
+                    checked={state.showText}
+                    onChange={(checked) =>
+                      setState((previous) => ({
+                        ...previous,
+                        showText: checked,
+                      }))
+                    }
+                  />
                 )}
               </>
             )}
@@ -327,24 +328,19 @@ export function CodeEditorDialog({
                   ) : (
                     <Barcode aria-hidden="true" size={40} />
                   )}
-                  <span>Enter content to see the code.</span>
                 </div>
               )}
             </div>
-            <label className="code-checkbox">
-              <input
-                aria-label="Add margin"
-                checked={state.includeMargin}
-                onChange={(event) =>
-                  setState((previous) => ({
-                    ...previous,
-                    includeMargin: event.target.checked,
-                  }))
-                }
-                type="checkbox"
-              />
-              Add margin
-            </label>
+            <CodeToggle
+              label="Add margin"
+              checked={state.includeMargin}
+              onChange={(checked) =>
+                setState((previous) => ({
+                  ...previous,
+                  includeMargin: checked,
+                }))
+              }
+            />
           </aside>
         </div>
         <div className="dialog-footer code-editor-footer">
@@ -354,7 +350,13 @@ export function CodeEditorDialog({
             id="code-editor-status"
             role="status"
           >
-            {result.error}
+            {(
+              kind === "qr"
+                ? missingQrFields(state.qrType, values).length > 0
+                : !state.value.trim()
+            )
+              ? ""
+              : result.error}
           </p>
           <button
             className="button primary"

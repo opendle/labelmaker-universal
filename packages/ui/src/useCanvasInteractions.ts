@@ -475,7 +475,7 @@ export function useCanvasInteractions({
       return;
     event.preventDefault();
     suppressClickRef.current = true;
-    event.currentTarget.focus();
+    event.currentTarget.focus({ preventScroll: true });
     event.currentTarget.setPointerCapture?.(event.pointerId);
     const selected = selectedElementIds.includes(element.id);
     editOnClickRef.current =
@@ -617,7 +617,7 @@ export function useCanvasInteractions({
         (Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX) *
           180) /
           Math.PI +
-          90,
+          (touchNavigation ? -90 : 90),
       );
       onChangeElementDuringInteraction({ ...element, rotationDeg });
     };

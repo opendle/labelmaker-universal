@@ -2600,7 +2600,8 @@ textarea.inline-text-editor {
 }
 
 .presentation-mobile-touch .handle.rotate {
-  top: -50px;
+  top: auto;
+  bottom: -50px;
   left: calc(50% - 22px);
   width: 44px;
   height: 44px;
@@ -2611,7 +2612,8 @@ textarea.inline-text-editor {
 }
 
 .presentation-mobile-touch .rotation-stem {
-  top: -29px;
+  top: auto;
+  bottom: -29px;
   height: 29px;
 }
 

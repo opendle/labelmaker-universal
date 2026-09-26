@@ -1615,25 +1615,36 @@ for (const [width, height] of [
           .selectOption("code128");
         await page.getByLabel("Content", { exact: true }).fill("PART-123456");
       }
-      await page
-        .getByRole("img", {
-          name: kind === "qr" ? "QR code preview" : "barcode preview",
-        })
-        .waitFor();
-      const margin = page.getByRole("checkbox", { name: "Add margin" });
-      if (await margin.isChecked())
+      const preview = page.locator(".code-preview-paper");
+      const margin = page.getByRole("button", { name: "Add margin" });
+      if ((await margin.getAttribute("aria-pressed")) !== "false")
         throw new Error("New codes must have no margin.");
-      const previewBounds = await page
-        .locator(".code-preview-paper")
-        .boundingBox();
-      const marginBounds = await margin.boundingBox();
-      if (
-        !previewBounds ||
-        !marginBounds ||
-        marginBounds.y < previewBounds.y + previewBounds.height
-      ) {
-        throw new Error("The margin checkbox must be below the preview.");
+      if (width > 1100) {
+        await preview.waitFor();
+        const paper = await preview.evaluate((node) => ({
+          padding: getComputedStyle(node).padding,
+          height: node.getBoundingClientRect().height,
+          imageHeight: node.querySelector("img").getBoundingClientRect().height,
+        }));
+        if (
+          paper.padding !== "0px" ||
+          Math.abs(paper.height - paper.imageHeight) > 1
+        )
+          throw new Error("The preview must have no extra margin.");
+      } else if (await preview.isVisible()) {
+        throw new Error("Phone dialogs must hide the code preview.");
       }
+      const action = page.getByRole("button", {
+        name: kind === "qr" ? "Add QR code" : "Add barcode",
+        exact: true,
+      });
+      const actionBounds = await action.boundingBox();
+      if (
+        !actionBounds ||
+        actionBounds.y < 0 ||
+        actionBounds.y + actionBounds.height > height
+      )
+        throw new Error("The code action must stay inside the viewport.");
       const overflow = await page
         .locator(".code-editor-body")
         .evaluate((body) => body.scrollWidth > body.clientWidth + 1);

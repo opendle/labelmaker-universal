@@ -580,7 +580,10 @@ describe("LabelmakerApp", () => {
       frame.style.getPropertyValue("--element-font-size"),
     );
 
-    fireEvent.wheel(canvas.closest(".work-surface")!, { deltaY: -1 });
+    fireEvent.wheel(canvas.closest(".work-surface")!, {
+      deltaMode: 1,
+      deltaY: -1,
+    });
 
     expect(Number.parseFloat(canvas.style.width) / widthBefore).toBeCloseTo(
       1.1,
@@ -601,12 +604,12 @@ describe("LabelmakerApp", () => {
     const widthBefore = Number.parseFloat(canvas.style.width);
 
     for (let index = 0; index < 22; index += 1) {
-      fireEvent.wheel(workSurface, { deltaY: -1 });
+      fireEvent.wheel(workSurface, { deltaMode: 1, deltaY: -1 });
     }
 
     expect(Number.parseFloat(canvas.style.width) / widthBefore).toBeCloseTo(3);
     const widthAtMaximum = canvas.style.width;
-    fireEvent.wheel(workSurface, { deltaY: -1 });
+    fireEvent.wheel(workSurface, { deltaMode: 1, deltaY: -1 });
     expect(canvas.style.width).toBe(widthAtMaximum);
   });
 
