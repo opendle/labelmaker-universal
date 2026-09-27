@@ -156,7 +156,7 @@ fully prove.
 ### Distribution package
 
 Set the product version and macOS build number in `distribution/version.json`.
-Use a new build number for each App Store Connect upload:
+To make a package without uploading it, run:
 
 ```bash
 LABELMAKER_APPLE_TEAM_ID=32J9W47SH8 npm run mas:distribution
@@ -192,17 +192,31 @@ Check the Keychain item without contacting Apple:
 npm run mas:check-api-key
 ```
 
-Increase the macOS build number in `distribution/version.json` for each upload:
+Run this command when the Mac build is ready for upload:
 
 ```bash
 npm run mas:upload
 ```
 
-The upload command gets the key from the login Keychain and sends it to Apple's
-tool through a mode-600 file in a short-lived AES-256 encrypted disk image. The
-command removes the file and detaches the image after each Apple command. It
-then runs the distribution build, validates the `.pkg` with Apple, and uploads
-it.
+The upload command first uses the Keychain API key to read the app's macOS
+build records from App Store Connect. The key must have access to these records.
+It selects a number above both the local number and all uploaded macOS build
+numbers, across all product versions. It saves that number in
+`distribution/version.json` before it builds the package. You do not need to
+increase the macOS number by hand. Failed attempts keep the selected number;
+the next attempt selects a higher number. A failed API check stops the command
+before it changes the version file or builds the package.
+
+Run one Mac upload at a time for this app, including uploads from other Macs.
+The command uses `release/macos-app-store/.upload.lock` to prevent concurrent
+uploads from this checkout. If a forced stop leaves the lock, remove it only
+after you confirm that no upload is running.
+
+The command then builds and signs the package. It gets the key from the login
+Keychain and sends it to Apple's tool through a mode-600 file in a short-lived
+AES-256 encrypted disk image. It validates the `.pkg` with Apple, then uploads
+it. The command removes the key file and detaches the image after each Apple
+command.
 It does not change the price, release method, metadata, or other App Store
 Connect settings. Do not run this command until the build is ready for upload.
 
