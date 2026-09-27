@@ -36,6 +36,10 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             { name: "barcode", test: /[\\/]node_modules[\\/]@bwip-js[\\/]/ },
+            {
+              name: "react",
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+            },
           ],
         },
         assetFileNames: "assets/[name][extname]",
