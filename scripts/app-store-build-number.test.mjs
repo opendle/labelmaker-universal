@@ -1,7 +1,10 @@
 import { generateKeyPairSync, verify } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
-import { nextMacAppStoreBuildNumber } from "./app-store-build-number.mjs";
+import {
+  nextAppStoreBuildNumber,
+  nextMacAppStoreBuildNumber,
+} from "./app-store-build-number.mjs";
 
 const { privateKey, publicKey } = generateKeyPairSync("ec", {
   namedCurve: "prime256v1",
@@ -144,5 +147,37 @@ describe("Mac App Store build number", () => {
         setup([apps, { data: [] }]),
       ),
     ).rejects.toThrow("too large");
+  });
+});
+
+describe("iOS App Store build number", () => {
+  it("selects a number from iOS records across all pages", async () => {
+    const dependencies = setup([
+      apps,
+      { data: [build("3")], links: { next: "/v1/builds?cursor=ios" } },
+      { data: [build("8")] },
+    ]);
+    expect(
+      await nextAppStoreBuildNumber(
+        { ...options, platform: "IOS" },
+        dependencies,
+      ),
+    ).toBe(9);
+    expect(
+      dependencies.fetchImpl.mock.calls[1][0].searchParams.get(
+        "filter[preReleaseVersion.platform]",
+      ),
+    ).toBe("IOS");
+  });
+
+  it("rejects an unsupported platform before reading the key", async () => {
+    const dependencies = setup([]);
+    await expect(
+      nextAppStoreBuildNumber(
+        { ...options, platform: "unknown" },
+        dependencies,
+      ),
+    ).rejects.toThrow("platform is invalid");
+    expect(dependencies.readKey).not.toHaveBeenCalled();
   });
 });

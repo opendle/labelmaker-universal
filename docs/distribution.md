@@ -207,6 +207,12 @@ increase the macOS number by hand. Failed attempts keep the selected number;
 the next attempt selects a higher number. A failed API check stops the command
 before it changes the version file or builds the package.
 
+Both upload commands use `distribution/version.json.lock` while they select and
+save a build number. This lock prevents a Mac upload and an iOS upload from
+replacing each other's version changes. It is removed before packaging starts.
+If the lock exists, wait for the other command to select its number and try
+again. Remove a stale lock only after you confirm that no upload is running.
+
 Run one Mac upload at a time for this app, including uploads from other Macs.
 The command uses `release/macos-app-store/.upload.lock` to prevent concurrent
 uploads from this checkout. If a forced stop leaves the lock, remove it only
@@ -275,14 +281,29 @@ ID, version, build, arm64 code, signature, and distribution profile. Xcode can
 refresh the iOS provisioning profile when necessary. It does not change the
 Mac profiles.
 
-When the build is ready, increase the iOS build number and use the same Keychain
-API key:
+When the build is ready, use the same Keychain API key:
 
 ```bash
 npm run ios:upload
 ```
 
-The upload command performs the same archive and export steps, validates the
+The upload command first reads the app's iOS build records from App Store
+Connect. The API key must have access to these records. It selects a number
+above both the local iOS number and all uploaded iOS build numbers. Mac build
+numbers are separate. It saves the selected number in `distribution/version.json`
+and in the Xcode project's Debug and Release build settings before it builds.
+You do not need to increase the iOS number by hand. Failed build or upload
+attempts keep the selected number; the next attempt selects a higher number.
+A failed API check stops the command before it changes the files or builds.
+
+Run one iOS package command at a time for this app, including commands on other
+Macs. Both iOS commands use `release/ios-app-store/.package.lock` to prevent
+concurrent package commands from this checkout. If a forced stop leaves the
+lock, remove it only after you confirm that no iOS package command is running.
+`ios:distribution` uses the saved number and does not contact App Store Connect
+to select a number.
+
+The upload command then performs the same archive and export steps, validates the
 `.ipa` with Apple, and uploads it to App Store Connect. It uses the same
 short-lived encrypted disk image for the API key. It does not change the price,
 release method, or store metadata. Do not run it until the iPhone and iPad build

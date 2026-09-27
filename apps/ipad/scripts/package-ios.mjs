@@ -3,6 +3,7 @@ import { accessSync } from "node:fs";
 import {
   mkdir,
   mkdtemp,
+  open,
   readdir,
   rename,
   rm,
@@ -13,16 +14,11 @@ import { resolve, sep } from "node:path";
 
 import plist from "plist";
 
-import {
-  readAppStoreConnectApiKey,
-  runAltoolWithAppStoreConnectApiKey,
-} from "../../../scripts/app-store-connect-key.mjs";
+import { runAltoolWithAppStoreConnectApiKey } from "../../../scripts/app-store-connect-key.mjs";
 import { readReleaseVersion } from "../../../scripts/release-version.mjs";
+import { reserveIosUploadBuild } from "./reserve-upload-build.mjs";
 
 const BUNDLE_IDENTIFIER = "com.opendle.labelmaker";
-const releaseVersion = await readReleaseVersion();
-const APP_VERSION = releaseVersion.productVersion;
-const BUILD_VERSION = String(releaseVersion.buildNumbers?.ios);
 const TEAM_IDENTIFIER = requiredEnvironmentValue("LABELMAKER_APPLE_TEAM_ID");
 const mode = readMode(process.argv.slice(2));
 
@@ -44,103 +40,141 @@ const uploadCredentials =
     : undefined;
 if (uploadCredentials) {
   validateUploadCredentials(uploadCredentials);
-  const preflightKey = readAppStoreConnectApiKey(uploadCredentials.keyId);
-  preflightKey.fill(0);
 }
 
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
 const projectPath = resolve(repositoryRoot, "apps/ipad/Labelmaker.xcodeproj");
 const allowedOutputRoot = resolve(repositoryRoot, "release/ios-app-store");
-const outputDirectory = resolve(
-  allowedOutputRoot,
-  `${APP_VERSION}-${BUILD_VERSION}`,
-);
-if (!outputDirectory.startsWith(`${allowedOutputRoot}${sep}`)) {
-  throw new Error("The iOS App Store output directory is not safe.");
-}
-const archivePath = resolve(outputDirectory, "Label Maker.xcarchive");
-const exportDirectory = resolve(outputDirectory, "export");
-const ipaPath = resolve(
-  outputDirectory,
-  `Label Maker-${APP_VERSION}-${BUILD_VERSION}.ipa`,
-);
-const stagingDirectory = await mkdtemp(
-  resolve(tmpdir(), "label-maker-ios-app-store-"),
-);
-
+await mkdir(allowedOutputRoot, { recursive: true });
+const lockPath = resolve(allowedOutputRoot, ".package.lock");
+let lock;
 try {
-  await rm(outputDirectory, { recursive: true, force: true });
-  await mkdir(exportDirectory, { recursive: true });
-
-  run("npm", ["run", "build:web", "--workspace", "@labelmaker/ipad"]);
-  run("/usr/bin/xcodebuild", [
-    "-project",
-    projectPath,
-    "-quiet",
-    "-scheme",
-    "Labelmaker",
-    "-configuration",
-    "Release",
-    "-destination",
-    "generic/platform=iOS",
-    "-derivedDataPath",
-    resolve(stagingDirectory, "DerivedData"),
-    "-archivePath",
-    archivePath,
-    "-allowProvisioningUpdates",
-    `DEVELOPMENT_TEAM=${TEAM_IDENTIFIER}`,
-    `MARKETING_VERSION=${APP_VERSION}`,
-    `CURRENT_PROJECT_VERSION=${BUILD_VERSION}`,
-    "archive",
-  ]);
-
-  const exportOptionsPath = resolve(stagingDirectory, "ExportOptions.plist");
-  await writeFile(
-    exportOptionsPath,
-    plist.build({
-      destination: "export",
-      manageAppVersionAndBuildNumber: false,
-      method: "app-store-connect",
-      signingStyle: "automatic",
-      stripSwiftSymbols: true,
-      teamID: TEAM_IDENTIFIER,
-      uploadSymbols: true,
-    }),
-    { encoding: "utf8", mode: 0o600 },
-  );
-  run("/usr/bin/xcodebuild", [
-    "-exportArchive",
-    "-quiet",
-    "-archivePath",
-    archivePath,
-    "-exportPath",
-    exportDirectory,
-    "-exportOptionsPlist",
-    exportOptionsPath,
-    "-allowProvisioningUpdates",
-  ]);
-
-  const exportedIpaNames = (await readdir(exportDirectory)).filter((name) =>
-    name.endsWith(".ipa"),
-  );
-  if (exportedIpaNames.length !== 1 || !exportedIpaNames[0]) {
+  lock = await open(lockPath, "wx", 0o600);
+} catch (error) {
+  if (error.code === "EEXIST") {
     throw new Error(
-      `Xcode exported ${String(exportedIpaNames.length)} iOS packages; expected one.`,
+      `An iOS package lock exists at ${lockPath}. If no iOS package command is running, remove the lock and try again.`,
     );
   }
-  await rename(resolve(exportDirectory, exportedIpaNames[0]), ipaPath);
-  await validateIpa(ipaPath, stagingDirectory);
-
-  if (uploadCredentials) {
-    await uploadIpa(ipaPath, uploadCredentials);
-  } else {
-    console.log(`iOS App Store package saved to ${ipaPath}`);
-  }
+  throw error;
+}
+try {
+  await packageIos();
 } finally {
-  await rm(stagingDirectory, { recursive: true, force: true });
+  await lock.close();
+  await rm(lockPath, { force: true });
 }
 
-async function validateIpa(path, stagingRoot) {
+async function packageIos() {
+  if (uploadCredentials) {
+    console.log("Checking App Store Connect for the next iOS build number.");
+  }
+  const releaseVersion = uploadCredentials
+    ? await reserveIosUploadBuild({
+        versionPath: resolve(repositoryRoot, "distribution/version.json"),
+        projectFilePath: resolve(projectPath, "project.pbxproj"),
+        bundleId: BUNDLE_IDENTIFIER,
+        credentials: uploadCredentials,
+      })
+    : await readReleaseVersion();
+  const APP_VERSION = releaseVersion.productVersion;
+  const BUILD_VERSION = String(releaseVersion.buildNumbers.ios);
+  if (uploadCredentials) {
+    console.log(
+      `Using iOS build ${BUILD_VERSION}. Saved to distribution/version.json and the Xcode project.`,
+    );
+  }
+  const outputDirectory = resolve(
+    allowedOutputRoot,
+    `${APP_VERSION}-${BUILD_VERSION}`,
+  );
+  if (!outputDirectory.startsWith(`${allowedOutputRoot}${sep}`)) {
+    throw new Error("The iOS App Store output directory is not safe.");
+  }
+  const archivePath = resolve(outputDirectory, "Label Maker.xcarchive");
+  const exportDirectory = resolve(outputDirectory, "export");
+  const ipaPath = resolve(
+    outputDirectory,
+    `Label Maker-${APP_VERSION}-${BUILD_VERSION}.ipa`,
+  );
+  const stagingDirectory = await mkdtemp(
+    resolve(tmpdir(), "label-maker-ios-app-store-"),
+  );
+
+  try {
+    await rm(outputDirectory, { recursive: true, force: true });
+    await mkdir(exportDirectory, { recursive: true });
+
+    run("npm", ["run", "build:web", "--workspace", "@labelmaker/ipad"]);
+    run("/usr/bin/xcodebuild", [
+      "-project",
+      projectPath,
+      "-quiet",
+      "-scheme",
+      "Labelmaker",
+      "-configuration",
+      "Release",
+      "-destination",
+      "generic/platform=iOS",
+      "-derivedDataPath",
+      resolve(stagingDirectory, "DerivedData"),
+      "-archivePath",
+      archivePath,
+      "-allowProvisioningUpdates",
+      `DEVELOPMENT_TEAM=${TEAM_IDENTIFIER}`,
+      `MARKETING_VERSION=${APP_VERSION}`,
+      `CURRENT_PROJECT_VERSION=${BUILD_VERSION}`,
+      "archive",
+    ]);
+
+    const exportOptionsPath = resolve(stagingDirectory, "ExportOptions.plist");
+    await writeFile(
+      exportOptionsPath,
+      plist.build({
+        destination: "export",
+        manageAppVersionAndBuildNumber: false,
+        method: "app-store-connect",
+        signingStyle: "automatic",
+        stripSwiftSymbols: true,
+        teamID: TEAM_IDENTIFIER,
+        uploadSymbols: true,
+      }),
+      { encoding: "utf8", mode: 0o600 },
+    );
+    run("/usr/bin/xcodebuild", [
+      "-exportArchive",
+      "-quiet",
+      "-archivePath",
+      archivePath,
+      "-exportPath",
+      exportDirectory,
+      "-exportOptionsPlist",
+      exportOptionsPath,
+      "-allowProvisioningUpdates",
+    ]);
+
+    const exportedIpaNames = (await readdir(exportDirectory)).filter((name) =>
+      name.endsWith(".ipa"),
+    );
+    if (exportedIpaNames.length !== 1 || !exportedIpaNames[0]) {
+      throw new Error(
+        `Xcode exported ${String(exportedIpaNames.length)} iOS packages; expected one.`,
+      );
+    }
+    await rename(resolve(exportDirectory, exportedIpaNames[0]), ipaPath);
+    await validateIpa(ipaPath, stagingDirectory, APP_VERSION, BUILD_VERSION);
+
+    if (uploadCredentials) {
+      await uploadIpa(ipaPath, uploadCredentials);
+    } else {
+      console.log(`iOS App Store package saved to ${ipaPath}`);
+    }
+  } finally {
+    await rm(stagingDirectory, { recursive: true, force: true });
+  }
+}
+
+async function validateIpa(path, stagingRoot, appVersion, buildVersion) {
   run("/usr/bin/unzip", ["-tq", path]);
   const inspectionDirectory = resolve(stagingRoot, "ipa-inspection");
   await mkdir(inspectionDirectory, { recursive: true });
@@ -157,8 +191,8 @@ async function validateIpa(path, stagingRoot) {
   const appPath = resolve(payloadDirectory, appNames[0]);
   const infoPath = resolve(appPath, "Info.plist");
   assertPlistValue(infoPath, "CFBundleIdentifier", BUNDLE_IDENTIFIER);
-  assertPlistValue(infoPath, "CFBundleShortVersionString", APP_VERSION);
-  assertPlistValue(infoPath, "CFBundleVersion", BUILD_VERSION);
+  assertPlistValue(infoPath, "CFBundleShortVersionString", appVersion);
+  assertPlistValue(infoPath, "CFBundleVersion", buildVersion);
   const executableName = readPlistValue(infoPath, "CFBundleExecutable");
   const executablePath = resolve(appPath, executableName);
   const architectures = new Set(

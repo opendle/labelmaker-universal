@@ -8,6 +8,7 @@ import {
   runAltoolWithAppStoreConnectApiKey,
 } from "../../../scripts/app-store-connect-key.mjs";
 import { nextMacAppStoreBuildNumber } from "../../../scripts/app-store-build-number.mjs";
+import { withReleaseVersionLock } from "../../../scripts/release-version-lock.mjs";
 import { readReleaseVersion } from "../../../scripts/release-version.mjs";
 
 const arguments_ = process.argv.slice(2);
@@ -58,35 +59,39 @@ try {
   throw error;
 }
 try {
-  const releaseVersion = await readReleaseVersion();
-  console.log("Checking App Store Connect for the next macOS build number.");
-  const buildNumber = await nextMacAppStoreBuildNumber({
-    keyId: API_KEY_ID,
-    issuerId: API_ISSUER_ID,
-    bundleId: process.env.LABELMAKER_MAS_BUNDLE_ID ?? "com.opendle.labelmaker",
-    currentBuildNumber: releaseVersion.buildNumbers.macos,
+  const versionPath = resolve(repositoryRoot, "distribution/version.json");
+  const releaseVersion = await withReleaseVersionLock(versionPath, async () => {
+    const releaseVersion = await readReleaseVersion();
+    console.log("Checking App Store Connect for the next macOS build number.");
+    const buildNumber = await nextMacAppStoreBuildNumber({
+      keyId: API_KEY_ID,
+      issuerId: API_ISSUER_ID,
+      bundleId:
+        process.env.LABELMAKER_MAS_BUNDLE_ID ?? "com.opendle.labelmaker",
+      currentBuildNumber: releaseVersion.buildNumbers.macos,
+    });
+    const temporaryVersionPath = `${versionPath}.${process.pid}.tmp`;
+    try {
+      const current = await readReleaseVersion();
+      if (JSON.stringify(current) !== JSON.stringify(releaseVersion)) {
+        throw new Error(
+          "The release version changed during the build check. Try again.",
+        );
+      }
+      releaseVersion.buildNumbers.macos = buildNumber;
+      await writeFile(
+        temporaryVersionPath,
+        `${JSON.stringify(releaseVersion, null, 2)}\n`,
+        { flag: "wx" },
+      );
+      await rename(temporaryVersionPath, versionPath);
+    } finally {
+      await rm(temporaryVersionPath, { force: true });
+    }
+    return releaseVersion;
   });
   const APP_VERSION = releaseVersion.productVersion;
-  const BUILD_VERSION = String(buildNumber);
-  const versionPath = resolve(repositoryRoot, "distribution/version.json");
-  const temporaryVersionPath = `${versionPath}.${process.pid}.tmp`;
-  try {
-    const current = await readReleaseVersion();
-    if (JSON.stringify(current) !== JSON.stringify(releaseVersion)) {
-      throw new Error(
-        "The release version changed during the build check. Try again.",
-      );
-    }
-    releaseVersion.buildNumbers.macos = buildNumber;
-    await writeFile(
-      temporaryVersionPath,
-      `${JSON.stringify(releaseVersion, null, 2)}\n`,
-      { flag: "wx" },
-    );
-    await rename(temporaryVersionPath, versionPath);
-  } finally {
-    await rm(temporaryVersionPath, { force: true });
-  }
+  const BUILD_VERSION = String(releaseVersion.buildNumbers.macos);
   console.log(
     `Using macOS build ${BUILD_VERSION}. Saved to distribution/version.json.`,
   );

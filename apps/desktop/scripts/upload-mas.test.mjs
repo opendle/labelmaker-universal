@@ -71,6 +71,15 @@ describe("Mac upload command", () => {
     expect(mocks.rename.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.spawn.mock.invocationCallOrder[0],
     );
+    expect(
+      mocks.rm.mock.calls.some(([path]) => path.endsWith("version.json.lock")),
+    ).toBe(true);
+    const unlockIndex = mocks.rm.mock.calls.findIndex(([path]) =>
+      path.endsWith("version.json.lock"),
+    );
+    expect(mocks.rm.mock.invocationCallOrder[unlockIndex]).toBeLessThan(
+      mocks.spawn.mock.invocationCallOrder[0],
+    );
     expect(mocks.upload.mock.calls[0][0]).toEqual([
       "--validate-app",
       expect.stringContaining("Label Maker-1.0.0-4.pkg"),
@@ -83,7 +92,7 @@ describe("Mac upload command", () => {
       expect.stringContaining("Label Maker-1.0.0-4.pkg"),
       "--show-progress",
     ]);
-    expect(mocks.close).toHaveBeenCalledOnce();
+    expect(mocks.close).toHaveBeenCalledTimes(2);
     expect(mocks.rm).toHaveBeenCalledWith(
       expect.stringContaining(".upload.lock"),
       { force: true },
@@ -96,7 +105,7 @@ describe("Mac upload command", () => {
     expect(mocks.write).not.toHaveBeenCalled();
     expect(mocks.spawn).not.toHaveBeenCalled();
     expect(mocks.upload).not.toHaveBeenCalled();
-    expect(mocks.close).toHaveBeenCalledOnce();
+    expect(mocks.close).toHaveBeenCalledTimes(2);
   });
 
   it("stops a second local upload without removing its lock", async () => {
@@ -122,6 +131,6 @@ describe("Mac upload command", () => {
     await expect(run()).rejects.toThrow("Validation failed");
     expect(mocks.rename).toHaveBeenCalledOnce();
     expect(mocks.upload).toHaveBeenCalledOnce();
-    expect(mocks.close).toHaveBeenCalledOnce();
+    expect(mocks.close).toHaveBeenCalledTimes(2);
   });
 });

@@ -4,12 +4,23 @@ import { readAppStoreConnectApiKey } from "./app-store-connect-key.mjs";
 
 const API_ORIGIN = "https://api.appstoreconnect.apple.com";
 
-export async function nextMacAppStoreBuildNumber(
-  { keyId, issuerId, bundleId, currentBuildNumber },
+export function nextMacAppStoreBuildNumber(options, dependencies) {
+  return nextAppStoreBuildNumber(
+    { ...options, platform: "MAC_OS" },
+    dependencies,
+  );
+}
+
+export async function nextAppStoreBuildNumber(
+  { keyId, issuerId, bundleId, currentBuildNumber, platform },
   { fetchImpl = fetch, readKey = readAppStoreConnectApiKey } = {},
 ) {
+  if (platform !== "MAC_OS" && platform !== "IOS") {
+    throw new Error("The App Store platform is invalid.");
+  }
+  const platformName = platform === "IOS" ? "iOS" : "macOS";
   if (!Number.isSafeInteger(currentBuildNumber) || currentBuildNumber < 1) {
-    throw new Error("The local macOS build number is invalid.");
+    throw new Error(`The local ${platformName} build number is invalid.`);
   }
   const key = readKey(keyId);
   let token;
@@ -72,7 +83,7 @@ export async function nextMacAppStoreBuildNumber(
   let url = new URL("/v1/builds", API_ORIGIN);
   url.search = new URLSearchParams({
     "filter[app]": apps.data[0].id,
-    "filter[preReleaseVersion.platform]": "MAC_OS",
+    "filter[preReleaseVersion.platform]": platform,
     "fields[builds]": "version",
     limit: "200",
   }).toString();
@@ -103,7 +114,7 @@ export async function nextMacAppStoreBuildNumber(
     url = next ? new URL(next, API_ORIGIN) : undefined;
   }
   if (!Number.isSafeInteger(highest + 1)) {
-    throw new Error("The next macOS build number is too large.");
+    throw new Error(`The next ${platformName} build number is too large.`);
   }
   return highest + 1;
 }
