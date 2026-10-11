@@ -102,6 +102,11 @@ child code with inherited sandbox rights, compile the current Label Maker icon,
 remove unused Electron privacy permissions, and verify the bundle,
 architectures, entitlements, and signatures.
 
+Both targets enable Hardened Runtime. The main application and Electron helpers
+have `com.apple.security.cs.allow-jit` for JavaScript execution. The native
+Bluetooth helper does not have this permission. Packaging checks these signed
+permissions and the Hardened Runtime flag before it creates an installer.
+
 ### Apple resources
 
 Create these resources for team `32J9W47SH8` and the explicit App ID
@@ -135,10 +140,10 @@ LABELMAKER_APPLE_TEAM_ID=32J9W47SH8 npm run mas:development
 ```
 
 The command builds, signs, verifies, and starts a smoke test. The smoke test
-checks the MAS runtime, the renderer isolation boundary, and a sandboxed
-recovery-file write. The development app has a local-server entitlement only
-for the Playwright automation connection. The distribution app does not have
-this entitlement. Its output app is under
+checks the packaged version, the renderer isolation boundary, label creation,
+and a sandboxed recovery-file write. Automation uses a debugging pipe. Both
+targets use the same sandbox permissions and have no local-server entitlement.
+This tests JavaScript startup under the release signing settings. Its output app is under
 `release/macos-app-store/development`.
 
 The smoke test disables physical printers. Before release, start the same app

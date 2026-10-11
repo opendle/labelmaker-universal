@@ -18,6 +18,7 @@ import plist from "plist";
 import { build as viteBuild } from "vite";
 
 import { readReleaseVersion } from "../../../scripts/release-version.mjs";
+import { masSigningOptions } from "./mas-signing.mjs";
 
 const APPLICATION_NAME = "Label Maker";
 const BUNDLE_IDENTIFIER =
@@ -45,15 +46,6 @@ const bundleIconBaseName = "Labelmaker";
 const bundleIconSourcePath = resolve(
   resourcesDirectory,
   `${bundleIconBaseName}.icon`,
-);
-const entitlementsPath = resolve(resourcesDirectory, "mas/entitlements.plist");
-const developmentEntitlementsPath = resolve(
-  resourcesDirectory,
-  "mas/entitlements-development.plist",
-);
-const childEntitlementsPath = resolve(
-  resourcesDirectory,
-  "mas/entitlements-child.plist",
 );
 const helperSourcePath = resolve(
   repositoryRoot,
@@ -145,17 +137,8 @@ try {
     batchCodesignCalls: false,
     identity: signingInputs.applicationIdentity,
     identityValidation: true,
-    optionsForFile: (filePath) => ({
-      entitlements:
-        resolve(filePath) === appPath
-          ? mode === "development"
-            ? developmentEntitlementsPath
-            : entitlementsPath
-          : childEntitlementsPath,
-      ...(mode === "development"
-        ? { hardenedRuntime: false, timestamp: "none" }
-        : {}),
-    }),
+    optionsForFile: (filePath) =>
+      masSigningOptions(filePath, { appPath, resourcesDirectory, mode }),
     platform: "mas",
     preAutoEntitlements: true,
     preEmbedProvisioningProfile: true,
@@ -331,6 +314,7 @@ function validateBundle({
   const helperEntitlements = readSignedEntitlements(helperPath);
   for (const key of [
     "com.apple.security.app-sandbox",
+    "com.apple.security.cs.allow-jit",
     "com.apple.security.device.bluetooth",
     "com.apple.security.files.bookmarks.app-scope",
     "com.apple.security.files.user-selected.read-write",
@@ -339,27 +323,42 @@ function validateBundle({
       throw new Error(`The signed app is missing the ${key} entitlement.`);
     }
   }
-  if (
-    signingMode === "development" &&
-    appEntitlements["com.apple.security.network.server"] !== true
-  ) {
-    throw new Error(
-      "The development app cannot open the local automation connection.",
-    );
-  }
-  if (
-    signingMode === "distribution" &&
-    appEntitlements["com.apple.security.network.server"] !== undefined
-  ) {
-    throw new Error(
-      "The distribution app has an unneeded local-server entitlement.",
-    );
+  if (appEntitlements["com.apple.security.network.server"] !== undefined) {
+    throw new Error("The app has an unneeded local-server entitlement.");
   }
   if (
     helperEntitlements["com.apple.security.app-sandbox"] !== true ||
     helperEntitlements["com.apple.security.inherit"] !== true
   ) {
     throw new Error("The Bluetooth helper does not inherit the App Sandbox.");
+  }
+  if (helperEntitlements["com.apple.security.cs.allow-jit"] !== undefined) {
+    throw new Error("The Bluetooth helper has an unneeded JIT entitlement.");
+  }
+  for (const codePath of [
+    appPath,
+    helperPath,
+    ...["", " (GPU)", " (Renderer)", " (Plugin)"].map((suffix) =>
+      resolve(
+        appPath,
+        "Contents/Frameworks",
+        `${APPLICATION_NAME} Helper${suffix}.app`,
+      ),
+    ),
+  ]) {
+    assertHardenedRuntime(codePath);
+    if (codePath !== appPath && codePath !== helperPath) {
+      const entitlements = readSignedEntitlements(codePath);
+      if (
+        entitlements["com.apple.security.app-sandbox"] !== true ||
+        entitlements["com.apple.security.inherit"] !== true ||
+        entitlements["com.apple.security.cs.allow-jit"] !== true
+      ) {
+        throw new Error(
+          `The Electron helper has invalid entitlements: ${codePath}.`,
+        );
+      }
+    }
   }
 
   if (!teamIdentifier) throw new Error("The signing team is missing.");
@@ -690,6 +689,22 @@ function readSignedEntitlements(path) {
     );
   }
   return plistJson(result.stdout);
+}
+
+function assertHardenedRuntime(path) {
+  const result = spawnSync(
+    "/usr/bin/codesign",
+    ["--display", "--verbose=2", path],
+    {
+      encoding: "utf8",
+    },
+  );
+  if (
+    result.status !== 0 ||
+    !/flags=0x[0-9a-f]+\([^)]*\bruntime\b/i.test(result.stderr)
+  ) {
+    throw new Error(`Hardened Runtime is missing from ${path}.`);
+  }
 }
 
 function plistJson(xml) {
