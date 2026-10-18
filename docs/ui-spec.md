@@ -9,6 +9,10 @@ and excessive decoration.
 
 ## Window layout
 
+- On macOS, keep the application running when the main window closes. Provide
+  `Window > Show Main Window` to reopen it and restore the last editor session.
+  If the window is minimized, restore it. If it is open, bring it to the front.
+  Use the same action when the user clicks the Dock icon.
 - **Top bar:** large New, Open, and Save actions; workspace name and save state;
   undo, redo, a printer menu with an add-printer action, and print.
 - **Center:** one WYSIWYG label canvas with a neutral work surface.

@@ -5,6 +5,7 @@ import {
   BrowserWindow,
   dialog,
   ipcMain,
+  Menu,
   nativeTheme,
   type IpcMainInvokeEvent,
   type MessageBoxOptions,
@@ -43,6 +44,7 @@ import {
 } from "./desktop-print.js";
 import { openPrinterForAddition } from "./printer-addition.js";
 import { installAppIcon } from "./app-icon.js";
+import { macApplicationMenu } from "./application-menu.js";
 import { createProcessLogger } from "./process-logger.js";
 import { prepareToQuit } from "./quit-coordinator.js";
 import {
@@ -981,19 +983,27 @@ function createWindow(): void {
   void window.loadURL(APPLICATION_URL);
 }
 
+function showMainWindow(): void {
+  if (!workspaceRecoveryStore) return;
+  const window = BrowserWindow.getAllWindows().find((candidate) =>
+    applicationWindowIds.has(candidate.webContents.id),
+  );
+  if (!window) {
+    createWindow();
+    return;
+  }
+  if (window.isMinimized()) window.restore();
+  window.show();
+  window.focus();
+}
+
 if (!hasSingleInstanceLock) {
   app.quit();
 } else {
   app.on("second-instance", () => {
     handleSecondInstance({
       development: isDevelopmentLaunch && !developmentRestartRequested,
-      focusCurrentWindow: () => {
-        const window = BrowserWindow.getAllWindows()[0];
-        if (!window) return;
-        if (window.isMinimized()) window.restore();
-        window.show();
-        window.focus();
-      },
+      focusCurrentWindow: showMainWindow,
       quit: () => app.quit(),
       relaunch: () => {
         developmentRestartRequested = true;
@@ -1014,10 +1024,13 @@ if (!hasSingleInstanceLock) {
       },
     );
     registerIpc();
+    if (process.platform === "darwin") {
+      Menu.setApplicationMenu(
+        Menu.buildFromTemplate(macApplicationMenu(showMainWindow)),
+      );
+    }
     createWindow();
-    app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    });
+    app.on("activate", showMainWindow);
   });
 
   app.on("window-all-closed", () => {
