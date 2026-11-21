@@ -72,6 +72,9 @@ repository, after the first checks and before the commit.
   score service cannot be reached, report that condition and continue with the
   signed commit and push. Never ignore React Doctor diagnostics or a returned
   score below 100.
+- `npm run check` also reports fallow findings and jscpd clones for the changed
+  files. Fix the findings that your change adds when the fix makes the code
+  simpler.
 - Run `npm run ui:screenshot` and inspect current screenshots only after a
   material UI change. Do not run it for small UI changes.
 - Review the complete diff after tests. Do not commit generated build output,

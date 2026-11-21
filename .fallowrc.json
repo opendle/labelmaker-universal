@@ -1,0 +1,9 @@
+{
+  "supportEntry": [
+    "apps/desktop/scripts/capture-app-store-screenshots.mjs",
+    "apps/desktop/scripts/capture-screenshots.mjs",
+    "apps/desktop/scripts/capture-video.mjs",
+    "apps/desktop/scripts/smoke-mas.mjs"
+  ],
+  "ignorePatterns": ["apps/android", "apps/server"]
+}
